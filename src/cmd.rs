@@ -2,6 +2,7 @@ use std::process::Command;
 
 pub struct Cmd {
     pub command: String,
+    pub status: bool,
     pub stdout: String,
     pub stderr: String
 }
@@ -20,6 +21,7 @@ impl Cmd {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         // set self var
+        self.status = output.status.success();
         self.stdout = stdout.to_string();
         self.stderr = stderr.to_string();
     }

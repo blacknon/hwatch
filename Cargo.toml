@@ -2,5 +2,8 @@
 name = "hwatch"
 version = "0.1.0"
 authors = ["blacknon <blacknon@orebibou.com>"]
+description = "alternative watch command."
 
 [dependencies]
+clap = "2.20.3"
+chrono = "0.4"
