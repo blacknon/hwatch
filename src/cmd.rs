@@ -11,10 +11,10 @@ impl Cmd {
     // run command
     pub fn run(&mut self) {
         let output = Command::new("sh")
-                            .arg("-c")
-                            .arg(&self.command)
-                            .output()
-                            .expect("failed to execute process");
+            .arg("-c")
+            .arg(&self.command)
+            .output()
+            .expect("failed to execute process");
 
         // set var
         let stdout = String::from_utf8_lossy(&output.stdout);
