@@ -6,6 +6,7 @@ use std::env::args;
 
 mod cmd;
 mod common;
+mod ncurse;
 
 
 // Parse args and options
@@ -34,7 +35,7 @@ fn build_app() -> clap::App<'static, 'static> {
 
         // options
         .arg(Arg::from_usage("-i --interval=[secs]  'seconds to wait between updates'"))
-        .arg(Arg::from_usage("-x --exec=[exec]  'pass command to exec instead of \"sh -c\"'"))
+        // .arg(Arg::from_usage("-x --exec=[exec]      'pass command to exec instead of \"sh -c\"'")）
 }
 
 
@@ -62,11 +63,12 @@ fn main() {
 
     println!("{:?}", command.status);
 
-    if command.stdout.len() > 0{
-        print!("stdout:\n{}", command.stdout);
-    }
+    // if command.stdout.len() > 0{
+    //     print!("stdout:\n{}", command.stdout);
+    // }
 
-    if command.stderr.len() > 0{
-        println!("stderr:\n{}", command.stderr);
-    }
+    // if command.stderr.len() > 0{
+    //     println!("stderr:\n{}", command.stderr);
+    // }
+    ncurse::print_ncurse_screen(command.stdout)
 }

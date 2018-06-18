@@ -7,3 +7,4 @@ description = "alternative watch command."
 [dependencies]
 clap = "2.20.3"
 chrono = "0.4"
+ncurses = "5.91.0"
