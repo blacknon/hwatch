@@ -1,16 +1,15 @@
 #[macro_use]
 extern crate clap;
 
+mod cmd;
+mod common;
+mod view;
+
 use self::clap::{App, Arg, AppSettings};
 use std::env::args;
 use std::time::Duration;
 use std::thread;
-
-
-mod cmd;
-mod common;
-mod ncurse;
-
+// use std::sync::{Arc, Mutex};
 
 // Parse args and options
 fn build_app() -> clap::App<'static, 'static> {
@@ -57,11 +56,17 @@ fn build_app() -> clap::App<'static, 'static> {
 fn main() {
     // get command args
     let _matches = build_app().get_matches();
-    let mut _view = ncurse::View::new();
 
     // get interval secs
     let mut _interval:u64 = _matches.value_of("interval").unwrap().parse::<u64>().unwrap();
 
+    // start view
+    let mut _view = view::Watch::new();
+
+    // let _view = Arc::new(Mutex::new(view::Watch::new()));
+
+
+    // let _view = _view.clone();
     loop {
         // run command
         let mut command = cmd::Cmd::new();
@@ -72,6 +77,7 @@ fn main() {
         let _now = common::now_str();
 
         // Setup view
+        // let _view = _view.lock().unwrap();
         _view.timestamp = _now;
         _view.command = command.command;
         _view.stdout = command.stdout;
