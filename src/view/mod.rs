@@ -6,7 +6,7 @@ extern crate ncurses;
 
 use self::ncurses::*;
 
-pub struct View {
+pub struct Watch {
     pub timestamp: String,
     pub command: String,
     pub stdout: String,
@@ -15,10 +15,15 @@ pub struct View {
     pub mode: bool,
     pub position: i32,
     pub window: self::ncurses::WINDOW,
+    pub max_x: i32,
+    pub max_y: i32,
     pub pad: self::ncurses::WINDOW,
+    pub pad_lines: i32
 }
 
-impl View {
+
+impl Watch{
+    // set default value
     pub fn new() -> Self {
         Self {
             timestamp: "".to_string(),
@@ -29,7 +34,10 @@ impl View {
             mode: true,
             position: 0,
             window: initscr(),
+            max_x: 0,
+            max_y: 0,
             pad: newpad(0,0),
+            pad_lines: 0
         }
     }
 
@@ -52,14 +60,14 @@ impl View {
         // getmaxyx(_win, &mut max_y, &mut max_x);
     
         // count pad lines
-        let mut _pad_lines = 0;
+        // let mut _pad_lines = 0;
         for _output_line in self.stdout.split("\n") {
-            _pad_lines += get_pad_lines(_output_line.to_string(),max_x);
+            self.pad_lines += get_pad_lines(_output_line.to_string(),max_x);
         }
     
         // Create pad
         // let _pad = newpad(_pad_lines, self.max_x);
-        self.pad = newpad(_pad_lines, max_x);
+        self.pad = newpad(self.pad_lines, max_x);
         refresh();
     
         // print pad
@@ -110,7 +118,32 @@ impl View {
         // }
         //endwin();
     }
+
+    // pub fn get_key(&mut self) {
+    //     let _input = getch();
+
+    //     // F1
+    //     if _input == KEY_F1 {
+    //         endwin();
+    //     }
+
+    //     if _input == KEY_DOWN {
+    //         if self.position < self.pad_lines - self.max_y - 1 + 2 {
+    //                 self.position += 1;
+    //                 prefresh(self.pad, self.position, 0, 2, 0, self.max_y - 1, self.max_x - 1);
+    //         }
+    //     }
+
+    //     if _input == KEY_UP {
+    //         if self.position < self.pad_lines - self.max_y - 1 + 2 {
+    //                 self.position -= 1;
+    //                 prefresh(self.pad, self.position, 0, 2, 0, self.max_y - 1, self.max_x - 1);
+    //         }
+    //     }
+    // }
 }
+
+
 
 // get pad lines from string
 fn get_pad_lines(_string: String, _width: i32) -> i32 {

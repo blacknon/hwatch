@@ -8,7 +8,7 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    // new
+    // set default value
     pub fn new() -> Self {
         Self{
             command: "".to_string(),
