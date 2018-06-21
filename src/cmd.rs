@@ -8,6 +8,16 @@ pub struct Cmd {
 }
 
 impl Cmd {
+    // new
+    pub fn new() -> Self {
+        Self{
+            command: "".to_string(),
+            status: false,
+            stdout: "".to_string(),
+            stderr: "".to_string()
+        }
+    }
+
     // run command
     pub fn run(&mut self) {
         let output = Command::new("sh")

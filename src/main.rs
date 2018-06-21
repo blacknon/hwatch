@@ -3,6 +3,9 @@ extern crate clap;
 
 use self::clap::{App, Arg, AppSettings};
 use std::env::args;
+use std::time::Duration;
+use std::thread;
+
 
 mod cmd;
 mod common;
@@ -34,41 +37,51 @@ fn build_app() -> clap::App<'static, 'static> {
         )
 
         // options
-        .arg(Arg::from_usage("-i --interval=[secs]  'seconds to wait between updates'"))
-        // .arg(Arg::from_usage("-x --exec=[exec]      'pass command to exec instead of \"sh -c\"'")）
+        .arg(Arg::with_name("interval")              
+            .help("seconds to wait between updates")
+            .short("i")
+            .long("interval")
+            .takes_value(true)
+            .default_value("10")
+        )
+        // .arg(Arg::with_name("exec")              
+        //     .help("pass command to exec instead of 'sh -c'")
+        //     .short("x")
+        //     .long("exec")
+        //     .takes_value(true)
+        //     .default_value("sh -c")
+        // )
 }
 
 
 fn main() {
     // get command args
     let _matches = build_app().get_matches();
+    let mut _view = ncurse::View::new();
 
-    // set command args to var
-    let _commands = _matches.values_of_lossy("command").unwrap().join(" ");
+    // get interval secs
+    let mut _interval:u64 = _matches.value_of("interval").unwrap().parse::<u64>().unwrap();
 
-    // get now time string ("yyyy/mm/dd HH:MM:SS")
-    let now = common::now_str();
-    println!("{:}",now);
+    loop {
+        // run command
+        let mut command = cmd::Cmd::new();
+        command.command = _matches.values_of_lossy("command").unwrap().join(" ");
+        command.run();
 
-    // set command infomation
-    let mut command = cmd::Cmd {
-        command: _commands,
-        status: false,
-        stdout: "".to_string(),
-        stderr: "".to_string() 
-    };
+        // get now time string ("yyyy/mm/dd HH:MM:SS")
+        let _now = common::now_str();
 
-    // run command
-    command.run();
+        // Setup view
+        _view.timestamp = _now;
+        _view.command = command.command;
+        _view.stdout = command.stdout;
+        _view.stderr = command.stderr;
+        _view.status = command.status;
 
-    println!("{:?}", command.status);
+        // view screen
+        _view.view_watch_screen();
 
-    // if command.stdout.len() > 0{
-    //     print!("stdout:\n{}", command.stdout);
-    // }
-
-    // if command.stderr.len() > 0{
-    //     println!("stderr:\n{}", command.stderr);
-    // }
-    ncurse::print_ncurse_screen(command.stdout)
+        // sleep time(interval)
+        thread::sleep(Duration::from_secs(_interval));
+    }
 }
