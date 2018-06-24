@@ -1,7 +1,8 @@
-use cmd::Cmd;
+use cmd::Result;
+
 
 pub enum Event {
-    OutputUpdate(Cmd),
+    OutputUpdate(Result),
     Input(i32),
     Exit,
 }
