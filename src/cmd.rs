@@ -6,9 +6,8 @@ use std::sync::mpsc::Sender;
 
 use common;
 use event::Event;
-use event::Event::OutputUpdate;
 
-
+#[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
     pub command: String,
@@ -111,6 +110,9 @@ impl CmdRun {
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
         };
-        let _ =self.tx.send(OutputUpdate(_result));
+        let _ = self.tx.send(Event::OutputUpdate(_result));
+
+        // history push
+        // let history_last_result = History::get_latest_output();
     }
 }

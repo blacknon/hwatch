@@ -6,7 +6,9 @@ extern crate ncurses;
 use self::ncurses::*;
 use cmd::Result;
 
+#[derive(Clone)]
 pub struct Watch {
+    pub diff: bool,
     pub result: Result,
     pub mode: bool,
     pub position: i32,
@@ -16,18 +18,19 @@ pub struct Watch {
 }
 
 
-impl Watch{
+impl Watch {
     // set default value
     pub fn new() -> Self {
         let _result = Result::new();
 
         Self {
+            diff: false,
             result: _result,
             mode: true,
             position: 0,
             window: initscr(),
             pad: newpad(0,0),
-            pad_lines: 0
+            pad_lines: 0,
         }
     }
 
@@ -45,11 +48,14 @@ impl Watch{
         noecho();
         curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);       
 
-        init_pair(1, COLOR_GREEN, -1);
-        init_pair(2, COLOR_RED, -1);
+        init_pair(1, -1, -1); // fg=default, bg=clear
+        init_pair(2, COLOR_GREEN, -1); // fg=green, bg=clear
+        init_pair(3, COLOR_RED, -1); // fg=red, bg=clear
+
+        init_pair(11, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
     }
 
-    pub fn update_output_pad(&mut self) {
+    pub fn before_update_output_pad(&mut self) {
         let mut max_x = 0;
         let mut max_y = 0;
         getmaxyx(self.window, &mut max_y, &mut max_x);
@@ -62,22 +68,34 @@ impl Watch{
         self.pad_lines = _pad_lines;
         self.pad = newpad(self.pad_lines, max_x);
         refresh();
+    }
 
+    pub fn update_output_pad_text(&mut self) {
         //output pad
         wprintw(self.pad, &format!("{}", self.result.output));
     }
 
+    pub fn update_output_pad_char(&mut self, _char: String, _reverse: bool) {
+        if _reverse {
+            wattron(self.pad,A_REVERSE());
+            wprintw(self.pad, &format!("{}", _char));
+            wattroff(self.pad,A_REVERSE());
+        } else {
+            wprintw(self.pad, &format!("{}", _char));
+        }
+    }
+
     pub fn draw_output_pad(&mut self) {
         if self.result.status {
-            attron(COLOR_PAIR(1));
-            mvprintw(0, 0, &format!("{}", self.result.timestamp));
-            mvprintw(1, 0, &format!("{}", self.result.command));
-            attroff(COLOR_PAIR(1));
-        } else {
             attron(COLOR_PAIR(2));
             mvprintw(0, 0, &format!("{}", self.result.timestamp));
             mvprintw(1, 0, &format!("{}", self.result.command));
             attroff(COLOR_PAIR(2));
+        } else {
+            attron(COLOR_PAIR(3));
+            mvprintw(0, 0, &format!("{}", self.result.timestamp));
+            mvprintw(1, 0, &format!("{}", self.result.command));
+            attroff(COLOR_PAIR(3));
         }
         refresh();
 
@@ -88,14 +106,10 @@ impl Watch{
     }
 
     pub fn update(&mut self,_result: Result){
-        self.result.timestamp = _result.timestamp;
-        self.result.command = _result.command;
-        self.result.status = _result.status;
-        self.result.output = _result.output;
-        self.result.stdout = _result.stdout;
-        self.result.stderr = _result.stderr;
+        self.result = _result;
 
-        self.update_output_pad();
+        self.before_update_output_pad();
+        self.update_output_pad_text();
         self.draw_output_pad();
     }
 
