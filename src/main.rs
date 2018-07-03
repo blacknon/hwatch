@@ -5,6 +5,7 @@ extern crate ncurses;
 mod cmd;
 mod common;
 mod event;
+mod history;
 mod input;
 mod view;
 
@@ -15,8 +16,9 @@ use std::thread;
 
 use self::clap::{App, Arg, AppSettings};
 
-use view::View;
+use history::History;
 use input::Input;
+use view::View;
 
 
 // Parse args and options
@@ -36,21 +38,34 @@ fn build_app() -> clap::App<'static, 'static> {
         .version(crate_version!())
         .author(crate_authors!())
         .setting(AppSettings::DeriveDisplayOrder)
+        .setting(AppSettings::AllowLeadingHyphen)
 
         // command
         .arg(Arg::with_name("command")
+            .allow_hyphen_values(true)
             .multiple(true)
             .required(true)
         )
 
         // options
-        .arg(Arg::with_name("interval")              
+        .arg(Arg::with_name("color")
+            .help("interpret ANSI color and style sequences")
+            .short("c")
+            .long("color")
+        )
+        .arg(Arg::with_name("differences")
+            .help("highlight changes between updates")
+            .short("d")
+            .long("differences")
+        )
+        .arg(Arg::with_name("interval")
             .help("seconds to wait between updates")
             .short("i")
             .long("interval")
             .takes_value(true)
-            .default_value("10")
+            .default_value("2")
         )
+
         // .arg(Arg::with_name("exec")              
         //     .help("pass command to exec instead of 'sh -c'")
         //     .short("x")
@@ -66,28 +81,37 @@ fn main() {
 
     // get interval secs
     let mut _interval:u64 = _matches.value_of("interval").unwrap().parse::<u64>().unwrap();
+    let mut _diff = _matches.is_present("differences");
+
+    // Create history
+    let mut _history = History::new();
 
     // start view
     let mut _watch = view::watch::Watch::new();
 
     // create channel
     let (tx, rx) = channel();
-    let mut _view = View::new(_watch,tx.clone(),rx);
+    let mut _view = View::new(
+        _watch,
+        _history,
+        tx.clone(),
+        rx,
+    );
+    _view.diff = _diff;
     _view.init();
 
     // Create input
     let mut _input = Input::new(tx.clone());
 
+
     // Start Command Thread
-    let mut command = cmd::CmdRun::new(tx.clone());
-    command.command = _matches.values_of_lossy("command").unwrap().join(" ");
     {
         let tx = tx.clone();
-        thread::spawn(move ||
+        let _ = thread::spawn(move ||
             loop {
-                let mut command = cmd::CmdRun::new(tx.clone());
-                command.command = _matches.values_of_lossy("command").unwrap().join(" ");
-                command.exec_command();
+                let mut cmd = cmd::CmdRun::new(tx.clone());
+                cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
+                cmd.exec_command();
 
                 // Get now time
                 let _now = common::now_str();
@@ -102,5 +126,5 @@ fn main() {
     _input.run();
 
     // view
-    _view.run();
+    _view.start_reception();
 }

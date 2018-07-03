@@ -15,8 +15,8 @@ impl Input {
     }
 
     pub fn run(self) {
-        let _ = thread::spawn(
-            move || {
+        let _ = thread::spawn(move || 
+            {
                 let mut ch = getch();
                 loop {
                 let _ = self.tx.send(
