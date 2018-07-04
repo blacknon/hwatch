@@ -14,6 +14,7 @@ pub struct View {
     pub done: bool,
     pub diff: bool,
     pub history: History,
+    pub history_mode: bool,
     pub watch: watch::Watch,
     pub tx: Sender<Event>,
     pub rx: Receiver<Event>,
@@ -28,8 +29,9 @@ impl View {
         Self {
             done: false,
             diff: true,
-            watch: watch,
             history: history,
+            history_mode: false,
+            watch: watch,
             tx: tx,
             rx: rx
         }
@@ -79,7 +81,7 @@ impl View {
                     match i {
                         ncurses::KEY_UP => self.watch.scroll_up(),
                         ncurses::KEY_DOWN => self.watch.scroll_down(),
-                        // escape key(0x1b),q(0x71)
+                        // ESC(0x1b),q(0x71)
                         ncurses::KEY_F1 | 0x1b | 0x71 => self.exit(),
                         _ => {}
                     }
