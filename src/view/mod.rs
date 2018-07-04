@@ -2,18 +2,17 @@ extern crate ncurses;
 
 pub mod watch;
 mod diff;
+mod history;
 
 use std::sync::mpsc::{Receiver,Sender};
 
 use cmd::Result;
-use self::diff as self_diff;
 use event::Event;
-use history::History;
 
 pub struct View {
     pub done: bool,
     pub diff: bool,
-    pub history: History,
+    pub history: history::History,
     pub history_mode: bool,
     pub watch: watch::Watch,
     pub tx: Sender<Event>,
@@ -22,16 +21,13 @@ pub struct View {
 
 
 impl View {
-    pub fn new(watch: watch::Watch,
-               history: History,
-               tx: Sender<Event>,
-               rx: Receiver<Event>) -> Self {
+    pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
         Self {
             done: false,
             diff: true,
-            history: history,
+            history: history::History::new(),
             history_mode: false,
-            watch: watch,
+            watch: watch::Watch::new(),
             tx: tx,
             rx: rx
         }
@@ -53,7 +49,7 @@ impl View {
             if self.diff && _history_count > 0 {
                 self.watch.result = _result.clone();
                 self.watch.before_update_output_pad();
-                self_diff::watch_diff(
+                diff::watch_diff(
                     self.watch.clone(),
                     self.history.get_latest_history().output.clone(),
                     _result.output.clone()

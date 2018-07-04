@@ -5,7 +5,6 @@ extern crate ncurses;
 mod cmd;
 mod common;
 mod event;
-mod history;
 mod input;
 mod view;
 
@@ -16,7 +15,6 @@ use std::thread;
 
 use self::clap::{App, Arg, AppSettings};
 
-use history::History;
 use input::Input;
 use view::View;
 
@@ -26,11 +24,13 @@ fn build_app() -> clap::App<'static, 'static> {
     // get own name
     let _program = args()
                     .nth(0)
-                    .and_then(|s| {
-                        std::path::PathBuf::from(s)
-                        .file_stem()
-                        .map(|s| s.to_string_lossy().into_owned())
-                    })
+                    .and_then(
+                        |s| {
+                            std::path::PathBuf::from(s)
+                            .file_stem()
+                            .map(|s| s.to_string_lossy().into_owned())
+                        }
+                    )
                     .unwrap();
 
     App::new(crate_name!())
@@ -60,7 +60,7 @@ fn build_app() -> clap::App<'static, 'static> {
         )
         .arg(Arg::with_name("interval")
             .help("seconds to wait between updates")
-            .short("i")
+            .short("n")
             .long("interval")
             .takes_value(true)
             .default_value("2")
@@ -78,24 +78,15 @@ fn main() {
     // get command args
     let _matches = build_app().get_matches();
 
-    // get interval secs
+    // get options
     let mut _interval:u64 = _matches.value_of("interval").unwrap().parse::<u64>().unwrap();
     let mut _diff = _matches.is_present("differences");
 
-    // Create history
-    let mut _history = History::new();
-
-    // start view
-    let mut _watch = view::watch::Watch::new();
-
     // create channel
     let (tx, rx) = channel();
-    let mut _view = View::new(
-        _watch,
-        _history,
-        tx.clone(),
-        rx,
-    );
+
+    // create view
+    let mut _view = View::new(tx.clone(), rx);
     _view.diff = _diff;
     _view.init();
 
