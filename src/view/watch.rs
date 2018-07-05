@@ -3,7 +3,7 @@ extern "C" {
 }
 extern crate ncurses;
 
-use self::ncurses::*;
+use ncurses::*;
 use cmd::Result;
 
 #[derive(Clone)]
@@ -12,7 +12,7 @@ pub struct Watch {
     pub result: Result,
     pub mode: bool,
     pub position: i32,
-    pub window: self::ncurses::WINDOW,
+    pub window: ncurses::WINDOW,
     pub pad: self::ncurses::WINDOW,
     pub pad_lines: i32
 }
@@ -20,7 +20,7 @@ pub struct Watch {
 
 impl Watch {
     // set default value
-    pub fn new() -> Self {
+    pub fn new(_window: ncurses::WINDOW) -> Self {
         let _result = Result::new();
 
         Self {
@@ -28,7 +28,7 @@ impl Watch {
             result: _result,
             mode: true,
             position: 0,
-            window: initscr(),
+            window: _window,
             pad: newpad(0,0),
             pad_lines: 0,
         }
@@ -131,6 +131,14 @@ impl Watch {
             self.position += 1;
             prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 1);
         }
+    }
+
+    pub fn resize(&mut self){
+        let mut max_x = 0;
+        let mut max_y = 0;
+        getmaxyx(self.window, &mut max_y, &mut max_x);
+        resizeterm(max_y,max_x);
+        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 1);
     }
 
     pub fn exit(&self) {
