@@ -4,7 +4,10 @@ pub mod watch;
 mod diff;
 mod history;
 
+
 use std::sync::mpsc::{Receiver,Sender};
+
+use ncurses::*;
 
 use cmd::Result;
 use event::Event;
@@ -12,6 +15,7 @@ use event::Event;
 pub struct View {
     pub done: bool,
     pub diff: bool,
+    pub window: ncurses::WINDOW,
     pub history: history::History,
     pub history_mode: bool,
     pub watch: watch::Watch,
@@ -22,12 +26,14 @@ pub struct View {
 
 impl View {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
+        let _window = initscr();
         Self {
             done: false,
             diff: true,
+            window: _window,
             history: history::History::new(),
             history_mode: false,
-            watch: watch::Watch::new(),
+            watch: watch::Watch::new(_window.clone()),
             tx: tx,
             rx: rx
         }
@@ -75,10 +81,13 @@ impl View {
                 Ok(Event::Exit) => self.done = true,
                 Ok(Event::Input(i)) => {
                     match i {
+                        ncurses::KEY_RESIZE => self.watch.resize(),
                         ncurses::KEY_UP => self.watch.scroll_up(),
                         ncurses::KEY_DOWN => self.watch.scroll_down(),
                         // ESC(0x1b),q(0x71)
                         ncurses::KEY_F1 | 0x1b | 0x71 => self.exit(),
+                        // h(0x68)
+
                         _ => {}
                     }
                 }
