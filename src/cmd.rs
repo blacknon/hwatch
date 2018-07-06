@@ -1,7 +1,7 @@
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::BufRead;
-use std::process::{Command,Stdio};
+use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 
 use common;
@@ -86,7 +86,7 @@ impl CmdRun {
 
                         (stdout.len(), stderr.len())
                     }
-                    other => panic!("Some better error handling here, {:?}", other)
+                    other => panic!("Some better error handling here, {:?}", other),
                 };
 
                 if stdout_bytes == 0 && stderr_bytes == 0 {
@@ -111,8 +111,5 @@ impl CmdRun {
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
         };
         let _ = self.tx.send(Event::OutputUpdate(_result));
-
-        // history push
-        // let history_last_result = History::get_latest_output();
     }
 }

@@ -1,6 +1,3 @@
-extern "C" {
-    pub fn setlocale(category: i32, locale: *const u8) -> *const u8;
-}
 extern crate ncurses;
 
 use ncurses::*;
@@ -10,9 +7,8 @@ use cmd::Result;
 pub struct Watch {
     pub diff: bool,
     pub result: Result,
-    pub mode: bool,
     pub position: i32,
-    pub window: ncurses::WINDOW,
+    pub screen: ncurses::WINDOW,
     pub pad: self::ncurses::WINDOW,
     pub pad_lines: i32
 }
@@ -20,45 +16,23 @@ pub struct Watch {
 
 impl Watch {
     // set default value
-    pub fn new(_window: ncurses::WINDOW) -> Self {
+    pub fn new(_screen: ncurses::WINDOW) -> Self {
         let _result = Result::new();
 
         Self {
             diff: false,
             result: _result,
-            mode: true,
             position: 0,
-            window: _window,
+            screen: _screen,
             pad: newpad(0,0),
             pad_lines: 0,
         }
     }
 
-    // init ncurses
-    pub fn init(&mut self) {
-        unsafe {
-            setlocale(0 /* = LC_CTYPE */, "".as_ptr());
-        }
-        // Start ncurses
-        let _win = self.window;
-        start_color();
-        use_default_colors();
-        cbreak();
-        keypad(_win, true);
-        noecho();
-        curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);       
-
-        init_pair(1, -1, -1); // fg=default, bg=clear
-        init_pair(2, COLOR_GREEN, -1); // fg=green, bg=clear
-        init_pair(3, COLOR_RED, -1); // fg=red, bg=clear
-
-        init_pair(11, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
-    }
-
     pub fn before_update_output_pad(&mut self) {
         let mut max_x = 0;
         let mut max_y = 0;
-        getmaxyx(self.window, &mut max_y, &mut max_x);
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
 
         let mut _pad_lines = 0;
         for _output_line in self.result.output.split("\n") {
@@ -101,8 +75,9 @@ impl Watch {
 
         let mut max_x = 0;
         let mut max_y = 0;
-        getmaxyx(self.window, &mut max_y, &mut max_x);
-        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 1);
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
+        
+        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
     }
 
     pub fn update(&mut self,_result: Result){
@@ -116,29 +91,29 @@ impl Watch {
     pub fn scroll_up(&mut self){
         let mut max_x = 0;
         let mut max_y = 0;
-        getmaxyx(self.window, &mut max_y, &mut max_x);
-        if self.position > 0 {
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
+        if self.pad_lines > max_y && self.position > 0 {
             self.position -= 1;
-            prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 1);
+            prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
         }
     }
 
     pub fn scroll_down(&mut self){
         let mut max_x = 0;
         let mut max_y = 0;
-        getmaxyx(self.window, &mut max_y, &mut max_x);
-        if self.position < self.pad_lines - max_y - 1 + 2 {
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
+        if self.pad_lines > max_y && self.position < (self.pad_lines - max_y - 1 + 2) {
             self.position += 1;
-            prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 1);
+            prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
         }
     }
 
     pub fn resize(&mut self){
         let mut max_x = 0;
         let mut max_y = 0;
-        getmaxyx(self.window, &mut max_y, &mut max_x);
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
         resizeterm(max_y,max_x);
-        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 1);
+        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
     }
 
     pub fn exit(&self) {

@@ -88,7 +88,6 @@ fn main() {
     // create view
     let mut _view = View::new(tx.clone(), rx);
     _view.diff = _diff;
-    _view.init();
 
     // Create input
     let mut _input = Input::new(tx.clone());
