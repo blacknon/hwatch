@@ -28,6 +28,8 @@ pub struct View {
 }
 
 
+
+
 impl View {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
         unsafe {
@@ -45,7 +47,9 @@ impl View {
         init_pair(1, -1, -1); // fg=default, bg=clear
         init_pair(2, COLOR_GREEN, -1); // fg=green, bg=clear
         init_pair(3, COLOR_RED, -1); // fg=red, bg=clear
-        init_pair(11, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
+        init_pair(11, COLOR_BLACK, COLOR_WHITE); // fg=black, bg=white
+        init_pair(12, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
+        init_pair(13, COLOR_WHITE, COLOR_GREEN); // fg=white, bg=green
 
         Self {
             done: false,
@@ -80,34 +84,35 @@ impl View {
                     self.history.get_latest_history().output.clone(),
                     _result.output.clone()
                 );
-                self.watch.draw_output_pad();
+                
+                if self.history.selected_position == 0 {
+                    clear();
+                    self.watch.draw_output_pad();
+                }
             } else {
-                self.watch.update(_result.clone());
+                if self.history.selected_position == 0 {
+                    clear();
+                    self.watch.update(_result.clone());
+                }
             }
 
             // append history
             self.history.append_history(_result.clone());
+            self.history.latest_result_status = _result.status.clone();
+            if self.history.selected_position != 0{
+                self.history.selected_position += 1;
+            }
             self.history.draw_history_pad();
         } else {
             // update watch screen
-            self.watch.update(_result.clone());
+            if self.history.selected_position == 0 {
+                clear();
+                self.watch.update(_result.clone());
+            }
+            self.history.latest_result_status = _result.status.clone();
+            self.history.draw_history_pad();
         }
     }
-
-    // fn show_history(&mut self) {
-    //     if self.history_mode == false {
-    //         clear();
-    //         self.history_mode = true;
-    //         self.history.start_pad();
-    //         overlay(self.history.history_pad, self.watch.pad);
-    //     } else {
-    //         clear();
-    //         self.history.exit_pad();
-    //         self.history_mode = false;
-    //         self.watch.draw_output_pad();
-    //         // overlay(self.watch.pad,self.history.history_pad);
-    //     }
-    // }
 
     // start input reception
     pub fn start_reception(&mut self){
@@ -124,11 +129,9 @@ impl View {
                         ncurses::KEY_UP => self.watch.scroll_up(),
                         ncurses::KEY_DOWN => self.watch.scroll_down(),
 
-                        // Shift + Up
-                        // ncurses::KEY_SR => self.history.scroll_up(),
-
-                        // Shift + Down
-                        // ncurses::KEY_SF => self.history.scroll_down(),
+                        // history pad up/down
+                        ncurses::KEY_SR => self.history.scroll_up(), // Shift + Up
+                        ncurses::KEY_SF => self.history.scroll_down(), // Shift + Down
 
                         // ESC(0x1b),q(0x71)
                         ncurses::KEY_F1 | 0x1b | 0x71 => self.exit(),
