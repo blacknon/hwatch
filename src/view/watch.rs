@@ -7,7 +7,7 @@ use cmd::Result;
 pub struct Watch {
     pub diff: bool,
     pub result: Result,
-    pub position: i32,
+    pub pad_position: i32,
     pub screen: ncurses::WINDOW,
     pub pad: self::ncurses::WINDOW,
     pub pad_lines: i32
@@ -22,7 +22,7 @@ impl Watch {
         Self {
             diff: false,
             result: _result,
-            position: 0,
+            pad_position: 0,
             screen: _screen,
             pad: newpad(0,0),
             pad_lines: 0,
@@ -77,7 +77,7 @@ impl Watch {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
         
-        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
+        prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 22);
     }
 
     pub fn update(&mut self,_result: Result){
@@ -92,9 +92,9 @@ impl Watch {
         let mut max_x = 0;
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
-        if self.pad_lines > max_y && self.position > 0 {
-            self.position -= 1;
-            prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
+        if self.pad_lines > max_y && self.pad_position > 0 {
+            self.pad_position -= 1;
+            prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 22);
         }
     }
 
@@ -102,9 +102,9 @@ impl Watch {
         let mut max_x = 0;
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
-        if self.pad_lines > max_y && self.position < (self.pad_lines - max_y - 1 + 2) {
-            self.position += 1;
-            prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
+        if self.pad_lines > max_y && self.pad_position < (self.pad_lines - max_y - 1 + 2) {
+            self.pad_position += 1;
+            prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 22);
         }
     }
 
@@ -113,7 +113,7 @@ impl Watch {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
         resizeterm(max_y,max_x);
-        prefresh(self.pad, self.position, 0, 2, 0, max_y - 1, max_x - 21);
+        prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 22);
     }
 
     pub fn exit(&self) {
