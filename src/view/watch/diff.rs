@@ -1,9 +1,8 @@
 use std::cmp;
-
-use view::watch::Watch;
+use view::watch::window::WatchPad;
 
 // watch type diff
-pub fn watch_diff(mut watch: Watch, before_output: String, after_output: String) {
+pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: String) {
     // before and after output to vector
     let mut before_output_collect: Vec<&str> = before_output.lines().collect();
     let mut after_output_collect: Vec<&str> = after_output.lines().collect();
