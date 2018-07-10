@@ -48,22 +48,15 @@ fn build_app() -> clap::App<'static, 'static> {
         )
 
         // options
-        .arg(Arg::with_name("color")
-            .help("interpret ANSI color and style sequences")
-            .short("c")
-            .long("color")
-        )
+        // .arg(Arg::with_name("color")
+        //     .help("interpret ANSI color and style sequences")
+        //     .short("c")
+        //     .long("color")
+        // )
         .arg(Arg::with_name("differences")
             .help("highlight changes between updates")
             .short("d")
             .long("differences")
-        )
-        .arg(Arg::with_name("interval")
-            .help("seconds to wait between updates")
-            .short("n")
-            .long("interval")
-            .takes_value(true)
-            .default_value("2")
         )
         // .arg(Arg::with_name("exec")              
         //     .help("pass command to exec instead of 'sh -c'")
@@ -72,6 +65,14 @@ fn build_app() -> clap::App<'static, 'static> {
         //     .takes_value(true)
         //     .default_value("sh -c")
         // )
+        .arg(Arg::with_name("interval")
+            .help("seconds to wait between updates")
+            .short("n")
+            .long("interval")
+            .takes_value(true)
+            .default_value("2")
+        )
+
 }
 
 fn main() {
