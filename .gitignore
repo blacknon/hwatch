@@ -1,3 +1,4 @@
 /target/
 Cargo.lock
 hwatch.sublime-project
+.DS_Store
