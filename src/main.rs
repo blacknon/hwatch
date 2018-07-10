@@ -86,8 +86,7 @@ fn main() {
     let (tx, rx) = channel();
 
     // create view
-    let mut _view = View::new(tx.clone(), rx);
-    _view.diff = _diff;
+    let mut _view = View::new(tx.clone(), rx, _diff);
 
     // Create input
     let mut _input = Input::new(tx.clone());
@@ -99,6 +98,7 @@ fn main() {
         let _ = thread::spawn(move ||
             loop {
                 let mut cmd = cmd::CmdRun::new(tx.clone());
+                cmd.interval = _interval.clone();
                 cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
                 cmd.exec_command();
 

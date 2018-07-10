@@ -1,11 +1,9 @@
 extern "C" {
     pub fn setlocale(category: i32, locale: *const u8) -> *const u8;
 }
-extern crate ncurses;
 
-pub mod watch;
-mod diff;
-mod history;
+mod header;
+mod watch;
 
 
 use std::sync::mpsc::{Receiver,Sender};
@@ -14,13 +12,13 @@ use ncurses::*;
 
 use cmd::Result;
 use event::Event;
+use self::watch::Watch;
 
 pub struct View {
     pub done: bool,
-    pub diff: bool,
 
-    pub screen: ncurses::WINDOW,
-    pub history: history::History,
+    pub screen: WINDOW,
+    pub header: header::Header,
     pub watch: watch::Watch,
 
     pub tx: Sender<Event>,
@@ -28,10 +26,9 @@ pub struct View {
 }
 
 
-
-
 impl View {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
+    pub fn new(tx: Sender<Event>, rx: Receiver<Event>, _diff: bool) -> Self {
+        // Create ncurses screen
         unsafe {
             setlocale(0 /* = LC_CTYPE */, "".as_ptr());
         }
@@ -41,7 +38,7 @@ impl View {
         cbreak();
         keypad(_screen, true);
         noecho();
-        curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);       
+        curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);      
 
         // set color
         init_pair(1, -1, -1); // fg=default, bg=clear
@@ -50,93 +47,98 @@ impl View {
         init_pair(11, COLOR_BLACK, COLOR_WHITE); // fg=black, bg=white
         init_pair(12, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
         init_pair(13, COLOR_WHITE, COLOR_GREEN); // fg=white, bg=green
-
+        
+        let _watch = Watch::new(_screen.clone(), _diff);
         Self {
             done: false,
-            diff: true,
 
             screen: _screen,
-            history: history::History::new(_screen.clone()),
-            watch: watch::Watch::new(_screen.clone()),
+            header: header::Header::new(_screen.clone()),
+            watch: _watch,
 
             tx: tx,
             rx: rx
         }
     }
 
-    fn exit(&mut self){
+    fn exit(&mut self) {
         self.watch.exit();
-        self.history.exit();
         let _ = self.tx.send(Event::Exit);
     }
 
     fn output_update(&mut self, _result: Result) {
-        if self.history.get_latest_history().output != _result.output {
-            // update diff watch screen
-            let _history_count = self.history.count.clone();
+        // update header
+        self.header.update_header(_result.clone());
 
-            // watch diff mode
-            if self.diff && _history_count > 0 {
-                self.watch.result = _result.clone();
-                self.watch.before_update_output_pad();
-                diff::watch_diff(
-                    self.watch.clone(),
-                    self.history.get_latest_history().output.clone(),
-                    _result.output.clone()
-                );
-                
-                if self.history.selected_position == 0 {
-                    clear();
-                    self.watch.draw_output_pad();
-                }
-            } else {
-                if self.history.selected_position == 0 {
-                    clear();
-                    self.watch.update(_result.clone());
-                }
-            }
+        // update before result
+        let before_result = self.watch.latest_result.clone();
+        self.watch.before_result = before_result;
 
-            // append history
-            self.history.append_history(_result.clone());
-            self.history.latest_result_status = _result.status.clone();
-            if self.history.selected_position != 0{
-                self.history.selected_position += 1;
+        // update latest result
+        self.watch.latest_result = _result.clone();
+
+        // history append result
+        if self.watch.get_latest_history().output != _result.output {
+            clear();
+            self.header.update_header(_result.clone());
+            self.watch.append_history(_result.clone());
+
+            // add selected positon
+            if self.watch.selected_position != 0 {
+                self.watch.selected_position += 1;
             }
-            self.history.draw_history_pad();
-        } else {
-            // update watch screen
-            if self.history.selected_position == 0 {
-                clear();
-                self.watch.update(_result.clone());
-            }
-            self.history.latest_result_status = _result.status.clone();
-            self.history.draw_history_pad();
+            self.watch.draw_history_pad();
+            self.watch.watch_update();
+        }
+
+        // if history selected latest, update watch window.
+        if self.watch.selected_position == 0 {
+            self.header.update_header(_result.clone());
+            self.watch.draw_history_pad();
+            self.watch.watch_update();
+        }
+    }
+
+    fn history_scroll_up(&mut self) {
+        if self.watch.selected_position > 0 {
+            let latest_result = self.watch.latest_result.clone();
+            clear();
+            self.header.update_header(latest_result);
+            self.watch.history_scroll_up()
+        }
+    }
+
+    fn history_scroll_down(&mut self) {
+        if self.watch.count > self.watch.selected_position {
+            let latest_result = self.watch.latest_result.clone();
+            clear();
+            self.header.update_header(latest_result);
+            self.watch.history_scroll_down()
         }
     }
 
     // start input reception
-    pub fn start_reception(&mut self){
+    pub fn start_reception(&mut self) {
         while !self.done {
-            match self.rx.try_recv(){
+            match self.rx.try_recv() {
                 Ok(Event::OutputUpdate(_cmd)) => self.output_update(_cmd),
                 Ok(Event::Exit) => self.done = true,
                 Ok(Event::Input(i)) => {
                     match i {
                         // Screen Resize
-                        ncurses::KEY_RESIZE => self.watch.resize(),
+                        KEY_RESIZE => self.watch.resize(),
 
                         // watch pad up/down
-                        ncurses::KEY_UP => self.watch.scroll_up(),
-                        ncurses::KEY_DOWN => self.watch.scroll_down(),
+                        KEY_UP => self.watch.window_scroll_up(), // Up
+                        KEY_DOWN => self.watch.window_scroll_down(), // Down
 
                         // history pad up/down
-                        ncurses::KEY_SR => self.history.scroll_up(), // Shift + Up
-                        ncurses::KEY_SF => self.history.scroll_down(), // Shift + Down
+                        KEY_SR => self.history_scroll_up(), // Shift + Up
+                        KEY_SF => self.history_scroll_down(), // Shift + Down
 
-                        // ESC(0x1b),q(0x71)
-                        ncurses::KEY_F1 | 0x1b | 0x71 => self.exit(),
-                        // h(0x68)
-                        // 0x68 => self.show_history(),
+                        // exit this program
+                        KEY_F1 | 0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71),F1
+
                         _ => {}
                     }
                 }

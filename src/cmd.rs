@@ -10,23 +10,33 @@ use event::Event;
 #[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
+
     pub command: String,
+
     pub status: bool,
+
     pub output: String,
     pub stdout: String,
     pub stderr: String,
+
+    pub interval: u64,
 }
 
 
 impl Result {
     pub fn new() -> Self {
         Self {
-            timestamp: "".to_string(),
-            command: "".to_string(),
+            timestamp: String::new(),
+
+            command: String::new(),
+
             status: true,
-            output: "".to_string(),
-            stdout: "".to_string(),
-            stderr: "".to_string(),
+            
+            output: String::new(),
+            stdout: String::new(),
+            stderr: String::new(),
+
+            interval: 2,
         }
     }
 }
@@ -44,7 +54,7 @@ impl CmdRun {
     pub fn new(tx: Sender<Event>) -> Self {
         Self {
             command: "".to_string(),
-            interval: 10,
+            interval: 2,
             tx: tx,
         }
     }
@@ -104,11 +114,16 @@ impl CmdRun {
         // Send result
         let _result = Result {
             timestamp: common::now_str(),
+
             command: self.command.clone(),
+
             status: status.success(),
+
             output: String::from_utf8_lossy(&vec_output).to_string(),
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
+
+            interval: self.interval.clone(),
         };
         let _ = self.tx.send(Event::OutputUpdate(_result));
     }
