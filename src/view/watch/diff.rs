@@ -47,3 +47,15 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
         }
     }
 }
+
+// pub fn word_diff(mut watch: WatchPad, before_output: String, after_output: String) {
+//    
+// }
+
+// pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String) {
+//    
+// }
+
+// pub fn comp_diff(mut watch: WatchPad, before_output: String, after_output: String) {
+//    
+// }

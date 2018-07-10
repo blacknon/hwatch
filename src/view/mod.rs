@@ -136,6 +136,9 @@ impl View {
                         KEY_SR => self.history_scroll_up(), // Shift + Up
                         KEY_SF => self.history_scroll_down(), // Shift + Down
 
+                        // change diff mode
+                        // 0x64 => self.history.change_diff_toggle(), // d(0x64)
+
                         // exit this program
                         KEY_F1 | 0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71),F1
 

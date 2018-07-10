@@ -190,7 +190,7 @@ impl Watch {
         self.watchpad.result = target_result.clone();
         self.watchpad.before_update_output_pad();
 
-        if target_result.output != before_result.output {
+        if target_result.output != before_result.output && self.selected_position != self.count {
             diff::watch_diff(
                 self.watchpad.clone(),
                 before_result.output,
