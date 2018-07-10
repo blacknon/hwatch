@@ -64,13 +64,6 @@ impl Watch {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
         refresh();
-
-        // define history pad line
-        // if self.count.clone() > max_y - 2 {
-        //     self.history_pad_lines = self.count.clone();
-        // } else {
-        //     self.history_pad_lines = max_y - 2;
-        // }
         
         // Create history_pad
         self.history_pad_lines = self.count.clone() + 1;
@@ -97,7 +90,6 @@ impl Watch {
             self.history_pad_position = self.selected_position - max_y + 3;
         }
 
-        // prefresh(pad, pmin_row, pmin_col, smin_row, smin_col, smax_row, smax_col)
         prefresh(self.history_pad, self.history_pad_position, 0, 2, max_x - 21, max_y - 1, max_x - 1);
     }
 
