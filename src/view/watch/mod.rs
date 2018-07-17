@@ -8,7 +8,8 @@ use cmd::Result;
 use self::window::WatchPad;
 
 pub struct Watch {
-    pub diff: bool,
+    pub diff: i32,
+
     pub count: i32,
     pub latest_result: Result,
     pub before_result: Result,
@@ -27,10 +28,11 @@ pub struct Watch {
 
 impl Watch {
     // set default value
-    pub fn new(_screen: WINDOW, _diff: bool) -> Self {
+    pub fn new(_screen: WINDOW, _diff: i32) -> Self {
         let _watch = WatchPad::new(_screen.clone());
         Self {
             diff: _diff,
+
             count: 0,
             latest_result: Result::new(),
             before_result: Result::new(),
@@ -165,7 +167,7 @@ impl Watch {
     pub fn watch_update(&mut self) {
         let count = self.count.clone();
 
-        if self.diff && count > 1 {
+        if self.diff != 0 && count > 1 {
             self.diff_watch_update();
         } else {
             self.plane_watch_update();
@@ -180,25 +182,46 @@ impl Watch {
 
         self.watchpad.result = target_result.clone();
         self.watchpad.before_update_output_pad();
-        self.watchpad.update_output_pad_text();
+        self.watchpad.update_output_pad_text(self.diff);
     }
 
     fn diff_watch_update(&mut self) {
         let before_result = self.get_target_result(-1);
         let target_result = self.get_target_result(0);
 
-        self.watchpad.result = target_result.clone();
-        self.watchpad.before_update_output_pad();
-
         if target_result.output != before_result.output && self.selected_position != self.count {
-            diff::watch_diff(
-                self.watchpad.clone(),
-                before_result.output,
-                target_result.output
-            );            
+            self.watchpad.result = target_result.clone();
+            match self.diff {
+                1 => self.watch_diff_print(before_result, target_result),
+                2 => self.line_diff_print(before_result,target_result),
+                _ => self.plane_watch_update(),
+            }
         } else {
-            self.watchpad.update_output_pad_text();
+            self.watchpad.result = target_result.clone();
+            self.watchpad.before_update_output_pad();
+            self.watchpad.update_output_pad_text(self.diff);
         }
+    }
+
+    fn watch_diff_print(&mut self,before_result: Result,target_result: Result) {
+        self.watchpad.before_update_output_pad();
+        diff::watch_diff(
+            self.watchpad.clone(),
+            before_result.output,
+            target_result.output
+        );
+    }
+
+    fn line_diff_print(&mut self,before_result: Result,target_result: Result) {
+        let line_diff_str = diff::line_diff_str_get(before_result.output.clone(),target_result.output.clone());
+        self.watchpad.result_output = line_diff_str;
+        self.watchpad.before_update_output_pad();
+        diff::line_diff(
+            self.watchpad.clone(),
+            before_result.output,
+            target_result.output
+        );
+        self.watchpad.result_output = String::new();
     }
 
     // @note:
