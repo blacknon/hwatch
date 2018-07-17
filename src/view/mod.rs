@@ -69,7 +69,6 @@ impl View {
     fn exit(&mut self) {
         self.watch.exit();
         let _ = self.tx.send(Event::Exit);
-        println!("{}", self.watch.latest_result.output);
     }
 
     fn output_update(&mut self, _result: Result) {

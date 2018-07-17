@@ -29,11 +29,11 @@ impl Header {
     fn print_2nd_header(&mut self,max_x: i32) {
         attron(COLOR_PAIR(4));
         match self.diff {
-            0 => mvprintw(1,max_x - 20, &format!("{}", "diff mode: None") ),
-            1 => mvprintw(1,max_x - 20, &format!("{}", "diff mode: Watch") ),
-            2 => mvprintw(1,max_x - 20, &format!("{}", "diff mode: Line") ),
-            3 => mvprintw(1,max_x - 20, &format!("{}", "diff mode: Word") ),
-            _ => mvprintw(1,max_x - 20, &format!("{}", "diff mode: None") ),
+            0 => mvprintw(1, max_x - 12, &format!("{}", "diff: None") ),
+            1 => mvprintw(1, max_x - 12, &format!("{}", "diff: Watch") ),
+            2 => mvprintw(1, max_x - 12, &format!("{}", "diff: Line") ),
+            3 => mvprintw(1, max_x - 12, &format!("{}", "diff: Word") ),
+            _ => mvprintw(1, max_x - 12, &format!("{}", "diff: None") ),
         };
         attroff(COLOR_PAIR(4));
     }
