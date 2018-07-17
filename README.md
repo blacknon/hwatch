@@ -3,6 +3,10 @@ hwatch
 
 hwatch - alternative watch command.
 
+<p align="center">
+<img src="./tty.gif" />
+</p>
+
 ## Description
 
 Record the execution result of the command, and after can view this.
