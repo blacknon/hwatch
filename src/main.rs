@@ -58,7 +58,7 @@ fn build_app() -> clap::App<'static, 'static> {
             .short("d")
             .long("differences")
         )
-        // .arg(Arg::with_name("exec")              
+        // .arg(Arg::with_name("exec")
         //     .help("pass command to exec instead of 'sh -c'")
         //     .short("x")
         //     .long("exec")
@@ -74,6 +74,7 @@ fn build_app() -> clap::App<'static, 'static> {
         )
 
 }
+
 
 fn main() {
     // get command args

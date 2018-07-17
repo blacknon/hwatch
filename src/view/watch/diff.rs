@@ -1,4 +1,9 @@
+extern crate difference;
+
 use std::cmp;
+
+use self::difference::{Difference, Changeset};
+
 use view::watch::window::WatchPad;
 
 // watch type diff
@@ -35,27 +40,74 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
                 }
 
                 if before_line_collect[x] != after_line_collect[x]{
-                    watch.update_output_pad_char(after_line_collect[x].to_string(),true);
+                    watch.update_output_pad_char(after_line_collect[x].to_string(),true,0);
                 }  else {
-                    watch.update_output_pad_char(after_line_collect[x].to_string(),false);
+                    watch.update_output_pad_char(after_line_collect[x].to_string(),false,0);
                 }
             }
-            watch.update_output_pad_char("\n".to_string(),false);
+            watch.update_output_pad_char("\n".to_string(),false,0);
         } else {
-            watch.update_output_pad_char(after_output_collect[i].to_string(),false);
-            watch.update_output_pad_char("\n".to_string(),false);
+            watch.update_output_pad_char(after_output_collect[i].to_string(),false,0);
+            watch.update_output_pad_char("\n".to_string(),false,0);
+        }
+    }
+}
+
+// line type diff get strings
+pub fn line_diff_str_get(before_output: String, after_output: String) -> String {
+    // Compare both before/after output.
+    let Changeset { diffs, .. } = Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
+
+    // Create result output (strings)
+    let mut result_vec: Vec<String> = Vec::new();
+    for i in 0..diffs.len() {
+        match diffs[i] {
+            Difference::Same(ref diff_data) => {
+                for line in diff_data.lines() {
+                    result_vec.push(format!("  {}", line));
+                }
+            }
+            Difference::Add(ref diff_data) => {
+                for line in diff_data.lines() {
+                    result_vec.push(format!("+  {}", line));
+                }
+            }
+            Difference::Rem(ref diff_data) => {
+                for line in diff_data.lines() {
+                    result_vec.push(format!("-  {}", line));
+                }
+            }
+        }
+    }
+    let result_string = result_vec.join("\n");
+    return result_string;
+}
+
+// line type diff
+pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String) {
+    let Changeset { diffs, .. } = Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
+
+    for i in 0..diffs.len() {
+        match diffs[i] {
+            Difference::Same(ref diff_data) => {
+                for line in diff_data.lines() {
+                    watch.update_output_pad_char(format!("  {}\n", line), false, 0);
+                }
+            }
+            Difference::Add(ref diff_data) => {
+                for line in diff_data.lines() {
+                    watch.update_output_pad_char(format!("+ {}\n", line), false, 2);
+                }
+            }
+            Difference::Rem(ref diff_data) => {
+                for line in diff_data.lines() {
+                    watch.update_output_pad_char(format!("- {}\n", line), false, 3);
+                }
+            }
         }
     }
 }
 
 // pub fn word_diff(mut watch: WatchPad, before_output: String, after_output: String) {
-//    
-// }
-
-// pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String) {
-//    
-// }
-
-// pub fn comp_diff(mut watch: WatchPad, before_output: String, after_output: String) {
 //    
 // }

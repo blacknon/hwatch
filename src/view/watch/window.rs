@@ -1,9 +1,13 @@
 use ncurses::*;
+
+use std::cmp;
+
 use cmd::Result;
 
 #[derive(Clone)]
 pub struct WatchPad {
     pub result: Result,
+    pub result_output: String,
 
     pub screen: WINDOW,
     pub pad: WINDOW,
@@ -17,6 +21,7 @@ impl WatchPad {
     pub fn new(_screen: WINDOW) -> Self {
         Self {
             result: Result::new(),
+            result_output: String::new(),
 
             screen: _screen,
             pad: newpad(0,0),
@@ -30,25 +35,49 @@ impl WatchPad {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
 
-        let mut _pad_lines = 0;
+        let mut _pad_lines_result = 0;
+        let mut _pad_lines_output = 0;
         for _output_line in self.result.output.clone().split("\n") {
-            // self.pad_lines += 3
-            _pad_lines += get_pad_lines(_output_line.to_string(), max_x -23);
+            _pad_lines_result += get_pad_lines(_output_line.to_string(), max_x -23);
         }
 
-        self.pad_lines = _pad_lines;
+        for _output_line in self.result_output.clone().split("\n") {
+            _pad_lines_output += get_pad_lines(_output_line.to_string(), max_x -23);
+        }
+
+        self.pad_lines = cmp::max(_pad_lines_result, _pad_lines_output + 1);
         self.pad = newpad(self.pad_lines.clone(), max_x - 23);
     }
 
-    pub fn update_output_pad_text(&mut self) {
-        wprintw(self.pad, &format!("{}", self.result.output.clone()));
+    pub fn update_output_pad_text(&mut self,diff_mode: i32) {
+        for line in self.result.output.clone().split("\n") {
+            
+            if diff_mode == 2 {
+                let mut _output_line = &format!("  {}\n", line);
+                wprintw(self.pad, _output_line);                
+            } else {
+                let mut _output_line = &format!("{}\n", line);
+                wprintw(self.pad, _output_line);
+            }
+        }
+        
     }
 
-    pub fn update_output_pad_char(&mut self, _char: String, _reverse: bool) {
+    pub fn update_output_pad_char(&mut self, _char: String, _reverse: bool, _color_code: i16) {
         if _reverse {
             wattron(self.pad,A_REVERSE());
-            wprintw(self.pad, &format!("{}", _char));
+            self.update_ouput_pad_char_color(_char, _color_code);
             wattroff(self.pad,A_REVERSE());
+        } else {
+            self.update_ouput_pad_char_color(_char, _color_code);
+        }
+    }
+
+    fn update_ouput_pad_char_color(&mut self, _char: String, _color_code: i16) {
+        if _color_code != 0 {
+            wattron(self.pad,COLOR_PAIR(_color_code));
+            wprintw(self.pad, &format!("{}", _char));
+            wattroff(self.pad,COLOR_PAIR(_color_code));
         } else {
             wprintw(self.pad, &format!("{}", _char));
         }

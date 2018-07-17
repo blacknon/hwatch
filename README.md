@@ -37,4 +37,7 @@ watch window keybind
 
     Arrow up/down         ... move watch screen.
     Shift + Arrow up/down ... move history screen.
-
+    D                     ... switch diff mode.
+    0                     ... disable diff.
+    1                     ... switch watch type diff.
+    2                     ... switch line type diff.
