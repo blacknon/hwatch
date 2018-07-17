@@ -1,0 +1,18 @@
+[package]
+name = "hwatch"
+version = "0.1.0"
+authors = ["blacknon <blacknon@orebibou.com>"]
+description = "alternative watch command."
+
+[dependencies]
+chrono = "0.4"
+clap = "2.20.3"
+difference = "2.0"
+
+[dependencies.ncurses]
+features = ["wide"]
+optional = true
+version = "=5.91.0"
+
+[features]
+default = ["ncurses"]
