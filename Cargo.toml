@@ -12,7 +12,7 @@ difference = "2.0"
 [dependencies.ncurses]
 features = ["wide"]
 optional = true
-version = "5.91.0"
+version = "=5.91.0"
 
 [features]
 default = ["ncurses"]
