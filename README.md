@@ -36,7 +36,7 @@ Record the execution result of the command, and after can view this.
 watch window keybind
 
     Arrow up/down         ... move watch screen.
-    Shift + Arrow up/down ... move history screen.
+    Shift + Arrow up/down ... select history.
     D                     ... switch diff mode.
     0                     ... disable diff.
     1                     ... switch watch type diff.
