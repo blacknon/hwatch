@@ -6,9 +6,11 @@ use ncurses::*;
 
 use cmd::Result;
 use self::window::WatchPad;
+use view::*;
 
 pub struct Watch {
     pub diff: i32,
+    pub output_type: i32,
 
     pub count: i32,
     pub latest_result: Result,
@@ -32,6 +34,7 @@ impl Watch {
         let _watch = WatchPad::new(_screen.clone());
         Self {
             diff: _diff,
+            output_type: IS_OUTPUT,
 
             count: 0,
             latest_result: Result::new(),
@@ -214,17 +217,18 @@ impl Watch {
 
     fn line_diff_print(&mut self,before_result: Result,target_result: Result) {
         let line_diff_str = diff::line_diff_str_get(before_result.output.clone(),target_result.output.clone());
-        self.watchpad.result_output = line_diff_str;
+        self.watchpad.result_diff_output = line_diff_str;
         self.watchpad.before_update_output_pad();
         diff::line_diff(
             self.watchpad.clone(),
             before_result.output,
             target_result.output
         );
-        self.watchpad.result_output = String::new();
+        self.watchpad.result_diff_output = String::new();
     }
 
     // @note:
+    //    [get_type value]
     //    0 ... target result
     //   -1 ... before result
     //    1 ... next result
@@ -253,6 +257,13 @@ impl Watch {
             }
         }
         return result
+    }
+
+
+    fn get_result_output(&mut self,_result: Result) ->String {
+        let _result_output =  String::new();
+
+        return _result_output
     }
 
     pub fn exit(&mut self) {
