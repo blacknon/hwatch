@@ -7,7 +7,7 @@ use cmd::Result;
 #[derive(Clone)]
 pub struct WatchPad {
     pub result: Result,
-    pub result_output: String,
+    pub result_diff_output: String,
 
     pub screen: WINDOW,
     pub pad: WINDOW,
@@ -15,13 +15,12 @@ pub struct WatchPad {
     pub pad_position: i32,
 }
 
-
 impl WatchPad {
     // set default value
     pub fn new(_screen: WINDOW) -> Self {
         Self {
             result: Result::new(),
-            result_output: String::new(),
+            result_diff_output: String::new(),
 
             screen: _screen,
             pad: newpad(0,0),
@@ -41,7 +40,7 @@ impl WatchPad {
             _pad_lines_result += get_pad_lines(_output_line.to_string(), max_x -23);
         }
 
-        for _output_line in self.result_output.clone().split("\n") {
+        for _output_line in self.result_diff_output.clone().split("\n") {
             _pad_lines_output += get_pad_lines(_output_line.to_string(), max_x -23);
         }
 

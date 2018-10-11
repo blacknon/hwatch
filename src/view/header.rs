@@ -1,6 +1,7 @@
 extern crate ncurses;
 
 use ncurses::*;
+use view::*;
 
 use cmd::Result;
 
@@ -8,6 +9,7 @@ pub struct Header {
     pub screen: ncurses::WINDOW,
     pub result: Result,
     pub diff: i32,
+    pub active_pad: i32,
 }
 
 impl Header {
@@ -16,6 +18,7 @@ impl Header {
             screen: _screen,
             result: Result::new(),
             diff: 0,
+            active_pad: IS_WATCH_PAD,
         }
     }
 
@@ -27,14 +30,26 @@ impl Header {
     }
 
     fn print_2nd_header(&mut self,max_x: i32) {
-        attron(COLOR_PAIR(4));
-        match self.diff {
-            0 => mvprintw(1, max_x - 12, &format!("{}", "diff: None") ),
-            1 => mvprintw(1, max_x - 12, &format!("{}", "diff: Watch") ),
-            2 => mvprintw(1, max_x - 12, &format!("{}", "diff: Line") ),
-            3 => mvprintw(1, max_x - 12, &format!("{}", "diff: Word") ),
-            _ => mvprintw(1, max_x - 12, &format!("{}", "diff: None") ),
+        let mut _active_type = "";
+        match self.active_pad {
+            IS_WATCH_PAD => _active_type = "watch  ",
+            IS_HISTORY_PAD => _active_type = "history",
+            _ => (),
         };
+        attron(COLOR_PAIR(5));
+        mvprintw(1, max_x - 28, &format!("Active: {}", _active_type));
+        attroff(COLOR_PAIR(5));
+
+        let mut _diff_type = "";
+        match self.diff {
+            0 => _diff_type = "None",
+            1 => _diff_type = "Watch",
+            2 => _diff_type = "Line",
+            3 => _diff_type = "Word",
+            _ => (),
+        };
+        attron(COLOR_PAIR(4));
+        mvprintw(1, max_x - 12, &format!("Diff: {}", _diff_type));
         attroff(COLOR_PAIR(4));
     }
 

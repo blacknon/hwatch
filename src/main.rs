@@ -12,8 +12,7 @@ use std::sync::mpsc::channel;
 use std::env::args;
 use std::time::Duration;
 use std::thread;
-
-use self::clap::{App, Arg, AppSettings};
+use clap::{App, Arg, AppSettings};
 
 use input::Input;
 use view::View;
@@ -72,9 +71,7 @@ fn build_app() -> clap::App<'static, 'static> {
             .takes_value(true)
             .default_value("2")
         )
-
 }
-
 
 fn main() {
     // get command args
@@ -92,7 +89,6 @@ fn main() {
 
     // Create input
     let mut _input = Input::new(tx.clone());
-
 
     // Start Command Thread
     {
