@@ -32,6 +32,7 @@ impl WatchPad {
     pub fn before_update_output_pad(&mut self) {
         let mut max_x = 0;
         let mut max_y = 0;
+
         getmaxyx(self.screen, &mut max_y, &mut max_x);
 
         let mut _pad_lines_result = 0;
@@ -123,7 +124,6 @@ impl WatchPad {
         endwin();
     }
 }
-
 
 // get pad lines from string
 fn get_pad_lines(_string: String, _width: i32) -> i32 {

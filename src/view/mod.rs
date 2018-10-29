@@ -1,6 +1,9 @@
 mod header;
 mod watch;
 
+
+// use signal_notify::{notify, Signal};
+
 use std::env;
 use std::sync::mpsc::{Receiver,Sender};
 
@@ -13,9 +16,10 @@ use self::watch::Watch;
 const IS_WATCH_PAD:i32 = 0;
 const IS_HISTORY_PAD:i32 = 1;
 
-const IS_STDOUT:i32 = 1;
-const IS_STDERR:i32 = 2;
+// const IS_STDOUT:i32 = 1;
+// const IS_STDERR:i32 = 2;
 const IS_OUTPUT:i32 = 3;
+
 
 pub struct View {
     pub done: bool,
@@ -217,6 +221,13 @@ impl View {
             match self.rx.try_recv() {
                 Ok(Event::OutputUpdate(_cmd)) => self.output_update(_cmd),
                 Ok(Event::Exit) => self.done = true,
+                Ok(Event::Signal(i)) => {
+                    match i {
+                        0 => {},
+                        0x02 => self.exit(),
+                        _ => {},
+                    }
+                }
                 Ok(Event::Input(i)) => {
                     match i {
                         // Screen Resize
@@ -234,6 +245,7 @@ impl View {
                         0x30 => self.switch_disable_diff(), // 0(0x30)
                         0x31 => self.switch_watch_diff(), // 1(0x31)
                         0x32 => self.switch_line_diff(), // 2(0x32)
+
 
                         // change output
                         // KEY_F1 => // Stdout only (F1 key)
