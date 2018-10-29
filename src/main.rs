@@ -1,11 +1,13 @@
 #[macro_use]
 extern crate clap;
 extern crate ncurses;
+extern crate nix;
 
 mod cmd;
 mod common;
 mod event;
 mod input;
+mod signal;
 mod view;
 
 use std::sync::mpsc::channel;
@@ -15,6 +17,7 @@ use std::thread;
 use clap::{App, Arg, AppSettings};
 
 use input::Input;
+use signal::Signal;
 use view::View;
 
 
@@ -74,21 +77,24 @@ fn build_app() -> clap::App<'static, 'static> {
 }
 
 fn main() {
-    // get command args
+    // Get command args
     let _matches = build_app().get_matches();
 
-    // get options
+    // Get options
     let mut _interval:u64 = _matches.value_of("interval").unwrap().parse::<u64>().unwrap();
     let mut _diff = _matches.is_present("differences");
 
-    // create channel
+    // Create channel
     let (tx, rx) = channel();
 
-    // create view
+    // Create view
     let mut _view = View::new(tx.clone(), rx, _diff);
 
     // Create input
     let mut _input = Input::new(tx.clone());
+
+    // Create signal
+    let mut _signal = Signal::new(tx.clone());
 
     // Start Command Thread
     {
@@ -111,6 +117,9 @@ fn main() {
 
     // await input thread
     _input.run();
+
+    // await signal thread
+    _signal.run();
 
     // view
     _view.start_reception();
