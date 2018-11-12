@@ -42,12 +42,12 @@ impl Watch {
 
             watchpad: _watch,
 
-            history : Mutex::new(vec![]),
-            history_pad: newpad(0,0),
+            history: Mutex::new(vec![]),
+            history_pad: newpad(0, 0),
             history_pad_lines: 0,
             history_pad_position: 0,
 
-            selected_position: 0, 
+            selected_position: 0,
 
             screen: _screen,
         }
@@ -69,7 +69,7 @@ impl Watch {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
         refresh();
-        
+
         // Create history_pad
         self.history_pad_lines = self.count.clone() + 1;
         self.history_pad = newpad(self.history_pad_lines, max_x);
@@ -95,33 +95,42 @@ impl Watch {
             self.history_pad_position = self.selected_position - max_y + 3;
         }
 
-        prefresh(self.history_pad, self.history_pad_position, 0, 2, max_x - 21, max_y - 1, max_x - 1);
+        prefresh(
+            self.history_pad,
+            self.history_pad_position,
+            0,
+            2,
+            max_x - 21,
+            max_y - 1,
+            max_x - 1,
+        );
     }
 
     fn print_history(&mut self, position: i32, word: String, status: bool) {
         if position == self.selected_position {
             if status == true {
                 // selected line and status true
-                wattron(self.history_pad,A_REVERSE()|COLOR_PAIR(2));
+                wattron(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
                 wprintw(self.history_pad, &format!(">{}\n", word));
-                wattroff(self.history_pad,A_REVERSE()|COLOR_PAIR(2));
+                wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
             } else {
                 // selected line and status false
-                wattron(self.history_pad,A_REVERSE()|COLOR_PAIR(3));
+                wattron(self.history_pad, A_REVERSE() | COLOR_PAIR(3));
                 wprintw(self.history_pad, &format!(">{}\n", word));
-                wattroff(self.history_pad,A_REVERSE()|COLOR_PAIR(3));
+
+                wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(3));
             }
         } else {
             if status == true {
                 // not selected line and status true
-                wattron(self.history_pad,COLOR_PAIR(2));
+                wattron(self.history_pad, COLOR_PAIR(2));
                 wprintw(self.history_pad, &format!(" {}\n", word));
-                wattroff(self.history_pad,COLOR_PAIR(2));
+                wattroff(self.history_pad, COLOR_PAIR(2));
             } else {
                 // not selected line and status false
-                wattron(self.history_pad,COLOR_PAIR(3));
+                wattron(self.history_pad, COLOR_PAIR(3));
                 wprintw(self.history_pad, &format!(" {}\n", word));
-                wattroff(self.history_pad,COLOR_PAIR(3));
+                wattroff(self.history_pad, COLOR_PAIR(3));
             }
         }
     }
@@ -155,8 +164,8 @@ impl Watch {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
 
-        resizeterm(max_y,max_x);
-        
+        resizeterm(max_y, max_x);
+
         self.draw_history_pad();
         self.watchpad.resize();
     }
@@ -196,7 +205,7 @@ impl Watch {
             self.watchpad.result = target_result.clone();
             match self.diff {
                 1 => self.watch_diff_print(before_result, target_result),
-                2 => self.line_diff_print(before_result,target_result),
+                2 => self.line_diff_print(before_result, target_result),
                 _ => self.plane_watch_update(),
             }
         } else {
@@ -206,23 +215,24 @@ impl Watch {
         }
     }
 
-    fn watch_diff_print(&mut self,before_result: Result,target_result: Result) {
+    fn watch_diff_print(&mut self, before_result: Result, target_result: Result) {
         self.watchpad.before_update_output_pad();
         diff::watch_diff(
             self.watchpad.clone(),
             before_result.output,
-            target_result.output
+            target_result.output,
         );
     }
 
-    fn line_diff_print(&mut self,before_result: Result,target_result: Result) {
-        let line_diff_str = diff::line_diff_str_get(before_result.output.clone(),target_result.output.clone());
+    fn line_diff_print(&mut self, before_result: Result, target_result: Result) {
+        let line_diff_str =
+            diff::line_diff_str_get(before_result.output.clone(), target_result.output.clone());
         self.watchpad.result_diff_output = line_diff_str;
         self.watchpad.before_update_output_pad();
         diff::line_diff(
             self.watchpad.clone(),
             before_result.output,
-            target_result.output
+            target_result.output,
         );
         self.watchpad.result_diff_output = String::new();
     }
@@ -232,7 +242,7 @@ impl Watch {
     //    0 ... target result
     //   -1 ... before result
     //    1 ... next result
-    fn get_target_result(&mut self, get_type: i32) ->Result {
+    fn get_target_result(&mut self, get_type: i32) -> Result {
         let mut result = Result::new();
         if self.selected_position != 0 {
             let mut _history = self.history.lock().unwrap().clone();
@@ -256,15 +266,14 @@ impl Watch {
                 result = self.before_result.clone();
             }
         }
-        return result
+        return result;
     }
 
 
-    fn get_result_output(&mut self,_result: Result) ->String {
-        let _result_output =  String::new();
-
-        return _result_output
-    }
+    // fn get_result_output(&mut self,_result: Result) ->String {
+    //     let _result_output =  String::new();
+    //     return _result_output
+    // }
 
     pub fn exit(&mut self) {
         self.watchpad.exit();

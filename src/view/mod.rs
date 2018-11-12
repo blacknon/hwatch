@@ -5,7 +5,7 @@ mod watch;
 // use signal_notify::{notify, Signal};
 
 use std::env;
-use std::sync::mpsc::{Receiver,Sender};
+use std::sync::mpsc::{Receiver, Sender};
 
 use ncurses::*;
 
@@ -13,12 +13,12 @@ use cmd::Result;
 use event::Event;
 use self::watch::Watch;
 
-const IS_WATCH_PAD:i32 = 0;
-const IS_HISTORY_PAD:i32 = 1;
+const IS_WATCH_PAD: i32 = 0;
+const IS_HISTORY_PAD: i32 = 1;
 
 // const IS_STDOUT:i32 = 1;
 // const IS_STDERR:i32 = 2;
-const IS_OUTPUT:i32 = 3;
+const IS_OUTPUT: i32 = 3;
 
 
 pub struct View {
@@ -75,7 +75,7 @@ impl View {
             watch: _watch,
 
             tx: tx,
-            rx: rx
+            rx: rx,
         }
     }
 
@@ -164,17 +164,17 @@ impl View {
     fn switch_watch_diff(&mut self) {
         self.watch.diff = 1;
         self.header.diff = self.watch.diff;
-        
+
         clear();
         self.header.update_header();
         self.watch.draw_history_pad();
-        self.watch.watch_update();       
+        self.watch.watch_update();
     }
 
     fn switch_line_diff(&mut self) {
         self.watch.diff = 2;
         self.header.diff = self.watch.diff;
-        
+
         clear();
         self.header.update_header();
         self.watch.draw_history_pad();
@@ -182,7 +182,7 @@ impl View {
     }
 
     // fn switch_word_diff(&mut self) {
-        
+
     // }
 
     fn toggle_pad(&mut self) {
@@ -223,9 +223,9 @@ impl View {
                 Ok(Event::Exit) => self.done = true,
                 Ok(Event::Signal(i)) => {
                     match i {
-                        0 => {},
+                        0 => {}
                         0x02 => self.exit(),
-                        _ => {},
+                        _ => {}
                     }
                 }
                 Ok(Event::Input(i)) => {
@@ -235,7 +235,7 @@ impl View {
 
                         // change active pad
                         0x09 => self.toggle_pad(), // Tab
-                        
+
                         // pad up/down
                         KEY_UP => self.scroll_up(), // Arrow Up
                         KEY_DOWN => self.scroll_down(), // Arrow Down
@@ -245,7 +245,6 @@ impl View {
                         0x30 => self.switch_disable_diff(), // 0(0x30)
                         0x31 => self.switch_watch_diff(), // 1(0x31)
                         0x32 => self.switch_line_diff(), // 2(0x32)
-
 
                         // change output
                         // KEY_F1 => // Stdout only (F1 key)
@@ -258,7 +257,7 @@ impl View {
                         _ => {}
                     }
                 }
-             _ => {}
+                _ => {}
             };
         }
     }

@@ -15,15 +15,12 @@ impl Input {
     }
 
     pub fn run(self) {
-        let _ = thread::spawn(move || 
-            {
-                let mut ch = getch();
-                loop {
-                let _ = self.tx.send(
-                    Event::Input(ch));
-                    ch = getch();
-                }
+        let _ = thread::spawn(move || {
+            let mut ch = getch();
+            loop {
+                let _ = self.tx.send(Event::Input(ch));
+                ch = getch();
             }
-        );
+        });
     }
 }

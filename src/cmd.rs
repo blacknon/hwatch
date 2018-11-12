@@ -31,7 +31,7 @@ impl Result {
             command: String::new(),
 
             status: true,
-            
+
             output: String::new(),
             stdout: String::new(),
             stderr: String::new(),
