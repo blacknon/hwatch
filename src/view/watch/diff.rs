@@ -13,7 +13,7 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
     let mut after_output_collect: Vec<&str> = after_output.lines().collect();
 
     // get max line before and after output
-    let max_line = cmp::max(before_output_collect.len(),after_output_collect.len());
+    let max_line = cmp::max(before_output_collect.len(), after_output_collect.len());
 
     for i in 0..max_line {
         if before_output_collect.len() <= i {
@@ -27,7 +27,7 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
             let mut before_line_collect: Vec<char> = before_output_collect[i].chars().collect();
             let mut after_line_collect: Vec<char> = after_output_collect[i].chars().collect();
 
-            let max_char = cmp::max(before_line_collect.len(),after_line_collect.len());
+            let max_char = cmp::max(before_line_collect.len(), after_line_collect.len());
 
             for x in 0..max_char {
                 let space: char = ' ';
@@ -39,16 +39,16 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
                     after_line_collect.push(space);
                 }
 
-                if before_line_collect[x] != after_line_collect[x]{
-                    watch.update_output_pad_char(after_line_collect[x].to_string(),true,0);
-                }  else {
-                    watch.update_output_pad_char(after_line_collect[x].to_string(),false,0);
+                if before_line_collect[x] != after_line_collect[x] {
+                    watch.update_output_pad_char(after_line_collect[x].to_string(), true, 0);
+                } else {
+                    watch.update_output_pad_char(after_line_collect[x].to_string(), false, 0);
                 }
             }
-            watch.update_output_pad_char("\n".to_string(),false,0);
+            watch.update_output_pad_char("\n".to_string(), false, 0);
         } else {
-            watch.update_output_pad_char(after_output_collect[i].to_string(),false,0);
-            watch.update_output_pad_char("\n".to_string(),false,0);
+            watch.update_output_pad_char(after_output_collect[i].to_string(), false, 0);
+            watch.update_output_pad_char("\n".to_string(), false, 0);
         }
     }
 }
@@ -56,7 +56,8 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
 // line type diff get strings
 pub fn line_diff_str_get(before_output: String, after_output: String) -> String {
     // Compare both before/after output.
-    let Changeset { diffs, .. } = Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
+    let Changeset { diffs, .. } =
+        Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
 
     // Create result output (strings)
     let mut result_vec: Vec<String> = Vec::new();
@@ -85,7 +86,8 @@ pub fn line_diff_str_get(before_output: String, after_output: String) -> String 
 
 // line type diff
 pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String) {
-    let Changeset { diffs, .. } = Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
+    let Changeset { diffs, .. } =
+        Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
 
     for i in 0..diffs.len() {
         match diffs[i] {
@@ -109,5 +111,5 @@ pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: Strin
 }
 
 // pub fn word_diff(mut watch: WatchPad, before_output: String, after_output: String) {
-//    
+//
 // }
