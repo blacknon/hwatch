@@ -1,11 +1,12 @@
 mod header;
 mod watch;
 
-
 // use signal_notify::{notify, Signal};
 
 use std::env;
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::Duration;
+use std::thread;
 
 use ncurses::*;
 
@@ -218,6 +219,7 @@ impl View {
     // start input reception
     pub fn start_reception(&mut self) {
         while !self.done {
+            thread::sleep(Duration::from_millis(10));
             match self.rx.try_recv() {
                 Ok(Event::OutputUpdate(_cmd)) => self.output_update(_cmd),
                 Ok(Event::Exit) => self.done = true,

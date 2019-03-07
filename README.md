@@ -15,7 +15,7 @@ Record the execution result of the command, and after can view this.
 
     git clone github.com/blacknon/hwatch
     cd hwatch
-    cargo install 
+    cargo install
 
 ## Usage
 
