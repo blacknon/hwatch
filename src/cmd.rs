@@ -9,17 +9,17 @@ use event::Event;
 
 #[derive(Clone)]
 pub struct Result {
-    pub timestamp: String,
+  pub timestamp: String,
 
-    pub command: String,
+  pub command: String,
 
-    pub status: bool,
+  pub status: bool,
 
-    pub output: String,
-    pub stdout: String,
-    pub stderr: String,
+  pub output: String,
+  pub stdout: String,
+  pub stderr: String,
 
-    pub interval: u64,
+  pub interval: u64,
 }
 
 
