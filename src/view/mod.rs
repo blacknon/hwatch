@@ -40,6 +40,9 @@ impl View {
     let lang = get_lang();
     setlocale(locale_conf, &lang);
 
+    // set var
+    let _history_width = 21; // history tab width
+
     // Create ncurses screen
     let _screen = initscr();
     start_color();
@@ -66,7 +69,7 @@ impl View {
       diff_type = 1;
     }
 
-    let _watch = Watch::new(_screen.clone(), diff_type);
+    let _watch = Watch::new(_screen.clone(), diff_type, _history_width);
     Self {
       done: false,
 
@@ -215,33 +218,6 @@ impl View {
     }
   }
 
-  fn mouse_action(&mut self,_mevent: MEVENT) {
-    let _wheel_down = BUTTON3_CLICKED;
-    let _wheel_up = BUTTON2_CLICKED;
-
-    let _mouse_event = _mevent.bstate as i32;
-
-    match _mouse_event {
-      // mouse left button click
-      BUTTON1_CLICKED => {
-        println!("EVENT {} {} {}\n", "Left Click", _mevent.x, _mevent.y);
-      },
-
-      // mouse wheel down
-      BUTTON4_PRESSED => {
-        println!("EVENT {} {} {}\n", "Wheel down", _mevent.x, _mevent.y);
-      },
-
-      // mouse wheel up
-      BUTTON5_PRESSED => {
-        println!("EVENT {} {} {}\n", "Wheel up", _mevent.x, _mevent.y);
-      }
-
-      _ => {},
-    }
-  }
-
-
   // start input reception
   pub fn start_reception(&mut self) {
     mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
@@ -270,7 +246,7 @@ impl View {
               };
               let _error = getmouse(&mut mevent);
               if _error == 0 {
-                self.mouse_action(mevent)
+                self.watch.mouse_action(mevent)
               }
             },
 
