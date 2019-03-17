@@ -228,12 +228,12 @@ impl View {
       },
 
       // mouse wheel down
-      BUTTON2_CLICKED => {
+      BUTTON4_PRESSED => {
         println!("EVENT {} {} {}\n", "Wheel down", _mevent.x, _mevent.y);
       },
 
       // mouse wheel up
-      BUTTON3_CLICKED => {
+      BUTTON5_PRESSED => {
         println!("EVENT {} {} {}\n", "Wheel up", _mevent.x, _mevent.y);
       }
 
