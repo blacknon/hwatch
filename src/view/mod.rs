@@ -1,6 +1,5 @@
 mod header;
 mod watch;
-
 // use signal_notify::{notify, Signal};
 
 use std::env;
@@ -216,13 +215,36 @@ impl View {
     }
   }
 
-  fn mouse_action(&mut self) {
+  fn mouse_action(&mut self,_mevent: MEVENT) {
+    let _wheel_down = BUTTON3_CLICKED;
+    let _wheel_up = BUTTON2_CLICKED;
 
+    let _mouse_event = _mevent.bstate as i32;
+
+    match _mouse_event {
+      // mouse left button click
+      BUTTON1_CLICKED => {
+        println!("EVENT {} {} {}\n", "Left Click", _mevent.x, _mevent.y);
+      },
+
+      // mouse wheel down
+      BUTTON2_CLICKED => {
+        println!("EVENT {} {} {}\n", "Wheel down", _mevent.x, _mevent.y);
+      },
+
+      // mouse wheel up
+      BUTTON3_CLICKED => {
+        println!("EVENT {} {} {}\n", "Wheel up", _mevent.x, _mevent.y);
+      }
+
+      _ => {},
+    }
   }
 
 
   // start input reception
   pub fn start_reception(&mut self) {
+    mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
     while !self.done {
       thread::sleep(Duration::from_millis(10));
       match self.rx.try_recv() {
@@ -238,7 +260,19 @@ impl View {
         Ok(Event::Input(i)) => {
           match i {
             // Mouse
-            KEY_MOUSE => self.mouse_action(),
+            KEY_MOUSE => {
+              let mut mevent = MEVENT {
+                id: 0,
+                x: 0,
+                y: 0,
+                z: 0,
+                bstate: 0,
+              };
+              let _error = getmouse(&mut mevent);
+              if _error == 0 {
+                self.mouse_action(mevent)
+              }
+            },
 
             // Screen Resize
             KEY_RESIZE => self.watch.resize(),
