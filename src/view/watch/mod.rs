@@ -195,8 +195,8 @@ impl Watch {
     let target_result = self.get_target_result(0);
 
     self.watchpad.result = target_result.clone();
-    self.watchpad.before_update_output_pad();
-    self.watchpad.update_output_pad_text(self.diff);
+    self.watchpad.before_update_output_pad(self.output_type);
+    self.watchpad.update_output_pad_text(self.diff, self.output_type);
   }
 
   fn diff_watch_update(&mut self) {
@@ -212,29 +212,67 @@ impl Watch {
       }
     } else {
       self.watchpad.result = target_result.clone();
-      self.watchpad.before_update_output_pad();
-      self.watchpad.update_output_pad_text(self.diff);
+      self.watchpad.before_update_output_pad(self.output_type);
+      self.watchpad.update_output_pad_text(self.diff, self.output_type);
     }
   }
 
   fn watch_diff_print(&mut self, before_result: Result, target_result: Result) {
-    self.watchpad.before_update_output_pad();
+    let mut _before_result_data = before_result.output.clone();
+    let mut _target_result_data = target_result.output.clone();
+
+    match self.output_type {
+      IS_OUTPUT => {
+        _before_result_data = before_result.output.clone();
+        _target_result_data = target_result.output.clone();
+      },
+      IS_STDOUT => {
+        _before_result_data = before_result.stdout.clone();
+        _target_result_data = target_result.stdout.clone();
+      },
+      IS_STDERR => {
+        _before_result_data = before_result.stderr.clone();
+        _target_result_data = target_result.stderr.clone();
+      },
+      _ => {},
+    };
+
+    self.watchpad.before_update_output_pad(self.output_type);
     diff::watch_diff(
       self.watchpad.clone(),
-      before_result.output,
-      target_result.output,
+      _before_result_data,
+      _target_result_data,
     );
   }
 
   fn line_diff_print(&mut self, before_result: Result, target_result: Result) {
-    let line_diff_str =
-      diff::line_diff_str_get(before_result.output.clone(), target_result.output.clone());
+    let mut _before_result_data = before_result.output.clone();
+    let mut _target_result_data = target_result.output.clone();
+
+    match self.output_type {
+      IS_OUTPUT => {
+        _before_result_data = before_result.output.clone();
+        _target_result_data = target_result.output.clone();
+      },
+      IS_STDOUT => {
+        _before_result_data = before_result.stdout.clone();
+        _target_result_data = target_result.stdout.clone();
+      },
+      IS_STDERR => {
+        _before_result_data = before_result.stderr.clone();
+        _target_result_data = target_result.stderr.clone();
+      },
+      _ => {},
+    };
+
+
+    let line_diff_str = diff::line_diff_str_get(_before_result_data.clone(), _target_result_data.clone());
     self.watchpad.result_diff_output = line_diff_str;
-    self.watchpad.before_update_output_pad();
+    self.watchpad.before_update_output_pad(self.output_type);
     diff::line_diff(
       self.watchpad.clone(),
-      before_result.output,
-      target_result.output,
+      _before_result_data,
+      _target_result_data,
     );
     self.watchpad.result_diff_output = String::new();
   }
@@ -292,9 +330,6 @@ impl Watch {
               self.draw_history_pad();
               self.watch_update();
             }
-
-            // mouse on history
-            // println!("EVENT {} {} {}\n", "Left Click(History)", _mevent.x, _mevent.y);
           }
         },
 
@@ -319,7 +354,6 @@ impl Watch {
             self.window_scroll_down();
           }
         }
-
         _ => {},
       }
     }
