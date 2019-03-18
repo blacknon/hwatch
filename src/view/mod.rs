@@ -16,9 +16,9 @@ use self::watch::Watch;
 const IS_WATCH_PAD: i32 = 0;
 const IS_HISTORY_PAD: i32 = 1;
 
-// const IS_STDOUT:i32 = 1;
-// const IS_STDERR:i32 = 2;
-const IS_OUTPUT: i32 = 3;
+const IS_STDOUT:i32 = 1;
+const IS_STDERR:i32 = 2;
+const IS_OUTPUT:i32 = 3;
 
 
 pub struct View {
@@ -58,6 +58,7 @@ impl View {
     init_pair(3, COLOR_RED, -1); // fg=red, bg=clear
     init_pair(4, COLOR_YELLOW, -1); // fg=yellow, bg=clear
     init_pair(5, COLOR_CYAN, -1); // fg=cyan, bg=clear
+    init_pair(6, COLOR_MAGENTA, -1); // fg=cyan, bg=clear
     init_pair(11, COLOR_BLACK, COLOR_WHITE); // fg=black, bg=white
     init_pair(12, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
     init_pair(13, COLOR_WHITE, COLOR_GREEN); // fg=white, bg=green
@@ -218,6 +219,21 @@ impl View {
     }
   }
 
+  fn change_output_mode(&mut self,_output_type: i32) {
+    match _output_type {
+      IS_OUTPUT => self.watch.output_type = IS_OUTPUT,
+      IS_STDOUT => self.watch.output_type = IS_STDOUT,
+      IS_STDERR => self.watch.output_type = IS_STDERR,
+      _ => {},
+    };
+    clear();
+
+    self.header.output = _output_type;
+    self.header.update_header();
+    self.watch.draw_history_pad();
+    self.watch.watch_update();
+  }
+
   // start input reception
   pub fn start_reception(&mut self) {
     mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
@@ -267,9 +283,9 @@ impl View {
             0x32 => self.switch_line_diff(), // 2(0x32)
 
             // change output
-            // KEY_F1 => // Stdout only (F1 key)
-            // KEY_F2 => // Stderr only (F2 key)
-            // KEY_F3 => // Stdout and Stderr (F1 key)
+            KEY_F1 => self.change_output_mode(IS_STDOUT),
+            KEY_F2 => self.change_output_mode(IS_STDERR),
+            KEY_F3 => self.change_output_mode(IS_OUTPUT),
 
             // exit this program
             0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71)

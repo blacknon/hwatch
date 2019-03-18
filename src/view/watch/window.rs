@@ -1,8 +1,11 @@
 use ncurses::*;
 
 use std::cmp;
-
 use cmd::Result;
+
+const IS_STDOUT:i32 = 1;
+const IS_STDERR:i32 = 2;
+const IS_OUTPUT:i32 = 3;
 
 #[derive(Clone)]
 pub struct WatchPad {
@@ -29,7 +32,7 @@ impl WatchPad {
     }
   }
 
-  pub fn before_update_output_pad(&mut self) {
+  pub fn before_update_output_pad(&mut self,output_type: i32) {
       let mut max_x = 0;
       let mut max_y = 0;
 
@@ -37,7 +40,17 @@ impl WatchPad {
 
       let mut _pad_lines_result = 0;
       let mut _pad_lines_output = 0;
-      for _output_line in self.result.output.clone().split("\n") {
+
+      // set result output type(stdout/stderr/output)
+      let mut _output_text = self.result.output.split("\n").clone();
+      match output_type {
+        IS_OUTPUT => _output_text = self.result.output.split("\n").clone(),
+        IS_STDOUT => _output_text = self.result.stdout.split("\n").clone(),
+        IS_STDERR => _output_text = self.result.stderr.split("\n").clone(),
+        _ => {},
+      };
+
+      for _output_line in _output_text {
         _pad_lines_result += get_pad_lines(_output_line.to_string(), max_x - 23);
       }
 
@@ -49,9 +62,16 @@ impl WatchPad {
       self.pad = newpad(self.pad_lines.clone(), max_x - 23);
   }
 
-  pub fn update_output_pad_text(&mut self, diff_mode: i32) {
-    for line in self.result.output.clone().split("\n") {
+  pub fn update_output_pad_text(&mut self, diff_mode: i32, output_type: i32) {
+    let mut _output_text = self.result.output.split("\n").clone();
+    match output_type {
+      IS_OUTPUT => _output_text = self.result.output.split("\n").clone(),
+      IS_STDOUT => _output_text = self.result.stdout.split("\n").clone(),
+      IS_STDERR => _output_text = self.result.stderr.split("\n").clone(),
+      _ => {},
+    };
 
+    for line in _output_text {
       if diff_mode == 2 {
         let mut _output_line = &format!("  {}\n", line);
         wprintw(self.pad, _output_line);

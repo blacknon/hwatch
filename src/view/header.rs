@@ -9,6 +9,7 @@ pub struct Header {
   pub screen: ncurses::WINDOW,
   pub result: Result,
   pub diff: i32,
+  pub output: i32,
   pub active_pad: i32,
 }
 
@@ -18,6 +19,7 @@ impl Header {
       screen: _screen,
       result: Result::new(),
       diff: 0,
+      output: IS_OUTPUT,
       active_pad: IS_WATCH_PAD,
     }
   }
@@ -38,6 +40,17 @@ impl Header {
   }
 
   fn print_2nd_header(&mut self, max_x: i32) {
+    let mut _output_type = "";
+    match self.output {
+      IS_OUTPUT => _output_type = "output",
+      IS_STDOUT => _output_type = "stdout",
+      IS_STDERR => _output_type = "stderr",
+      _ => (),
+    }
+    attron(COLOR_PAIR(6));
+    mvprintw(1, max_x - 43, &format!("Output: {}", _output_type));
+    attroff(COLOR_PAIR(6));
+
     let mut _active_type = "";
     match self.active_pad {
       IS_WATCH_PAD => _active_type = "watch  ",
