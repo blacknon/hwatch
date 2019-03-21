@@ -165,4 +165,4 @@ fn get_pad_lines(_string: String, _width: i32) -> i32 {
 //    下のコードを参考に、ANSIカラーコードからNcurses向けのカラーコードへの変換処理を実装する
 //    example)
 //    https://github.com/viseztrance/flow/blob/f34f34210f9bfcded8ae6c6740ab2f2fe2aa28c9/src/utils/ansi_decoder.rs
-fn convert_ansi2ncurses_color() {}
+// fn convert_ansi2ncurses_color() {}

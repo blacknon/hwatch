@@ -6,26 +6,19 @@ mod window;
 
 use self::window::WatchPad;
 use cmd::Result;
-// use view::*;
 
 pub struct Watch {
     pub diff: i32,
     pub output_type: i32,
-
     pub count: i32,
     pub latest_result: Result,
     pub before_result: Result,
-
     pub watchpad: self::window::WatchPad,
-
     pub history: Mutex<Vec<Result>>,
     pub history_pad: WINDOW,
     pub history_pad_width: i32,
-    pub history_pad_lines: i32,
     pub history_pad_position: i32,
-
-    pub selected_position: i32, // history select position
-
+    pub selected: i32, // history select position
     pub screen: WINDOW,
 }
 
@@ -36,34 +29,17 @@ impl Watch {
         Self {
             diff: _diff,
             output_type: ::IS_OUTPUT,
-
             count: 0,
             latest_result: Result::new(),
             before_result: Result::new(),
-
             watchpad: _watch,
-
             history: Mutex::new(vec![]),
             history_pad: newpad(0, 0),
             history_pad_width: _historywidth,
-            history_pad_lines: 0,
             history_pad_position: 0,
-
-            selected_position: 0,
-
+            selected: 0,
             screen: _screen,
         }
-    }
-
-    pub fn get_latest_history(&mut self) -> Result {
-        let mut _result = Result::new();
-
-        let mut _history = self.history.lock().unwrap();
-        let _length = _history.len();
-        if _length >= 1 {
-            _result = _history[0].clone();
-        }
-        return _result;
     }
 
     pub fn draw_history(&mut self) {
@@ -73,8 +49,7 @@ impl Watch {
         refresh();
 
         // Create history_pad
-        self.history_pad_lines = self.count.clone() + 1;
-        self.history_pad = newpad(self.history_pad_lines, max_x);
+        self.history_pad = newpad(self.count + 1, max_x);
 
         // print latest
         let _latest_status = self.latest_result.status;
@@ -92,9 +67,9 @@ impl Watch {
             self.print_history(i, _timestamp, _status);
             i += 1;
         }
-        let history_pad_lastline = self.history_pad_position + max_y - 4;
-        if self.selected_position >= history_pad_lastline {
-            self.history_pad_position = self.selected_position - max_y + 3;
+        let _history_pad_lastline = self.history_pad_position + max_y - 4;
+        if self.selected >= _history_pad_lastline {
+            self.history_pad_position = self.selected - max_y + 3;
         }
 
         prefresh(
@@ -109,7 +84,7 @@ impl Watch {
     }
 
     fn print_history(&mut self, position: i32, word: String, status: bool) {
-        if position == self.selected_position {
+        if position == self.selected {
             if status == true {
                 // selected line and status true
                 wattron(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
@@ -137,17 +112,28 @@ impl Watch {
         }
     }
 
+    pub fn get_latest_history(&mut self) -> Result {
+        let mut _result = Result::new();
+
+        let mut _history = self.history.lock().unwrap();
+        let _length = _history.len();
+        if _length >= 1 {
+            _result = _history[0].clone();
+        }
+        return _result;
+    }
+
     pub fn history_up(&mut self) {
-        if self.selected_position > 0 {
-            self.selected_position -= 1;
+        if self.selected > 0 {
+            self.selected -= 1;
             self.draw_history();
             self.update();
         }
     }
 
     pub fn history_down(&mut self) {
-        if self.count > self.selected_position {
-            self.selected_position += 1;
+        if self.count > self.selected {
+            self.selected += 1;
             self.draw_history();
             self.update();
         }
@@ -204,7 +190,7 @@ impl Watch {
         let before_result = self.get_target_result(-1);
         let target_result = self.get_target_result(0);
 
-        if target_result.output != before_result.output && self.selected_position != self.count {
+        if target_result.output != before_result.output && self.selected != self.count {
             self.watchpad.result = target_result.clone();
             match self.diff {
                 1 => self.watch_diff_print(before_result, target_result),
@@ -286,17 +272,17 @@ impl Watch {
     //    1 ... next result
     fn get_target_result(&mut self, get_type: i32) -> Result {
         let mut result = Result::new();
-        if self.selected_position != 0 {
+        if self.selected != 0 {
             let mut _history = self.history.lock().unwrap().clone();
             let _length = _history.len();
 
             let mut i = 1;
             for x in 0.._length {
-                if get_type == 0 && i == self.selected_position {
+                if get_type == 0 && i == self.selected {
                     result = _history[x].clone();
-                } else if get_type == -1 && i == self.selected_position + 1 {
+                } else if get_type == -1 && i == self.selected + 1 {
                     result = _history[x].clone();
-                } else if get_type == 1 && i == self.selected_position - 1 {
+                } else if get_type == 1 && i == self.selected - 1 {
                     result = _history[x].clone();
                 }
                 i += 1;
@@ -309,56 +295,6 @@ impl Watch {
             }
         }
         return result;
-    }
-
-    pub fn mouse_action(&mut self, _mevent: MEVENT) {
-        let _mouse_event = _mevent.bstate as i32;
-        let mut max_x = 0;
-        let mut max_y = 0;
-        getmaxyx(self.screen, &mut max_y, &mut max_x);
-
-        // mouse is not on header
-        if _mevent.y > 1 {
-            match _mouse_event {
-                // mouse left button click
-                BUTTON1_CLICKED => {
-                    if max_x - self.history_pad_width < _mevent.x {
-                        let _mouse_select_line = _mevent.y - 2 + self.history_pad_position;
-
-                        if self.history_pad_lines > _mouse_select_line {
-                            self.selected_position = _mouse_select_line;
-
-                            // update draw
-                            self.draw_history();
-                            self.update();
-                        }
-                    }
-                }
-
-                // mouse wheel up
-                BUTTON4_PRESSED => {
-                    if max_x - self.history_pad_width < _mevent.x {
-                        // mouse on history
-                        self.history_up();
-                    } else {
-                        // mouse on watch
-                        self.window_scroll_up();
-                    }
-                }
-
-                // mouse wheel down
-                BUTTON5_PRESSED => {
-                    // mouse on history
-                    if max_x - self.history_pad_width < _mevent.x {
-                        self.history_down();
-                    } else {
-                        // mouse on watch
-                        self.window_scroll_down();
-                    }
-                }
-                _ => {}
-            }
-        }
     }
 
     // fn get_result_output(&mut self,_result: Result) ->String {

@@ -1,7 +1,10 @@
+// crate
 extern crate ncurses;
 
+// module
 use ncurses::*;
 
+// local module
 use cmd::Result;
 
 pub struct Header {
@@ -25,18 +28,15 @@ impl Header {
 
     // 1st line
     fn printout_1st_line(&mut self, max_x: i32) {
-        let interval_string = format!("{:.*}", 2, self.result.interval);
+        // interval second num to string
+        let interval = format!("{:.*}", 2, self.result.interval);
 
         // print interval and exec command
         // ex) Every XXs: Command...
         mvprintw(
             0,
             0,
-            &format!(
-                "Every {}s: {}",
-                interval_string,
-                self.result.clone().command
-            ),
+            &format!("Every {}s: {}", interval, self.result.clone().command),
         );
 
         // print Now time in right end
@@ -46,6 +46,12 @@ impl Header {
 
     // 2nd line
     fn printout_2nd_line(&mut self, max_x: i32) {
+        // set var
+        let _output_length = 15; // "Output: "(8) + "output"(6) + 1
+        let _pad_length = 16; // "Active: "(8) + "history"(7) + 1
+        let _diff_length = 12; // "Diff: "(6) + "Watch"(5) + 1
+
+        // print output type
         let mut _output_type = "";
         match self.output {
             ::IS_OUTPUT => _output_type = "output",
@@ -57,6 +63,7 @@ impl Header {
         mvprintw(1, max_x - 43, &format!("Output: {}", _output_type));
         attroff(COLOR_PAIR(6));
 
+        // print pad
         let mut _active_type = "";
         match self.active_pad {
             ::IS_WATCH_PAD => _active_type = "watch  ",
@@ -67,6 +74,7 @@ impl Header {
         mvprintw(1, max_x - 28, &format!("Active: {}", _active_type));
         attroff(COLOR_PAIR(5));
 
+        // print diff
         let mut _diff_type = "";
         match self.diff {
             0 => _diff_type = "None",
@@ -78,6 +86,8 @@ impl Header {
         attron(COLOR_PAIR(4));
         mvprintw(1, max_x - 12, &format!("Diff: {}", _diff_type));
         attroff(COLOR_PAIR(4));
+
+        // print Now selected history num
     }
 
     // update header
