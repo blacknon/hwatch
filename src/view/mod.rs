@@ -63,11 +63,9 @@ impl View {
         let _watch = Watch::new(_screen.clone(), diff_type, _history_width);
         Self {
             done: false,
-
             screen: _screen,
             header: header::Header::new(_screen.clone()),
             watch: _watch,
-
             tx: tx,
             rx: rx,
         }
@@ -97,15 +95,15 @@ impl View {
             self.watch.append_history(_result.clone());
 
             // add selected positon
-            if self.watch.selected_position != 0 {
-                self.watch.selected_position += 1;
+            if self.watch.selected != 0 {
+                self.watch.selected += 1;
             }
             self.watch.draw_history();
             self.watch.update();
         }
 
         // if history selected latest, update watch window.
-        if self.watch.selected_position == 0 {
+        if self.watch.selected == 0 {
             self.header.result = _result.clone();
             self.header.update();
             self.watch.draw_history();
@@ -116,109 +114,70 @@ impl View {
         }
     }
 
-    fn history_up(&mut self) {
-        if self.watch.selected_position > 0 {
-            clear();
-            self.header.update();
-            self.watch.history_up()
-        }
-    }
-
-    fn history_down(&mut self) {
-        if self.watch.count > self.watch.selected_position {
-            clear();
-            self.header.update();
-            self.watch.history_down()
-        }
-    }
-
     fn toggle_diff(&mut self) {
-        // add number
+        // add num
         let mut now_diff = self.watch.diff;
         now_diff += 1;
 
-        // switch and show diff mode
-        match now_diff % 3 {
-            0 => self.disable_diff(),
-            1 => self.watch_diff(),
-            2 => self.line_diff(),
-            _ => (),
-        }
+        self.switch_diff(now_diff % 3);
     }
 
-    fn disable_diff(&mut self) {
-        self.watch.diff = 0;
+    fn switch_diff(&mut self, _diff: i32) {
+        // set value
+        self.watch.diff = _diff;
         self.header.diff = self.watch.diff;
+
+        // draw
         clear();
         self.header.update();
         self.watch.draw_history();
         self.watch.update();
     }
-
-    fn watch_diff(&mut self) {
-        self.watch.diff = 1;
-        self.header.diff = self.watch.diff;
-
-        clear();
-        self.header.update();
-        self.watch.draw_history();
-        self.watch.update();
-    }
-
-    fn line_diff(&mut self) {
-        self.watch.diff = 2;
-        self.header.diff = self.watch.diff;
-
-        clear();
-        self.header.update();
-        self.watch.draw_history();
-        self.watch.update();
-    }
-
-    // fn switch_word_diff(&mut self) {
-
-    // }
 
     fn toggle_pad(&mut self) {
-        // add number
+        // add num
         let mut now_pad = self.header.active_pad;
         now_pad += 3;
 
-        // switch active_pad
-        match now_pad % 2 {
-            ::IS_WATCH_PAD => self.header.active_pad = ::IS_WATCH_PAD,
-            ::IS_HISTORY_PAD => self.header.active_pad = ::IS_HISTORY_PAD,
-            _ => (),
-        }
+        self.header.active_pad = now_pad % 2;
         self.header.update();
     }
 
-    fn scroll_up(&mut self) {
+    fn up(&mut self) {
         match self.header.active_pad {
             ::IS_WATCH_PAD => self.watch.window_scroll_up(),
-            ::IS_HISTORY_PAD => self.history_up(),
+            ::IS_HISTORY_PAD => {
+                if self.watch.selected > 0 {
+                    clear();
+                    self.header.update();
+                    self.watch.history_up();
+                }
+            }
             _ => (),
         }
     }
 
-    fn scroll_down(&mut self) {
+    fn down(&mut self) {
         match self.header.active_pad {
             ::IS_WATCH_PAD => self.watch.window_scroll_down(),
-            ::IS_HISTORY_PAD => self.history_down(),
+            ::IS_HISTORY_PAD => {
+                if self.watch.count > self.watch.selected {
+                    clear();
+                    self.header.update();
+                    self.watch.history_down()
+                }
+            }
             _ => (),
         }
     }
 
-    fn change_output_mode(&mut self, _output_type: i32) {
-        match _output_type {
-            ::IS_OUTPUT => self.watch.output_type = ::IS_OUTPUT,
-            ::IS_STDOUT => self.watch.output_type = ::IS_STDOUT,
-            ::IS_STDERR => self.watch.output_type = ::IS_STDERR,
-            _ => {}
-        };
-        clear();
-
+    fn set_output_type(&mut self, _output_type: i32) {
+        // set value
+        self.watch.output_type = _output_type;
         self.header.output = _output_type;
+
+        // draw
+        clear();
         self.header.update();
         self.watch.draw_history();
         self.watch.update();
@@ -237,52 +196,104 @@ impl View {
                     0x02 => self.exit(),
                     _ => {}
                 },
-                Ok(Event::Input(i)) => {
-                    match i {
-                        // Mouse
-                        KEY_MOUSE => {
-                            let mut mevent = MEVENT {
-                                id: 0,
-                                x: 0,
-                                y: 0,
-                                z: 0,
-                                bstate: 0,
-                            };
-                            let _error = getmouse(&mut mevent);
-                            if _error == 0 {
-                                self.watch.mouse_action(mevent)
-                            }
-                        }
-
-                        // Screen Resize
-                        KEY_RESIZE => self.watch.resize(),
-
-                        // change active pad
-                        0x09 => self.toggle_pad(), // Tab
-
-                        // pad up/down
-                        KEY_UP => self.scroll_up(),     // Arrow Up
-                        KEY_DOWN => self.scroll_down(), // Arrow Down
-
-                        // change diff mode
-                        0x64 => self.toggle_diff(),  // d(0x64)
-                        0x30 => self.disable_diff(), // 0(0x30)
-                        0x31 => self.watch_diff(),   // 1(0x31)
-                        0x32 => self.line_diff(),    // 2(0x32)
-
-                        // change output
-                        KEY_F1 => self.change_output_mode(::IS_STDOUT),
-                        KEY_F2 => self.change_output_mode(::IS_STDERR),
-                        KEY_F3 => self.change_output_mode(::IS_OUTPUT),
-
-                        // exit this program
-                        0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71)
-
-                        _ => {}
-                    }
-                }
+                Ok(Event::Input(i)) => self.input_action(i),
                 _ => {}
             };
+        }
+    }
+
+    fn input_action(&mut self, _input: i32) {
+        match _input {
+            // Mouse
+            KEY_MOUSE => {
+                let mut mevent = MEVENT {
+                    id: 0,
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    bstate: 0,
+                };
+                let _error = getmouse(&mut mevent);
+                if _error == 0 {
+                    self.mouse_action(mevent)
+                }
+            }
+
+            // Screen Resize
+            KEY_RESIZE => self.watch.resize(),
+
+            // change active pad
+            0x09 => self.toggle_pad(), // Tab
+
+            // pad up/down
+            KEY_UP => self.up(),     // Arrow Up
+            KEY_DOWN => self.down(), // Arrow Down
+
+            // change diff mode
+            0x64 => self.toggle_diff(),  // d(0x64)
+            0x30 => self.switch_diff(0), // 0(0x30)
+            0x31 => self.switch_diff(1), // 1(0x31)
+            0x32 => self.switch_diff(2), // 2(0x32)
+
+            // change output
+            KEY_F1 => self.set_output_type(::IS_STDOUT),
+            KEY_F2 => self.set_output_type(::IS_STDERR),
+            KEY_F3 => self.set_output_type(::IS_OUTPUT),
+
+            // exit this program
+            0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71)
+
+            _ => {}
+        }
+    }
+
+    fn mouse_action(&mut self, _mevent: MEVENT) {
+        let _mouse_event = _mevent.bstate as i32;
+        let mut max_x = 0;
+        let mut max_y = 0;
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
+
+        // mouse is not on header
+        if _mevent.y > 1 {
+            match _mouse_event {
+                // mouse left button click
+                BUTTON1_CLICKED => {
+                    if max_x - self.watch.history_pad_width < _mevent.x {
+                        let _mouse_select_line = _mevent.y - 2 + self.watch.history_pad_position;
+
+                        if self.watch.count > _mouse_select_line {
+                            self.watch.selected = _mouse_select_line;
+
+                            // update draw
+                            self.watch.draw_history();
+                            self.watch.update();
+                        }
+                    }
+                }
+
+                // mouse wheel up
+                BUTTON4_PRESSED => {
+                    if max_x - self.watch.history_pad_width < _mevent.x {
+                        self.header.active_pad = ::IS_HISTORY_PAD;
+                    } else {
+                        self.header.active_pad = ::IS_WATCH_PAD;
+                    }
+                    self.header.update();
+                    self.up();
+                }
+
+                // mouse wheel down
+                BUTTON5_PRESSED => {
+                    if max_x - self.watch.history_pad_width < _mevent.x {
+                        self.header.active_pad = ::IS_HISTORY_PAD;
+                    } else {
+                        self.header.active_pad = ::IS_WATCH_PAD;
+                    }
+                    self.header.update();
+                    self.down();
+                }
+                _ => {}
+            }
         }
     }
 }

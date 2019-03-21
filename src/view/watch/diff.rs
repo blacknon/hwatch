@@ -1,9 +1,7 @@
 extern crate difference;
 
-use std::cmp;
-
 use self::difference::{Changeset, Difference};
-
+use std::cmp;
 use view::watch::window::WatchPad;
 
 // watch type diff
