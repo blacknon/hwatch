@@ -14,11 +14,9 @@ use event::Event;
 
 pub struct View {
     pub done: bool,
-
     pub screen: WINDOW,
     pub header: header::Header,
     pub watch: watch::Watch,
-
     pub tx: Sender<Event>,
     pub rx: Receiver<Event>,
 }
@@ -79,10 +77,6 @@ impl View {
     fn update(&mut self, _result: Result) {
         // set header diff flag
         self.header.diff = self.watch.diff;
-
-        // update before result
-        let before_result = self.watch.latest_result.clone();
-        self.watch.before_result = before_result;
 
         // update latest result
         self.watch.latest_result = _result.clone();
@@ -145,7 +139,7 @@ impl View {
 
     fn up(&mut self) {
         match self.header.active_pad {
-            ::IS_WATCH_PAD => self.watch.window_scroll_up(),
+            ::IS_WATCH_PAD => self.watch.window_up(),
             ::IS_HISTORY_PAD => {
                 if self.watch.selected > 0 {
                     clear();
@@ -159,7 +153,7 @@ impl View {
 
     fn down(&mut self) {
         match self.header.active_pad {
-            ::IS_WATCH_PAD => self.watch.window_scroll_down(),
+            ::IS_WATCH_PAD => self.watch.window_down(),
             ::IS_HISTORY_PAD => {
                 if self.watch.count > self.watch.selected {
                     clear();

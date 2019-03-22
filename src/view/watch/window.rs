@@ -28,7 +28,8 @@ impl WatchPad {
         }
     }
 
-    pub fn before_update_output_pad(&mut self, output_type: i32) {
+    // count pad line
+    pub fn create_pad(&mut self, output_type: i32) {
         let mut max_x = 0;
         let mut max_y = 0;
 
@@ -38,15 +39,10 @@ impl WatchPad {
         let mut _pad_lines_output = 0;
 
         // set result output type(stdout/stderr/output)
-        let mut _output_text = self.result.output.split("\n").clone();
-        match output_type {
-            ::IS_OUTPUT => _output_text = self.result.output.split("\n").clone(),
-            ::IS_STDOUT => _output_text = self.result.stdout.split("\n").clone(),
-            ::IS_STDERR => _output_text = self.result.stderr.split("\n").clone(),
-            _ => {}
-        };
+        let output = self.get_output(output_type);
+        let output_text = output.split("\n");
 
-        for _output_line in _output_text {
+        for _output_line in output_text {
             _pad_lines_result += get_pad_lines(_output_line.to_string(), max_x - 23);
         }
 
@@ -58,16 +54,11 @@ impl WatchPad {
         self.pad = newpad(self.pad_lines.clone(), max_x - 23);
     }
 
-    pub fn update_output_pad_text(&mut self, diff_mode: i32, output_type: i32) {
-        let mut _output_text = self.result.output.split("\n").clone();
-        match output_type {
-            ::IS_OUTPUT => _output_text = self.result.output.split("\n").clone(),
-            ::IS_STDOUT => _output_text = self.result.stdout.split("\n").clone(),
-            ::IS_STDERR => _output_text = self.result.stderr.split("\n").clone(),
-            _ => {}
-        };
+    pub fn update(&mut self, diff_mode: i32, output_type: i32) {
+        let output = self.get_output(output_type);
+        let output_text = output.split("\n");
 
-        for line in _output_text {
+        for line in output_text {
             if diff_mode == 2 {
                 let mut _output_line = &format!("  {}\n", line);
                 wprintw(self.pad, _output_line);
@@ -96,6 +87,17 @@ impl WatchPad {
         } else {
             wprintw(self.pad, &format!("{}", _char));
         }
+    }
+
+    fn get_output(&mut self, output_type: i32) -> String {
+        let mut output = String::new();
+        match output_type {
+            ::IS_OUTPUT => output = self.result.output.clone(),
+            ::IS_STDOUT => output = self.result.stdout.clone(),
+            ::IS_STDERR => output = self.result.stderr.clone(),
+            _ => {}
+        };
+        return output;
     }
 
     pub fn draw_output_pad(&mut self) {
