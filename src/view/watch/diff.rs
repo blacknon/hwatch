@@ -7,45 +7,45 @@ use view::watch::window::WatchPad;
 // watch type diff
 pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: String) {
     // before and after output to vector
-    let mut before_output_collect: Vec<&str> = before_output.lines().collect();
-    let mut after_output_collect: Vec<&str> = after_output.lines().collect();
+    let mut before_lines: Vec<&str> = before_output.lines().collect();
+    let mut after_lines: Vec<&str> = after_output.lines().collect();
 
     // get max line before and after output
-    let max_line = cmp::max(before_output_collect.len(), after_output_collect.len());
+    let max_line = cmp::max(before_lines.len(), after_lines.len());
 
     for i in 0..max_line {
-        if before_output_collect.len() <= i {
-            before_output_collect.push("");
+        if before_lines.len() <= i {
+            before_lines.push("");
         }
-        if after_output_collect.len() <= i {
-            after_output_collect.push("");
+        if after_lines.len() <= i {
+            after_lines.push("");
         }
 
-        if before_output_collect[i] != after_output_collect[i] {
-            let mut before_line_collect: Vec<char> = before_output_collect[i].chars().collect();
-            let mut after_line_collect: Vec<char> = after_output_collect[i].chars().collect();
+        if before_lines[i] != after_lines[i] {
+            let mut before_chars: Vec<char> = before_lines[i].chars().collect();
+            let mut after_chars: Vec<char> = after_lines[i].chars().collect();
 
-            let max_char = cmp::max(before_line_collect.len(), after_line_collect.len());
+            let max_char = cmp::max(before_chars.len(), after_chars.len());
 
             for x in 0..max_char {
                 let space: char = ' ';
 
-                if before_line_collect.len() <= max_char {
-                    before_line_collect.push(space);
+                if before_chars.len() <= max_char {
+                    before_chars.push(space);
                 }
-                if after_line_collect.len() <= max_char {
-                    after_line_collect.push(space);
+                if after_chars.len() <= max_char {
+                    after_chars.push(space);
                 }
 
-                if before_line_collect[x] != after_line_collect[x] {
-                    watch.update_output_pad_char(after_line_collect[x].to_string(), true, 0);
+                if before_chars[x] != after_chars[x] {
+                    watch.update_output_pad_char(after_chars[x].to_string(), true, 0);
                 } else {
-                    watch.update_output_pad_char(after_line_collect[x].to_string(), false, 0);
+                    watch.update_output_pad_char(after_chars[x].to_string(), false, 0);
                 }
             }
             watch.update_output_pad_char("\n".to_string(), false, 0);
         } else {
-            watch.update_output_pad_char(after_output_collect[i].to_string(), false, 0);
+            watch.update_output_pad_char(after_lines[i].to_string(), false, 0);
             watch.update_output_pad_char("\n".to_string(), false, 0);
         }
     }
