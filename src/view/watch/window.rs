@@ -7,7 +7,6 @@ use std::cmp;
 pub struct WatchPad {
     pub result: Result,
     pub result_diff_output: String,
-
     pub screen: WINDOW,
     pub pad: WINDOW,
     pub pad_lines: i32,
@@ -20,7 +19,6 @@ impl WatchPad {
         Self {
             result: Result::new(),
             result_diff_output: String::new(),
-
             screen: _screen,
             pad: newpad(0, 0),
             pad_lines: 0,

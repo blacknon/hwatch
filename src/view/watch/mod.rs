@@ -83,31 +83,24 @@ impl Watch {
     }
 
     fn print_history(&mut self, position: i32, word: String, status: bool) {
+        let mut _print_data = String::new();
         if position == self.selected {
-            if status == true {
-                // selected line and status true
-                wattron(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
-                wprintw(self.history_pad, &format!(">{}\n", word));
-                wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
-            } else {
-                // selected line and status false
-                wattron(self.history_pad, A_REVERSE() | COLOR_PAIR(3));
-                wprintw(self.history_pad, &format!(">{}\n", word));
-
-                wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(3));
-            }
+            wattron(self.history_pad, A_REVERSE());
+            _print_data = format!(">{}\n", word);
         } else {
-            if status == true {
-                // not selected line and status true
-                wattron(self.history_pad, COLOR_PAIR(2));
-                wprintw(self.history_pad, &format!(" {}\n", word));
-                wattroff(self.history_pad, COLOR_PAIR(2));
-            } else {
-                // not selected line and status false
-                wattron(self.history_pad, COLOR_PAIR(3));
-                wprintw(self.history_pad, &format!(" {}\n", word));
-                wattroff(self.history_pad, COLOR_PAIR(3));
-            }
+            _print_data = format!(" {}\n", word);
+        }
+
+        if status == true {
+            // selected line and status true
+            wattron(self.history_pad, COLOR_PAIR(2));
+            wprintw(self.history_pad, &_print_data);
+            wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
+        } else {
+            // selected line and status false
+            wattron(self.history_pad, COLOR_PAIR(3));
+            wprintw(self.history_pad, &_print_data);
+            wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(3));
         }
     }
 
@@ -203,24 +196,8 @@ impl Watch {
     }
 
     fn watch_diff_print(&mut self, before_result: Result, target_result: Result) {
-        let mut _before_result_data = before_result.output.clone();
-        let mut _target_result_data = target_result.output.clone();
-
-        match self.output_type {
-            ::IS_OUTPUT => {
-                _before_result_data = before_result.output.clone();
-                _target_result_data = target_result.output.clone();
-            }
-            ::IS_STDOUT => {
-                _before_result_data = before_result.stdout.clone();
-                _target_result_data = target_result.stdout.clone();
-            }
-            ::IS_STDERR => {
-                _before_result_data = before_result.stderr.clone();
-                _target_result_data = target_result.stderr.clone();
-            }
-            _ => {}
-        };
+        let mut _before_result_data = self.get_output(before_result);
+        let mut _target_result_data = self.get_output(target_result);
 
         self.watch_pad.create_pad(self.output_type);
         diff::watch_diff(
