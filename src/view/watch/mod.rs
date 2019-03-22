@@ -1,9 +1,10 @@
+// module
 use ncurses::*;
 use std::sync::Mutex;
 
+// local module
 mod diff;
 mod window;
-
 use self::window::WatchPad;
 use cmd::Result;
 
@@ -12,8 +13,7 @@ pub struct Watch {
     pub output_type: i32,
     pub count: i32,
     pub latest_result: Result,
-    pub before_result: Result,
-    pub watchpad: self::window::WatchPad,
+    pub watch_pad: self::window::WatchPad,
     pub history: Mutex<Vec<Result>>,
     pub history_pad: WINDOW,
     pub history_pad_width: i32,
@@ -31,8 +31,7 @@ impl Watch {
             output_type: ::IS_OUTPUT,
             count: 0,
             latest_result: Result::new(),
-            before_result: Result::new(),
-            watchpad: _watch,
+            watch_pad: _watch,
             history: Mutex::new(vec![]),
             history_pad: newpad(0, 0),
             history_pad_width: _historywidth,
@@ -139,12 +138,12 @@ impl Watch {
         }
     }
 
-    pub fn window_scroll_up(&mut self) {
-        self.watchpad.scroll_up()
+    pub fn window_up(&mut self) {
+        self.watch_pad.scroll_up()
     }
 
-    pub fn window_scroll_down(&mut self) {
-        self.watchpad.scroll_down();
+    pub fn window_down(&mut self) {
+        self.watch_pad.scroll_down();
     }
 
     pub fn resize(&mut self) {
@@ -155,7 +154,7 @@ impl Watch {
         resizeterm(max_y, max_x);
 
         self.draw_history();
-        self.watchpad.resize();
+        self.watch_pad.resize();
     }
 
     pub fn append_history(&mut self, _result: Result) {
@@ -173,35 +172,33 @@ impl Watch {
             self.plane_watch_update();
         }
 
-        self.watchpad.draw_output_pad();
+        self.watch_pad.draw_output_pad();
         self.draw_history();
     }
 
     fn plane_watch_update(&mut self) {
-        let target_result = self.get_target_result(0);
+        let target_result = self.get_result(0);
 
-        self.watchpad.result = target_result.clone();
-        self.watchpad.before_update_output_pad(self.output_type);
-        self.watchpad
-            .update_output_pad_text(self.diff, self.output_type);
+        self.watch_pad.result = target_result.clone();
+        self.watch_pad.create_pad(self.output_type);
+        self.watch_pad.update(self.diff, self.output_type);
     }
 
     fn diff_watch_update(&mut self) {
-        let before_result = self.get_target_result(-1);
-        let target_result = self.get_target_result(0);
+        let before_result = self.get_result(1);
+        let target_result = self.get_result(0);
 
         if target_result.output != before_result.output && self.selected != self.count {
-            self.watchpad.result = target_result.clone();
+            self.watch_pad.result = target_result.clone();
             match self.diff {
                 1 => self.watch_diff_print(before_result, target_result),
                 2 => self.line_diff_print(before_result, target_result),
                 _ => self.plane_watch_update(),
             }
         } else {
-            self.watchpad.result = target_result.clone();
-            self.watchpad.before_update_output_pad(self.output_type);
-            self.watchpad
-                .update_output_pad_text(self.diff, self.output_type);
+            self.watch_pad.result = target_result.clone();
+            self.watch_pad.create_pad(self.output_type);
+            self.watch_pad.update(self.diff, self.output_type);
         }
     }
 
@@ -225,85 +222,69 @@ impl Watch {
             _ => {}
         };
 
-        self.watchpad.before_update_output_pad(self.output_type);
+        self.watch_pad.create_pad(self.output_type);
         diff::watch_diff(
-            self.watchpad.clone(),
+            self.watch_pad.clone(),
             _before_result_data,
             _target_result_data,
         );
     }
 
     fn line_diff_print(&mut self, before_result: Result, target_result: Result) {
-        let mut _before_result_data = before_result.output.clone();
-        let mut _target_result_data = target_result.output.clone();
-
-        match self.output_type {
-            ::IS_OUTPUT => {
-                _before_result_data = before_result.output.clone();
-                _target_result_data = target_result.output.clone();
-            }
-            ::IS_STDOUT => {
-                _before_result_data = before_result.stdout.clone();
-                _target_result_data = target_result.stdout.clone();
-            }
-            ::IS_STDERR => {
-                _before_result_data = before_result.stderr.clone();
-                _target_result_data = target_result.stderr.clone();
-            }
-            _ => {}
-        };
+        let _before_result_data = self.get_output(before_result);
+        let _target_result_data = self.get_output(target_result);
 
         let line_diff_str =
             diff::line_diff_str_get(_before_result_data.clone(), _target_result_data.clone());
-        self.watchpad.result_diff_output = line_diff_str;
-        self.watchpad.before_update_output_pad(self.output_type);
+        self.watch_pad.result_diff_output = line_diff_str;
+        self.watch_pad.create_pad(self.output_type);
         diff::line_diff(
-            self.watchpad.clone(),
+            self.watch_pad.clone(),
             _before_result_data,
             _target_result_data,
         );
-        self.watchpad.result_diff_output = String::new();
+        self.watch_pad.result_diff_output = String::new();
+    }
+
+    fn get_output(&mut self, result: Result) -> String {
+        let mut output = String::new();
+        match self.output_type {
+            ::IS_OUTPUT => {
+                output = result.output.clone();
+            }
+            ::IS_STDOUT => {
+                output = result.stdout.clone();
+            }
+            ::IS_STDERR => {
+                output = result.stderr.clone();
+            }
+            _ => {}
+        };
+        return output;
     }
 
     // @note:
     //    [get_type value]
     //    0 ... target result
-    //   -1 ... before result
-    //    1 ... next result
-    fn get_target_result(&mut self, get_type: i32) -> Result {
+    //    1 ... before result
+    //   -1 ... next result
+    fn get_result(&mut self, get_type: i32) -> Result {
         let mut result = Result::new();
-        if self.selected != 0 {
-            let mut _history = self.history.lock().unwrap().clone();
-            let _length = _history.len();
+        let mut _history = self.history.lock().unwrap().clone();
 
-            let mut i = 1;
-            for x in 0.._length {
-                if get_type == 0 && i == self.selected {
-                    result = _history[x].clone();
-                } else if get_type == -1 && i == self.selected + 1 {
-                    result = _history[x].clone();
-                } else if get_type == 1 && i == self.selected - 1 {
-                    result = _history[x].clone();
-                }
-                i += 1;
-            }
-        } else {
-            if get_type == 0 {
-                result = self.latest_result.clone();
-            } else if get_type == -1 {
-                result = self.before_result.clone();
-            }
+        let mut results_vec = vec![self.latest_result.clone()];
+        results_vec.append(&mut _history);
+
+        let increment = (self.selected + get_type) as usize;
+        if results_vec.len() > increment {
+            result = results_vec[increment].clone();
         }
+
         return result;
     }
 
-    // fn get_result_output(&mut self,_result: Result) ->String {
-    //     let _result_output =  String::new();
-    //     return _result_output
-    // }
-
     pub fn exit(&mut self) {
-        self.watchpad.exit();
+        self.watch_pad.exit();
         delwin(self.history_pad);
     }
 }
