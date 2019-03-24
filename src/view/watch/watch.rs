@@ -1,7 +1,9 @@
+// module
 use ncurses::*;
-
-use cmd::Result;
 use std::cmp;
+
+// local module
+use cmd::Result;
 
 #[derive(Clone)]
 pub struct WatchPad {

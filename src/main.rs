@@ -1,8 +1,15 @@
-// crate
+// macro crate
 #[macro_use]
 extern crate clap;
+
+#[macro_use]
+extern crate lazy_static;
+
+// crate
+extern crate itertools;
 extern crate ncurses;
 extern crate nix;
+extern crate regex;
 
 // modules
 use clap::{App, AppSettings, Arg};
@@ -136,5 +143,5 @@ fn main() {
     _signal.run();
 
     // view
-    _view.start_reception();
+    _view.get_event();
 }
