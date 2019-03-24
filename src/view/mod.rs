@@ -28,9 +28,6 @@ impl View {
         let lang = get_lang();
         setlocale(locale_conf, &lang);
 
-        // set var
-        let _history_width = 21; // history tab width
-
         // Create ncurses screen
         let _screen = initscr();
         start_color();
@@ -58,7 +55,7 @@ impl View {
             diff_type = 1;
         }
 
-        let _watch = Watch::new(_screen.clone(), diff_type, _history_width);
+        let _watch = Watch::new(_screen.clone(), diff_type);
         Self {
             done: false,
             screen: _screen,
@@ -252,10 +249,10 @@ impl View {
             match _mouse_event {
                 // mouse left button click
                 BUTTON1_CLICKED => {
-                    if max_x - self.watch.history_pad_width < _mevent.x {
+                    if max_x - ::HISTORY_WIDTH < _mevent.x {
                         let _mouse_select_line = _mevent.y - 2 + self.watch.history_pad_position;
 
-                        if self.watch.count > _mouse_select_line {
+                        if self.watch.count >= _mouse_select_line {
                             self.watch.selected = _mouse_select_line;
 
                             // update draw
@@ -267,7 +264,7 @@ impl View {
 
                 // mouse wheel up
                 BUTTON4_PRESSED => {
-                    if max_x - self.watch.history_pad_width < _mevent.x {
+                    if max_x - ::HISTORY_WIDTH < _mevent.x {
                         self.header.active_pad = ::IS_HISTORY_PAD;
                     } else {
                         self.header.active_pad = ::IS_WATCH_PAD;
@@ -278,7 +275,7 @@ impl View {
 
                 // mouse wheel down
                 BUTTON5_PRESSED => {
-                    if max_x - self.watch.history_pad_width < _mevent.x {
+                    if max_x - ::HISTORY_WIDTH < _mevent.x {
                         self.header.active_pad = ::IS_HISTORY_PAD;
                     } else {
                         self.header.active_pad = ::IS_WATCH_PAD;

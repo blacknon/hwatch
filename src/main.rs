@@ -23,6 +23,7 @@ use signal::Signal;
 use view::View;
 
 // const
+pub const HISTORY_WIDTH: i32 = 21;
 pub const IS_WATCH_PAD: i32 = 0;
 pub const IS_HISTORY_PAD: i32 = 1;
 pub const IS_STDOUT: i32 = 1;

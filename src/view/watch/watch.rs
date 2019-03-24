@@ -41,15 +41,17 @@ impl WatchPad {
         let output_text = output.split("\n");
 
         for _output_line in output_text {
-            _pad_lines_result += get_pad_lines(_output_line.to_string(), max_x - 23);
+            _pad_lines_result +=
+                get_pad_lines(_output_line.to_string(), max_x - (::HISTORY_WIDTH + 2));
         }
 
         for _output_line in self.result_diff_output.clone().split("\n") {
-            _pad_lines_output += get_pad_lines(_output_line.to_string(), max_x - 23);
+            _pad_lines_output +=
+                get_pad_lines(_output_line.to_string(), max_x - (::HISTORY_WIDTH + 2));
         }
 
         self.pad_lines = cmp::max(_pad_lines_result, _pad_lines_output + 1);
-        self.pad = newpad(self.pad_lines.clone(), max_x - 23);
+        self.pad = newpad(self.pad_lines.clone(), max_x - (::HISTORY_WIDTH + 2));
     }
 
     pub fn update(&mut self, diff_mode: i32, output_type: i32) {
@@ -67,17 +69,17 @@ impl WatchPad {
         }
     }
 
-    pub fn update_output_pad_char(&mut self, _char: String, _reverse: bool, _color_code: i16) {
+    pub fn print_watch_char(&mut self, _char: String, _reverse: bool, _color_code: i16) {
         if _reverse {
             wattron(self.pad, A_REVERSE());
-            self.update_ouput_pad_char_color(_char, _color_code);
+            self.print_char_to_color_pair(_char, _color_code);
             wattroff(self.pad, A_REVERSE());
         } else {
-            self.update_ouput_pad_char_color(_char, _color_code);
+            self.print_char_to_color_pair(_char, _color_code);
         }
     }
 
-    fn update_ouput_pad_char_color(&mut self, _char: String, _color_code: i16) {
+    fn print_char_to_color_pair(&mut self, _char: String, _color_code: i16) {
         if _color_code != 0 {
             wattron(self.pad, COLOR_PAIR(_color_code));
             wprintw(self.pad, &format!("{}", _char));
@@ -102,7 +104,15 @@ impl WatchPad {
         let mut max_x = 0;
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
-        prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 23);
+        prefresh(
+            self.pad,
+            self.pad_position,
+            0,
+            2,
+            0,
+            max_y - 1,
+            max_x - (::HISTORY_WIDTH + 2),
+        );
     }
 
     pub fn scroll_up(&mut self) {
@@ -112,7 +122,15 @@ impl WatchPad {
 
         if self.pad_lines > max_y && self.pad_position > 0 {
             self.pad_position -= 1;
-            prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 23);
+            prefresh(
+                self.pad,
+                self.pad_position,
+                0,
+                2,
+                0,
+                max_y - 1,
+                max_x - (::HISTORY_WIDTH + 2),
+            );
         }
     }
 
@@ -123,7 +141,15 @@ impl WatchPad {
 
         if self.pad_lines > max_y && self.pad_position < (self.pad_lines - max_y + 2 - 1) {
             self.pad_position += 1;
-            prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 23);
+            prefresh(
+                self.pad,
+                self.pad_position,
+                0,
+                2,
+                0,
+                max_y - 1,
+                max_x - (::HISTORY_WIDTH + 2),
+            );
         }
     }
 
@@ -132,7 +158,15 @@ impl WatchPad {
         let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
         resizeterm(max_y, max_x);
-        prefresh(self.pad, self.pad_position, 0, 2, 0, max_y - 1, max_x - 23);
+        prefresh(
+            self.pad,
+            self.pad_position,
+            0,
+            2,
+            0,
+            max_y - 1,
+            max_x - (::HISTORY_WIDTH + 2),
+        );
     }
 
     pub fn exit(&self) {
@@ -165,4 +199,14 @@ fn get_pad_lines(_string: String, _width: i32) -> i32 {
 //    下のコードを参考に、ANSIカラーコードからNcurses向けのカラーコードへの変換処理を実装する
 //    example)
 //    https://github.com/viseztrance/flow/blob/f34f34210f9bfcded8ae6c6740ab2f2fe2aa28c9/src/utils/ansi_decoder.rs
-// fn convert_ansi2ncurses_color() {}
+// @Note:
+//    この関数内でANSI Colorとその出力結果の配列にして、それを返すようにする。
+//    処理としては、最初にこの関数を実行してANSI Colorとその出力結果で配列化して、それをベースにwatchの各処理をさせるように記述すればいけるか？？？
+// fn get_ansi_array() {}
+
+// つまり、print時に最初にANSIのカラーコード単位で出力内容と配列を出して、それをforで今までの出力用関数にわたしてやるときれいかも？？？
+//
+//
+//
+//
+//
