@@ -1,6 +1,3 @@
-// crate
-extern crate ncurses;
-
 // module
 use ncurses::*;
 

@@ -69,6 +69,8 @@ impl View {
     fn exit(&mut self) {
         self.watch.exit();
         let _ = self.tx.send(Event::Exit);
+
+        // @TEST
     }
 
     fn update(&mut self, _result: Result) {
@@ -175,7 +177,7 @@ impl View {
     }
 
     // start input reception
-    pub fn start_reception(&mut self) {
+    pub fn get_event(&mut self) {
         mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
         while !self.done {
             thread::sleep(Duration::from_millis(10));
