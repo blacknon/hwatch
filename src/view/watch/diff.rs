@@ -2,7 +2,7 @@ extern crate difference;
 
 use self::difference::{Changeset, Difference};
 use std::cmp;
-use view::watch::window::WatchPad;
+use view::watch::watch::WatchPad;
 
 // watch type diff
 pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: String) {
@@ -38,15 +38,15 @@ pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: Stri
                 }
 
                 if before_chars[x] != after_chars[x] {
-                    watch.update_output_pad_char(after_chars[x].to_string(), true, 0);
+                    watch.print_watch_char(after_chars[x].to_string(), true, 0);
                 } else {
-                    watch.update_output_pad_char(after_chars[x].to_string(), false, 0);
+                    watch.print_watch_char(after_chars[x].to_string(), false, 0);
                 }
             }
-            watch.update_output_pad_char("\n".to_string(), false, 0);
+            watch.print_watch_char("\n".to_string(), false, 0);
         } else {
-            watch.update_output_pad_char(after_lines[i].to_string(), false, 0);
-            watch.update_output_pad_char("\n".to_string(), false, 0);
+            watch.print_watch_char(after_lines[i].to_string(), false, 0);
+            watch.print_watch_char("\n".to_string(), false, 0);
         }
     }
 }
@@ -91,17 +91,17 @@ pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: Strin
         match diffs[i] {
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.update_output_pad_char(format!("  {}\n", line), false, 0);
+                    watch.print_watch_char(format!("  {}\n", line), false, 0);
                 }
             }
             Difference::Add(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.update_output_pad_char(format!("+ {}\n", line), false, 2);
+                    watch.print_watch_char(format!("+ {}\n", line), false, 2);
                 }
             }
             Difference::Rem(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.update_output_pad_char(format!("- {}\n", line), false, 3);
+                    watch.print_watch_char(format!("- {}\n", line), false, 3);
                 }
             }
         }

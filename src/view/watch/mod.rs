@@ -4,8 +4,8 @@ use std::sync::Mutex;
 
 // local module
 mod diff;
-mod window;
-use self::window::WatchPad;
+mod watch;
+use self::watch::WatchPad;
 use cmd::Result;
 
 pub struct Watch {
@@ -13,10 +13,9 @@ pub struct Watch {
     pub output_type: i32,
     pub count: i32,
     pub latest_result: Result,
-    pub watch_pad: self::window::WatchPad,
+    pub watch_pad: WatchPad,
     pub history: Mutex<Vec<Result>>,
     pub history_pad: WINDOW,
-    pub history_pad_width: i32,
     pub history_pad_position: i32,
     pub selected: i32, // history select position
     pub screen: WINDOW,
@@ -24,7 +23,7 @@ pub struct Watch {
 
 impl Watch {
     // set default value
-    pub fn new(_screen: WINDOW, _diff: i32, _historywidth: i32) -> Self {
+    pub fn new(_screen: WINDOW, _diff: i32) -> Self {
         let _watch = WatchPad::new(_screen.clone());
         Self {
             diff: _diff,
@@ -34,7 +33,6 @@ impl Watch {
             watch_pad: _watch,
             history: Mutex::new(vec![]),
             history_pad: newpad(0, 0),
-            history_pad_width: _historywidth,
             history_pad_position: 0,
             selected: 0,
             screen: _screen,
@@ -76,7 +74,7 @@ impl Watch {
             self.history_pad_position,
             0,
             2,
-            max_x - self.history_pad_width,
+            max_x - ::HISTORY_WIDTH,
             max_y - 1,
             max_x - 1,
         );
