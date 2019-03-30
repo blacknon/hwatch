@@ -5,7 +5,8 @@ extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 
-// crate
+// cfg
+#[cfg(feature = "wide")]
 extern crate itertools;
 extern crate ncurses;
 extern crate nix;
