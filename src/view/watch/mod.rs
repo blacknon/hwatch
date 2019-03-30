@@ -264,7 +264,7 @@ impl Watch {
         delwin(self.history_pad);
 
         // @TEST!!!
-        let text = b"test ";
-        println!("{:?}", ansi::get_ansi_iter(text));
+        // let text = b"test ";
+        // println!("{:?}", ansi::get_ansi_iter(text));
     }
 }
