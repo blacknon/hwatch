@@ -5,12 +5,13 @@ extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 
-// cfg
-#[cfg(feature = "wide")]
 extern crate itertools;
 extern crate ncurses;
 extern crate nix;
 extern crate regex;
+
+// cfg
+// #[cfg(feature = "wide")]
 
 // modules
 use clap::{App, AppSettings, Arg};
