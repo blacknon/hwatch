@@ -27,6 +27,7 @@ impl View {
         let locale_conf = LcCategory::all;
         let lang = get_lang();
         setlocale(locale_conf, &lang);
+        setlocale(LcCategory::ctype, "");
 
         // Create ncurses screen
         let _screen = initscr();
