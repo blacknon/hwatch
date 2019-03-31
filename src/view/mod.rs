@@ -22,7 +22,7 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>, _diff: bool) -> Self {
+    pub fn new(tx: Sender<Event>, rx: Receiver<Event>, _diff: bool, _color: bool) -> Self {
         // Set locale
         let locale_conf = LcCategory::all;
         let lang = get_lang();
@@ -56,7 +56,7 @@ impl View {
             diff_type = 1;
         }
 
-        let _watch = Watch::new(_screen.clone(), diff_type);
+        let _watch = Watch::new(_screen.clone(), diff_type, _color);
         Self {
             done: false,
             screen: _screen,
@@ -86,25 +86,25 @@ impl View {
             clear();
             self.header.result = _result.clone();
             self.header.update();
-            self.watch.append_history(_result.clone());
 
             // add selected positon
             if self.watch.selected != 0 {
                 self.watch.selected += 1;
             }
-            self.watch.draw_history();
             self.watch.update();
-        }
-
-        // if history selected latest, update watch window.
-        if self.watch.selected == 0 {
-            self.header.result = _result.clone();
-            self.header.update();
+            self.watch.append_history(_result.clone());
             self.watch.draw_history();
-            self.watch.update();
         } else {
-            self.header.result = _result.clone();
-            self.header.update();
+            if self.watch.selected == 0 {
+                // if history selected latest, update watch window.
+                self.header.result = _result.clone();
+                self.header.update();
+                self.watch.update();
+                self.watch.draw_history();
+            } else {
+                self.header.result = _result.clone();
+                self.header.update();
+            }
         }
     }
 

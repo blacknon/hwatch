@@ -1,3 +1,7 @@
+// @TODO
+//     こちらのファイルではファイルの表示機能だけ制御させるよう、書き換えを行う！
+//     Structにresultいるか？？いらないんじゃないか？？
+
 // module
 use ncurses::*;
 use std::cmp;
@@ -56,18 +60,23 @@ impl WatchPad {
         self.pad = newpad(self.pad_lines.clone(), max_x - (::HISTORY_WIDTH + 2));
     }
 
-    pub fn update(&mut self, diff_mode: i32, output_type: i32) {
-        let output = self.get_output(output_type);
+    // pub fn update(&mut self, diff_mode: i32, output_type: i32) {
+    //     let output = self.get_output(output_type);
+
+    //     match diff_mode {
+    //         ::DIFF_DISABLE => self.plane_update(output),
+    //         ::DIFF_WATCH => self.diff_watch_update(output),
+    //         ::DIFF_LINE => self.diff_line_update(output),
+    //         _ => {}
+    //     }
+    // }
+
+    pub fn print_plain(&mut self, output: String) {
         let output_text = output.split("\n");
 
         for line in output_text {
-            if diff_mode == 2 {
-                let mut _output_line = &format!("  {}\n", line);
-                wprintw(self.pad, _output_line);
-            } else {
-                let mut _output_line = &format!("{}\n", line);
-                wprintw(self.pad, _output_line);
-            }
+            let mut _output_line = &format!("{}\n", line);
+            wprintw(self.pad, _output_line);
         }
     }
 
@@ -90,6 +99,8 @@ impl WatchPad {
             wprintw(self.pad, &format!("{}", _char));
         }
     }
+
+    fn print_char_to_color(&mut self, _char: String, _front_color: i16, _back_color: i16) {}
 
     fn get_output(&mut self, output_type: i32) -> String {
         let mut output = String::new();

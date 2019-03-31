@@ -1,3 +1,10 @@
+// @TODO
+//     WatchPad側には表示機能だけを渡し、出力内容の制御は本ファイルで行うよう書き換えが必要！
+//     watch_pad側にあるcreate_padも、こちら側に移してきたほうがいいかもしれない…(´・ω・｀)
+//
+//
+//
+
 // module
 use ncurses::*;
 use std::sync::Mutex;
@@ -11,6 +18,7 @@ use cmd::Result;
 
 pub struct Watch {
     pub diff: i32,
+    pub color: bool,
     pub output_type: i32,
     pub count: i32,
     pub latest_result: Result,
@@ -24,10 +32,12 @@ pub struct Watch {
 
 impl Watch {
     // set default value
-    pub fn new(_screen: WINDOW, _diff: i32) -> Self {
+    pub fn new(_screen: WINDOW, _diff: i32, _color: bool) -> Self {
+        // Create WatchPad
         let _watch = WatchPad::new(_screen.clone());
         Self {
             diff: _diff,
+            color: _color,
             output_type: ::IS_OUTPUT,
             count: 0,
             latest_result: Result::new(),
@@ -155,85 +165,125 @@ impl Watch {
         self.count += 1;
     }
 
+    // update watch,history pads
     pub fn update(&mut self) {
-        let count = self.count.clone();
-
-        if self.diff != 0 && count > 1 {
-            self.diff_watch_update();
+        // count history
+        let history_count = self.count;
+        if history_count > 1 {
+            match self.diff {
+                ::DIFF_DISABLE => self.watchpad_plane_update(),
+                ::DIFF_WATCH | ::DIFF_LINE => self.watchpad_diff_update(),
+                _ => {}
+            }
         } else {
-            self.plane_watch_update();
+            self.watchpad_plane_update()
         }
 
-        self.watch_pad.draw_output_pad();
+        // watch_pad update
+        self.watch_pad.draw_output_pad(); // watch_pad.update()に統合でよさそう
+
+        // history update
         self.draw_history();
     }
 
-    fn plane_watch_update(&mut self) {
+    // @TODO: add color
+    fn watchpad_plane_update(&mut self) {
         let target_result = self.get_result(0);
+        let target_result_data = self.get_output(target_result.clone());
 
         self.watch_pad.result = target_result.clone();
         self.watch_pad.create_pad(self.output_type);
-        self.watch_pad.update(self.diff, self.output_type);
+        // self.watch_pad.update(self.diff, self.output_type);
+        self.watch_pad.print_plain(target_result_data);
     }
 
-    fn diff_watch_update(&mut self) {
-        let before_result = self.get_result(1);
+    // @TODO: add color
+    fn watchpad_diff_update(&mut self) {
         let target_result = self.get_result(0);
+        let before_result = self.get_result(1);
+        let target_result_data = self.get_output(target_result.clone());
+        let before_result_data = self.get_output(before_result.clone());
 
-        if target_result.output != before_result.output && self.selected != self.count {
-            self.watch_pad.result = target_result.clone();
-            match self.diff {
-                1 => self.watch_diff_print(before_result, target_result),
-                2 => self.line_diff_print(before_result, target_result),
-                _ => self.plane_watch_update(),
+        self.watch_pad.result = target_result.clone();
+
+        // @MEMO:
+        //     get_outputからｃolor付きで文字列を取得して、それをforで回せばいいのか？？
+        match self.diff {
+            ::DIFF_WATCH => {
+                self.watch_pad.create_pad(self.output_type);
+                diff::watch_diff(
+                    self.watch_pad.clone(),
+                    before_result_data,
+                    target_result_data,
+                )
             }
-        } else {
-            self.watch_pad.result = target_result.clone();
-            self.watch_pad.create_pad(self.output_type);
-            self.watch_pad.update(self.diff, self.output_type);
+            ::DIFF_LINE => {
+                let line_diff_str =
+                    diff::line_diff_str_get(before_result_data.clone(), target_result_data.clone());
+                self.watch_pad.result_diff_output = line_diff_str;
+                self.watch_pad.create_pad(self.output_type);
+                diff::line_diff(
+                    self.watch_pad.clone(),
+                    before_result_data,
+                    target_result_data,
+                )
+            }
+            _ => {}
         }
     }
 
-    fn watch_diff_print(&mut self, before_result: Result, target_result: Result) {
-        let mut _before_result_data = self.get_output(before_result);
-        let mut _target_result_data = self.get_output(target_result);
+    // fn diff_watch_update(&mut self) {
+    //     let mut _before_result_data = self.get_output(before_result);
+    //     let mut _target_result_data = self.get_output(target_result);
 
-        self.watch_pad.create_pad(self.output_type);
-        diff::watch_diff(
-            self.watch_pad.clone(),
-            _before_result_data,
-            _target_result_data,
-        );
-    }
+    //     if target_result.output != before_result.output && self.selected != self.count {
+    //         self.watch_pad.result = target_result.clone();
+    //         match self.diff {
+    //             1 => self.watch_diff_print(before_result, target_result),
+    //             2 => self.line_diff_print(before_result, target_result),
+    //             _ => self.plane_watch_update(),
+    //         }
+    //     } else {
+    //         self.watch_pad.result = target_result.clone();
+    //         self.watch_pad.create_pad(self.output_type);
+    //         self.watch_pad.update(self.diff, self.output_type);
+    //     }
+    // }
 
-    fn line_diff_print(&mut self, before_result: Result, target_result: Result) {
-        let _before_result_data = self.get_output(before_result);
-        let _target_result_data = self.get_output(target_result);
+    // fn watch_diff_print(&mut self, before_result: Result, target_result: Result) {
+    //     let mut _before_result_data = self.get_output(before_result);
+    //     let mut _target_result_data = self.get_output(target_result);
 
-        let line_diff_str =
-            diff::line_diff_str_get(_before_result_data.clone(), _target_result_data.clone());
-        self.watch_pad.result_diff_output = line_diff_str;
-        self.watch_pad.create_pad(self.output_type);
-        diff::line_diff(
-            self.watch_pad.clone(),
-            _before_result_data,
-            _target_result_data,
-        );
-        self.watch_pad.result_diff_output = String::new();
-    }
+    //     self.watch_pad.create_pad(self.output_type);
+    //     diff::watch_diff(
+    //         self.watch_pad.clone(),
+    //         _before_result_data,
+    //         _target_result_data,
+    //     );
+    // }
+
+    // fn line_diff_print(&mut self, before_result: Result, target_result: Result) {
+    //     let _before_result_data = self.get_output(before_result);
+    //     let _target_result_data = self.get_output(target_result);
+
+    //     let line_diff_str =
+    //         diff::line_diff_str_get(_before_result_data.clone(), _target_result_data.clone());
+    //     self.watch_pad.result_diff_output = line_diff_str;
+    //     self.watch_pad.create_pad(self.output_type);
+    //     diff::line_diff(
+    //         self.watch_pad.clone(),
+    //         _before_result_data,
+    //         _target_result_data,
+    //     );
+    //     self.watch_pad.result_diff_output = String::new();
+    // }
 
     fn get_output(&mut self, result: Result) -> String {
         let mut output = String::new();
         match self.output_type {
-            ::IS_OUTPUT => {
-                output = result.output.clone();
-            }
-            ::IS_STDOUT => {
-                output = result.stdout.clone();
-            }
-            ::IS_STDERR => {
-                output = result.stderr.clone();
-            }
+            ::IS_OUTPUT => output = result.output.clone(),
+            ::IS_STDOUT => output = result.stdout.clone(),
+            ::IS_STDERR => output = result.stderr.clone(),
             _ => {}
         };
         return output;
