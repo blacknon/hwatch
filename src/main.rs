@@ -10,9 +10,6 @@ extern crate ncurses;
 extern crate nix;
 extern crate regex;
 
-// cfg
-// #[cfg(feature = "wide")]
-
 // modules
 use clap::{App, AppSettings, Arg};
 use std::env::args;
@@ -38,6 +35,9 @@ pub const IS_HISTORY_PAD: i32 = 1;
 pub const IS_STDOUT: i32 = 1;
 pub const IS_STDERR: i32 = 2;
 pub const IS_OUTPUT: i32 = 3;
+pub const DIFF_DISABLE: i32 = 0;
+pub const DIFF_WATCH: i32 = 1;
+pub const DIFF_LINE: i32 = 2;
 
 // Parse args and options
 fn build_app() -> clap::App<'static, 'static> {
@@ -65,11 +65,13 @@ fn build_app() -> clap::App<'static, 'static> {
                 .required(true),
         )
         // options
-        // .arg(Arg::with_name("color")
-        //     .help("interpret ANSI color and style sequences")
-        //     .short("c")
-        //     .long("color")
-        // )
+        // Enable ANSI color option
+        .arg(
+            Arg::with_name("color")
+                .help("interpret ANSI color and style sequences")
+                .short("c")
+                .long("color"),
+        )
         // Enable diff mode option
         //   --differences,-d
         .arg(
@@ -108,12 +110,13 @@ fn main() {
         .parse::<u64>()
         .unwrap();
     let mut _diff = _matches.is_present("differences");
+    let mut _color = _matches.is_present("color");
 
     // Create channel
     let (tx, rx) = channel();
 
     // Create view
-    let mut _view = View::new(tx.clone(), rx, _diff);
+    let mut _view = View::new(tx.clone(), rx, _diff, _color);
 
     // Create input
     let mut _input = Input::new(tx.clone());
