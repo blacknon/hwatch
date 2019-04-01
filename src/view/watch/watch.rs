@@ -33,7 +33,7 @@ impl WatchPad {
     }
 
     // count pad line
-    pub fn create_pad(&mut self, output_type: i32) {
+    pub fn set_size(&mut self, output_type: i32) {
         let mut max_x = 0;
         let mut max_y = 0;
 
@@ -59,17 +59,6 @@ impl WatchPad {
         self.pad_lines = cmp::max(_pad_lines_result, _pad_lines_output + 1);
         self.pad = newpad(self.pad_lines.clone(), max_x - (::HISTORY_WIDTH + 2));
     }
-
-    // pub fn update(&mut self, diff_mode: i32, output_type: i32) {
-    //     let output = self.get_output(output_type);
-
-    //     match diff_mode {
-    //         ::DIFF_DISABLE => self.plane_update(output),
-    //         ::DIFF_WATCH => self.diff_watch_update(output),
-    //         ::DIFF_LINE => self.diff_line_update(output),
-    //         _ => {}
-    //     }
-    // }
 
     pub fn print_plain(&mut self, output: String) {
         let output_text = output.split("\n");
@@ -188,6 +177,7 @@ impl WatchPad {
 }
 
 // get pad lines from string
+// @TODO: move mod.rs
 fn get_pad_lines(_string: String, _width: i32) -> i32 {
     let char_vec: Vec<char> = _string.chars().collect();
     let mut _char_count = 0;
