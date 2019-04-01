@@ -171,12 +171,12 @@ impl Watch {
         let history_count = self.count;
         if history_count > 1 {
             match self.diff {
-                ::DIFF_DISABLE => self.watchpad_plane_update(),
+                ::DIFF_DISABLE => self.watchpad_plain_update(),
                 ::DIFF_WATCH | ::DIFF_LINE => self.watchpad_diff_update(),
                 _ => {}
             }
         } else {
-            self.watchpad_plane_update()
+            self.watchpad_plain_update()
         }
 
         // watch_pad update
@@ -187,13 +187,12 @@ impl Watch {
     }
 
     // @TODO: add color
-    fn watchpad_plane_update(&mut self) {
+    fn watchpad_plain_update(&mut self) {
         let target_result = self.get_result(0);
         let target_result_data = self.get_output(target_result.clone());
 
         self.watch_pad.result = target_result.clone();
-        self.watch_pad.create_pad(self.output_type);
-        // self.watch_pad.update(self.diff, self.output_type);
+        self.watch_pad.set_size(self.output_type);
         self.watch_pad.print_plain(target_result_data);
     }
 
@@ -210,7 +209,7 @@ impl Watch {
         //     get_outputからｃolor付きで文字列を取得して、それをforで回せばいいのか？？
         match self.diff {
             ::DIFF_WATCH => {
-                self.watch_pad.create_pad(self.output_type);
+                self.watch_pad.set_size(self.output_type);
                 diff::watch_diff(
                     self.watch_pad.clone(),
                     before_result_data,
@@ -221,7 +220,7 @@ impl Watch {
                 let line_diff_str =
                     diff::line_diff_str_get(before_result_data.clone(), target_result_data.clone());
                 self.watch_pad.result_diff_output = line_diff_str;
-                self.watch_pad.create_pad(self.output_type);
+                self.watch_pad.set_size(self.output_type);
                 diff::line_diff(
                     self.watch_pad.clone(),
                     before_result_data,
@@ -232,52 +231,40 @@ impl Watch {
         }
     }
 
-    // fn diff_watch_update(&mut self) {
-    //     let mut _before_result_data = self.get_output(before_result);
-    //     let mut _target_result_data = self.get_output(target_result);
+    // get watchpad size
+    fn watchpad_get_size(&mut self, data: String, _width: i32) -> i32 {
+        // get screen size
+        let mut max_x = 0;
+        let mut max_y = 0;
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
 
-    //     if target_result.output != before_result.output && self.selected != self.count {
-    //         self.watch_pad.result = target_result.clone();
-    //         match self.diff {
-    //             1 => self.watch_diff_print(before_result, target_result),
-    //             2 => self.line_diff_print(before_result, target_result),
-    //             _ => self.plane_watch_update(),
-    //         }
-    //     } else {
-    //         self.watch_pad.result = target_result.clone();
-    //         self.watch_pad.create_pad(self.output_type);
-    //         self.watch_pad.update(self.diff, self.output_type);
-    //     }
-    // }
+        // set watchpad width
+        let watchpad_width = max_x - (::HISTORY_WIDTH + 2);
 
-    // fn watch_diff_print(&mut self, before_result: Result, target_result: Result) {
-    //     let mut _before_result_data = self.get_output(before_result);
-    //     let mut _target_result_data = self.get_output(target_result);
+        let mut count: i32 = 0;
+        let lines = data.split("\n");
 
-    //     self.watch_pad.create_pad(self.output_type);
-    //     diff::watch_diff(
-    //         self.watch_pad.clone(),
-    //         _before_result_data,
-    //         _target_result_data,
-    //     );
-    // }
+        for l in lines {
+            count += count_line(l.to_string(), watchpad_width);
+        }
 
-    // fn line_diff_print(&mut self, before_result: Result, target_result: Result) {
-    //     let _before_result_data = self.get_output(before_result);
-    //     let _target_result_data = self.get_output(target_result);
+        return count;
+    }
 
-    //     let line_diff_str =
-    //         diff::line_diff_str_get(_before_result_data.clone(), _target_result_data.clone());
-    //     self.watch_pad.result_diff_output = line_diff_str;
-    //     self.watch_pad.create_pad(self.output_type);
-    //     diff::line_diff(
-    //         self.watch_pad.clone(),
-    //         _before_result_data,
-    //         _target_result_data,
-    //     );
-    //     self.watch_pad.result_diff_output = String::new();
-    // }
+    fn watchpad_create(&mut self, size: i32) {
+        // get screen size
+        let mut max_x = 0;
+        let mut max_y = 0;
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
 
+        // set watchpad width
+        let watchpad_width = max_x - (::HISTORY_WIDTH + 2);
+
+        // create watchpad
+        self.watch_pad.pad = newpad(size, watchpad_width);
+    }
+
+    // get output string
     fn get_output(&mut self, result: Result) -> String {
         let mut output = String::new();
         match self.output_type {
@@ -317,4 +304,25 @@ impl Watch {
         // let text = b"test ";
         // println!("{:?}", ansi::get_ansi_iter(text));
     }
+}
+
+// get lines in watchpad
+fn count_line(_string: String, _width: i32) -> i32 {
+    let char_vec: Vec<char> = _string.chars().collect();
+    let mut _char_count = 0;
+    let mut _line_count = 1;
+
+    for ch in char_vec {
+        if ch.to_string().len() > 1 {
+            _char_count += 2;
+        } else {
+            _char_count += 1;
+        }
+
+        if _char_count == _width {
+            _line_count += 1;
+            _char_count = 0;
+        }
+    }
+    return _line_count;
 }
