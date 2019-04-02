@@ -13,10 +13,11 @@ regex= "*"
 itertools = "*"
 lazy_static = "*"
 
-[dependencies.ncurses]
-features = ["wide"]
-optional = true
-version = "5.99.0"
+[target.'cfg(target_os = "macos")'.dependencies]
+ncurses = { version = "=5.91.0", features = ["wide"], optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ncurses = { version = "=5.91.0", features = ["wide"], optional = true }
 
 [features]
 default = ["ncurses"]
