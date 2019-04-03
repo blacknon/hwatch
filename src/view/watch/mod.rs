@@ -187,7 +187,7 @@ impl Watch {
         let watchpad_size = self.watchpad_get_size(result_data.clone());
         self.watchpad_create(watchpad_size);
 
-        self.watch_pad.print_plain(result_data);
+        self.watch_pad.print_plain_data(result_data);
     }
 
     // @TODO: add color
@@ -197,13 +197,12 @@ impl Watch {
         let target_result_data = self.get_output(target_result.clone());
         let before_result_data = self.get_output(before_result.clone());
 
-        self.watch_pad.result = target_result.clone();
-
         // @MEMO:
         //     get_outputからｃolor付きで文字列を取得して、それをforで回せばいいのか？？
         match self.diff {
             ::DIFF_WATCH => {
-                self.watch_pad.set_size(self.output_type);
+                let watchpad_size = self.watchpad_get_size(target_result_data.clone());
+                self.watchpad_create(watchpad_size);
                 diff::watch_diff(
                     self.watch_pad.clone(),
                     before_result_data,
@@ -213,8 +212,8 @@ impl Watch {
             ::DIFF_LINE => {
                 let line_diff_str =
                     diff::line_diff_str_get(before_result_data.clone(), target_result_data.clone());
-                self.watch_pad.result_diff_output = line_diff_str;
-                self.watch_pad.set_size(self.output_type);
+                let watchpad_size = self.watchpad_get_size(line_diff_str.clone());
+                self.watchpad_create(watchpad_size + 1);
                 diff::line_diff(
                     self.watch_pad.clone(),
                     before_result_data,
@@ -294,10 +293,6 @@ impl Watch {
     pub fn exit(&mut self) {
         self.watch_pad.exit();
         delwin(self.history_pad);
-
-        // @TEST!!!
-        // let text = b"test ";
-        // println!("{:?}", ansi::get_ansi_iter(text));
     }
 }
 

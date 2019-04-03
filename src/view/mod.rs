@@ -27,7 +27,6 @@ impl View {
         let locale_conf = LcCategory::all;
         let lang = get_lang();
         setlocale(locale_conf, &lang);
-        setlocale(LcCategory::ctype, "");
 
         // Create ncurses screen
         let _screen = initscr();
@@ -70,8 +69,6 @@ impl View {
     fn exit(&mut self) {
         self.watch.exit();
         let _ = self.tx.send(Event::Exit);
-
-        // @TEST
     }
 
     fn update(&mut self, _result: Result) {
@@ -181,12 +178,11 @@ impl View {
     pub fn get_event(&mut self) {
         mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
         while !self.done {
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(5));
             match self.rx.try_recv() {
                 Ok(Event::OutputUpdate(_cmd)) => self.update(_cmd),
                 Ok(Event::Exit) => self.done = true,
                 Ok(Event::Signal(i)) => match i {
-                    0 => {}
                     0x02 => self.exit(),
                     _ => {}
                 },
