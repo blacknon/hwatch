@@ -5,48 +5,49 @@ use std::cmp;
 use view::watch::watch::WatchPad;
 
 // watch type diff
-pub fn watch_diff(mut watch: WatchPad, before_output: String, after_output: String) {
-    // before and after output to vector
-    let mut before_lines: Vec<&str> = before_output.lines().collect();
-    let mut after_lines: Vec<&str> = after_output.lines().collect();
+pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
+    // output to vector
+    let mut data1_lines: Vec<&str> = data1.lines().collect();
+    let mut data2_lines: Vec<&str> = data2.lines().collect();
 
-    // get max line before and after output
-    let max_line = cmp::max(before_lines.len(), after_lines.len());
+    // get max line
+    let max_line = cmp::max(data1_lines.len(), data2_lines.len());
 
     for i in 0..max_line {
-        if before_lines.len() <= i {
-            before_lines.push("");
+        // push empty line
+        if data1_lines.len() <= i {
+            data1_lines.push("");
         }
-        if after_lines.len() <= i {
-            after_lines.push("");
+        if data2_lines.len() <= i {
+            data2_lines.push("");
         }
 
-        if before_lines[i] != after_lines[i] {
-            let mut before_chars: Vec<char> = before_lines[i].chars().collect();
-            let mut after_chars: Vec<char> = after_lines[i].chars().collect();
+        if data1_lines[i] != data2_lines[i] {
+            let mut data1_chars: Vec<char> = data1_lines[i].chars().collect();
+            let mut data2_chars: Vec<char> = data2_lines[i].chars().collect();
 
-            let max_char = cmp::max(before_chars.len(), after_chars.len());
+            let max_char = cmp::max(data1_chars.len(), data2_chars.len());
 
             for x in 0..max_char {
                 let space: char = ' ';
 
-                if before_chars.len() <= max_char {
-                    before_chars.push(space);
+                if data1_chars.len() <= max_char {
+                    data1_chars.push(space);
                 }
-                if after_chars.len() <= max_char {
-                    after_chars.push(space);
+                if data2_chars.len() <= max_char {
+                    data2_chars.push(space);
                 }
 
-                if before_chars[x] != after_chars[x] {
-                    watch.print_watch_char(after_chars[x].to_string(), true, 0);
+                if data1_chars[x] != data2_chars[x] {
+                    watch.print_watch_data(data2_chars[x].to_string(), true, 0);
                 } else {
-                    watch.print_watch_char(after_chars[x].to_string(), false, 0);
+                    watch.print_watch_data(data2_chars[x].to_string(), false, 0);
                 }
             }
-            watch.print_watch_char("\n".to_string(), false, 0);
+            watch.print_watch_data("\n".to_string(), false, 0);
         } else {
-            watch.print_watch_char(after_lines[i].to_string(), false, 0);
-            watch.print_watch_char("\n".to_string(), false, 0);
+            watch.print_watch_data(data2_lines[i].to_string(), false, 0);
+            watch.print_watch_data("\n".to_string(), false, 0);
         }
     }
 }
@@ -91,17 +92,17 @@ pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: Strin
         match diffs[i] {
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print_watch_char(format!("  {}\n", line), false, 0);
+                    watch.print_watch_data(format!("  {}\n", line), false, 0);
                 }
             }
             Difference::Add(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print_watch_char(format!("+ {}\n", line), false, 2);
+                    watch.print_watch_data(format!("+ {}\n", line), false, 2);
                 }
             }
             Difference::Rem(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print_watch_char(format!("- {}\n", line), false, 3);
+                    watch.print_watch_data(format!("- {}\n", line), false, 3);
                 }
             }
         }
