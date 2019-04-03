@@ -167,20 +167,13 @@ impl Watch {
 
     // update watch,history pads
     pub fn update(&mut self) {
-        // count history
-        let history_count = self.count;
-        if history_count > 1 {
-            match self.diff {
-                ::DIFF_DISABLE => self.watchpad_plain_update(),
-                ::DIFF_WATCH | ::DIFF_LINE => self.watchpad_diff_update(),
-                _ => {}
-            }
-        } else {
-            self.watchpad_plain_update()
+        // watchpad update
+        match self.diff {
+            ::DIFF_DISABLE => self.watchpad_plain_update(),
+            ::DIFF_WATCH | ::DIFF_LINE => self.watchpad_diff_update(),
+            _ => {}
         }
-
-        // watch_pad update
-        self.watch_pad.draw_output_pad(); // watch_pad.update()に統合でよさそう
+        self.watch_pad.draw_output_pad();
 
         // history update
         self.draw_history();
@@ -188,12 +181,13 @@ impl Watch {
 
     // @TODO: add color
     fn watchpad_plain_update(&mut self) {
-        let target_result = self.get_result(0);
-        let target_result_data = self.get_output(target_result.clone());
+        let result = self.get_result(0);
+        let result_data = self.get_output(result.clone());
 
-        self.watch_pad.result = target_result.clone();
-        self.watch_pad.set_size(self.output_type);
-        self.watch_pad.print_plain(target_result_data);
+        let watchpad_size = self.watchpad_get_size(result_data.clone());
+        self.watchpad_create(watchpad_size);
+
+        self.watch_pad.print_plain(result_data);
     }
 
     // @TODO: add color
@@ -232,7 +226,7 @@ impl Watch {
     }
 
     // get watchpad size
-    fn watchpad_get_size(&mut self, data: String, _width: i32) -> i32 {
+    fn watchpad_get_size(&mut self, data: String) -> i32 {
         // get screen size
         let mut max_x = 0;
         let mut max_y = 0;
@@ -245,7 +239,7 @@ impl Watch {
         let lines = data.split("\n");
 
         for l in lines {
-            count += count_line(l.to_string(), watchpad_width);
+            count += count_line(l.to_string(), watchpad_width.clone());
         }
 
         return count;
@@ -261,6 +255,7 @@ impl Watch {
         let watchpad_width = max_x - (::HISTORY_WIDTH + 2);
 
         // create watchpad
+        self.watch_pad.pad_lines = size;
         self.watch_pad.pad = newpad(size, watchpad_width);
     }
 
