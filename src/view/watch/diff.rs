@@ -6,6 +6,9 @@ use view::watch::watch::WatchPad;
 
 // watch type diff
 pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
+    let fg_color = -1;
+    let bg_color = -1;
+
     // output to vector
     let mut data1_lines: Vec<&str> = data1.lines().collect();
     let mut data2_lines: Vec<&str> = data2.lines().collect();
@@ -39,15 +42,15 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
                 }
 
                 if data1_chars[x] != data2_chars[x] {
-                    watch.print_watch_data(data2_chars[x].to_string(), true, 0);
+                    watch.print(data2_chars[x].to_string(), fg_color, bg_color, vec![7]);
                 } else {
-                    watch.print_watch_data(data2_chars[x].to_string(), false, 0);
+                    watch.print(data2_chars[x].to_string(), fg_color, bg_color, vec![]);
                 }
             }
-            watch.print_watch_data("\n".to_string(), false, 0);
+            watch.print("\n".to_string(), fg_color, bg_color, vec![]);
         } else {
-            watch.print_watch_data(data2_lines[i].to_string(), false, 0);
-            watch.print_watch_data("\n".to_string(), false, 0);
+            watch.print(data2_lines[i].to_string(), fg_color, bg_color, vec![]);
+            watch.print("\n".to_string(), fg_color, bg_color, vec![]);
         }
     }
 }
