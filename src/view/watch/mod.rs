@@ -187,7 +187,10 @@ impl Watch {
         let watchpad_size = self.watchpad_get_size(result_data.clone());
         self.watchpad_create(watchpad_size);
 
-        self.watch_pad.print_plain_data(result_data);
+        for line in result_data.split("\n") {
+            let _data = format!("{}\n", line).to_string();
+            self.watch_pad.print(_data, -1, -1, vec![]);
+        }
     }
 
     // @TODO: add color

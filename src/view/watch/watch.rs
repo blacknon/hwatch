@@ -24,41 +24,40 @@ impl WatchPad {
         }
     }
 
-    //
-    pub fn print(&mut self, _data: String, _front_color: i16, _back_color: i16, _flags: Vec<u32>) {
+    // print data
+    pub fn print(&mut self, _data: String, _front_color: i16, _back_color: i16, _flags: Vec<i32>) {
         // set flags
         for flag in &_flags {
-            wattron(self.pad, *flag);
+            match flag {
+                1 => wattron(self.pad, A_BOLD()),
+                7 => wattron(self.pad, A_REVERSE()),
+                _ => wattron(self.pad, A_BOLD()),
+            };
         }
 
         // create color set
+        init_pair(0, _front_color, _back_color);
 
         // set color
+        wattron(self.pad, COLOR_PAIR(0));
 
         // print data
-        // let lines = _data.split("\n");
+        wprintw(self.pad, &format!("{}", _data));
 
         // unset color
+        wattron(self.pad, COLOR_PAIR(0));
 
         // unset flags
         for flag in &_flags {
-            wattroff(self.pad, *flag);
+            match flag {
+                1 => wattroff(self.pad, A_BOLD()),
+                7 => wattroff(self.pad, A_REVERSE()),
+                _ => wattroff(self.pad, A_BOLD()),
+            };
         }
     }
 
-    // @TODO
-    // いらないのでは？？
-    // print(今のprint_watch相当) だけにして、これにリバースとか色の指定オプションを付与するようにすればいいだけな気がしてきた。
-    // → 消そう！
-    pub fn print_plain_data(&mut self, output: String) {
-        let output_text = output.split("\n");
-
-        for line in output_text {
-            let mut _output_line = &format!("{}\n", line);
-            wprintw(self.pad, _output_line);
-        }
-    }
-
+    // printに統合して削除する
     pub fn print_watch_data(&mut self, _char: String, _reverse: bool, _color_code: i16) {
         if _reverse {
             wattron(self.pad, A_REVERSE());
