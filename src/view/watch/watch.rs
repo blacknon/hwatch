@@ -31,7 +31,7 @@ impl WatchPad {
             wattron(self.pad, *flag);
         }
 
-        // creat color set
+        // create color set
 
         // set color
 
