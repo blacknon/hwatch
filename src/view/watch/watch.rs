@@ -25,7 +25,17 @@ impl WatchPad {
     }
 
     //
-    pub fn print(&mut self, _data: String, _front_color: i16, _back_color: i16, _flags: Vec<i32>) {}
+    pub fn print(&mut self, _data: String, _front_color: i16, _back_color: i16, _flags: Vec<i16>) {
+        // set flags
+
+        // creat color set
+
+        // set color
+
+        // print data
+        // let lines = _data.split("\n");
+
+    }
 
     // @TODO
     // いらないのでは？？
