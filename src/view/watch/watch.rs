@@ -25,8 +25,11 @@ impl WatchPad {
     }
 
     //
-    pub fn print(&mut self, _data: String, _front_color: i16, _back_color: i16, _flags: Vec<i16>) {
+    pub fn print(&mut self, _data: String, _front_color: i16, _back_color: i16, _flags: Vec<u32>) {
         // set flags
+        for flag in &_flags {
+            wattron(self.pad, *flag);
+        }
 
         // creat color set
 
@@ -35,11 +38,17 @@ impl WatchPad {
         // print data
         // let lines = _data.split("\n");
 
+        // unset color
+
+        // unset flags
+        for flag in &_flags {
+            wattroff(self.pad, *flag);
+        }
     }
 
     // @TODO
     // いらないのでは？？
-    // print(今のprint_watch) だけにして、これにリバースとか色の指定オプションを付与するようにすればいいだけな気がしてきた。
+    // print(今のprint_watch相当) だけにして、これにリバースとか色の指定オプションを付与するようにすればいいだけな気がしてきた。
     // → 消そう！
     pub fn print_plain_data(&mut self, output: String) {
         let output_text = output.split("\n");
