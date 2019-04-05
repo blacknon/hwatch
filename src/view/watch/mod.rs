@@ -10,7 +10,6 @@ use ncurses::*;
 use std::sync::Mutex;
 
 // local module
-mod ansi;
 mod diff;
 mod watch;
 use self::watch::WatchPad;

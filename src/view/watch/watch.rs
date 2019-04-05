@@ -4,6 +4,7 @@
 
 // module
 use ncurses::*;
+use view::color::*;
 
 #[derive(Clone)]
 pub struct WatchPad {
@@ -29,52 +30,31 @@ impl WatchPad {
         // set flags
         for flag in &_flags {
             match flag {
-                1 => wattron(self.pad, A_BOLD()),
-                7 => wattron(self.pad, A_REVERSE()),
+                &IS_BOLD => wattron(self.pad, A_BOLD()),
+                &IS_REVERSE => wattron(self.pad, A_REVERSE()),
                 _ => wattron(self.pad, A_BOLD()),
             };
         }
 
         // create color set
-        init_pair(0, _front_color, _back_color);
+        init_pair(100, _front_color, _back_color);
 
         // set color
-        wattron(self.pad, COLOR_PAIR(0));
+        wattron(self.pad, COLOR_PAIR(100));
 
         // print data
         wprintw(self.pad, &format!("{}", _data));
 
         // unset color
-        wattron(self.pad, COLOR_PAIR(0));
+        wattron(self.pad, COLOR_PAIR(100));
 
         // unset flags
         for flag in &_flags {
             match flag {
-                1 => wattroff(self.pad, A_BOLD()),
-                7 => wattroff(self.pad, A_REVERSE()),
+                &IS_BOLD => wattroff(self.pad, A_BOLD()),
+                &IS_REVERSE => wattroff(self.pad, A_REVERSE()),
                 _ => wattroff(self.pad, A_BOLD()),
             };
-        }
-    }
-
-    // printに統合して削除する
-    pub fn print_watch_data(&mut self, _char: String, _reverse: bool, _color_code: i16) {
-        if _reverse {
-            wattron(self.pad, A_REVERSE());
-            self.print_char_to_color_pair(_char, _color_code);
-            wattroff(self.pad, A_REVERSE());
-        } else {
-            self.print_char_to_color_pair(_char, _color_code);
-        }
-    }
-
-    fn print_char_to_color_pair(&mut self, _char: String, _color_code: i16) {
-        if _color_code != 0 {
-            wattron(self.pad, COLOR_PAIR(_color_code));
-            wprintw(self.pad, &format!("{}", _char));
-            wattroff(self.pad, COLOR_PAIR(_color_code));
-        } else {
-            wprintw(self.pad, &format!("{}", _char));
         }
     }
 
