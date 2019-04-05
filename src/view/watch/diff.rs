@@ -1,7 +1,10 @@
 extern crate difference;
 
-use self::difference::{Changeset, Difference};
+use ncurses::{COLOR_GREEN, COLOR_RED};
 use std::cmp;
+
+use self::difference::{Changeset, Difference};
+
 use view::watch::watch::WatchPad;
 
 // watch type diff
@@ -42,7 +45,12 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
                 }
 
                 if data1_chars[x] != data2_chars[x] {
-                    watch.print(data2_chars[x].to_string(), fg_color, bg_color, vec![7]);
+                    watch.print(
+                        data2_chars[x].to_string(),
+                        fg_color,
+                        bg_color,
+                        vec![::NCURSES_REVERSE],
+                    );
                 } else {
                     watch.print(data2_chars[x].to_string(), fg_color, bg_color, vec![]);
                 }
@@ -95,17 +103,17 @@ pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: Strin
         match diffs[i] {
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print_watch_data(format!("  {}\n", line), false, 0);
+                    watch.print(format!("  {}\n", line), -1, -1, vec![]);
                 }
             }
             Difference::Add(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print_watch_data(format!("+ {}\n", line), false, 2);
+                    watch.print(format!("+ {}\n", line), COLOR_GREEN, -1, vec![]);
                 }
             }
             Difference::Rem(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print_watch_data(format!("- {}\n", line), false, 3);
+                    watch.print(format!("- {}\n", line), COLOR_RED, -1, vec![]);
                 }
             }
         }

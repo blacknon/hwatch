@@ -6,6 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 // local module
+mod color;
 mod header;
 mod watch;
 use self::watch::Watch;
