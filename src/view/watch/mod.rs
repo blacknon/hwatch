@@ -14,6 +14,7 @@ mod diff;
 mod watch;
 use self::watch::WatchPad;
 use cmd::Result;
+use view::color::*;
 
 pub struct Watch {
     pub diff: i32,
@@ -101,14 +102,14 @@ impl Watch {
 
         if status == true {
             // selected line and status true
-            wattron(self.history_pad, COLOR_PAIR(2));
+            wattron(self.history_pad, COLOR_PAIR(COLORSET_G_D));
             wprintw(self.history_pad, &_print_data);
-            wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(2));
+            wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(COLORSET_G_D));
         } else {
             // selected line and status false
-            wattron(self.history_pad, COLOR_PAIR(3));
+            wattron(self.history_pad, COLOR_PAIR(COLORSET_R_D));
             wprintw(self.history_pad, &_print_data);
-            wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(3));
+            wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(COLORSET_R_D));
         }
     }
 
@@ -188,7 +189,8 @@ impl Watch {
 
         for line in result_data.split("\n") {
             let _data = format!("{}\n", line).to_string();
-            self.watch_pad.print(_data, -1, -1, vec![]);
+            self.watch_pad
+                .print(_data, COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
         }
     }
 

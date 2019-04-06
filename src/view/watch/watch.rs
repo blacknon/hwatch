@@ -36,17 +36,21 @@ impl WatchPad {
             };
         }
 
-        // create color set
-        init_pair(100, _front_color, _back_color);
+        let colorset_string = format!("{}{}", _front_color.to_string(), _back_color.to_string());
+        let mut colorset: i16 = colorset_string.parse::<i16>().unwrap();;
+
+        if colorset < 0 {
+            colorset = 0;
+        }
 
         // set color
-        wattron(self.pad, COLOR_PAIR(100));
+        wattron(self.pad, COLOR_PAIR(colorset));
 
         // print data
         wprintw(self.pad, &format!("{}", _data));
 
         // unset color
-        wattron(self.pad, COLOR_PAIR(100));
+        wattron(self.pad, COLOR_PAIR(colorset));
 
         // unset flags
         for flag in &_flags {
