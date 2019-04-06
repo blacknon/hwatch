@@ -3,6 +3,7 @@ use ncurses::*;
 
 // local module
 use cmd::Result;
+use view::color::*;
 
 pub struct Header {
     pub screen: ncurses::WINDOW,
@@ -56,9 +57,9 @@ impl Header {
             ::IS_STDERR => _output_type = "stderr",
             _ => (),
         }
-        attron(COLOR_PAIR(6));
+        attron(COLOR_PAIR(COLORSET_Y_D));
         mvprintw(1, max_x - 43, &format!("Output: {}", _output_type));
-        attroff(COLOR_PAIR(6));
+        attroff(COLOR_PAIR(COLORSET_Y_D));
 
         // print pad
         let mut _active_type = "";
@@ -67,9 +68,9 @@ impl Header {
             ::IS_HISTORY_PAD => _active_type = "history",
             _ => (),
         };
-        attron(COLOR_PAIR(5));
+        attron(COLOR_PAIR(COLORSET_C_D));
         mvprintw(1, max_x - 28, &format!("Active: {}", _active_type));
-        attroff(COLOR_PAIR(5));
+        attroff(COLOR_PAIR(COLORSET_C_D));
 
         // print diff
         let mut _diff_type = "";
@@ -80,9 +81,9 @@ impl Header {
             3 => _diff_type = "Word",
             _ => (),
         };
-        attron(COLOR_PAIR(4));
+        attron(COLOR_PAIR(COLORSET_M_D));
         mvprintw(1, max_x - 12, &format!("Diff: {}", _diff_type));
-        attroff(COLOR_PAIR(4));
+        attroff(COLOR_PAIR(COLORSET_M_D));
 
         // print Now selected history num
     }
@@ -95,13 +96,13 @@ impl Header {
 
         // update 1st line
         if self.result.clone().status {
-            attron(COLOR_PAIR(2));
+            attron(COLOR_PAIR(COLORSET_G_D));
             self.printout_1st_line(max_x);
-            attroff(COLOR_PAIR(2));
+            attroff(COLOR_PAIR(COLORSET_G_D));
         } else {
-            attron(COLOR_PAIR(3));
+            attron(COLOR_PAIR(COLORSET_R_D));
             self.printout_1st_line(max_x);
-            attroff(COLOR_PAIR(3));
+            attroff(COLOR_PAIR(COLORSET_R_D));
         }
 
         // update 2nd line

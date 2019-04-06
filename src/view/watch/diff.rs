@@ -1,16 +1,16 @@
 extern crate difference;
 
-use ncurses::{COLOR_GREEN, COLOR_RED};
 use std::cmp;
 
 use self::difference::{Changeset, Difference};
 
+use view::color::*;
 use view::watch::watch::WatchPad;
 
 // watch type diff
 pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
-    let fg_color = -1;
-    let bg_color = -1;
+    let fg_color = COLOR_ELEMENT_D;
+    let bg_color = COLOR_ELEMENT_D;
 
     // output to vector
     let mut data1_lines: Vec<&str> = data1.lines().collect();
@@ -49,7 +49,7 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
                         data2_chars[x].to_string(),
                         fg_color,
                         bg_color,
-                        vec![::NCURSES_REVERSE],
+                        vec![IS_REVERSE],
                     );
                 } else {
                     watch.print(data2_chars[x].to_string(), fg_color, bg_color, vec![]);
@@ -103,17 +103,32 @@ pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: Strin
         match diffs[i] {
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print(format!("  {}\n", line), -1, -1, vec![]);
+                    watch.print(
+                        format!("  {}\n", line),
+                        COLOR_ELEMENT_D,
+                        COLOR_ELEMENT_D,
+                        vec![],
+                    );
                 }
             }
             Difference::Add(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print(format!("+ {}\n", line), COLOR_GREEN, -1, vec![]);
+                    watch.print(
+                        format!("+ {}\n", line),
+                        COLOR_ELEMENT_G,
+                        COLOR_ELEMENT_D,
+                        vec![],
+                    );
                 }
             }
             Difference::Rem(ref diff_data) => {
                 for line in diff_data.lines() {
-                    watch.print(format!("- {}\n", line), COLOR_RED, -1, vec![]);
+                    watch.print(
+                        format!("- {}\n", line),
+                        COLOR_ELEMENT_R,
+                        COLOR_ELEMENT_D,
+                        vec![],
+                    );
                 }
             }
         }

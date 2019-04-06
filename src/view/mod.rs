@@ -12,6 +12,7 @@ mod watch;
 use self::watch::Watch;
 use cmd::Result;
 use event::Event;
+use view::color::*;
 
 pub struct View {
     pub done: bool,
@@ -31,25 +32,14 @@ impl View {
 
         // Create ncurses screen
         let _screen = initscr();
-        start_color();
-        use_default_colors();
+
         cbreak();
         keypad(_screen, true);
         noecho();
         curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
 
         // set color
-        init_pair(1, -1, -1); // fg=default, bg=clear
-        init_pair(2, COLOR_GREEN, -1); // fg=green, bg=clear
-        init_pair(3, COLOR_RED, -1); // fg=red, bg=clear
-        init_pair(4, COLOR_YELLOW, -1); // fg=yellow, bg=clear
-        init_pair(5, COLOR_CYAN, -1); // fg=cyan, bg=clear
-        init_pair(6, COLOR_MAGENTA, -1); // fg=cyan, bg=clear
-        init_pair(11, COLOR_BLACK, COLOR_WHITE); // fg=black, bg=white
-        init_pair(12, COLOR_WHITE, COLOR_RED); // fg=white, bg=red
-        init_pair(13, COLOR_WHITE, COLOR_GREEN); // fg=white, bg=green
-        init_pair(14, COLOR_WHITE, COLOR_YELLOW); // fg=white, bg=green
-        init_pair(15, COLOR_BLACK, COLOR_CYAN); // fg=white, bg=green
+        setup_colorset();
 
         let mut diff_type = 0;
         if _diff {
