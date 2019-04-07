@@ -27,8 +27,10 @@ impl WatchPad {
         for flag in &_flags {
             match flag {
                 &IS_BOLD => wattron(self.pad, A_BOLD()),
+                &IS_UNDERLINE => wattron(self.pad, A_UNDERLINE()),
+                &IS_BLINK => wattron(self.pad, A_BLINK()),
                 &IS_REVERSE => wattron(self.pad, A_REVERSE()),
-                _ => wattron(self.pad, A_BOLD()),
+                _ => wattroff(self.pad, A_NORMAL()), // Error avoidance
             };
         }
 
@@ -52,8 +54,10 @@ impl WatchPad {
         for flag in &_flags {
             match flag {
                 &IS_BOLD => wattroff(self.pad, A_BOLD()),
+                &IS_UNDERLINE => wattroff(self.pad, A_UNDERLINE()),
+                &IS_BLINK => wattroff(self.pad, A_BLINK()),
                 &IS_REVERSE => wattroff(self.pad, A_REVERSE()),
-                _ => wattroff(self.pad, A_BOLD()),
+                _ => wattroff(self.pad, A_NORMAL()), // Error avoidance
             };
         }
     }
