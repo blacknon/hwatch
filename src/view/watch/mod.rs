@@ -1,10 +1,3 @@
-// @TODO
-//     WatchPad側には表示機能だけを渡し、出力内容の制御は本ファイルで行うよう書き換えが必要！
-//     watch_pad側にあるcreate_padも、こちら側に移してきたほうがいいかもしれない…(´・ω・｀)
-//
-//
-//
-
 // module
 use ncurses::*;
 use std::sync::Mutex;
@@ -297,6 +290,14 @@ impl Watch {
     pub fn exit(&mut self) {
         self.watch_pad.exit();
         delwin(self.history_pad);
+
+        // @TEST
+        // @TODO: DELETE
+        let test_data_array = parse(&self.latest_result.output);
+        for test_data in test_data_array {
+            println!("{}", test_data.ansi);
+            println!("{}", test_data.data);
+        }
     }
 }
 

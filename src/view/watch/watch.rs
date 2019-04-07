@@ -1,7 +1,3 @@
-// @TODO
-//     こちらのファイルではwatchpadの表示機能だけ制御させるよう、書き換えを行う！
-//     Structにresultいるか？？いらないんじゃないか？？
-
 // module
 use ncurses::*;
 use view::color::*;

@@ -17,14 +17,23 @@ pub const IS_REVERSE: i32 = 1007;
 //     ・MAGENTA ... M (7)
 //     ・CYAN    ... C (8)
 //     ・WHITE   ... W (9)
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_D: i16 = 1; // Default
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_K: i16 = 2; // Black
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_R: i16 = 3; // Red
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_G: i16 = 4; // Green
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_Y: i16 = 5; // Yellow
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_B: i16 = 6; // Blue
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_M: i16 = 7; // Magenta
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_C: i16 = 8; // Cyan
+#[allow(dead_code)]
 pub const COLOR_ELEMENT_W: i16 = 9; // White
 
 // ncurses colorset const (color (COLORSET_<Front>_<Back>))
@@ -227,10 +236,53 @@ pub fn setup_colorset() {
 // StructでANSIカラーコードと対象の文字列を取得して、それを利用するようにしないといかん
 // ansiには事前にNcursesのカラーコードを設定する必要があるけど、offができないので事前にデフォルトカラーの設定を0とかで定義しておく必要があると思う。
 // そのための設計が必要！
-struct Data {
-    ansi: i32,
-    data: String,
+pub struct Data {
+    pub ansi: i32,
+    pub data: String,
 }
+
+#[allow(dead_code)]
+pub const ANSI_IS_NONE: i32 = 1000;
+#[allow(dead_code)]
+pub const ANSI_IS_BOLD: i32 = 1001;
+#[allow(dead_code)]
+pub const ANSI_IS_UNDERLINE: i32 = 1004;
+#[allow(dead_code)]
+pub const ANSI_IS_BLINK: i32 = 1005;
+#[allow(dead_code)]
+pub const ANSI_IS_REVERSE: i32 = 1007;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_BLACK: i32 = 1030;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_RED: i32 = 1031;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_GREEN: i32 = 1032;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_YELLOW: i32 = 1033;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_BLUE: i32 = 1034;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_MAGENTA: i32 = 1035;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_CYAN: i32 = 1036;
+#[allow(dead_code)]
+pub const ANSI_IS_FG_WHITE: i32 = 1037;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_BLACK: i32 = 1040;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_RED: i32 = 1041;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_GREEN: i32 = 1042;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_YELLOW: i32 = 1043;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_BLUE: i32 = 1044;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_MAGENTA: i32 = 1045;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_CYAN: i32 = 1046;
+#[allow(dead_code)]
+pub const ANSI_IS_BG_WHITE: i32 = 1047;
 
 pub const ANSI_RE: &str =
     r"[\x1b\x9b]\[[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]";
@@ -245,72 +297,69 @@ fn get_ansi_iter(text: &str) -> Matches {
 }
 
 fn get_color(_ansi_data: &str) -> i32 {
+    // ANSIは一種の配列(カッコの始まりが「\u{1b}[」、終わりが「m」であり、内部の区切り文字は「;」)と考えれば、一度分離させて、それを配列として詰め込んで返してやれば良さそう。
+    // 背景色や文字色、フラグについては、それぞれを個別に管理して上書きしていくイメージにする。
+
     // result (Color Pair code)
     let result = match _ansi_data {
-        "\u{1b}[0m" => 1000,  // reset code
-        "\u{1b}[1m" => 1001,  // Bold on
-        "\u{1b}[4m" => 1004,  // Underline on
-        "\u{1b}[5m" => 1005,  // Blink on
-        "\u{1b}[7m" => 1007,  // Reverse on
-        "\u{1b}[30m" => 1030, // foreground black
-        "\u{1b}[31m" => 1031, // foreground red
-        "\u{1b}[32m" => 1032, // foreground green
-        "\u{1b}[33m" => 1033, // foreground yellow
-        "\u{1b}[34m" => 1034, // foreground blue
-        "\u{1b}[35m" => 1035, // foreground magenta
-        "\u{1b}[36m" => 1036, // foreground cyan
-        "\u{1b}[37m" => 1037, // foreground white
-        "\u{1b}[40m" => 1040, // background black
-        "\u{1b}[41m" => 1041, // background red
-        "\u{1b}[42m" => 1042, // background green
-        "\u{1b}[43m" => 1043, // background yellow
-        "\u{1b}[44m" => 1044, // background blue
-        "\u{1b}[45m" => 1045, // background magenta
-        "\u{1b}[46m" => 1046, // background cyan
-        "\u{1b}[47m" => 1047, // background white
-        _ => 9999,            // Not working
+        "\u{1b}[0m" => ANSI_IS_NONE,        // reset code
+        "\u{1b}[1m" => ANSI_IS_BOLD,        // Bold on
+        "\u{1b}[4m" => ANSI_IS_UNDERLINE,   // Underline on
+        "\u{1b}[5m" => ANSI_IS_BLINK,       // Blink on
+        "\u{1b}[7m" => ANSI_IS_REVERSE,     // Reverse on
+        "\u{1b}[30m" => ANSI_IS_FG_BLACK,   // foreground black
+        "\u{1b}[31m" => ANSI_IS_FG_RED,     // foreground red
+        "\u{1b}[32m" => ANSI_IS_FG_GREEN,   // foreground green
+        "\u{1b}[33m" => ANSI_IS_FG_YELLOW,  // foreground yellow
+        "\u{1b}[34m" => ANSI_IS_FG_BLUE,    // foreground blue
+        "\u{1b}[35m" => ANSI_IS_FG_MAGENTA, // foreground magenta
+        "\u{1b}[36m" => ANSI_IS_FG_CYAN,    // foreground cyan
+        "\u{1b}[37m" => ANSI_IS_FG_WHITE,   // foreground white
+        "\u{1b}[40m" => ANSI_IS_BG_BLACK,   // background black
+        "\u{1b}[41m" => ANSI_IS_BG_RED,     // background red
+        "\u{1b}[42m" => ANSI_IS_BG_GREEN,   // background green
+        "\u{1b}[43m" => ANSI_IS_BG_YELLOW,  // background yellow
+        "\u{1b}[44m" => ANSI_IS_BG_BLUE,    // background blue
+        "\u{1b}[45m" => ANSI_IS_BG_MAGENTA, // background magenta
+        "\u{1b}[46m" => ANSI_IS_BG_CYAN,    // background cyan
+        "\u{1b}[47m" => ANSI_IS_BG_WHITE,   // background white
+        _ => 9999,                          // Not working
     };
 
     return result;
 }
 
-pub fn parse(text: &str) {
-    // ResultとなるVectorの宣言(後で！)
-    // let mut text_vec = Vec::new();
-    // text_vec.push(1);
-    // text_vec.push(2);
+pub fn parse(text: &str) -> Vec<Data> {
+    // declare result
+    let mut result: Vec<Data> = vec![];
 
-    // 組み合わせは、tuple or structにすればいけるのでは？？
-
+    // parse text, delimiter is ansi code.
     let _parsed: Vec<_> = get_ansi_iter(&text)
         .map(|m| (m.start(), m.end(), m.as_bytes()))
         .collect();
 
-    let mut _result: Vec<Data> = vec![];
-
-    // ANSIの有無
     let mut _count = 0;
     let mut _start = 0;
 
-    let mut _ansi_code = 1000;
+    let mut _ansi_code = ANSI_IS_NONE;
     if _parsed.len() > _start {
         for _ansi in &_parsed {
-            let _ansi_code_start = _ansi.0;
-            let _ansi_code_end = _ansi.1;
-            let _ansi_code_data = str::from_utf8(&_ansi.2).unwrap();
+            let _ansi_start = _ansi.0;
+            let _ansi_end = _ansi.1;
+            // let _ansi_data = str::from_utf8(&_ansi.2).unwrap();
 
-            // _ansiの開始位置より_startが小さい場合、直前のANSIcolorが適用される
-            if _ansi_code_start > _start {
+            if _ansi_start > _start {
                 let _data = Data {
                     ansi: _ansi_code,
-                    data: text[_start.._ansi_code_start].to_string(),
+                    data: text[_start.._ansi_start].to_string(),
                 };
-                _result.push(_data);
+                result.push(_data);
             }
-            // println!("{:?}", &text[_ansi_code_start.._ansi_code_end]);
-            _ansi_code = get_color(_ansi_code_data);
+            // _ansi_code = get_color(_ansi_data);
+            _ansi_code = get_color(&text[_ansi_start.._ansi_end]);
+            println!("{:?}", &text[_ansi_start.._ansi_end]);
 
-            _start = _ansi_code_end;
+            _start = _ansi_end;
         }
         _count += 1;
 
@@ -319,18 +368,15 @@ pub fn parse(text: &str) {
                 ansi: _ansi_code,
                 data: text[_start..].to_string(),
             };
-            _result.push(_data);
+            result.push(_data);
         }
     } else {
         let _data = Data {
             ansi: _ansi_code,
             data: text.to_string(),
         };
-        _result.push(_data);
+        result.push(_data);
     }
 
-    for _d in &_result {
-        println!("ansi: {:?}", _d.ansi);
-        println!("data: {:?}", _d.data);
-    }
+    return result;
 }
