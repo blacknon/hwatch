@@ -30,7 +30,8 @@ impl Watch {
         let _watch = WatchPad::new(_screen.clone());
         Self {
             diff: _diff,
-            color: _color,
+            // color: _color,
+            color: true,
             output_type: ::IS_OUTPUT,
             count: 0,
             latest_result: Result::new(),
@@ -180,11 +181,33 @@ impl Watch {
         let watchpad_size = self.watchpad_get_size(result_data.clone());
         self.watchpad_create(watchpad_size);
 
-        for line in result_data.split("\n") {
-            let _data = format!("{}\n", line).to_string();
+        if self.color {
+            let ansi_data = ansi_parse(&result_data);
+            for data in ansi_data {
+                let front_color = data.ansi.1 as i16;
+                let back_color = data.ansi.2 as i16;
+
+                self.watch_pad
+                    .print(data.data, front_color, back_color, vec![data.ansi.0])
+            }
+        } else {
+            // color disable
             self.watch_pad
-                .print(_data, COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
+                .print(result_data, COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
         }
+
+        // let ansi = (0, 0, 0);
+        // if self.color {
+        //     // color enable
+        //     //
+        // } else {
+        // color disable
+        // for line in result_data.split("\n") {
+        //     let _data = format!("{}\n", line).to_string();
+        //     self.watch_pad
+        //         .print(_data, COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
+        // }
+        // }
     }
 
     // @TODO: add color
@@ -293,9 +316,9 @@ impl Watch {
 
         // @TEST
         // @TODO: DELETE
-        let test_data_array = parse(&self.latest_result.output);
+        let test_data_array = ansi_parse(&self.latest_result.output);
         for test_data in test_data_array {
-            println!("{}", test_data.ansi);
+            println!("{:?}", test_data.ansi);
             println!("{}", test_data.data);
         }
     }
