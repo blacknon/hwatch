@@ -239,9 +239,6 @@ pub fn setup_colorset() {
     init_pair(COLORSET_W_W, COLOR_WHITE, COLOR_WHITE);
 }
 
-// StructでANSIカラーコードと対象の文字列を取得して、それを利用するようにしないといかん
-// ansiには事前にNcursesのカラーコードを設定する必要があるけど、offができないので事前にデフォルトカラーの設定を0とかで定義しておく必要があると思う。
-// そのための設計が必要！
 // ansi .. (flags(1,4,5,7), front(30-37), back(40-47))
 pub struct Data {
     pub ansi: (i32, i32, i32),
@@ -261,8 +258,6 @@ fn get_ansi_iter(text: &str) -> Matches {
 }
 
 // ansi to ncurses
-// 30-37 => -30 + 2
-// 40-47 => -40 + 2
 fn get_color(text: &str, ansi: (i32, i32, i32)) -> (i32, i32, i32) {
     // declare result
     let mut result = ansi;
@@ -286,10 +281,12 @@ fn get_color(text: &str, ansi: (i32, i32, i32)) -> (i32, i32, i32) {
                 result.0 = num;
             }
             // front color
+            // 30-37 => -30 + 2
             30 | 31 | 32 | 33 | 34 | 35 | 36 | 37 => {
                 result.1 = num - 30 + 2;
             }
             // back color
+            // 40-47 => -40 + 2
             40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 => {
                 result.2 = num - 40 + 2;
             }
@@ -298,42 +295,9 @@ fn get_color(text: &str, ansi: (i32, i32, i32)) -> (i32, i32, i32) {
     }
 
     return result;
-
-    // result (Color Pair code)
-    // let result = match _data {
-    //     ・BLACK   ... K (2)
-    //     ・RED     ... R (3)
-    //     ・GREEN   ... G (4)
-    //     ・YELLOW  ... Y (5)
-    //     ・BLUE    ... B (6)
-    //     ・MAGENTA ... M (7)
-    //     ・CYAN    ... C (8)
-    //     ・WHITE   ... W (9)
-    //     "\u{1b}[0m" => ANSI_IS_NONE,        // reset code
-    //     "\u{1b}[1m" => ANSI_IS_BOLD,        // Bold on
-    //     "\u{1b}[4m" => ANSI_IS_UNDERLINE,   // Underline on
-    //     "\u{1b}[5m" => ANSI_IS_BLINK,       // Blink on
-    //     "\u{1b}[7m" => ANSI_IS_REVERSE,     // Reverse on
-    //     "\u{1b}[30m" => ANSI_IS_FG_BLACK,   // foreground black
-    //     "\u{1b}[31m" => ANSI_IS_FG_RED,     // foreground red
-    //     "\u{1b}[32m" => ANSI_IS_FG_GREEN,   // foreground green
-    //     "\u{1b}[33m" => ANSI_IS_FG_YELLOW,  // foreground yellow
-    //     "\u{1b}[34m" => ANSI_IS_FG_BLUE,    // foreground blue
-    //     "\u{1b}[35m" => ANSI_IS_FG_MAGENTA, // foreground magenta
-    //     "\u{1b}[36m" => ANSI_IS_FG_CYAN,    // foreground cyan
-    //     "\u{1b}[37m" => ANSI_IS_FG_WHITE,   // foreground white
-    //     "\u{1b}[40m" => ANSI_IS_BG_BLACK,   // background black
-    //     "\u{1b}[41m" => ANSI_IS_BG_RED,     // background red
-    //     "\u{1b}[42m" => ANSI_IS_BG_GREEN,   // background green
-    //     "\u{1b}[43m" => ANSI_IS_BG_YELLOW,  // background yellow
-    //     "\u{1b}[44m" => ANSI_IS_BG_BLUE,    // background blue
-    //     "\u{1b}[45m" => ANSI_IS_BG_MAGENTA, // background magenta
-    //     "\u{1b}[46m" => ANSI_IS_BG_CYAN,    // background cyan
-    //     "\u{1b}[47m" => ANSI_IS_BG_WHITE,   // background white
-    //     _ => 9999,                          // Not working
-    // };
 }
 
+// ansi parse function
 pub fn ansi_parse(text: &str) -> Vec<Data> {
     // declare result
     let mut result: Vec<Data> = vec![];

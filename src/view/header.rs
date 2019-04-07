@@ -8,17 +8,19 @@ use view::color::*;
 pub struct Header {
     pub screen: ncurses::WINDOW,
     pub result: Result,
+    pub color: bool,
     pub diff: i32,
     pub output: i32,
     pub active_pad: i32,
 }
 
 impl Header {
-    pub fn new(_screen: ncurses::WINDOW) -> Self {
+    pub fn new(_screen: ncurses::WINDOW, _diff: i32, _color: bool) -> Self {
         Self {
             screen: _screen,
             result: Result::new(),
-            diff: 0,
+            color: _color,
+            diff: _diff,
             output: ::IS_OUTPUT,
             active_pad: ::IS_WATCH_PAD,
         }
@@ -45,9 +47,32 @@ impl Header {
     // 2nd line
     fn printout_2nd_line(&mut self, max_x: i32) {
         // set var
+        let _color_length = 13; // "Color: "(7) + "False"(5) + 1
         let _output_length = 15; // "Output: "(8) + "output"(6) + 1
         let _pad_length = 16; // "Active: "(8) + "history"(7) + 1
         let _diff_length = 12; // "Diff: "(6) + "Watch"(5) + 1
+
+        // print color mode
+        match self.color {
+            true => {
+                attron(COLOR_PAIR(COLORSET_B_D) | A_BOLD());
+                mvprintw(
+                    1,
+                    max_x - (_color_length + _output_length + _pad_length + _diff_length),
+                    &format!("Color: True "),
+                );
+                attroff(COLOR_PAIR(COLORSET_B_D) | A_BOLD());
+            }
+            false => {
+                attron(COLOR_PAIR(COLORSET_D_D) | A_BOLD());
+                mvprintw(
+                    1,
+                    max_x - (_color_length + _output_length + _pad_length + _diff_length),
+                    &format!("Color: False"),
+                );
+                attroff(COLOR_PAIR(COLORSET_D_D) | A_BOLD());
+            }
+        }
 
         // print output type
         let mut _output_type = "";
@@ -58,7 +83,11 @@ impl Header {
             _ => (),
         }
         attron(COLOR_PAIR(COLORSET_Y_D));
-        mvprintw(1, max_x - 43, &format!("Output: {}", _output_type));
+        mvprintw(
+            1,
+            max_x - (_output_length + _pad_length + _diff_length),
+            &format!("Output: {}", _output_type),
+        );
         attroff(COLOR_PAIR(COLORSET_Y_D));
 
         // print pad
@@ -69,7 +98,11 @@ impl Header {
             _ => (),
         };
         attron(COLOR_PAIR(COLORSET_C_D));
-        mvprintw(1, max_x - 28, &format!("Active: {}", _active_type));
+        mvprintw(
+            1,
+            max_x - (_pad_length + _diff_length),
+            &format!("Active: {}", _active_type),
+        );
         attroff(COLOR_PAIR(COLORSET_C_D));
 
         // print diff
@@ -82,7 +115,7 @@ impl Header {
             _ => (),
         };
         attron(COLOR_PAIR(COLORSET_M_D));
-        mvprintw(1, max_x - 12, &format!("Diff: {}", _diff_type));
+        mvprintw(1, max_x - _diff_length, &format!("Diff: {}", _diff_type));
         attroff(COLOR_PAIR(COLORSET_M_D));
 
         // print Now selected history num

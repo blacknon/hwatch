@@ -30,8 +30,7 @@ impl Watch {
         let _watch = WatchPad::new(_screen.clone());
         Self {
             diff: _diff,
-            // color: _color,
-            color: true,
+            color: _color,
             output_type: ::IS_OUTPUT,
             count: 0,
             latest_result: Result::new(),
@@ -173,7 +172,7 @@ impl Watch {
         self.draw_history();
     }
 
-    // @TODO: add color
+    // plane update
     fn watchpad_plain_update(&mut self) {
         let result = self.get_result(0);
         let result_data = self.get_output(result.clone());
@@ -195,30 +194,17 @@ impl Watch {
             self.watch_pad
                 .print(result_data, COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
         }
-
-        // let ansi = (0, 0, 0);
-        // if self.color {
-        //     // color enable
-        //     //
-        // } else {
-        // color disable
-        // for line in result_data.split("\n") {
-        //     let _data = format!("{}\n", line).to_string();
-        //     self.watch_pad
-        //         .print(_data, COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
-        // }
-        // }
     }
 
-    // @TODO: add color
+    // @TODO: add color (v1.0.0)
     fn watchpad_diff_update(&mut self) {
         let target_result = self.get_result(0);
         let before_result = self.get_result(1);
         let target_result_data = self.get_output(target_result.clone());
         let before_result_data = self.get_output(before_result.clone());
 
-        // @MEMO:
-        //     get_outputからｃolor付きで文字列を取得して、それをforで回せばいいのか？？
+        // @TODO:
+        //     colorフラグを渡すようにする
         match self.diff {
             ::DIFF_WATCH => {
                 let watchpad_size = self.watchpad_get_size(target_result_data.clone());
@@ -313,18 +299,11 @@ impl Watch {
     pub fn exit(&mut self) {
         self.watch_pad.exit();
         delwin(self.history_pad);
-
-        // @TEST
-        // @TODO: DELETE
-        let test_data_array = ansi_parse(&self.latest_result.output);
-        for test_data in test_data_array {
-            println!("{:?}", test_data.ansi);
-            println!("{}", test_data.data);
-        }
     }
 }
 
 // get lines in watchpad
+// @TODO: add color
 fn count_line(_string: String, _width: i32) -> i32 {
     let char_vec: Vec<char> = _string.chars().collect();
     let mut _char_count = 0;

@@ -8,6 +8,8 @@ use view::color::*;
 use view::watch::watch::WatchPad;
 
 // watch type diff
+// @TODO: Color対応を追加
+//     colorフラグを引数に追加し、もし有効だった場合は出力時にパースして処理するように定義する
 pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
     let fg_color = COLOR_ELEMENT_D;
     let bg_color = COLOR_ELEMENT_D;
@@ -95,6 +97,8 @@ pub fn line_diff_str_get(before_output: String, after_output: String) -> String 
 }
 
 // line type diff
+// @TODO: Color対応を追加
+//     colorフラグを引数に追加し、もし有効だった場合は出力時にパースして処理するように定義する
 pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String) {
     let Changeset { diffs, .. } =
         Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
