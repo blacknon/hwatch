@@ -50,7 +50,7 @@ impl View {
         Self {
             done: false,
             screen: _screen,
-            header: header::Header::new(_screen.clone()),
+            header: header::Header::new(_screen.clone(), diff_type, _color),
             watch: _watch,
             tx: tx,
             rx: rx,
@@ -96,6 +96,25 @@ impl View {
         }
     }
 
+    // toggle ansi color mode
+    fn toggle_color(&mut self) {
+        if self.watch.color {
+            self.watch.color = false
+        } else {
+            self.watch.color = true
+        }
+
+        // update header status
+        self.header.color = self.watch.color;
+
+        // draw
+        clear();
+        self.header.update();
+        self.watch.draw_history();
+        self.watch.update();
+    }
+
+    // toggle diff mode
     fn toggle_diff(&mut self) {
         // add num
         let mut now_diff = self.watch.diff;
@@ -209,6 +228,9 @@ impl View {
             // pad up/down
             KEY_UP => self.up(),     // Arrow Up
             KEY_DOWN => self.down(), // Arrow Down
+
+            // toggle color mode
+            0x63 => self.toggle_color(), // c(0x63)
 
             // change diff mode
             0x64 => self.toggle_diff(),  // d(0x64)
