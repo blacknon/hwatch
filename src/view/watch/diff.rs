@@ -1,16 +1,29 @@
 extern crate difference;
 
-use std::cmp;
-
 use self::difference::{Changeset, Difference};
+use std::cmp;
 
 use view::color::*;
 use view::watch::watch::WatchPad;
 
+// pub struct Diff {
+//     pub data1: String,
+//     pub data2: String,
+//     pub color: bool
+// }
+
+// color出力をどうしてやるときれいになるだろうか…？？
+
 // watch type diff
 // @TODO: Color対応を追加
 //     colorフラグを引数に追加し、もし有効だった場合は出力時にパースして処理するように定義する
-pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
+//
+//     struct化が必要な気がする。
+//
+// @Note:
+//     通常のwatchコマンドでは、ansiコードが変わっても特に表示の変化はなかった。
+//     つまり、こちらのwatch_diffも同様に処理してやればいいと思われる。
+pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, _color: bool) {
     let fg_color = COLOR_ELEMENT_D;
     let bg_color = COLOR_ELEMENT_D;
 
@@ -20,6 +33,8 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String) {
 
     // get max line
     let max_line = cmp::max(data1_lines.len(), data2_lines.len());
+    // @TODO: forで各行の処理をする際にcolor parseをして、その結果の配列の最後の値からその行の最後のansiを取得する。
+    //        そのansiを利用して次の行のカラーを指定することで複数行にまたがるANSI Colorを再現させる。
 
     for i in 0..max_line {
         // push empty line
@@ -99,7 +114,7 @@ pub fn line_diff_str_get(before_output: String, after_output: String) -> String 
 // line type diff
 // @TODO: Color対応を追加
 //     colorフラグを引数に追加し、もし有効だった場合は出力時にパースして処理するように定義する
-pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String) {
+pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String, _color: bool) {
     let Changeset { diffs, .. } =
         Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
 

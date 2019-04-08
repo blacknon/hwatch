@@ -273,7 +273,6 @@ fn get_color(text: &str, ansi: (i32, i32, i32)) -> (i32, i32, i32) {
         match num {
             // reset ansi
             0 => {
-                // result = (0, 0, 0);
                 result = (0, 1, 1);
             }
             // flags
@@ -310,7 +309,6 @@ pub fn ansi_parse(text: &str) -> Vec<Data> {
     let mut _count = 0;
     let mut _start = 0;
 
-    // let mut _ansi_code = (0, 0, 0);
     let mut _ansi_code = (0, 1, 1);
     if _parsed.len() > _start {
         for _ansi in &_parsed {
