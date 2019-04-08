@@ -205,16 +205,17 @@ impl Watch {
 
         // @TODO:
         //     colorフラグを渡すようにする
+        let mut diff = diff::Diff::set(self.color);
+
         match self.diff {
             ::DIFF_WATCH => {
                 let watchpad_size = self.watchpad_get_size(target_result_data.clone());
                 self.watchpad_create(watchpad_size);
-                diff::watch_diff(
+                diff.watch_diff(
                     self.watch_pad.clone(),
                     before_result_data,
                     target_result_data,
-                    self.color,
-                )
+                );
             }
             ::DIFF_LINE => {
                 let line_diff_str =

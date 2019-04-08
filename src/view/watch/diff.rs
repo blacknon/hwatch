@@ -6,13 +6,103 @@ use std::cmp;
 use view::color::*;
 use view::watch::watch::WatchPad;
 
-// pub struct Diff {
-//     pub data1: String,
-//     pub data2: String,
-//     pub color: bool
-// }
+pub struct Diff {
+    pub color: bool,
+}
+
+impl Diff {
+    pub fn set(color: bool) -> Self {
+        Self { color: color }
+    }
+
+    pub fn watch_diff(&mut self, mut watch: WatchPad, data1: String, data2: String) {
+        // output to vector
+        let mut lines1: Vec<&str> = data1.lines().collect();
+        let mut lines2: Vec<&str> = data2.lines().collect();
+
+        // get max line
+        let max_line = cmp::max(lines1.len(), lines2.len());
+
+        // for max_line
+        for i in 0..max_line {
+            // push empty line
+            if lines1.len() <= i {
+                lines1.push("");
+            }
+            if lines2.len() <= i {
+                lines2.push("");
+            }
+
+            if self.color {
+                // ANSIコードのdiffは取得するのは辛いので、出力文字列だけをターゲットとする。
+                // つまり、一度カラーセット単位にして、line2をベースにしたdiffを取るようにする
+                // self.watch_diff_color_print_line(ansi,lines1[i],lines2[i]);
+                let lines1_colorset = ansi_parse(lines1[i]);
+                let lines2_colorset = ansi_parse(lines2[i]);
+            } else {
+                // print line data
+                self.watch_diff_print_line(
+                    COLOR_ELEMENT_D,
+                    COLOR_ELEMENT_D,
+                    watch.clone(),
+                    lines1[i],
+                    lines2[i],
+                );
+
+                // print newline
+                watch.print("\n".to_string(), COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
+            }
+        }
+    }
+
+    fn watch_diff_print_line(
+        &mut self,
+        fg: i16,
+        bg: i16,
+        mut watch: WatchPad,
+        line1: &str,
+        line2: &str,
+    ) {
+        if line1 != line2 {
+            // diff line
+            let mut chars1: Vec<char> = line1.chars().collect();
+            let mut chars2: Vec<char> = line2.chars().collect();
+
+            let max_char = cmp::max(chars1.len(), chars2.len());
+
+            for x in 0..max_char {
+                let space: char = ' ';
+
+                if chars1.len() <= max_char {
+                    chars1.push(space);
+                }
+                if chars2.len() <= max_char {
+                    chars2.push(space);
+                }
+
+                if chars1[x] != chars2[x] {
+                    // if diff => print default color
+                    watch.print(
+                        chars2[x].to_string(),
+                        COLOR_ELEMENT_D,
+                        COLOR_ELEMENT_D,
+                        vec![IS_REVERSE],
+                    );
+                } else {
+                    watch.print(chars2[x].to_string(), fg, bg, vec![]);
+                }
+            }
+        } else {
+            // same line
+            watch.print(line2.to_string(), fg, bg, vec![]);
+        }
+    }
+
+    fn watch_diff_color_print_line(&mut self, line1: &str, line2: &str) {}
+}
 
 // color出力をどうしてやるときれいになるだろうか…？？
+// とりあえず、行単位でprintはするようにして、前の行のcolorをforで扱うことで前の行からの色の続きを取得させてやれば対応はできそうだ。
 
 // watch type diff
 // @TODO: Color対応を追加
