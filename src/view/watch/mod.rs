@@ -213,6 +213,7 @@ impl Watch {
                     self.watch_pad.clone(),
                     before_result_data,
                     target_result_data,
+                    self.color,
                 )
             }
             ::DIFF_LINE => {
@@ -224,6 +225,7 @@ impl Watch {
                     self.watch_pad.clone(),
                     before_result_data,
                     target_result_data,
+                    self.color,
                 )
             }
             _ => {}

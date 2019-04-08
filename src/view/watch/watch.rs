@@ -117,19 +117,3 @@ impl WatchPad {
         endwin();
     }
 }
-
-// @TODO:
-//    下のコードを参考に、ANSIカラーコードからNcurses向けのカラーコードへの変換処理を実装する
-//    example)
-//    https://github.com/viseztrance/flow/blob/f34f34210f9bfcded8ae6c6740ab2f2fe2aa28c9/src/utils/ansi_decoder.rs
-// @Note:
-//    この関数内でANSI Colorとその出力結果の配列にして、それを返すようにする。
-//    処理としては、最初にこの関数を実行してANSI Colorとその出力結果で配列化して、それをベースにwatchの各処理をさせるように記述すればいけるか？？？
-// fn get_ansi_array() {}
-
-// つまり、print時に最初にANSIのカラーコード単位で出力内容と配列を出して、それをforで今までの出力用関数にわたしてやるときれいかも？？？
-//
-//
-//
-//
-//
