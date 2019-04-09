@@ -204,10 +204,20 @@ impl Watch {
         let before_result_data = self.get_output(before_result.clone());
 
         // @TODO:
-        //     colorフラグを渡すようにする
-        let mut diff = diff::Diff::set(self.color);
+        //     colorフラグを渡すようにする → いらないかも？？
+        let mut diff = diff::Diff::set(self.watch_pad.clone(), self.color);
 
         match self.diff {
+            // @NOTE:
+            //     ANSI Codeを有効にするということは、before_resultについてもそれを無視するということになる。
+            //     なので、diffで処理する際は両方をcolor_set形式(ansi:(0,0,0),data:string)で渡しておき、それをforで処理するのが一番綺麗ではないだろうか？？
+            //     引数としては、
+            //     ・watch_pad
+            //     ・before_result
+            //     ・target_result
+            //     ・target_resultのansi
+            //　　　で、ｂefore_resultとtarget_resultで色つけの位置が変わった場合などについては、どっちにしてもdiffとして扱われるので気にしないことにする。
+            //     改行については、別の関数で処理するから気にしなくていいと思う
             ::DIFF_WATCH => {
                 let watchpad_size = self.watchpad_get_size(target_result_data.clone());
                 self.watchpad_create(watchpad_size);

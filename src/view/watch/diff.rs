@@ -7,18 +7,24 @@ use view::color::*;
 use view::watch::watch::WatchPad;
 
 pub struct Diff {
+    pub watch: WatchPad,
     pub color: bool,
 }
 
 impl Diff {
-    pub fn set(color: bool) -> Self {
-        Self { color: color }
+    pub fn set(watch: WatchPad, color: bool) -> Self {
+        Self {
+            watch: watch,
+            color: color,
+        }
     }
 
     pub fn watch_diff(&mut self, mut watch: WatchPad, data1: String, data2: String) {
         // output to vector
         let mut lines1: Vec<&str> = data1.lines().collect();
         let mut lines2: Vec<&str> = data2.lines().collect();
+
+        // let mut watchd = self.watch;
 
         // get max line
         let max_line = cmp::max(lines1.len(), lines2.len());
@@ -33,36 +39,41 @@ impl Diff {
                 lines2.push("");
             }
 
-            if self.color {
-                // ANSIコードのdiffは取得するのは辛いので、出力文字列だけをターゲットとする。
-                // つまり、一度カラーセット単位にして、line2をベースにしたdiffを取るようにする
-                // self.watch_diff_color_print_line(ansi,lines1[i],lines2[i]);
-                let lines1_colorset = ansi_parse(lines1[i]);
-                let lines2_colorset = ansi_parse(lines2[i]);
-            } else {
-                // print line data
-                self.watch_diff_print_line(
-                    COLOR_ELEMENT_D,
-                    COLOR_ELEMENT_D,
-                    watch.clone(),
-                    lines1[i],
-                    lines2[i],
-                );
+            // 前の行のcolorを受け付ける必要がありそう…
+            // やっぱ、colorの引数は必要か…？改行→colorsetでのパースだと厳しいので、逆にして処理を試みる
+            self.watch_diff_print_line(watch.clone(), lines1[i], lines2[i]);
+            watch.print("\n".to_string(), COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
 
-                // print newline
-                watch.print("\n".to_string(), COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
-            }
+            // やっぱ、colorの出力はprint_line側で処理をさせて対応するように書いてみる
+            // if self.color {
+            //     // ANSIコードのdiffは取得するのは辛いので、出力文字列だけをターゲットとする。
+            //     // つまり、一度カラーセット単位にして、line2をベースにしたdiffを取るようにする
+            //     // self.watch_diff_color_print_line(ansi,lines1[i],lines2[i]);
+            //     let lines1_colorset = ansi_parse(lines1[i]);
+            //     let lines2_colorset = ansi_parse(lines2[i]);
+            // } else {
+            //     // print line data
+            //     self.watch_diff_print_line(
+            //         COLOR_ELEMENT_D,
+            //         COLOR_ELEMENT_D,
+            //         watch.clone(),
+            //         lines1[i],
+            //         lines2[i],
+            //     );
+
+            //     // print newline
+            //     watch.print("\n".to_string(), COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
+            // }
         }
     }
 
-    fn watch_diff_print_line(
-        &mut self,
-        fg: i16,
-        bg: i16,
-        mut watch: WatchPad,
-        line1: &str,
-        line2: &str,
-    ) {
+    fn watch_diff_print_line(&mut self, mut watch: WatchPad, line1: &str, line2: &str) {
+        // set default color
+        let fg = COLOR_ELEMENT_D;
+        let bg = COLOR_ELEMENT_D;
+
+        // let mut watch = self.watch.clone();
+
         if line1 != line2 {
             // diff line
             let mut chars1: Vec<char> = line1.chars().collect();
@@ -98,7 +109,7 @@ impl Diff {
         }
     }
 
-    fn watch_diff_color_print_line(&mut self, line1: &str, line2: &str) {}
+    // fn watch_diff_color_print_line(&mut self, line1: &str, line2: &str) {}
 }
 
 // color出力をどうしてやるときれいになるだろうか…？？
