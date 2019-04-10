@@ -6,112 +6,6 @@ use std::cmp;
 use view::color::*;
 use view::watch::watch::WatchPad;
 
-pub struct Diff {
-    pub watch: WatchPad,
-    pub color: bool,
-}
-
-impl Diff {
-    pub fn set(watch: WatchPad, color: bool) -> Self {
-        Self {
-            watch: watch,
-            color: color,
-        }
-    }
-
-    pub fn watch_diff(&mut self, mut watch: WatchPad, data1: String, data2: String) {
-        // output to vector
-        let mut lines1: Vec<&str> = data1.lines().collect();
-        let mut lines2: Vec<&str> = data2.lines().collect();
-
-        // let mut watchd = self.watch;
-
-        // get max line
-        let max_line = cmp::max(lines1.len(), lines2.len());
-
-        // for max_line
-        for i in 0..max_line {
-            // push empty line
-            if lines1.len() <= i {
-                lines1.push("");
-            }
-            if lines2.len() <= i {
-                lines2.push("");
-            }
-
-            // 前の行のcolorを受け付ける必要がありそう…
-            // やっぱ、colorの引数は必要か…？改行→colorsetでのパースだと厳しいので、逆にして処理を試みる
-            self.watch_diff_print_line(watch.clone(), lines1[i], lines2[i]);
-            watch.print("\n".to_string(), COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
-
-            // やっぱ、colorの出力はprint_line側で処理をさせて対応するように書いてみる
-            // if self.color {
-            //     // ANSIコードのdiffは取得するのは辛いので、出力文字列だけをターゲットとする。
-            //     // つまり、一度カラーセット単位にして、line2をベースにしたdiffを取るようにする
-            //     // self.watch_diff_color_print_line(ansi,lines1[i],lines2[i]);
-            //     let lines1_colorset = ansi_parse(lines1[i]);
-            //     let lines2_colorset = ansi_parse(lines2[i]);
-            // } else {
-            //     // print line data
-            //     self.watch_diff_print_line(
-            //         COLOR_ELEMENT_D,
-            //         COLOR_ELEMENT_D,
-            //         watch.clone(),
-            //         lines1[i],
-            //         lines2[i],
-            //     );
-
-            //     // print newline
-            //     watch.print("\n".to_string(), COLOR_ELEMENT_D, COLOR_ELEMENT_D, vec![]);
-            // }
-        }
-    }
-
-    fn watch_diff_print_line(&mut self, mut watch: WatchPad, line1: &str, line2: &str) {
-        // set default color
-        let fg = COLOR_ELEMENT_D;
-        let bg = COLOR_ELEMENT_D;
-
-        // let mut watch = self.watch.clone();
-
-        if line1 != line2 {
-            // diff line
-            let mut chars1: Vec<char> = line1.chars().collect();
-            let mut chars2: Vec<char> = line2.chars().collect();
-
-            let max_char = cmp::max(chars1.len(), chars2.len());
-
-            for x in 0..max_char {
-                let space: char = ' ';
-
-                if chars1.len() <= max_char {
-                    chars1.push(space);
-                }
-                if chars2.len() <= max_char {
-                    chars2.push(space);
-                }
-
-                if chars1[x] != chars2[x] {
-                    // if diff => print default color
-                    watch.print(
-                        chars2[x].to_string(),
-                        COLOR_ELEMENT_D,
-                        COLOR_ELEMENT_D,
-                        vec![IS_REVERSE],
-                    );
-                } else {
-                    watch.print(chars2[x].to_string(), fg, bg, vec![]);
-                }
-            }
-        } else {
-            // same line
-            watch.print(line2.to_string(), fg, bg, vec![]);
-        }
-    }
-
-    // fn watch_diff_color_print_line(&mut self, line1: &str, line2: &str) {}
-}
-
 // color出力をどうしてやるときれいになるだろうか…？？
 // とりあえず、行単位でprintはするようにして、前の行のcolorをforで扱うことで前の行からの色の続きを取得させてやれば対応はできそうだ。
 
@@ -119,12 +13,10 @@ impl Diff {
 // @TODO: Color対応を追加
 //     colorフラグを引数に追加し、もし有効だった場合は出力時にパースして処理するように定義する
 //
-//     struct化が必要な気がする。
-//
 // @Note:
 //     通常のwatchコマンドでは、ansiコードが変わっても特に表示の変化はなかった。
 //     つまり、こちらのwatch_diffも同様に処理してやればいいと思われる。
-pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, _color: bool) {
+pub fn watch_diff(mut watch: WatchPad, ansi: (i32, i32, i32), data1: String, data2: String) {
     let fg_color = COLOR_ELEMENT_D;
     let bg_color = COLOR_ELEMENT_D;
 
