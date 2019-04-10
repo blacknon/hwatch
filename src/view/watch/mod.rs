@@ -249,7 +249,7 @@ impl Watch {
                 // }
             }
         } else {
-            diff::watch_diff(self.watch_pad.clone(), (0, 0, 0), before_data, target_data);
+            diff::watch_diff(self.watch_pad.clone(), before_data, target_data, self.color);
         }
     }
 

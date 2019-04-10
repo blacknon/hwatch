@@ -16,7 +16,7 @@ use view::watch::watch::WatchPad;
 // @Note:
 //     通常のwatchコマンドでは、ansiコードが変わっても特に表示の変化はなかった。
 //     つまり、こちらのwatch_diffも同様に処理してやればいいと思われる。
-pub fn watch_diff(mut watch: WatchPad, ansi: (i32, i32, i32), data1: String, data2: String) {
+pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, color: bool) {
     let fg_color = COLOR_ELEMENT_D;
     let bg_color = COLOR_ELEMENT_D;
 
@@ -72,6 +72,8 @@ pub fn watch_diff(mut watch: WatchPad, ansi: (i32, i32, i32), data1: String, dat
         }
     }
 }
+
+fn watch_diff_print(ansi: (i32, i32, i32), data1: String, data2: String) {}
 
 // line type diff get strings
 pub fn line_diff_str_get(before_output: String, after_output: String) -> String {
