@@ -1,6 +1,5 @@
 // module
 use ncurses::*;
-use std::cmp;
 use std::sync::Mutex;
 
 // local module
@@ -215,45 +214,26 @@ impl Watch {
         let before_data = self.get_output(before_result.clone());
 
         match self.diff {
-            ::DIFF_WATCH => self.watchpad_diff_update_watch(before_data, target_data),
+            ::DIFF_WATCH => {
+                // set watchpad size
+                let watchpad_size = self.watchpad_get_size(target_data.clone());
+                self.watchpad_create(watchpad_size);
+
+                diff::watch_diff(self.watch_pad.clone(), before_data, target_data, self.color);
+            }
             ::DIFF_LINE => {
+                // set watchpad size
+                // @TODO: Refactoring (line_diff_str)
                 let line_diff_str =
                     diff::line_diff_str_get(before_data.clone(), target_data.clone());
                 let watchpad_size = self.watchpad_get_size(line_diff_str.clone());
                 self.watchpad_create(watchpad_size + 1);
+
                 diff::line_diff(self.watch_pad.clone(), before_data, target_data, self.color)
             }
             _ => {}
         }
     }
-
-    // @Note:
-    //   単位をANSI Color単位でdiff用の関数に渡した場合だと、
-    //   ANSIでの区切りがうまくいかないとそこで差分が発生したとみなしてしまうので、あまりいいやり方ではなさそう？
-    fn watchpad_diff_update_watch(&mut self, before_data: String, target_data: String) {
-        let watchpad_size = self.watchpad_get_size(target_data.clone());
-        self.watchpad_create(watchpad_size);
-
-        if self.color {
-            let _target_data_set = ansi_parse(&target_data);
-            let _before_data_set = ansi_parse(&before_data);
-            let max_line = cmp::max(_before_data_set.len(), _target_data_set.len());
-
-            for i in 0..max_line {
-                // colorと文字列と別なので、そのあたりちゃんと記述する必要がある
-                // if _target_data_set.len() <= i {
-                //     _target_data_set.push("");
-                // }
-                // if _before_data_set.len() <= i {
-                //     _before_data_set.push("");
-                // }
-            }
-        } else {
-            diff::watch_diff(self.watch_pad.clone(), before_data, target_data, self.color);
-        }
-    }
-
-    // fn watchpad_diff_update_line() {}
 
     // get watchpad size
     fn watchpad_get_size(&mut self, data: String) -> i32 {
