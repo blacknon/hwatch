@@ -185,10 +185,10 @@ impl View {
     }
 
     // start input reception
+    // @TODO: whileで回してる最中に受け付けた処理は廃棄するように
     pub fn get_event(&mut self) {
         mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
         while !self.done {
-            thread::sleep(Duration::from_millis(5));
             match self.rx.try_recv() {
                 Ok(Event::OutputUpdate(_cmd)) => self.update(_cmd),
                 Ok(Event::Exit) => self.done = true,
@@ -199,6 +199,7 @@ impl View {
                 Ok(Event::Input(i)) => self.input_action(i),
                 _ => {}
             };
+            thread::sleep(Duration::from_millis(5));
         }
     }
 

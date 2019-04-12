@@ -92,8 +92,8 @@ fn watch_diff_print(mut watch: WatchPad, ansi: (i32, i32, i32), data1: &str, dat
             if data1_chars[x] != data2_chars[x] {
                 watch.print(
                     data2_chars[x].to_string(),
-                    fg_color,
-                    bg_color,
+                    COLOR_ELEMENT_D,
+                    COLOR_ELEMENT_D,
                     vec![IS_REVERSE],
                 );
             } else {
@@ -105,7 +105,52 @@ fn watch_diff_print(mut watch: WatchPad, ansi: (i32, i32, i32), data1: &str, dat
     }
 }
 
+pub struct LineDiff {
+    diffs: Changeset,
+    dataset: Vec<Color>,
+    color: bool,
+}
+
+impl LineDiff {
+    pub fn create_dataset(&mut self, data1: String, data2: String) {
+        // Compare both before/after output.
+        let Changeset { diffs, .. } = Changeset::new(&data1.clone(), &data2.clone(), "\n");
+        let mut dataset: Vec<Color> = Vec::new();
+
+        // for diffs
+        for i in 0..diffs.len() {
+            match diffs[i] {
+                Difference::Same(ref diff_data) => {
+                    for line in diff_data.lines() {
+                        //
+                    }
+                }
+                Difference::Add(ref diff_data) => {
+                    for line in diff_data.lines() {
+                        // result_vec.push(format!("+  {}", line));
+                    }
+                }
+                Difference::Rem(ref diff_data) => {
+                    for line in diff_data.lines() {
+                        // result_vec.push(format!("-  {}", line));
+                    }
+                }
+            }
+        }
+        self.dataset = dataset;
+    }
+
+    fn craete_dataset(&mut self, line: String) {
+        if self.color {
+
+        } else {
+            let ansi = (0, 0, 0);
+        }
+    }
+}
+
 // line type diff get strings
+// 変数名の変更が必要
 pub fn line_diff_str_get(before_output: String, after_output: String) -> String {
     // Compare both before/after output.
     let Changeset { diffs, .. } =
@@ -138,7 +183,9 @@ pub fn line_diff_str_get(before_output: String, after_output: String) -> String 
 
 // line type diff
 // @TODO: Color対応を追加
+// 変数名の変更が必要 + line_diff_str_getと統合してリファクタ(やってることほとんど同じだし)
 //     colorフラグを引数に追加し、もし有効だった場合は出力時にパースして処理するように定義する
+// line diffの場合は、Structにして処理を引き継がせた方がよさそう
 pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: String, _color: bool) {
     let Changeset { diffs, .. } =
         Changeset::new(&before_output.clone(), &after_output.clone(), "\n");
@@ -182,7 +229,7 @@ pub fn line_diff(mut watch: WatchPad, before_output: String, after_output: Strin
     }
 }
 
-fn line_diff_print() {}
+// fn line_diff_print() {}
 
 // pub fn word_diff(mut watch: WatchPad, before_output: String, after_output: String) {
 //

@@ -198,15 +198,6 @@ impl Watch {
 
     // @TODO: add color (v1.0.0)
     // @NOTE:
-    //     ANSI Codeを有効にするということは、before_resultについてもそれを無視するということになる。
-    //     なので、diffで処理する際は両方をcolor_set形式(ansi:(0,0,0),data:string)で渡しておき、それをforで処理するのが一番綺麗ではないだろうか？？
-    //     引数としては、
-    //     ・watch_pad
-    //     ・before_result
-    //     ・target_result
-    //     ・target_resultのansi
-    //　　　で、ｂefore_resultとtarget_resultで色つけの位置が変わった場合などについては、どっちにしてもdiffとして扱われるので気にしないことにする。
-    //     改行については、別の関数で処理するから気にしなくていいと思う
     fn watchpad_diff_update(&mut self) {
         let target_result = self.get_result(0);
         let before_result = self.get_result(1);
@@ -249,7 +240,21 @@ impl Watch {
         let lines = data.split("\n");
 
         for l in lines {
-            count += count_line(l.to_string(), watchpad_width.clone());
+            // @TODO: Add Color line count
+            if self.color {
+                let color_pair = ansi_parse(&l.to_string());
+                let mut linestr = "".to_string();
+                for pair in color_pair {
+                    linestr = [linestr, pair.data].concat();
+                }
+                count += count_line(linestr.to_string(), watchpad_width.clone());
+            } else {
+                count += count_line(format!("{:?}", l).to_string(), watchpad_width.clone());
+            }
+        }
+
+        if self.color {
+            count += 1;
         }
 
         return count;
@@ -308,7 +313,6 @@ impl Watch {
 }
 
 // get lines in watchpad
-// @TODO: add color
 fn count_line(_string: String, _width: i32) -> i32 {
     let char_vec: Vec<char> = _string.chars().collect();
     let mut _char_count = 0;
@@ -321,7 +325,7 @@ fn count_line(_string: String, _width: i32) -> i32 {
             _char_count += 1;
         }
 
-        if _char_count == _width {
+        if _char_count > _width {
             _line_count += 1;
             _char_count = 0;
         }
