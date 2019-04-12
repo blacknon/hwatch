@@ -240,7 +240,7 @@ pub fn setup_colorset() {
 }
 
 // ansi .. (flags(1,4,5,7), front(30-37), back(40-47))
-pub struct Data {
+pub struct Color {
     pub ansi: (i32, i32, i32),
     pub data: String,
 }
@@ -297,9 +297,9 @@ fn get_color(text: &str, ansi: (i32, i32, i32)) -> (i32, i32, i32) {
 }
 
 // ansi parse function
-pub fn ansi_parse(text: &str) -> Vec<Data> {
+pub fn ansi_parse(text: &str) -> Vec<Color> {
     // declare result
-    let mut result: Vec<Data> = vec![];
+    let mut result: Vec<Color> = vec![];
 
     // parse text, delimiter is ansi code.
     let _parsed: Vec<_> = get_ansi_iter(&text)
@@ -316,7 +316,7 @@ pub fn ansi_parse(text: &str) -> Vec<Data> {
             let _ansi_end = _ansi.1;
 
             if _ansi_start > _start {
-                let _data = Data {
+                let _data = Color {
                     ansi: _ansi_code,
                     data: text[_start.._ansi_start].to_string(),
                 };
@@ -329,14 +329,14 @@ pub fn ansi_parse(text: &str) -> Vec<Data> {
         _count += 1;
 
         if _start < text.len() {
-            let _data = Data {
+            let _data = Color {
                 ansi: _ansi_code,
                 data: text[_start..].to_string(),
             };
             result.push(_data);
         }
     } else {
-        let _data = Data {
+        let _data = Color {
             ansi: _ansi_code,
             data: text.to_string(),
         };
