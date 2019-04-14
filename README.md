@@ -15,33 +15,38 @@ Record the execution result of the command, and after can view this.
 
     git clone github.com/blacknon/hwatch
     cd hwatch
-    cargo install 
+    cargo install
 
 ## Usage
 
-    hwatch 0.1.0
+    hwatch 0.1.1
     blacknon <blacknon@orebibou.com>
     alternative watch command.
-
+    
     USAGE:
         hwatch [FLAGS] [OPTIONS] <command>...
-
+    
     FLAGS:
+        -c, --color          interpret ANSI color and style sequences
         -d, --differences    highlight changes between updates
         -h, --help           Prints help information
         -V, --version        Prints version information
-
+    
     OPTIONS:
         -n, --interval <interval>    seconds to wait between updates [default: 2]
-
+    
     ARGS:
         <command>...
 
 watch window keybind
 
-    Arrow up/down         ... move watch screen.
-    Shift + Arrow up/down ... select history.
-    D                     ... switch diff mode.
-    0                     ... disable diff.
-    1                     ... switch watch type diff.
-    2                     ... switch line type diff.
+    Arrow up/down  ... move selected screen(history/watch).
+    Tab            ... toggle select screen(history/watch).
+    c              ... toggle color.
+    d              ... switch diff mode.
+    0              ... disable diff.
+    1              ... switch watch type diff.
+    2              ... switch line type diff.
+    F1             ... only stdout print.
+    F2             ... only stderr print.
+    F3             ... print output.
