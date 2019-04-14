@@ -80,12 +80,14 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("d")
                 .long("differences"),
         )
-        // .arg(Arg::with_name("exec")
-        //     .help("pass command to exec instead of 'sh -c'")
-        //     .short("x")
-        //     .long("exec")
-        //     .takes_value(true)
-        //     .default_value("sh -c")
+        // exec shell
+        // .arg(
+        //     Arg::with_name("exec")
+        //         .help("pass command to exec instead of 'sh -c'")
+        //         .short("x")
+        //         .long("exec")
+        //         .takes_value(true)
+        //         .default_value("sh -c"),
         // )
         // Interval option
         //   --interval,-n
@@ -111,6 +113,7 @@ fn main() {
         .unwrap();
     let mut _diff = _matches.is_present("differences");
     let mut _color = _matches.is_present("color");
+    let mut _exec = _matches.values_of_lossy("exec");
 
     // Create channel
     let (tx, rx) = channel();
