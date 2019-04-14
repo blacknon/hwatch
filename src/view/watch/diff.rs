@@ -73,6 +73,7 @@ fn watch_diff_print(mut watch: WatchPad, ansi: (i32, i32, i32), data1: &str, dat
     let flag = ansi.0;
     let fg_color = ansi.1 as i16;
     let bg_color = ansi.2 as i16;
+
     if data1 != data2 {
         let mut data1_chars: Vec<char> = data1.chars().collect();
         let mut data2_chars: Vec<char> = data2.chars().collect();
@@ -106,12 +107,20 @@ fn watch_diff_print(mut watch: WatchPad, ansi: (i32, i32, i32), data1: &str, dat
 }
 
 pub struct LineDiff {
-    diffs: Changeset,
+    pub line: i32,
     dataset: Vec<Color>,
     color: bool,
 }
 
 impl LineDiff {
+    pub fn new(color: bool) -> Self {
+        Self {
+            line: 0,
+            dataset: vec![],
+            color: color,
+        }
+    }
+
     pub fn create_dataset(&mut self, data1: String, data2: String) {
         // Compare both before/after output.
         let Changeset { diffs, .. } = Changeset::new(&data1.clone(), &data2.clone(), "\n");
@@ -122,17 +131,42 @@ impl LineDiff {
             match diffs[i] {
                 Difference::Same(ref diff_data) => {
                     for line in diff_data.lines() {
-                        //
+                        // push line header
+                        let mut header = Color {
+                            ansi: (0, 1, 1),
+                            data: "   ".to_string(),
+                        };
+                        dataset.push(header);
+
+                        dataset.append(&mut self.craete_dataset_element(&format!("{}\n", line), 0));
+                        self.line += 1;
                     }
                 }
                 Difference::Add(ref diff_data) => {
                     for line in diff_data.lines() {
-                        // result_vec.push(format!("+  {}", line));
+                        // push line header
+                        let mut header = Color {
+                            ansi: (0, COLOR_ELEMENT_G.into(), 1),
+                            data: "+  ".to_string(),
+                        };
+                        dataset.push(header);
+
+                        dataset.append(&mut self.craete_dataset_element(&format!("{}\n", line), 1));
+                        self.line += 1;
                     }
                 }
                 Difference::Rem(ref diff_data) => {
                     for line in diff_data.lines() {
-                        // result_vec.push(format!("-  {}", line));
+                        // push line header
+                        let mut header = Color {
+                            ansi: (0, COLOR_ELEMENT_R.into(), 1),
+                            data: "-  ".to_string(),
+                        };
+                        dataset.push(header);
+
+                        dataset
+                            .append(&mut self.craete_dataset_element(&format!("{}\n", line), -1));
+                        self.line += 1;
                     }
                 }
             }
@@ -140,11 +174,49 @@ impl LineDiff {
         self.dataset = dataset;
     }
 
-    fn craete_dataset(&mut self, line: String) {
-        if self.color {
+    fn craete_dataset_element(&mut self, line: &str, status: i32) -> Vec<Color> {
+        let mut result: Vec<Color> = vec![];
 
+        if self.color {
+            let pairs = ansi_parse(line);
+
+            for mut pair in pairs {
+                if pair.ansi == (0, 1, 1) {
+                    match status {
+                        1 => pair.ansi = (0, COLOR_ELEMENT_G.into(), 1),
+                        -1 => pair.ansi = (0, COLOR_ELEMENT_R.into(), 1),
+                        _ => {}
+                    }
+                }
+
+                result.push(pair);
+            }
         } else {
-            let ansi = (0, 0, 0);
+            let mut ansi = (0, 1, 1);
+            match status {
+                0 => ansi = (0, 1, 1),
+                1 => ansi = (0, COLOR_ELEMENT_G.into(), 1),
+                -1 => ansi = (0, COLOR_ELEMENT_R.into(), 1),
+                _ => {}
+            }
+
+            let data = Color {
+                ansi: ansi,
+                data: line.to_string(),
+            };
+            result.push(data);
+        }
+
+        return result;
+    }
+
+    pub fn print(&mut self, mut watch: WatchPad) {
+        for data in &self.dataset {
+            let flag = data.ansi.0;
+            let fg_color = data.ansi.1 as i16;
+            let bg_color = data.ansi.2 as i16;
+
+            watch.print(data.data.clone(), fg_color, bg_color, vec![flag]);
         }
     }
 }

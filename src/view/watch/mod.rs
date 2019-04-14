@@ -215,12 +215,17 @@ impl Watch {
             ::DIFF_LINE => {
                 // set watchpad size
                 // @TODO: Refactoring (line_diff_str)
-                let line_diff_str =
-                    diff::line_diff_str_get(before_data.clone(), target_data.clone());
-                let watchpad_size = self.watchpad_get_size(line_diff_str.clone());
-                self.watchpad_create(watchpad_size + 1);
+                // let line_diff_str =
+                //     diff::line_diff_str_get(before_data.clone(), target_data.clone());
+                // let watchpad_size = self.watchpad_get_size(line_diff_str.clone());
+                // self.watchpad_create(watchpad_size + 1);
 
-                diff::line_diff(self.watch_pad.clone(), before_data, target_data, self.color)
+                // diff::line_diff(self.watch_pad.clone(), before_data, target_data, self.color)
+
+                let mut diff = diff::LineDiff::new(self.color);
+                diff.create_dataset(before_data, target_data);
+                self.watchpad_create(diff.line + 1);
+                diff.print(self.watch_pad.clone());
             }
             _ => {}
         }
