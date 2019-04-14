@@ -1,13 +1,11 @@
-use ncurses::*;
-use std::thread;
 use event::Event;
+use ncurses::*;
 use std::sync::mpsc::Sender;
-
+use std::thread;
 
 pub struct Input {
     tx: Sender<Event>,
 }
-
 
 impl Input {
     pub fn new(tx: Sender<Event>) -> Self {
@@ -15,15 +13,12 @@ impl Input {
     }
 
     pub fn run(self) {
-        let _ = thread::spawn(move || 
-            {
-                let mut ch = getch();
-                loop {
-                let _ = self.tx.send(
-                    Event::Input(ch));
-                    ch = getch();
-                }
+        let _ = thread::spawn(move || {
+            let mut ch = getch();
+            loop {
+                let _ = self.tx.send(Event::Input(ch));
+                ch = getch();
             }
-        );
+        });
     }
 }

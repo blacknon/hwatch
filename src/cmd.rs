@@ -1,53 +1,44 @@
+// module
 use std::io::prelude::*;
-use std::io::BufReader;
 use std::io::BufRead;
+use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 
+// local module
 use common;
 use event::Event;
 
 #[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
-
     pub command: String,
-
     pub status: bool,
-
     pub output: String,
     pub stdout: String,
     pub stderr: String,
-
     pub interval: u64,
 }
-
 
 impl Result {
     pub fn new() -> Self {
         Self {
             timestamp: String::new(),
-
             command: String::new(),
-
             status: true,
-            
             output: String::new(),
             stdout: String::new(),
             stderr: String::new(),
-
             interval: 2,
         }
     }
 }
-
 
 pub struct CmdRun {
     pub command: String,
     pub interval: u64,
     pub tx: Sender<Event>,
 }
-
 
 impl CmdRun {
     // set default value
@@ -84,7 +75,7 @@ impl CmdRun {
             loop {
                 let (stdout_bytes, stderr_bytes) = match (stdout.fill_buf(), stderr.fill_buf()) {
                     (Ok(stdout), Ok(stderr)) => {
-                        // merge stdout stderr
+                        // merge stdout/stderr
                         vec_output.write_all(stdout).expect("");
                         vec_output.write_all(stderr).expect("");
 
@@ -114,15 +105,11 @@ impl CmdRun {
         // Send result
         let _result = Result {
             timestamp: common::now_str(),
-
             command: self.command.clone(),
-
             status: status.success(),
-
             output: String::from_utf8_lossy(&vec_output).to_string(),
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
-
             interval: self.interval.clone(),
         };
         let _ = self.tx.send(Event::OutputUpdate(_result));

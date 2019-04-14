@@ -1,4 +1,6 @@
+tmp*
 /target/
 Cargo.lock
 hwatch.sublime-project
+.rustc_info.json
 .DS_Store
