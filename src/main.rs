@@ -80,7 +80,10 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("d")
                 .long("differences"),
         )
-        // exec shell
+        // exec
+        // @TODO: v1.0.0
+        //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
+        //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
         // .arg(
         //     Arg::with_name("exec")
         //         .help("pass command to exec instead of 'sh -c'")
