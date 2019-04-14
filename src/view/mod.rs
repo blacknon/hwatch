@@ -79,8 +79,8 @@ impl View {
             if self.watch.selected != 0 {
                 self.watch.selected += 1;
             }
-            self.watch.update();
             self.watch.append_history(_result.clone());
+            self.watch.update();
             self.watch.draw_history();
         } else {
             if self.watch.selected == 0 {
