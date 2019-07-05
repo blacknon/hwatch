@@ -13,6 +13,13 @@ Record the execution result of the command, and after can view this.
 
 ## Install
 
+### MacOS(brew)
+
+    brew tap blacknon/hwatch
+    brew install hwatch
+
+### Cargo Install
+
     git clone github.com/blacknon/hwatch
     cd hwatch
     cargo install
