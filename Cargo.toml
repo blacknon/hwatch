@@ -17,3 +17,10 @@ ncurses = { version = "=5.99.0", features = ["wide"], optional = true } # for li
 
 [features]
 default = ["ncurses"]
+
+[package.metadata.deb]
+maintainer = "blacknon <blacknon@orebibou.com>"
+extended-description = "alternative watch command."
+depends = "$auto, ncursesw"
+section = "utility"
+priority = "optional"
