@@ -1,5 +1,7 @@
+// crate
 extern crate chrono;
 
+// module
 use self::chrono::Local;
 
 pub fn now_str() -> String {
