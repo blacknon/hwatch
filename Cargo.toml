@@ -1,18 +1,34 @@
 [package]
 name = "hwatch"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["blacknon <blacknon@orebibou.com>"]
 description = "alternative watch command."
+license-file = "LICENSE"
 
 [dependencies]
 chrono = "0.4"
 clap = "2.20.3"
 difference = "2.0"
-
-[dependencies.ncurses]
-features = ["wide"]
-optional = true
-version = "=5.91.0"
+nix = "0.11.0"
+regex= "*"
+itertools = "*"
+lazy_static = "*"
+# ncurses = { version = "=5.94.0", features = ["wide"], optional = true } # for macos
+ncurses = { version = "=5.99.0", features = ["wide"], optional = true } # for linux
 
 [features]
 default = ["ncurses"]
+
+[package.metadata.deb]
+maintainer = "blacknon <blacknon@orebibou.com>"
+extended-description = "alternative watch command."
+depends = "$auto, libncursesw5"
+section = "utility"
+priority = "optional"
+
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+hwatch = { path = "/usr/bin/hwatch" }
