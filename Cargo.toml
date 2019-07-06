@@ -3,6 +3,7 @@ name = "hwatch"
 version = "0.1.1"
 authors = ["blacknon <blacknon@orebibou.com>"]
 description = "alternative watch command."
+license-file = "LICENSE"
 
 [dependencies]
 chrono = "0.4"
@@ -21,6 +22,13 @@ default = ["ncurses"]
 [package.metadata.deb]
 maintainer = "blacknon <blacknon@orebibou.com>"
 extended-description = "alternative watch command."
-depends = "$auto, ncursesw"
+depends = "$auto, libncursesw5"
 section = "utility"
 priority = "optional"
+
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+hwatch = { path = "/usr/bin/hwatch" }
