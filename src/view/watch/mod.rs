@@ -71,6 +71,11 @@ impl Watch {
         let _history_pad_lastline = self.history_pad_position + max_y - 4;
         if self.selected >= _history_pad_lastline {
             self.history_pad_position = self.selected - max_y + 3;
+
+            // debug: add
+            if self.history_pad_position < 0 {
+                self.history_pad_position = 0;
+            }
         }
 
         prefresh(
@@ -117,6 +122,7 @@ impl Watch {
         return _result;
     }
 
+    // TODO(blacknon): 表示範囲を外れた場合は`self.watch.history_pad_position`の位置を調整する
     pub fn history_up(&mut self) {
         if self.selected > 0 {
             self.selected -= 1;
