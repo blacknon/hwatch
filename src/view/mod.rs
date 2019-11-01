@@ -258,11 +258,13 @@ impl View {
         getmaxyx(self.screen, &mut max_y, &mut max_x);
 
         // mouse is not on header
-        if _mevent.y > 1 {
+        if _mevent.y >= 2 {
             match _mouse_event {
                 // mouse left button click
                 BUTTON1_CLICKED => {
+                    // MEMO: マウスカーソルがhistory領域にいる場合
                     if max_x - ::HISTORY_WIDTH < _mevent.x {
+                        // MEMO: マウスが選択した行を記録
                         let _mouse_select_line = _mevent.y - 2 + self.watch.history_pad_position;
 
                         if self.watch.count >= _mouse_select_line {
