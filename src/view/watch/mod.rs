@@ -1,3 +1,7 @@
+// Copyright (c) 2019 Blacknon. All rights reserved.
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file.
+
 // module
 use ncurses::*;
 use std::sync::Mutex;
@@ -56,11 +60,12 @@ impl Watch {
         let _latest_status = self.latest_result.status;
         self.print_history(0, "latest             ".to_string(), _latest_status);
 
-        // print history
-        let mut _history = self.history.lock().unwrap().clone();
-
+        // set history info
         let mut i = 1;
+        let mut _history = self.history.lock().unwrap().clone();
         let _length = _history.len();
+
+        // print history
         for x in 0.._length {
             let _timestamp = _history[x].timestamp.clone();
             let _status = _history[x].status.clone();
@@ -68,15 +73,27 @@ impl Watch {
             self.print_history(i, _timestamp, _status);
             i += 1;
         }
+
+        // adjust self.history_pad_position at history pad last line.
         let _history_pad_lastline = self.history_pad_position + max_y - 4;
         if self.selected >= _history_pad_lastline {
             self.history_pad_position = self.selected - max_y + 3;
 
-            // debug: add
             if self.history_pad_position < 0 {
                 self.history_pad_position = 0;
             }
         }
+
+        // adjust self.history_pad_position at history pad first line.
+        let _history_pad_firstline = self.history_pad_position;
+        if self.selected <= _history_pad_firstline {
+            self.history_pad_position = self.selected;
+
+            if self.history_pad_position < 0 {
+                self.history_pad_position = 0;
+            }
+        }
+
 
         prefresh(
             self.history_pad,
