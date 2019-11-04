@@ -54,7 +54,7 @@ impl CmdRun {
         }
     }
 
-    // exec command
+    // exec command in watch window
     pub fn exec_command(&mut self) {
         // exec command
         let mut child = Command::new("sh")

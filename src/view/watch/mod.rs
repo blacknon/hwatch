@@ -94,7 +94,6 @@ impl Watch {
             }
         }
 
-
         prefresh(
             self.history_pad,
             self.history_pad_position,
