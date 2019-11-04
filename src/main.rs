@@ -22,6 +22,7 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
+mod batchout;
 mod cmd;
 mod common;
 mod event;
@@ -61,15 +62,24 @@ fn build_app() -> clap::App<'static, 'static> {
         .author(crate_authors!())
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::AllowLeadingHyphen)
-        // command
+        // -- command --
         .arg(
             Arg::with_name("command")
                 .allow_hyphen_values(true)
                 .multiple(true)
                 .required(true),
         )
-        // options
+        // -- options --
+        // Enable batch mode option
+        //     [-b,--batch]
+        .arg(
+            Arg::with_name("batch")
+                .help("output exection results to stdout")
+                .short("b")
+                .long("batch"),
+        )
         // Enable ANSI color option
+        //     [-c,--color]
         .arg(
             Arg::with_name("color")
                 .help("interpret ANSI color and style sequences")
@@ -77,17 +87,25 @@ fn build_app() -> clap::App<'static, 'static> {
                 .long("color"),
         )
         // Enable diff mode option
-        //   --differences,-d
+        //   [--differences,-d]
         .arg(
             Arg::with_name("differences")
                 .help("highlight changes between updates")
                 .short("d")
                 .long("differences"),
         )
-        // exec
+        // Logging option
+        //   [--logdir,-l] /path/to/logdir
+        .arg(
+            Arg::with_name("log")
+                .help("logging directory")
+                .short("l")
+                .long("logdir"),
+        )
         // @TODO: v1.0.0
         //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
         //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
+        // exec
         // .arg(
         //     Arg::with_name("exec")
         //         .help("pass command to exec instead of 'sh -c'")
@@ -96,8 +114,9 @@ fn build_app() -> clap::App<'static, 'static> {
         //         .takes_value(true)
         //         .default_value("sh -c"),
         // )
+        //
         // Interval option
-        //   --interval,-n
+        //   [--interval,-n] second(default:2)
         .arg(
             Arg::with_name("interval")
                 .help("seconds to wait between updates")
@@ -118,6 +137,7 @@ fn main() {
         .unwrap()
         .parse::<u64>()
         .unwrap();
+    let mut _batch = _matches.is_present("batch");
     let mut _diff = _matches.is_present("differences");
     let mut _color = _matches.is_present("color");
     let mut _exec = _matches.values_of_lossy("exec");
@@ -125,20 +145,12 @@ fn main() {
     // Create channel
     let (tx, rx) = channel();
 
-    // Create view
-    let mut _view = View::new(tx.clone(), rx, _diff, _color);
-
-    // Create input
-    let mut _input = Input::new(tx.clone());
-
-    // Create signal
-    let mut _signal = Signal::new(tx.clone());
-
     // Start Command Thread
     {
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             let mut cmd = cmd::CmdRun::new(tx.clone());
+
             cmd.interval = _interval.clone();
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
             cmd.exec_command();
@@ -151,12 +163,30 @@ fn main() {
         });
     }
 
-    // await input thread
-    _input.run();
+    // check batch mode
+    if !_batch {
+        // is not batch mode
 
-    // await signal thread
-    _signal.run();
+        // Create view
+        let mut _view = View::new(tx.clone(), rx, _diff, _color);
 
-    // view
-    _view.get_event();
+        // Create input
+        let mut _input = Input::new(tx.clone());
+
+        // Create signal
+        let mut _signal = Signal::new(tx.clone());
+
+        // await input thread
+        _input.run();
+
+        // await signal thread
+        _signal.run();
+
+        // view
+        _view.get_event();
+    } else {
+        // is batch mode
+
+        print!("is batch\n");
+    }
 }
