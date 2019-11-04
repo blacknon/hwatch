@@ -1,3 +1,7 @@
+// Copyright (c) 2019 Blacknon. All rights reserved.
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file.
+
 // module
 use std::io::prelude::*;
 use std::io::BufRead;
@@ -50,7 +54,7 @@ impl CmdRun {
         }
     }
 
-    // exec command
+    // exec command in watch window
     pub fn exec_command(&mut self) {
         // exec command
         let mut child = Command::new("sh")
