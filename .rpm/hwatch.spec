@@ -4,13 +4,17 @@
 
 Name: hwatch
 Summary: alternative watch command.
-Version: @@VERSION@@
+Version: 0.1.1
 Release: 1
 License: MIT License
 Group: Applications/System
 Source0: %{name}-%{version}.tar.gz
+AutoReqProv:    no
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+Requires: ncurses
+Requires: ncurses-base
+Requires: ncurses-libs
 Requires: ncurses-devel
 
 %description
