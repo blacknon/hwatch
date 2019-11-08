@@ -9,7 +9,7 @@ hwatch - alternative watch command.
 
 ## Description
 
-Record the execution result of the command, and after can view this.
+`hwatch` is a alternative watch command. That records the result of command execution and can display it later.
 
 ## Install
 
