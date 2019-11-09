@@ -22,7 +22,6 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
-mod batchout;
 mod cmd;
 mod common;
 mod event;

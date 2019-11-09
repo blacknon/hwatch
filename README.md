@@ -26,7 +26,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.1.1
+    hwatch 0.1.2
     blacknon <blacknon@orebibou.com>
     alternative watch command.
 
@@ -34,8 +34,10 @@ hwatch - alternative watch command.
         hwatch [FLAGS] [OPTIONS] <command>...
 
     FLAGS:
+        -b, --batch          output exection results to stdout
         -c, --color          interpret ANSI color and style sequences
         -d, --differences    highlight changes between updates
+        -l, --logdir         logging directory
         -h, --help           Prints help information
         -V, --version        Prints version information
 
