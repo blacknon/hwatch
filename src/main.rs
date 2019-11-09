@@ -186,7 +186,6 @@ fn main() {
         _view.get_event();
     } else {
         // is batch mode
-
         print!("is batch\n");
     }
 }
