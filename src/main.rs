@@ -22,7 +22,6 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
-mod batchout;
 mod cmd;
 mod common;
 mod event;
@@ -186,7 +185,6 @@ fn main() {
         _view.get_event();
     } else {
         // is batch mode
-
         print!("is batch\n");
     }
 }

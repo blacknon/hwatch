@@ -9,7 +9,7 @@ hwatch - alternative watch command.
 
 ## Description
 
-Record the execution result of the command, and after can view this.
+`hwatch` is a alternative watch command. That records the result of command execution and can display it later.
 
 ## Install
 
@@ -22,38 +22,40 @@ Record the execution result of the command, and after can view this.
 
     git clone github.com/blacknon/hwatch
     cd hwatch
-    cargo install
+    cargo install --path .
 
 ## Usage
 
-    hwatch 0.1.1
+    hwatch 0.1.2
     blacknon <blacknon@orebibou.com>
     alternative watch command.
-    
+
     USAGE:
         hwatch [FLAGS] [OPTIONS] <command>...
-    
+
     FLAGS:
+        -b, --batch          output exection results to stdout
         -c, --color          interpret ANSI color and style sequences
         -d, --differences    highlight changes between updates
+        -l, --logdir         logging directory
         -h, --help           Prints help information
         -V, --version        Prints version information
-    
+
     OPTIONS:
         -n, --interval <interval>    seconds to wait between updates [default: 2]
-    
+
     ARGS:
         <command>...
 
 watch window keybind
 
-    Arrow up/down  ... move selected screen(history/watch).
-    Tab            ... toggle select screen(history/watch).
-    c              ... toggle color.
-    d              ... switch diff mode.
-    0              ... disable diff.
-    1              ... switch watch type diff.
-    2              ... switch line type diff.
-    F1             ... only stdout print.
-    F2             ... only stderr print.
-    F3             ... print output.
+- <kbd>↑</kbd>, <kbd>↓</kbd>  ... move selected screen(history/watch).
+- <kbd>Tab</kbd> ... toggle select screen(history/watch).
+- <kbd>C</kbd>   ... toggle color.
+- <kbd>D</kbd>   ... switch diff mode.
+- <kbd>0</kbd>   ... disable diff.
+- <kbd>1</kbd>   ... switch watch type diff.
+- <kbd>2</kbd>   ... switch line type diff.
+- <kbd>F1</kbd>  ... only stdout print.
+- <kbd>F2</kbd>  ... only stderr print.
+- <kbd>F3</kbd>  ... print output.
