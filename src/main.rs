@@ -71,12 +71,12 @@ fn build_app() -> clap::App<'static, 'static> {
         // -- options --
         // Enable batch mode option
         //     [-b,--batch]
-        .arg(
-            Arg::with_name("batch")
-                .help("output exection results to stdout")
-                .short("b")
-                .long("batch"),
-        )
+        // .arg(
+        //     Arg::with_name("batch")
+        //         .help("output exection results to stdout")
+        //         .short("b")
+        //         .long("batch"),
+        // )
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
@@ -95,12 +95,12 @@ fn build_app() -> clap::App<'static, 'static> {
         )
         // Logging option
         //   [--logdir,-l] /path/to/logdir
-        .arg(
-            Arg::with_name("log")
-                .help("logging directory")
-                .short("l")
-                .long("logdir"),
-        )
+        // .arg(
+        //     Arg::with_name("log")
+        //         .help("logging directory")
+        //         .short("l")
+        //         .long("logdir"),
+        // )
         // @TODO: v1.0.0
         //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
         //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
