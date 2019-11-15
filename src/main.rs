@@ -71,12 +71,12 @@ fn build_app() -> clap::App<'static, 'static> {
         // -- options --
         // Enable batch mode option
         //     [-b,--batch]
-        // .arg(
-        //     Arg::with_name("batch")
-        //         .help("output exection results to stdout")
-        //         .short("b")
-        //         .long("batch"),
-        // )
+        .arg(
+            Arg::with_name("batch")
+                .help("output exection results to stdout")
+                .short("b")
+                .long("batch"),
+        )
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
@@ -94,13 +94,14 @@ fn build_app() -> clap::App<'static, 'static> {
                 .long("differences"),
         )
         // Logging option
-        //   [--logdir,-l] /path/to/logdir
-        // .arg(
-        //     Arg::with_name("log")
-        //         .help("logging directory")
-        //         .short("l")
-        //         .long("logdir"),
-        // )
+        //   [--logging,-l] /path/to/logfile
+        // TODO(blacknon): jsonで出力させる。outputはBase64変換して保持
+        .arg(
+            Arg::with_name("log")
+                .help("logging file")
+                .short("l")
+                .long("logfile"),
+        )
         // @TODO: v1.0.0
         //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
         //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
@@ -114,7 +115,7 @@ fn build_app() -> clap::App<'static, 'static> {
         //         .default_value("sh -c"),
         // )
         //
-        // Interval option
+        // Interval optionMacの場合は更に背景画像も変わる
         //   [--interval,-n] second(default:2)
         .arg(
             Arg::with_name("interval")
@@ -163,7 +164,7 @@ fn main() {
     }
 
     // check batch mode
-    if !_batch {
+    if  !_batch {
         // is not batch mode
 
         // Create view

@@ -13,6 +13,8 @@ use std::sync::mpsc::Sender;
 use common;
 use event::Event;
 
+// TODO(blacknon): output系の出力をbase64で保持するように変更する(v1.0.0)
+
 #[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
