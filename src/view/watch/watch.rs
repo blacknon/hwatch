@@ -66,6 +66,7 @@ impl WatchPad {
         }
     }
 
+    //
     pub fn draw_output_pad(&mut self) {
         let mut max_x = 0;
         let mut max_y = 0;
@@ -74,6 +75,7 @@ impl WatchPad {
         self.prefresh(max_y, max_x);
     }
 
+    //
     pub fn scroll_up(&mut self) {
         let mut max_x = 0;
         let mut max_y = 0;

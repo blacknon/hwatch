@@ -38,10 +38,11 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, color: bool
             let max_pair = cmp::max(data1_pair.len(), data2_pair.len());
 
             for c in 0..max_pair {
-                // let mut data1_pair_ansi = (0, 1, 1);
+                // TODO: 何だったか忘れたけど、不要だったら削除(ansi)
+                let mut data1_pair_ansi = (0, 1, 1);
                 let mut data1_pair_str = "";
                 if data1_pair.len() > c {
-                    // data1_pair_ansi = data1_pair[c].ansi;
+                    data1_pair_ansi = data1_pair[c].ansi;
                     data1_pair_str = &data1_pair[c].data;
                 }
 
@@ -73,6 +74,7 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, color: bool
     }
 }
 
+// watch_diff_print
 fn watch_diff_print(mut watch: WatchPad, ansi: (i32, i32, i32), data1: &str, data2: &str) {
     let flag = ansi.0;
     let fg_color = ansi.1 as i16;
