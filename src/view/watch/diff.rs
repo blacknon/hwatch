@@ -39,11 +39,13 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, color: bool
 
             for c in 0..max_pair {
                 // TODO: 何だったか忘れたけど、不要だったら削除(ansi)
-                let mut data1_pair_ansi = (0, 1, 1);
+                // let mut _data1_pair_ansi = (0, 1, 1);
                 let mut data1_pair_str = "";
                 if data1_pair.len() > c {
-                    data1_pair_ansi = data1_pair[c].ansi;
+                    // _data1_pair_ansi = data1_pair[c].ansi;
                     data1_pair_str = &data1_pair[c].data;
+                } else {
+
                 }
 
                 let mut data2_pair_ansi = (0, 1, 1);
@@ -138,7 +140,7 @@ impl LineDiff {
                 Difference::Same(ref diff_data) => {
                     for line in diff_data.lines() {
                         // push line header
-                        let mut header = Color {
+                        let header = Color {
                             ansi: (0, 1, 1),
                             data: "   ".to_string(),
                         };
@@ -151,7 +153,7 @@ impl LineDiff {
                 Difference::Add(ref diff_data) => {
                     for line in diff_data.lines() {
                         // push line header
-                        let mut header = Color {
+                        let header = Color {
                             ansi: (0, COLOR_ELEMENT_G.into(), 1),
                             data: "+  ".to_string(),
                         };
@@ -164,7 +166,7 @@ impl LineDiff {
                 Difference::Rem(ref diff_data) => {
                     for line in diff_data.lines() {
                         // push line header
-                        let mut header = Color {
+                        let header = Color {
                             ansi: (0, COLOR_ELEMENT_R.into(), 1),
                             data: "-  ".to_string(),
                         };
