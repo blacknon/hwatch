@@ -39,7 +39,7 @@ impl WatchPad {
         }
 
         let colorset_string = format!("{}{}", _front_color.to_string(), _back_color.to_string());
-        let mut colorset: i16 = colorset_string.parse::<i16>().unwrap();;
+        let mut colorset: i16 = colorset_string.parse::<i16>().unwrap();
 
         if colorset < 0 {
             colorset = 0;
