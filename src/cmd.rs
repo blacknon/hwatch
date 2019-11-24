@@ -1,7 +1,3 @@
-// Copyright (c) 2019 Blacknon. All rights reserved.
-// Use of this source code is governed by an MIT license
-// that can be found in the LICENSE file.
-
 // module
 use std::io::prelude::*;
 use std::io::BufRead;
@@ -12,8 +8,6 @@ use std::sync::mpsc::Sender;
 // local module
 use common;
 use event::Event;
-
-// TODO(blacknon): output系の出力をbase64で保持するように変更する(v1.0.0)
 
 #[derive(Clone)]
 pub struct Result {
@@ -56,7 +50,7 @@ impl CmdRun {
         }
     }
 
-    // exec command in watch window
+    // exec command
     pub fn exec_command(&mut self) {
         // exec command
         let mut child = Command::new("sh")
