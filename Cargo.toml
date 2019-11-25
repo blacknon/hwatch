@@ -9,12 +9,12 @@ license-file = "LICENSE"
 chrono = "0.4"
 clap = "2.20.3"
 difference = "2.0"
-nix = "0.11.0"
+# nix = "0.11.0" # TODO(blacknon): 使ってないんだっけ…？確認して使ってなかったら消す
 regex= "*"
 itertools = "*"
 lazy_static = "*"
-# ncurses = { version = "=5.94.0", features = ["wide"], optional = true } # for macos
-ncurses = { version = "=5.99.0", features = ["wide"], optional = true } # for linux
+ncurses = { version = "=5.94.0", features = ["wide"], optional = true } # for macos
+# ncurses = { version = "=5.99.0", features = ["wide"], optional = true } # for linux
 
 [features]
 default = ["ncurses"]
@@ -25,7 +25,6 @@ extended-description = "alternative watch command."
 depends = "$auto, libncursesw5"
 section = "utility"
 priority = "optional"
-
 
 [package.metadata.rpm.cargo]
 buildflags = ["--release"]

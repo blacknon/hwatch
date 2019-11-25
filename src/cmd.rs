@@ -36,6 +36,7 @@ impl Result {
 
 pub struct CmdRun {
     pub command: String,
+    pub is_exec: bool,
     pub interval: u64,
     pub tx: Sender<Event>,
 }
@@ -45,6 +46,7 @@ impl CmdRun {
     pub fn new(tx: Sender<Event>) -> Self {
         Self {
             command: "".to_string(),
+            is_exec: false,
             interval: 2,
             tx: tx,
         }
@@ -52,7 +54,7 @@ impl CmdRun {
 
     // exec command
     pub fn exec_command(&mut self) {
-        // exec command
+        // generate exec command
         let mut child = Command::new("sh")
             .arg("-c")
             .arg(&self.command)
@@ -60,6 +62,11 @@ impl CmdRun {
             .stderr(Stdio::piped())
             .spawn()
             .expect("failed to execute prog");
+
+        // TODO(blacknon): is_execが有効な場合、self.commandを一度parseしてからchildを生成するよう変更する
+        // if self.is_exec {
+
+        // }
 
         // merge stdout and stderr
         let mut vec_output = Vec::new();

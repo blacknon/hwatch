@@ -201,6 +201,8 @@ impl Watch {
         let result = self.get_result(0);
         let result_data = self.get_output(result.clone());
 
+        // TODO(blacknon): result_dataの値をBase64からTextに戻す処理を追加する(log対応)
+
         let watchpad_size = self.watchpad_get_size(result_data.clone());
         self.watchpad_create(watchpad_size);
 
