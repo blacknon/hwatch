@@ -9,15 +9,17 @@ use std::sync::mpsc::Sender;
 use common;
 use event::Event;
 
+// TODO(blacknon): intervalいらないんじゃね？？確認して不要だったら削除する
+// TODO(blacknon): Result.commandもいらないんじゃね？？ログに残ったとき不要では？
 #[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
-    pub command: String,
+    pub command: String, // 不要？ログに残すことを考えるといるのでは…？
     pub status: bool,
     pub output: String,
     pub stdout: String,
     pub stderr: String,
-    pub interval: u64,
+    // pub interval: u64, // 不要？ => headerで参照してた…
 }
 
 impl Result {
@@ -29,7 +31,7 @@ impl Result {
             output: String::new(),
             stdout: String::new(),
             stderr: String::new(),
-            interval: 2,
+            // interval: 2,
         }
     }
 }
@@ -37,7 +39,7 @@ impl Result {
 pub struct CmdRun {
     pub command: String,
     pub is_exec: bool,
-    pub interval: u64,
+    // pub interval: u64,
     pub tx: Sender<Event>,
 }
 
@@ -47,7 +49,7 @@ impl CmdRun {
         Self {
             command: "".to_string(),
             is_exec: false,
-            interval: 2,
+            // interval: 2,
             tx: tx,
         }
     }
@@ -117,7 +119,7 @@ impl CmdRun {
             output: String::from_utf8_lossy(&vec_output).to_string(),
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
-            interval: self.interval.clone(),
+            // interval: self.interval.clone(),
         };
         let _ = self.tx.send(Event::OutputUpdate(_result));
     }
