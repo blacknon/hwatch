@@ -188,6 +188,11 @@ impl View {
         self.watch.update();
     }
 
+    // set interval at header
+    pub fn set_interval(&mut self, _interval: u64) {
+        self.header.interval = _interval;
+    }
+
     // start input reception
     // @TODO: whileで回してる最中に受け付けた処理は廃棄するように
     pub fn get_event(&mut self) {
