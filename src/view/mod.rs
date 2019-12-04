@@ -188,10 +188,16 @@ impl View {
         self.watch.update();
     }
 
+    // set color at header and watch pad
+    pub fn set_color(&mut self, _color: bool) {
+        self.header.color = _color
+    }
+
     // set interval at header
     pub fn set_interval(&mut self, _interval: u64) {
         self.header.interval = _interval;
     }
+
 
     // start input reception
     // @TODO: whileで回してる最中に受け付けた処理は廃棄するように
