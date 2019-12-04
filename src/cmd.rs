@@ -1,3 +1,7 @@
+// Copyright (c) 2019 Blacknon. All rights reserved.
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file.
+
 // module
 use std::io::prelude::*;
 use std::io::BufRead;
@@ -9,6 +13,7 @@ use std::sync::mpsc::Sender;
 use common;
 use event::Event;
 
+// TODO(blacknon): Resultの出力結果をBase64に変更する
 #[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
