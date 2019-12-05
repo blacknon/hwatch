@@ -45,6 +45,8 @@ impl View {
         // set color
         setup_colorset();
 
+        // TODO(blacknon): diff, colorの処理をパージする
+
         let mut diff_type = 0;
         if _diff {
             diff_type = 1;
@@ -54,7 +56,7 @@ impl View {
         Self {
             done: false,
             screen: _screen,
-            header: header::Header::new(_screen.clone(), diff_type, _color),
+            header: header::Header::new(_screen.clone()),
             watch: _watch,
             tx: tx,
             rx: rx,
@@ -188,16 +190,22 @@ impl View {
         self.watch.update();
     }
 
-    // set color at header and watch pad
-    pub fn set_diff(&mut self, _diff: i32) {
+    // set diff at header and watch pad
+    pub fn set_color(&mut self, _color: bool) {
         // TODO(blacknon): watch_pad側の処理についても記述する
-        self.header.diff = _diff
+        self.header.color = _color;
+    }
+
+    // set command at header and watch pad
+    pub fn set_command(&mut self, _command: String) {
+        // TODO(blacknon): watch_pad側の処理についても記述する
+        self.header.command = _command;
     }
 
     // set color at header and watch pad
-    pub fn set_color(&mut self, _color: bool) {
+    pub fn set_diff(&mut self, _diff: i32) {
         // TODO(blacknon): watch_pad側の処理についても記述する
-        self.header.color = _color
+        self.header.diff = _diff;
     }
 
     // set interval at header
