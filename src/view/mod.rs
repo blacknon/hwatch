@@ -189,7 +189,14 @@ impl View {
     }
 
     // set color at header and watch pad
+    pub fn set_diff(&mut self, _diff: i32) {
+        // TODO(blacknon): watch_pad側の処理についても記述する
+        self.header.diff = _diff
+    }
+
+    // set color at header and watch pad
     pub fn set_color(&mut self, _color: bool) {
+        // TODO(blacknon): watch_pad側の処理についても記述する
         self.header.color = _color
     }
 
@@ -197,7 +204,6 @@ impl View {
     pub fn set_interval(&mut self, _interval: u64) {
         self.header.interval = _interval;
     }
-
 
     // start input reception
     // @TODO: whileで回してる最中に受け付けた処理は廃棄するように
