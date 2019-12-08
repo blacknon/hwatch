@@ -45,7 +45,6 @@ pub fn watch_diff(mut watch: WatchPad, data1: String, data2: String, color: bool
                     // _data1_pair_ansi = data1_pair[c].ansi;
                     data1_pair_str = &data1_pair[c].data;
                 } else {
-
                 }
 
                 let mut data2_pair_ansi = (0, 1, 1);

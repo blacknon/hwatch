@@ -151,7 +151,8 @@ fn main() {
         let _ = thread::spawn(move || loop {
             let mut cmd = cmd::CmdRun::new(tx.clone());
 
-            cmd.interval = _interval.clone();
+            // TODO(blacknon): cmd.intervalいらないんじゃね？後で消す
+            // cmd.interval = _interval.clone();
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
             cmd.exec_command();
 
@@ -169,6 +170,11 @@ fn main() {
 
         // Create view
         let mut _view = View::new(tx.clone(), rx, _diff, _color);
+        // 追加していく
+        　
+
+
+
 
         // Create input
         let mut _input = Input::new(tx.clone());
