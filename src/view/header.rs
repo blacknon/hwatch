@@ -14,19 +14,21 @@ pub struct Header {
     pub result: Result,
     pub color: bool,
     pub diff: i32,
-    // pub interval: u64, // add
-    // pub command: String, // add
+    pub interval: u64,
+    pub command: String,
     pub output: i32,
     pub active_pad: i32,
 }
 
 impl Header {
-    pub fn new(_screen: ncurses::WINDOW, _diff: i32, _color: bool) -> Self {
+    pub fn new(_screen: ncurses::WINDOW) -> Self {
         Self {
             screen: _screen,
             result: Result::new(),
-            color: _color,
-            diff: _diff,
+            color: false,
+            diff: 0,
+            interval: 2,
+            command: "",
             output: ::IS_OUTPUT,
             active_pad: ::IS_WATCH_PAD,
         }
