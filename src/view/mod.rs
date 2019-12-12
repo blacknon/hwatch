@@ -112,12 +112,6 @@ impl View {
 
         // update header status
         self.header.color = self.watch.color;
-
-        // draw
-        clear();
-        self.header.update();
-        self.watch.draw_history();
-        self.watch.update();
     }
 
     // toggle diff mode
@@ -129,18 +123,14 @@ impl View {
         self.switch_diff(now_diff % 3);
     }
 
+    // switch diff mode.
     fn switch_diff(&mut self, _diff: i32) {
         // set value
         self.watch.diff = _diff;
         self.header.diff = self.watch.diff;
-
-        // draw
-        clear();
-        self.header.update();
-        self.watch.draw_history();
-        self.watch.update();
     }
 
+    //
     fn toggle_pad(&mut self) {
         // add num
         let mut now_pad = self.header.active_pad;
@@ -150,6 +140,7 @@ impl View {
         self.header.update();
     }
 
+    //
     fn up(&mut self) {
         match self.header.active_pad {
             ::IS_WATCH_PAD => self.watch.window_up(),
@@ -164,6 +155,7 @@ impl View {
         }
     }
 
+    //
     fn down(&mut self) {
         match self.header.active_pad {
             ::IS_WATCH_PAD => self.watch.window_down(),
@@ -178,22 +170,17 @@ impl View {
         }
     }
 
+    //
     fn set_output_type(&mut self, _output_type: i32) {
         // set value
         self.watch.output_type = _output_type;
         self.header.output = _output_type;
-
-        // draw
-        clear();
-        self.header.update();
-        self.watch.draw_history();
-        self.watch.update();
     }
 
+    //
     // set diff at header and watch pad
-    pub fn set_color(&mut self, _color: bool) {
+    pub fn set_color_mode(&mut self, _color: bool) {
         // TODO(blacknon): watch_padのcolorを変更する処理を追加
-
         self.header.color = _color
     }
 
@@ -203,15 +190,18 @@ impl View {
         self.header.command = _command;
     }
 
-    // set color at header and watch pad
-    pub fn set_diff(&mut self, _diff: i32) {
-        // TODO(blacknon): watch_pad側の処理についても記述する
-        self.header.diff = _diff;
-    }
-
     // set interval at header
     pub fn set_interval(&mut self, _interval: u64) {
         self.header.interval = _interval;
+    }
+
+    // clear and update draw
+    pub fn draw_update(&mut self) {
+        // draw
+        clear();
+        self.header.update();
+        self.watch.draw_history();
+        self.watch.update();
     }
 
     // start input reception
@@ -261,18 +251,48 @@ impl View {
             KEY_DOWN => self.down(), // Arrow Down
 
             // toggle color mode
-            0x63 => self.toggle_color(), // c(0x63)
+            0x63 => {
+                // c(0x63)
+                self.toggle_color();
+                self.draw_update();
+            }
 
             // change diff mode
-            0x64 => self.toggle_diff(),  // d(0x64)
-            0x30 => self.switch_diff(0), // 0(0x30)
-            0x31 => self.switch_diff(1), // 1(0x31)
-            0x32 => self.switch_diff(2), // 2(0x32)
+            0x64 => {
+                // d(0x64)
+                self.toggle_diff();
+                self.draw_update();
+            }
+            0x30 => {
+                // 0(0x30)
+                self.switch_diff(0);
+                self.draw_update();
+            }
+            0x31 => {
+                // 1(0x31)
+                self.switch_diff(1);
+                self.draw_update();
+            }
+            0x32 => {
+                // 2(0x32)
+                self.switch_diff(2);
+                self.draw_history();
+            }
 
             // change output
-            KEY_F1 => self.set_output_type(::IS_STDOUT),
-            KEY_F2 => self.set_output_type(::IS_STDERR),
-            KEY_F3 => self.set_output_type(::IS_OUTPUT),
+            KEY_F1 => {
+                // F1
+                self.set_output_type(::IS_STDOUT);
+                self.draw_update();
+            }
+            KEY_F2 => {
+                self.set_output_type(::IS_STDERR);
+                self.draw_update();
+            }
+            KEY_F3 => {
+                self.set_output_type(::IS_OUTPUT);
+                self.draw_update();
+            }
 
             // exit this program
             0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71)
