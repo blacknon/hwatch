@@ -165,16 +165,13 @@ fn main() {
     }
 
     // check batch mode
-    if  !_batch {
+    if !_batch {
         // is not batch mode
 
         // Create view
         let mut _view = View::new(tx.clone(), rx, _diff, _color);
-        // 追加していく
-        　
 
-
-
+        //
 
         // Create input
         let mut _input = Input::new(tx.clone());
