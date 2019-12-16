@@ -170,18 +170,18 @@ impl View {
         }
     }
 
-    //
+    // set color at header and watch pad
     fn set_output_type(&mut self, _output_type: i32) {
         // set value
         self.watch.output_type = _output_type;
         self.header.output = _output_type;
     }
 
-    //
-    // set diff at header and watch pad
-    pub fn set_color_mode(&mut self, _color: bool) {
-        // TODO(blacknon): watch_padのcolorを変更する処理を追加
-        self.header.color = _color
+    // set color at header and watch pad
+    pub fn set_color(&mut self, _color: bool) {
+        // set value
+        self.watch.color = _color;
+        self.header.color = _color;
     }
 
     // set command at header and watch pad
