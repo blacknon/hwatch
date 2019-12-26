@@ -28,7 +28,7 @@ impl Header {
             color: false,
             diff: 0,
             interval: 2,
-            command: "",
+            command: "".to_string(),
             output: ::IS_OUTPUT,
             active_pad: ::IS_WATCH_PAD,
         }
