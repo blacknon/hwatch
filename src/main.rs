@@ -96,12 +96,12 @@ fn build_app() -> clap::App<'static, 'static> {
         // Logging option
         //   [--logging,-l] /path/to/logfile
         // TODO(blacknon): jsonで出力させる。outputはBase64変換して保持
-        .arg(
-            Arg::with_name("log")
-                .help("logging file")
-                .short("l")
-                .long("logfile"),
-        )
+        // .arg(
+        //     Arg::with_name("log")
+        //         .help("logging file")
+        //         .short("l")
+        //         .long("logfile"),
+        // )
         // @TODO: v1.0.0
         //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
         //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
@@ -171,7 +171,11 @@ fn main() {
         // Create view
         let mut _view = View::new(tx.clone(), rx, _diff, _color);
 
-        //
+        // Set interval on _view.header
+
+        // Set diff in _view
+
+        // Set color in _view
 
         // Create input
         let mut _input = Input::new(tx.clone());
@@ -189,6 +193,6 @@ fn main() {
         _view.get_event();
     } else {
         // is batch mode
-        print!("is batch\n");
+        print!("is batch (developing now)\n");
     }
 }
