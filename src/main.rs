@@ -33,6 +33,7 @@ use signal::Signal;
 use view::View;
 
 // const
+pub const DEFAULT_INTERVAL: i32 = 2;
 pub const HISTORY_WIDTH: i32 = 21;
 pub const IS_WATCH_PAD: i32 = 0;
 pub const IS_HISTORY_PAD: i32 = 1;
@@ -169,7 +170,7 @@ fn main() {
         // is not batch mode
 
         // Create view
-        let mut _view = View::new(tx.clone(), rx, _diff, _color);
+        let mut _view = View::new(tx.clone(), rx);
 
         // Set interval on _view.header
         _view.set_interval(_interval);
