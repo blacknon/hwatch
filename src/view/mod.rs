@@ -63,11 +63,13 @@ impl View {
         }
     }
 
+    //
     fn exit(&mut self) {
         self.watch.exit();
         let _ = self.tx.send(Event::Exit);
     }
 
+    //
     fn update(&mut self, _result: Result) {
         // set header diff flag
         self.header.diff = self.watch.diff;
@@ -130,7 +132,7 @@ impl View {
         self.header.diff = self.watch.diff;
     }
 
-    //
+    // change active pad (history/watch)
     fn toggle_pad(&mut self) {
         // add num
         let mut now_pad = self.header.active_pad;
@@ -140,7 +142,7 @@ impl View {
         self.header.update();
     }
 
-    //
+    // up action
     fn up(&mut self) {
         match self.header.active_pad {
             ::IS_WATCH_PAD => self.watch.window_up(),
@@ -155,7 +157,7 @@ impl View {
         }
     }
 
-    //
+    // down action
     fn down(&mut self) {
         match self.header.active_pad {
             ::IS_WATCH_PAD => self.watch.window_down(),
@@ -286,10 +288,12 @@ impl View {
                 self.draw_update();
             }
             KEY_F2 => {
+                // F2
                 self.set_output_type(::IS_STDERR);
                 self.draw_update();
             }
             KEY_F3 => {
+                // F3
                 self.set_output_type(::IS_OUTPUT);
                 self.draw_update();
             }
