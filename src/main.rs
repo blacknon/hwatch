@@ -97,12 +97,16 @@ fn build_app() -> clap::App<'static, 'static> {
         // Logging option
         //   [--logging,-l] /path/to/logfile
         // TODO(blacknon): jsonで出力させる。outputはBase64変換して保持
-        // .arg(
-        //     Arg::with_name("log")
-        //         .help("logging file")
-        //         .short("l")
-        //         .long("logfile"),
-        // )
+        // ex.)
+        //      {timestamp: "...", command: "....", output: ".....", ...}
+        //      {timestamp: "...", command: "....", output: ".....", ...}
+        //      {timestamp: "...", command: "....", output: ".....", ...}
+        .arg(
+            Arg::with_name("log")
+                .help("logging file")
+                .short("l")
+                .long("logfile"),
+        )
         // @TODO: v1.0.0
         //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
         //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
@@ -142,6 +146,10 @@ fn main() {
     let mut _diff = _matches.is_present("differences");
     let mut _color = _matches.is_present("color");
     let mut _exec = _matches.values_of_lossy("exec");
+    let mut _logfile = _matches.values_of_lossy("logfile");
+
+    // check _logfile
+    // TODO(blacknon): 追加する
 
     // Create channel
     let (tx, rx) = channel();
@@ -150,15 +158,15 @@ fn main() {
     {
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
+            // Set command..
             let mut cmd = cmd::CmdRun::new(tx.clone());
-
-            // TODO(blacknon): cmd.intervalいらないんじゃね？後で消す
-            // cmd.interval = _interval.clone();
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
-            cmd.exec_command();
 
-            // Get now time
-            let _now = common::now_str();
+            // Set log file
+            // TODO(blacknon): 追加する
+
+            // Exec command
+            cmd.exec_command();
 
             // sleep interval
             thread::sleep(Duration::from_secs(_interval));
@@ -186,7 +194,7 @@ fn main() {
         _view.set_color(_color);
 
         // Create input
-        let mut _input = Input::new(tx.clone());
+            let mut _input = Input::new(tx.clone());
 
         // Create signal
         let mut _signal = Signal::new(tx.clone());
@@ -201,6 +209,6 @@ fn main() {
         _view.get_event();
     } else {
         // is batch mode
-        print!("is batch (developing now)\n");
+        println!("is batch (developing now)");
     }
 }
