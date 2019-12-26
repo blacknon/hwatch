@@ -119,7 +119,7 @@ impl View {
     }
 
     // switch diff mode.
-    fn switch_diff(&mut self, _diff: i32) {
+    pub fn switch_diff(&mut self, _diff: i32) {
         // set value
         self.watch.diff = _diff;
         self.header.diff = self.watch.diff;
@@ -271,7 +271,7 @@ impl View {
             0x32 => {
                 // 2(0x32)
                 self.switch_diff(2);
-                self.draw_history();
+                self.draw_update();
             }
 
             // change output
