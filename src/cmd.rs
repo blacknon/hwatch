@@ -18,12 +18,11 @@ use event::Event;
 #[derive(Clone)]
 pub struct Result {
     pub timestamp: String,
-    pub command: String, // 不要？ログに残すことを考えるといるのでは…？
+    pub command: String,
     pub status: bool,
     pub output: String,
     pub stdout: String,
     pub stderr: String,
-    // pub interval: u64, // 不要？ => headerで参照してた…
 }
 
 impl Result {
@@ -35,7 +34,6 @@ impl Result {
             output: String::new(),
             stdout: String::new(),
             stderr: String::new(),
-            // interval: 2,
         }
     }
 }
@@ -43,7 +41,7 @@ impl Result {
 pub struct CmdRun {
     pub command: String,
     pub is_exec: bool,
-    // pub interval: u64,
+    pub logfile: String,
     pub tx: Sender<Event>,
 }
 
@@ -53,7 +51,7 @@ impl CmdRun {
         Self {
             command: "".to_string(),
             is_exec: false,
-            // interval: 2,
+            logfile: "".to_string(),
             tx: tx,
         }
     }
@@ -115,7 +113,7 @@ impl CmdRun {
         // get command status
         let status = child.wait().expect("");
 
-        // Send result
+        // Set result
         let _result = Result {
             timestamp: common::now_str(),
             command: self.command.clone(),
@@ -123,8 +121,14 @@ impl CmdRun {
             output: String::from_utf8_lossy(&vec_output).to_string(),
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
-            // interval: self.interval.clone(),
         };
+
+        // Send result
         let _ = self.tx.send(Event::OutputUpdate(_result));
+
+        // Logging
+        // if self.logfile != "" {
+
+        // }
     }
 }
