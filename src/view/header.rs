@@ -38,7 +38,7 @@ impl Header {
     fn printout_1st_line(&mut self, max_x: i32) {
         // interval second num to string
         // let interval = format!("{:.*}", 2, self.result.interval);
-        let interval = format!("{:.*}", 2, DEFAULT_INTERVAL);
+        let interval = format!("{:.*}", 2, ::DEFAULT_INTERVAL);
 
         // print interval and exec command
         // ex) Every XXs: Command...
