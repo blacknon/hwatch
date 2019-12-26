@@ -31,12 +31,12 @@ pub struct Watch {
 
 impl Watch {
     // set default value
-    pub fn new(_screen: WINDOW, _diff: i32, _color: bool) -> Self {
+    pub fn new(_screen: WINDOW) -> Self {
         // Create WatchPad
         let _watch = WatchPad::new(_screen.clone());
         Self {
-            diff: _diff,
-            color: _color,
+            diff: ::DIFF_DISABLE,
+            color: false,
             output_type: ::IS_OUTPUT,
             count: 0,
             latest_result: Result::new(),
