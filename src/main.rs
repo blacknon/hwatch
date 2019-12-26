@@ -172,10 +172,17 @@ fn main() {
         let mut _view = View::new(tx.clone(), rx, _diff, _color);
 
         // Set interval on _view.header
+        _view.set_interval(_interval);
 
         // Set diff in _view
+        let mut _diff_type = 0;
+        if _diff {
+            _diff_type = 1;
+        }
+        _view.switch_diff(_diff_type);
 
         // Set color in _view
+        _view.set_color(_color);
 
         // Create input
         let mut _input = Input::new(tx.clone());
