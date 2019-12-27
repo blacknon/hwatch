@@ -153,7 +153,7 @@ fn main() {
     // check _logfile directory
     // TODO(blacknon): 追加する
     if _logfile != None {
-        let log_path = Path::new(_logfile.unwrap());
+        log_path = Path::new(_logfile.unwrap());
         let log_dir = log_path.parent().unwrap();
 
         // check log_dir exist
@@ -175,7 +175,7 @@ fn main() {
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
 
             // Set log file
-            // TODO(blacknon): 追加する
+            // cmd.logfile =
 
             // Exec command
             cmd.exec_command();
