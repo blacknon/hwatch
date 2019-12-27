@@ -17,6 +17,7 @@ extern crate regex;
 // modules
 use clap::{App, AppSettings, Arg};
 use std::env::args;
+use std::path::Path;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
@@ -147,9 +148,15 @@ fn main() {
     let mut _color = _matches.is_present("color");
     let mut _exec = _matches.values_of_lossy("exec");
     let mut _logfile = _matches.values_of_lossy("logfile");
+    // value_ofのほうが良くね？？
+    // http://ubnt-intrepid.hatenablog.com/entry/rust_commandline_parsers
 
     // check _logfile
     // TODO(blacknon): 追加する
+    if _logfile != None {
+        let logpath = Path::new(&_logfile);
+        println!("{:?}", logpath.parent());
+    }
 
     // Create channel
     let (tx, rx) = channel();
@@ -194,7 +201,7 @@ fn main() {
         _view.set_color(_color);
 
         // Create input
-            let mut _input = Input::new(tx.clone());
+        let mut _input = Input::new(tx.clone());
 
         // Create signal
         let mut _signal = Signal::new(tx.clone());
