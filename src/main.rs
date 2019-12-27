@@ -103,10 +103,11 @@ fn build_app() -> clap::App<'static, 'static> {
         //      {timestamp: "...", command: "....", output: ".....", ...}
         //      {timestamp: "...", command: "....", output: ".....", ...}
         .arg(
-            Arg::with_name("log")
+            Arg::with_name("logfile")
                 .help("logging file")
                 .short("l")
-                .long("logfile"),
+                .long("logfile")
+                .takes_value(true),
         )
         // @TODO: v1.0.0
         //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
@@ -146,16 +147,20 @@ fn main() {
     let mut _batch = _matches.is_present("batch");
     let mut _diff = _matches.is_present("differences");
     let mut _color = _matches.is_present("color");
-    let mut _exec = _matches.values_of_lossy("exec");
-    let mut _logfile = _matches.values_of_lossy("logfile");
-    // value_ofのほうが良くね？？
-    // http://ubnt-intrepid.hatenablog.com/entry/rust_commandline_parsers
+    let mut _exec = _matches.value_of("exec");
+    let mut _logfile = _matches.value_of("logfile");
 
-    // check _logfile
+    // check _logfile directory
     // TODO(blacknon): 追加する
     if _logfile != None {
-        let logpath = Path::new(&_logfile);
-        println!("{:?}", logpath.parent());
+        let log_path = Path::new(_logfile.unwrap());
+        let log_dir = log_path.parent().unwrap();
+
+        // check log_dir exist
+        if !Path::new(log_dir).exists() {
+            println!("directory {:?} is not exists.", log_dir);
+            std::process::exit(1);
+        }
     }
 
     // Create channel
