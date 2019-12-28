@@ -68,6 +68,8 @@ impl CmdRun {
             .spawn()
             .expect("failed to execute prog");
 
+        // TODO(blacknon): 何かしらの方法で、シェルの環境変数や関数、エイリアスの継承を行わせてコマンドを実行させる
+
         // TODO(blacknon):
         // is_execが有効な場合、self.commandを一度parseしてからchildを生成するよう変更する
         //   ex.)
