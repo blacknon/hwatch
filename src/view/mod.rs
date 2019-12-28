@@ -181,7 +181,6 @@ impl View {
 
     // set command at header and watch pad
     pub fn set_command(&mut self, _command: String) {
-        // TODO(blacknon): watch_pad側の処理についても記述する
         self.header.command = _command;
     }
 

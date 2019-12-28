@@ -135,8 +135,11 @@ fn build_app() -> clap::App<'static, 'static> {
 }
 
 fn main() {
-    // Get command args
+    // Get command args matches
     let _matches = build_app().get_matches();
+
+    // matches clone
+    let _m = _matches.clone();
 
     // Get options
     let mut _interval: u64 = _matches
@@ -144,21 +147,27 @@ fn main() {
         .unwrap()
         .parse::<u64>()
         .unwrap();
-    let mut _batch = _matches.is_present("batch");
-    let mut _diff = _matches.is_present("differences");
-    let mut _color = _matches.is_present("color");
-    let mut _exec = _matches.value_of("exec");
-    let mut _logfile = _matches.value_of("logfile");
+    let mut _batch = _m.is_present("batch");
+    let mut _diff = _m.is_present("differences");
+    let mut _color = _m.is_present("color");
+    let mut _exec = _m.value_of("exec");
+    let mut _logfile = _m.value_of("logfile");
 
     // check _logfile directory
-    // TODO(blacknon): 追加する
+    // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
     if _logfile != None {
-        log_path = Path::new(_logfile.unwrap());
-        let log_dir = log_path.parent().unwrap();
+        let _log_path = Path::new(_logfile.clone().unwrap());
+        let _log_dir = _log_path.parent().unwrap();
 
-        // check log_dir exist
-        if !Path::new(log_dir).exists() {
-            println!("directory {:?} is not exists.", log_dir);
+        // check _log_path exist
+        if Path::new(_log_path).exists() {
+            println!("file {:?} is exists.", _log_path);
+            std::process::exit(1);
+        }
+
+        // check _log_dir exist
+        if !Path::new(_log_dir).exists() {
+            println!("directory {:?} is not exists.", _log_dir);
             std::process::exit(1);
         }
     }
@@ -170,12 +179,14 @@ fn main() {
     {
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
-            // Set command..
+            // Create cmd..
             let mut cmd = cmd::CmdRun::new(tx.clone());
+
+            // Set command
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
 
-            // Set log file
-            // cmd.logfile =
+            // Set logfile
+            cmd.logfile =  _matches.value_of("logfile").unwrap().to_string();
 
             // Exec command
             cmd.exec_command();
@@ -187,7 +198,7 @@ fn main() {
 
     // check batch mode
     if !_batch {
-        // is not batch mode
+        // is watch mode
 
         // Create view
         let mut _view = View::new(tx.clone(), rx);
