@@ -13,7 +13,6 @@ use std::sync::mpsc::Sender;
 use common;
 use event::Event;
 
-// TODO(blacknon): intervalいらないんじゃね？？確認して不要だったら削除する
 // TODO(blacknon): Result.commandもいらないんじゃね？？ログに残ったとき不要では？
 #[derive(Clone)]
 pub struct Result {
@@ -38,6 +37,7 @@ impl Result {
     }
 }
 
+// TODO(blacknon): commandは削除？
 pub struct CmdRun {
     pub command: String,
     pub is_exec: bool,
@@ -57,6 +57,7 @@ impl CmdRun {
     }
 
     // exec command
+    // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
     pub fn exec_command(&mut self) {
         // generate exec command
         let mut child = Command::new("sh")
@@ -67,7 +68,12 @@ impl CmdRun {
             .spawn()
             .expect("failed to execute prog");
 
-        // TODO(blacknon): is_execが有効な場合、self.commandを一度parseしてからchildを生成するよう変更する
+        // TODO(blacknon):
+        // is_execが有効な場合、self.commandを一度parseしてからchildを生成するよう変更する
+        //   ex.)
+        //     "dig -x hogehoge @8.8.8.8"
+        //     => "dig" "-x" "hogehoge" "@8.8.8.8"
+        //
         // if self.is_exec {
 
         // }
@@ -126,6 +132,7 @@ impl CmdRun {
         // Send result
         let _ = self.tx.send(Event::OutputUpdate(_result));
 
+        // TODO(blacknon): ログファイルへの出力処理を追加
         // Logging
         // if self.logfile != "" {
 
