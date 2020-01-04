@@ -204,6 +204,7 @@ impl View {
         mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
         while !self.done {
             match self.rx.try_recv() {
+                // get result, run self.update()
                 Ok(Event::OutputUpdate(_cmd)) => self.update(_cmd),
                 Ok(Event::Exit) => self.done = true,
                 Ok(Event::Signal(i)) => match i {

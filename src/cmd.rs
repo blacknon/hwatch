@@ -3,6 +3,7 @@
 // that can be found in the LICENSE file.
 
 // module
+use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -14,7 +15,7 @@ use common;
 use event::Event;
 
 // TODO(blacknon): Result.commandもいらないんじゃね？？ログに残ったとき不要では？
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Result {
     pub timestamp: String,
     pub command: String,
@@ -131,13 +132,21 @@ impl CmdRun {
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
         };
 
-        // Send result
-        let _ = self.tx.send(Event::OutputUpdate(_result));
-
         // TODO(blacknon): ログファイルへの出力処理を追加
         // Logging
-        // if self.logfile != "" {
+        if self.logfile != "".to_string() {
+            let mut logfile = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(true)
+                .open(&self.logfile)
+                .unwrap();
 
-        // }
+            let logdata = serde_json::to_string(&_result);
+            writeln!(logfile, "{:?}", logdata);
+        }
+
+        // Send result
+        let _ = self.tx.send(Event::OutputUpdate(_result));
     }
 }
