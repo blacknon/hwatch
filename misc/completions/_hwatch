@@ -1,0 +1,10 @@
+#compdef hwatch
+_hwatch() {
+    _arguments -s \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '(-V --version)'{-V,--version}'[show version]' \
+        '(-c --color)'{-c,--color}'[interpret ANSI color and style sequences]' \
+        '(-d --differences)'{-d,--differences}'[highlight changes between updates]' \
+        '(-l --logfile)'{-l,--logfile}'+[logging file]:include file:_files' \
+        '(-n --interval)'{-n,--interval}'+[seconds to wait between updates [default: 2]]:num:_values '{1..99}
+}
