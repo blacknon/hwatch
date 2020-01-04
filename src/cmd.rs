@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 // module
-use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -14,8 +13,7 @@ use std::sync::mpsc::Sender;
 use common;
 use event::Event;
 
-// TODO(blacknon): Result.commandもいらないんじゃね？？ログに残ったとき不要では？
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Result {
     pub timestamp: String,
     pub command: String,
@@ -42,7 +40,6 @@ impl Result {
 pub struct CmdRun {
     pub command: String,
     pub is_exec: bool,
-    pub logfile: String,
     pub tx: Sender<Event>,
 }
 
@@ -52,7 +49,6 @@ impl CmdRun {
         Self {
             command: "".to_string(),
             is_exec: false,
-            logfile: "".to_string(),
             tx: tx,
         }
     }
@@ -131,20 +127,6 @@ impl CmdRun {
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
         };
-
-        // TODO(blacknon): ログファイルへの出力処理を追加
-        // Logging
-        if self.logfile != "".to_string() {
-            let mut logfile = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .append(true)
-                .open(&self.logfile)
-                .unwrap();
-
-            let logdata = serde_json::to_string(&_result);
-            writeln!(logfile, "{:?}", logdata);
-        }
 
         // Send result
         let _ = self.tx.send(Event::OutputUpdate(_result));

@@ -15,6 +15,7 @@ mod header;
 mod watch;
 use self::watch::Watch;
 use cmd::Result;
+use common::*;
 use event::Event;
 use view::color::*;
 
@@ -23,6 +24,7 @@ pub struct View {
     pub screen: WINDOW,
     pub header: header::Header,
     pub watch: watch::Watch,
+    pub logfile: String,
     pub tx: Sender<Event>,
     pub rx: Receiver<Event>,
 }
@@ -51,6 +53,7 @@ impl View {
             screen: _screen,
             header: header::Header::new(_screen.clone()),
             watch: _watch,
+            logfile: "".to_string(),
             tx: tx,
             rx: rx,
         }
@@ -83,6 +86,12 @@ impl View {
             self.watch.append_history(_result.clone());
             self.watch.update();
             self.watch.draw_history();
+
+            // logging data
+            if self.logfile != "".to_string() {
+                logging_result(&self.logfile, &_result);
+            }
+
         } else {
             if self.watch.selected == 0 {
                 // if history selected latest, update watch window.
@@ -189,6 +198,11 @@ impl View {
         self.header.interval = _interval;
     }
 
+    // set logfile
+    pub fn set_logfile(&mut self, _logfile: String) {
+        self.logfile = _logfile;
+    }
+
     // clear and update draw
     pub fn draw_update(&mut self) {
         // draw
@@ -206,7 +220,11 @@ impl View {
             match self.rx.try_recv() {
                 // get result, run self.update()
                 Ok(Event::OutputUpdate(_cmd)) => self.update(_cmd),
+
+                // get exit event
                 Ok(Event::Exit) => self.done = true,
+
+                // get signal
                 Ok(Event::Signal(i)) => match i {
                     0x02 => self.exit(),
                     _ => {}

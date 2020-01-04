@@ -1,6 +1,6 @@
 [package]
 name = "hwatch"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["blacknon <blacknon@orebibou.com>"]
 description = "alternative watch command."
 license-file = "LICENSE"

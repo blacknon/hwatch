@@ -79,12 +79,12 @@ fn build_app() -> clap::App<'static, 'static> {
         // -- options --
         // Enable batch mode option
         //     [-b,--batch]
-        .arg(
-            Arg::with_name("batch")
-                .help("output exection results to stdout")
-                .short("b")
-                .long("batch"),
-        )
+        // .arg(
+        //     Arg::with_name("batch")
+        //         .help("output exection results to stdout")
+        //         .short("b")
+        //         .long("batch"),
+        // )
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
@@ -102,8 +102,7 @@ fn build_app() -> clap::App<'static, 'static> {
                 .long("differences"),
         )
         // Logging option
-        //   [--logging,-l] /path/to/logfile
-        // TODO(blacknon): jsonで出力させる。outputはBase64変換して保持
+        //   [--logfile,-l] /path/to/logfile
         // ex.)
         //      {timestamp: "...", command: "....", output: ".....", ...}
         //      {timestamp: "...", command: "....", output: ".....", ...}
@@ -191,9 +190,6 @@ fn main() {
             // Set command
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
 
-            // Set logfile
-            cmd.logfile = _matches.value_of("logfile").unwrap().to_string();
-
             // Exec command
             cmd.exec_command();
 
@@ -211,6 +207,11 @@ fn main() {
 
         // Set interval on _view.header
         _view.set_interval(_interval);
+
+        // Set logfile
+        if _logfile != None {
+            _view.set_logfile(_logfile.unwrap().to_string());
+        }
 
         // Set diff in _view
         let mut _diff_type = 0;
