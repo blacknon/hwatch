@@ -91,7 +91,6 @@ impl View {
             if self.logfile != "".to_string() {
                 logging_result(&self.logfile, &_result);
             }
-
         } else {
             if self.watch.selected == 0 {
                 // if history selected latest, update watch window.
