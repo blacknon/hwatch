@@ -6,5 +6,5 @@ _hwatch() {
         '(-c --color)'{-c,--color}'[interpret ANSI color and style sequences]' \
         '(-d --differences)'{-d,--differences}'[highlight changes between updates]' \
         '(-l --logfile)'{-l,--logfile}'+[logging file]:include file:_files' \
-        '(-n --interval)'{-n,--interval}'+[seconds to wait between updates [default: 2]]:num:_values '{1..99}
+        '(-n --interval)'{-n,--interval}'[seconds to wait between updates]:num:_values num 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20' \
 }
