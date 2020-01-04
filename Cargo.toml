@@ -10,9 +10,12 @@ chrono = "0.4"
 clap = "2.20.3"
 difference = "2.0"
 nix = "0.11.0" # TODO(blacknon): for MacOS
-regex= "*"
+regex= "1.3.0"
+serde = "1.0.104"
+serde_derive = "1.0.104"
+serde_json = "1.0.44"
 itertools = "*"
-lazy_static = "*"
+lazy_static = "=1.3.0"
 ncurses = { version = "=5.94.0", features = ["wide"], optional = true } # for MacOS
 # ncurses = { version = "=5.99.0", features = ["wide"], optional = true } # for Linux
 

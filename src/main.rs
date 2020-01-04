@@ -2,6 +2,13 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// crate
+extern crate itertools;
+extern crate ncurses;
+extern crate nix;
+extern crate regex;
+extern crate serde;
+
 // macro crate
 #[macro_use]
 extern crate clap;
@@ -9,10 +16,9 @@ extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate itertools;
-extern crate ncurses;
-extern crate nix;
-extern crate regex;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 
 // modules
 use clap::{App, AppSettings, Arg};
@@ -186,7 +192,7 @@ fn main() {
             cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
 
             // Set logfile
-            cmd.logfile =  _matches.value_of("logfile").unwrap().to_string();
+            cmd.logfile = _matches.value_of("logfile").unwrap().to_string();
 
             // Exec command
             cmd.exec_command();
