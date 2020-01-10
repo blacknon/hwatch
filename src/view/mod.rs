@@ -2,6 +2,18 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO(blacknon): キーワード検索機能の追加(v0.1.4)
+//     - `/`でキーボード入力モードに
+//     - `f`でフィルターモードの切り替えか？(ハイライトモードとフィルタリングモード)
+//     - ESCで元に戻す
+
+// TODO(blacknon): ヘルプ機能の追加(v0.1.4)
+//     - `h`でヘルプウィンドウの表示をする
+//     - `h`キーを再度入力することで切り替える
+//     - `h`キーでヘルプウィンドウを表示するという注意書きを一番下の行に表示させる
+
+// TODO(blacknon): キー入力の変更機能を追加？(v0.1.5？)
+
 // module
 use ncurses::*;
 use std::env;
