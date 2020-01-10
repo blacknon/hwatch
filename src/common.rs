@@ -21,7 +21,6 @@ pub fn now_str() -> String {
 
 // logging result data to log file(_logpath).
 pub fn logging_result(_logpath: &String, _result: &Result) -> serde_json::Result<()> {
-    // pub fn logging_result(_logpath: &String, _result: &Result) {
     // Open logfile
     let mut logfile = OpenOptions::new()
         .write(true)

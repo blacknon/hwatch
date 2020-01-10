@@ -26,7 +26,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.1.2
+    hwatch 0.1.3
     blacknon <blacknon@orebibou.com>
     alternative watch command.
 
@@ -40,10 +40,13 @@ hwatch - alternative watch command.
         -V, --version        Prints version information
 
     OPTIONS:
+        -l, --logfile <logfile>      logging file
         -n, --interval <interval>    seconds to wait between updates [default: 2]
 
     ARGS:
         <command>...
+
+
 
 watch window keybind
 
