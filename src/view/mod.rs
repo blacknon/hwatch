@@ -2,6 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO(blacknon): キーワード検索機能の追加(v0.1.4)
+//     - lessみたいに、キーワードの検索が行えるようにする
+//     - 検索方式として、`ハイライト方式`及び`絞り込み方式`の2つが必要？
+
 // module
 use ncurses::*;
 use std::env;

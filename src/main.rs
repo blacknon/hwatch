@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO(blacknon): マニュアル(manのデータ)を作成(v0.1.4)
+
 // crate
 extern crate itertools;
 extern crate ncurses;
