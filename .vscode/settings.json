@@ -1,3 +1,4 @@
 {
-    "workbench.colorTheme": "Material Theme Palenight"
+    "workbench.colorTheme": "Material Theme Palenight",
+    "rust-client.rustupPath": "/home/blacknon/.cargo/bin/rustup"
 }
