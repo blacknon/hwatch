@@ -260,6 +260,7 @@ impl Watch {
     }
 
     // append result to history
+    // TODO=(blacknon): historyの秒数に小数点が必要？
     pub fn append_history(&mut self, _result: Result) {
         let mut history = self.history.lock().unwrap();
         history.insert(0, _result);
