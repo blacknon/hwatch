@@ -49,7 +49,7 @@ impl WatchPad {
         wattron(self.pad, COLOR_PAIR(colorset));
 
         // print data
-        wprintw(self.pad, &format!("{}", _data));
+        waddstr(self.pad, &format!("{}", _data));
 
         // unset color
         wattron(self.pad, COLOR_PAIR(colorset));

@@ -2,6 +2,12 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO(blacknon): 単語単位でのdiffを行えるようにする
+//   参考:
+//     - https://github.com/tk0miya/diff-highlightf
+
+// TODO(blacknon): 2つの出力を並べてdiffをする機能について追加検討
+
 extern crate difference;
 
 use self::difference::{Changeset, Difference};

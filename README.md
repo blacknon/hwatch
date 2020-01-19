@@ -54,9 +54,11 @@ watch window keybind
 - <kbd>Tab</kbd> ... toggle select screen(history/watch).
 - <kbd>C</kbd>   ... toggle color.
 - <kbd>D</kbd>   ... switch diff mode.
+- <kbd>Q</kbd>   ... exit hwatch.
 - <kbd>0</kbd>   ... disable diff.
 - <kbd>1</kbd>   ... switch watch type diff.
 - <kbd>2</kbd>   ... switch line type diff.
 - <kbd>F1</kbd>  ... only stdout print.
 - <kbd>F2</kbd>  ... only stderr print.
 - <kbd>F3</kbd>  ... print output.
+
