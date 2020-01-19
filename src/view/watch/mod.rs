@@ -2,6 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO(blacknon): 以下の情報を参考に開発を進めていく！
+//   - 【参考】
+//     - http://www.kis-lab.com/serikashiki/man/ncurses.html#output
+
 // module
 use ncurses::*;
 use std::sync::Mutex;
@@ -45,7 +49,7 @@ impl Watch {
             history_pad: newpad(0, 0),
             history_pad_position: 0,
             show_help_win: false,
-            help_win: newwin(0,0,0,0),
+            help_win: newwin(0, 0, 0, 0),
             selected: 0,
             screen: _screen,
         }
@@ -109,19 +113,49 @@ impl Watch {
         );
     }
 
-
     pub fn draw_help(&mut self) {
+        // Set help text
+        let mut _help_text = format!("{}", "[h] key   ... show this help message.");
+        let mut _help_text = format!("{}\n {}", _help_text, "[c] key   ... toggle color mode.");
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[d] key   ... switch diff mode at None, Watch, Line mode."
+        );
+        let mut _help_text = format!("{}\n {}", _help_text, "[q] key   ... exit hwatch.");
+        let mut _help_text = format!("{}\n {}", _help_text, "[0] key   ... disable diff.");
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[1] key   ... switch Watch type diff."
+        );
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[2] key   ... switch Line type diff."
+        );
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[F1] key  ... change output mode as stdout."
+        );
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[F2] key  ... change output mode as stderr."
+        );
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[F3] key  ... change output mode as stdout/stderr set."
+        );
+        let mut _help_text = format!(
+            "{}\n {}",
+            _help_text, "[Tab] key ... toggle current pad at history, watchpad."
+        );
+
+        // TODO(blacknon): help messageのサイズに応じてhelp_winのサイズを設定
+        // TODO(blacknon): help_winをターミナル中央に表示するように指定
+
         // Create help_window
         self.help_win = newwin(40, 100, 5, 5);
 
-        // Set help text
-        wmove(self.help_win, 1, 1);
-        let mut _help_text = format!("{}", "[h] key   ... show help message.");
-        let mut _help_text = format!("{}\n {}", _help_text, "[c] key   ... change color mode.");
-        let mut _help_text = format!("{}\n {}", _help_text, "[d] key   ... change diff mode.");
-        let mut _help_text = format!("{}\n {}", _help_text, "[Tab] key ... change current pad.");
-
         // Write help text
+        wmove(self.help_win, 1, 1);
         waddstr(self.help_win, &format!("{}", _help_text));
 
         // Write box at self.help_win
@@ -132,13 +166,7 @@ impl Watch {
         overlay(self.help_win, self.screen);
     }
 
-
-
-    // TODO(blacknon): helpウィンドウの表示(作成中！)
     pub fn toggle_help_window(&mut self) {
-        // TODO(blacknon): Windowを新規で作成して出力することになる？
-        //   - 【参考】
-        //     - http://www.kis-lab.com/serikashiki/man/ncurses.html#output
         // create help pad window
         if !self.show_help_win {
             self.show_help_win = true;
