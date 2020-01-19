@@ -2,8 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): viewパッケージに統合する
-
 // module
 use ncurses::*;
 use std::sync::Mutex;
@@ -25,6 +23,8 @@ pub struct Watch {
     pub history: Mutex<Vec<Result>>,
     pub history_pad: WINDOW,
     pub history_pad_position: i32,
+    show_help_pad: bool,
+    pub help_win: WINDOW,
     pub selected: i32, // history select position
     pub screen: WINDOW,
 }
@@ -44,6 +44,8 @@ impl Watch {
             history: Mutex::new(vec![]),
             history_pad: newpad(0, 0),
             history_pad_position: 0,
+            show_help_pad: false,
+            help_win: newwin(0,0,0,0),
             selected: 0,
             screen: _screen,
         }
@@ -107,6 +109,89 @@ impl Watch {
         );
     }
 
+    // TODO(blacknon): helpウィンドウの表示(作成中！)
+    pub fn show_help_window(&mut self) {
+        // TODO(blacknon): Windowを新規で作成して出力することになる？
+        //   - 【参考】
+        //     - http://www.kis-lab.com/serikashiki/man/ncurses.html#output
+        // create help pad window
+        if !self.show_help_pad {
+            // Create help_window
+            self.help_win = newwin(40, 100, 5, 5);
+
+            // Set help text
+            wmove(self.help_win, 1, 1);
+            let mut _help_text = format!("{}", "[h] key   ... show help message.");
+            let mut _help_text = format!("{}\n {}", _help_text, "[c] key   ... change color mode.");
+            let mut _help_text = format!("{}\n {}", _help_text, "[d] key   ... change diff mode.");
+            let mut _help_text = format!("{}\n {}", _help_text, "[Tab] key ... change current pad.");
+
+            // Write help text
+            waddstr(self.help_win, &format!("{}", _help_text));
+
+            // Write box at self.help_win
+            box_(self.help_win, 0, 0);
+
+            wrefresh(self.help_win);
+            overlay(self.help_win, self.screen);
+
+            self.show_help_pad = true;
+
+        } else {
+            delwin(self.help_win);
+            self.help_win = newwin(0, 0, 0, 0);
+            wrefresh(self.help_win);
+            overlay(self.screen, self.help_win);
+            self.update();
+
+            self.show_help_pad = false;
+        }
+
+
+
+
+
+        // let help_msg_pad = subpad(self.help_pad, 20, 20, 1, 1);
+        // subpad(w: WINDOW, lines: i32, cols: i32, y: i32, x: i32)
+
+        // box_(self.help_pad, 0, 0);
+        // box_(w: WINDOW, v: chtype, h: chtype);
+
+
+        // overlay(help_msg_pad, self.help_pad);
+        // overwrite(self.screen, self.help_pad);
+
+        // let mut _help_msg = "";
+
+
+        // "bbbbb
+        // ccccc
+        // ddddd
+        // eeeee
+        // fffff
+        // ggggg";
+
+
+        // waddstr(self.help_pad, &format!("{}", _help_text));
+
+        // prefresh(pad: WINDOW, pmin_row: i32, pmin_col: i32, smin_row: i32, smin_col: i32, smax_row: i32, smax_col: i32)
+        // box_(self.help_pad, 0, 0);
+        // prefresh(help_msg_pad, 0, 0, 0, 0, 28, 28);
+        // wrefresh(self.help_pad);
+        // overlay(self.help_pad, self.screen);
+        // refresh();
+
+        // wrefresh(self.help_pad);
+
+        // prefresh(help_msg_pad, 0, 0, 0, 0, 0, 0);
+        // wrefresh(help_msg_pad);
+        // prefresh(help_msg_pad, 0, 0, 0, 0, 0, 0);
+
+        // self.help_pad = newpad(10, 10);
+        // prefresh(self.help_pad, 10, 10, 10, 10, 10, 10);
+        // prefresh(self.help_pad, 10, 10, 10, 10, 10, 10);
+    }
+
     fn print_history(&mut self, position: i32, word: String, status: bool) {
         let mut _print_data = String::new();
         if position == self.selected {
@@ -119,12 +204,12 @@ impl Watch {
         if status == true {
             // selected line and status true
             wattron(self.history_pad, COLOR_PAIR(COLORSET_G_D));
-            wprintw(self.history_pad, &_print_data);
+            waddstr(self.history_pad, &_print_data);
             wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(COLORSET_G_D));
         } else {
             // selected line and status false
             wattron(self.history_pad, COLOR_PAIR(COLORSET_R_D));
-            wprintw(self.history_pad, &_print_data);
+            waddstr(self.history_pad, &_print_data);
             wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(COLORSET_R_D));
         }
     }
@@ -240,17 +325,10 @@ impl Watch {
             }
             ::DIFF_LINE => {
                 // set watchpad size
-                // @TODO: Refactoring (line_diff_str)
-                // let line_diff_str =
-                //     diff::line_diff_str_get(before_data.clone(), target_data.clone());
-                // let watchpad_size = self.watchpad_get_size(line_diff_str.clone());
-                // self.watchpad_create(watchpad_size + 1);
-
-                // diff::line_diff(self.watch_pad.clone(), before_data, target_data, self.color)
-
                 let mut diff = diff::LineDiff::new(self.color);
                 diff.create_dataset(before_data, target_data);
                 self.watchpad_create(diff.line + 1);
+
                 diff.print(self.watch_pad.clone());
             }
             _ => {}

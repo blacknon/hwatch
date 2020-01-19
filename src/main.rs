@@ -2,7 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): マニュアル(manのデータ)を作成(v0.1.4)
+// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.4)
+// TODO(blacknon): インターバルの値を小数点付きの値を受け付けるようにする(intではなく、浮動小数点の値を受け付ける) (v0.1.4)
+// TODO(blacknon): panicが表示されないようにエラーハンドリングをちゃんとやる (v0.1.4)
+
 
 // crate
 extern crate itertools;
@@ -42,6 +45,7 @@ use signal::Signal;
 use view::View;
 
 // const
+// default interval value(int)
 pub const DEFAULT_INTERVAL: i32 = 2;
 pub const HISTORY_WIDTH: i32 = 21;
 pub const IS_WATCH_PAD: i32 = 0;
@@ -52,6 +56,10 @@ pub const IS_OUTPUT: i32 = 3;
 pub const DIFF_DISABLE: i32 = 0;
 pub const DIFF_WATCH: i32 = 1;
 pub const DIFF_LINE: i32 = 2;
+pub const CURSOR_NORMAL_WINDOW: i32 = 0;
+pub const CURSOR_HELP_WINDOW: i32 = 1;
+pub const CURSOR_INPUT_KEYWORD: i32 = 2;
+
 
 // Parse args and options
 fn build_app() -> clap::App<'static, 'static> {

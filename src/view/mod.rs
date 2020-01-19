@@ -6,6 +6,8 @@
 //     - `/`でキーボード入力モードに
 //     - `f`でフィルターモードの切り替えか？(ハイライトモードとフィルタリングモード)
 //     - ESCで元に戻す
+//     - lessみたいに、キーワードの検索が行えるようにする
+//     - 検索方式として、`ハイライト方式`及び`絞り込み方式`の2つが必要？
 
 // TODO(blacknon): ヘルプ機能の追加(v0.1.4)
 //     - `h`でヘルプウィンドウの表示をする
@@ -13,8 +15,7 @@
 //     - `h`キーでヘルプウィンドウを表示するという注意書きを一番下の行に表示させる
 
 // TODO(blacknon): キー入力の変更機能を追加？(v0.1.5？)
-//     - lessみたいに、キーワードの検索が行えるようにする
-//     - 検索方式として、`ハイライト方式`及び`絞り込み方式`の2つが必要？
+//     - pecoのconfig的なやつ？何かしらファイルがあるだろうから探す
 
 // module
 use ncurses::*;
@@ -39,6 +40,7 @@ pub struct View {
     pub header: header::Header,
     pub watch: watch::Watch,
     pub logfile: String,
+    cursor_mode: i32,
     pub tx: Sender<Event>,
     pub rx: Receiver<Event>,
 }
@@ -68,6 +70,7 @@ impl View {
             header: header::Header::new(_screen.clone()),
             watch: _watch,
             logfile: "".to_string(),
+            cursor_mode: ::CURSOR_NORMAL_WINDOW,
             tx: tx,
             rx: rx,
         }
@@ -129,6 +132,25 @@ impl View {
 
         // update header status
         self.header.color = self.watch.color;
+    }
+
+    // toggle show help window
+    fn toggle_show_help(&mut self) {
+        // check self.cursor_mode
+        if self.cursor_mode == ::CURSOR_NORMAL_WINDOW {
+            self.cursor_mode = ::CURSOR_HELP_WINDOW;
+            // TODO(blacknon): help windowの表示処理
+            self.watch.show_help_window();
+
+        } else if self.cursor_mode == ::CURSOR_HELP_WINDOW {
+            self.cursor_mode = ::CURSOR_NORMAL_WINDOW;
+            // TODO(blacknon): help windowを非表示にする処理
+            self.watch.show_help_window();
+
+        }
+        // TODO(blacknon): 共通系(ウィンドウ等の更新系処理)
+
+        self.watch.update();
     }
 
     // toggle diff mode
@@ -249,7 +271,10 @@ impl View {
         }
     }
 
+    //
     fn input_action(&mut self, _input: i32) {
+        // TODO(blacknon): cursor_modeに応じて受け付けるkey inputの処理を切り替える
+
         match _input {
             // Mouse
             KEY_MOUSE => {
@@ -305,6 +330,17 @@ impl View {
                 self.draw_update();
             }
 
+            // show help window
+            0x68 => {
+                // h(0x68)
+                self.toggle_show_help();
+            }
+
+            // search mode
+            // 0x2f => {
+                // /(0x2f)
+            // }
+
             // change output
             KEY_F1 => {
                 // F1
@@ -323,7 +359,7 @@ impl View {
             }
 
             // exit this program
-            0x1b | 0x71 => self.exit(), // ESC(0x1b),q(0x71)
+            0x71 => self.exit(), // q(0x71)
 
             _ => {}
         }

@@ -1,3 +1,6 @@
 {
-    "workbench.colorTheme": "Material Theme Palenight"
+    "workbench.colorTheme": "Material Theme Palenight",
+    "editor.formatOnSave": true,
+    "rust.formatOnSave": true,
+    "rust.rustfmtPath": "/Users/blacknon/.cargo/bin/rustfmt"
 }
