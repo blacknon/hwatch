@@ -239,7 +239,7 @@ impl View {
     }
 
     // set interval at header
-    pub fn set_interval(&mut self, _interval: u64) {
+    pub fn set_interval(&mut self, _interval: f64) {
         self.header.interval = _interval;
     }
 
@@ -346,7 +346,7 @@ impl View {
 
             // search mode
             // 0x2f => {
-                // /(0x2f)
+            // /(0x2f)
             // }
 
             // change output
@@ -387,7 +387,6 @@ impl View {
     }
 
     // TODO(blacknon): CURSOR_INPUT_KEYWORD時のみ受け付けるinput actionの作成
-
 
     fn input_action(&mut self, _input: i32) {
         // TODO(blacknon): cursor_modeに応じて受け付けるkey inputの処理を切り替える

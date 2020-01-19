@@ -441,7 +441,6 @@ fn count_line(_string: String, _width: i32) -> i32 {
     return _line_count;
 }
 
-
 // fn get_text_line(_string: String) -> i32 {
 
 // }

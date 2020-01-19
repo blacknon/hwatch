@@ -6,7 +6,6 @@
 // TODO(blacknon): インターバルの値を小数点付きの値を受け付けるようにする(intではなく、浮動小数点の値を受け付ける) (v0.1.4)
 // TODO(blacknon): panicが表示されないようにエラーハンドリングをちゃんとやる (v0.1.4)
 
-
 // crate
 extern crate itertools;
 extern crate ncurses;
@@ -46,7 +45,7 @@ use view::View;
 
 // const
 // default interval value(int)
-pub const DEFAULT_INTERVAL: i32 = 2;
+pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: i32 = 21;
 pub const IS_WATCH_PAD: i32 = 0;
 pub const IS_HISTORY_PAD: i32 = 1;
@@ -59,7 +58,6 @@ pub const DIFF_LINE: i32 = 2;
 pub const CURSOR_NORMAL_WINDOW: i32 = 0;
 pub const CURSOR_HELP_WINDOW: i32 = 1;
 pub const CURSOR_INPUT_KEYWORD: i32 = 2;
-
 
 // Parse args and options
 fn build_app() -> clap::App<'static, 'static> {
@@ -157,10 +155,10 @@ fn main() {
     let _m = _matches.clone();
 
     // Get options
-    let mut _interval: u64 = _matches
+    let mut _interval: f64 = _matches
         .value_of("interval")
         .unwrap()
-        .parse::<u64>()
+        .parse::<f64>()
         .unwrap();
     let mut _batch = _m.is_present("batch");
     let mut _diff = _m.is_present("differences");
@@ -204,7 +202,8 @@ fn main() {
             cmd.exec_command();
 
             // sleep interval
-            thread::sleep(Duration::from_secs(_interval));
+            // thread::sleep(Duration::from_float_secs(_interval));
+            thread::sleep(Duration::from_secs_f64(_interval));
         });
     }
 

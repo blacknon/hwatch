@@ -14,7 +14,7 @@ pub struct Header {
     pub result: Result,
     pub color: bool,
     pub diff: i32,
-    pub interval: u64,
+    pub interval: f64,
     pub command: String,
     pub output: i32,
     pub active_pad: i32,
@@ -27,7 +27,7 @@ impl Header {
             result: Result::new(),
             color: false,
             diff: 0,
-            interval: 2,
+            interval: ::DEFAULT_INTERVAL,
             command: "".to_string(),
             output: ::IS_OUTPUT,
             active_pad: ::IS_WATCH_PAD,
@@ -38,7 +38,7 @@ impl Header {
     fn printout_1st_line(&mut self, max_x: i32) {
         // interval second num to string
         // let interval = format!("{:.*}", 2, self.result.interval);
-        let interval = format!("{:.*}", 2, ::DEFAULT_INTERVAL);
+        let interval = format!("{:.2}", self.interval);
 
         // print interval and exec command
         // ex) Every XXs: Command...
