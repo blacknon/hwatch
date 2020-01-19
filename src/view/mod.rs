@@ -120,6 +120,10 @@ impl View {
                 self.header.update();
             }
         }
+
+        if self.cursor_mode == ::CURSOR_HELP_WINDOW {
+            self.watch.draw_help()
+        }
     }
 
     // toggle ansi color mode
@@ -139,18 +143,23 @@ impl View {
         // check self.cursor_mode
         if self.cursor_mode == ::CURSOR_NORMAL_WINDOW {
             self.cursor_mode = ::CURSOR_HELP_WINDOW;
-            // TODO(blacknon): help windowの表示処理
-            self.watch.show_help_window();
 
+            // update
+            self.header.update();
+            self.watch.update();
+
+            // Switching view help window
+            self.watch.toggle_help_window();
         } else if self.cursor_mode == ::CURSOR_HELP_WINDOW {
             self.cursor_mode = ::CURSOR_NORMAL_WINDOW;
-            // TODO(blacknon): help windowを非表示にする処理
-            self.watch.show_help_window();
 
+            // Switching view help window
+            self.watch.toggle_help_window();
+
+            // update
+            self.header.update();
+            self.watch.update();
         }
-        // TODO(blacknon): 共通系(ウィンドウ等の更新系処理)
-
-        self.watch.update();
     }
 
     // toggle diff mode
@@ -271,10 +280,105 @@ impl View {
         }
     }
 
-    //
+    // TODO(blacknon): CURSOR_HELP_WINDOW時のみ受け付けるinput actionの作成
+
+    // TODO(blacknon): CURSOR_INPUT_KEYWORD時のみ受け付けるinput actionの作成
+
+    // TODO(blacknon): CURSOR_NORMAL_WINDOW時のみ受け付けるinput actionの作成
+    fn input_action_normal_window(&mut self, _input: i32) {
+        match _input {
+            // Mouse
+            KEY_MOUSE => {
+                let mut mevent = MEVENT {
+                    id: 0,
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    bstate: 0,
+                };
+                let _error = getmouse(&mut mevent);
+                if _error == 0 {
+                    self.mouse_action(mevent)
+                }
+            }
+
+            // Screen Resize
+            KEY_RESIZE => self.watch.resize(),
+
+            // change active pad
+            0x09 => self.toggle_pad(), // Tab
+
+            // pad up/down
+            KEY_UP => self.up(),     // Arrow Up
+            KEY_DOWN => self.down(), // Arrow Down
+
+            // toggle color mode
+            0x63 => {
+                // c(0x63)
+                self.toggle_color();
+                self.draw_update();
+            }
+
+            // change diff mode
+            0x64 => {
+                // d(0x64)
+                self.toggle_diff();
+                self.draw_update();
+            }
+            0x30 => {
+                // 0(0x30)
+                self.switch_diff(0);
+                self.draw_update();
+            }
+            0x31 => {
+                // 1(0x31)
+                self.switch_diff(1);
+                self.draw_update();
+            }
+            0x32 => {
+                // 2(0x32)
+                self.switch_diff(2);
+                self.draw_update();
+            }
+
+            // show help window
+            0x68 => {
+                // h(0x68)
+                self.toggle_show_help();
+            }
+
+            // search mode
+            // 0x2f => {
+                // /(0x2f)
+            // }
+
+            // change output
+            KEY_F1 => {
+                // F1
+                self.set_output_type(::IS_STDOUT);
+                self.draw_update();
+            }
+            KEY_F2 => {
+                // F2
+                self.set_output_type(::IS_STDERR);
+                self.draw_update();
+            }
+            KEY_F3 => {
+                // F3
+                self.set_output_type(::IS_OUTPUT);
+                self.draw_update();
+            }
+
+            // exit this program
+            0x71 => self.exit(), // q(0x71)
+
+            _ => {}
+        }
+    }
+
+
     fn input_action(&mut self, _input: i32) {
         // TODO(blacknon): cursor_modeに応じて受け付けるkey inputの処理を切り替える
-
         match _input {
             // Mouse
             KEY_MOUSE => {

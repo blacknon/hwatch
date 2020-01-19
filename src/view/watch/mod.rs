@@ -23,7 +23,7 @@ pub struct Watch {
     pub history: Mutex<Vec<Result>>,
     pub history_pad: WINDOW,
     pub history_pad_position: i32,
-    show_help_pad: bool,
+    show_help_win: bool,
     pub help_win: WINDOW,
     pub selected: i32, // history select position
     pub screen: WINDOW,
@@ -44,7 +44,7 @@ impl Watch {
             history: Mutex::new(vec![]),
             history_pad: newpad(0, 0),
             history_pad_position: 0,
-            show_help_pad: false,
+            show_help_win: false,
             help_win: newwin(0,0,0,0),
             selected: 0,
             screen: _screen,
@@ -109,87 +109,54 @@ impl Watch {
         );
     }
 
+
+    pub fn draw_help(&mut self) {
+        // Create help_window
+        self.help_win = newwin(40, 100, 5, 5);
+
+        // Set help text
+        wmove(self.help_win, 1, 1);
+        let mut _help_text = format!("{}", "[h] key   ... show help message.");
+        let mut _help_text = format!("{}\n {}", _help_text, "[c] key   ... change color mode.");
+        let mut _help_text = format!("{}\n {}", _help_text, "[d] key   ... change diff mode.");
+        let mut _help_text = format!("{}\n {}", _help_text, "[Tab] key ... change current pad.");
+
+        // Write help text
+        waddstr(self.help_win, &format!("{}", _help_text));
+
+        // Write box at self.help_win
+        box_(self.help_win, 0, 0);
+
+        // refresh and overlay
+        wrefresh(self.help_win);
+        overlay(self.help_win, self.screen);
+    }
+
+
+
     // TODO(blacknon): helpウィンドウの表示(作成中！)
-    pub fn show_help_window(&mut self) {
+    pub fn toggle_help_window(&mut self) {
         // TODO(blacknon): Windowを新規で作成して出力することになる？
         //   - 【参考】
         //     - http://www.kis-lab.com/serikashiki/man/ncurses.html#output
         // create help pad window
-        if !self.show_help_pad {
-            // Create help_window
-            self.help_win = newwin(40, 100, 5, 5);
+        if !self.show_help_win {
+            self.show_help_win = true;
 
-            // Set help text
-            wmove(self.help_win, 1, 1);
-            let mut _help_text = format!("{}", "[h] key   ... show help message.");
-            let mut _help_text = format!("{}\n {}", _help_text, "[c] key   ... change color mode.");
-            let mut _help_text = format!("{}\n {}", _help_text, "[d] key   ... change diff mode.");
-            let mut _help_text = format!("{}\n {}", _help_text, "[Tab] key ... change current pad.");
-
-            // Write help text
-            waddstr(self.help_win, &format!("{}", _help_text));
-
-            // Write box at self.help_win
-            box_(self.help_win, 0, 0);
-
-            wrefresh(self.help_win);
-            overlay(self.help_win, self.screen);
-
-            self.show_help_pad = true;
-
+            self.draw_help();
         } else {
+            self.show_help_win = false;
+
+            // delete exist help window
             delwin(self.help_win);
+
+            // create empty window
             self.help_win = newwin(0, 0, 0, 0);
+
+            // refresh and overlay
             wrefresh(self.help_win);
             overlay(self.screen, self.help_win);
-            self.update();
-
-            self.show_help_pad = false;
         }
-
-
-
-
-
-        // let help_msg_pad = subpad(self.help_pad, 20, 20, 1, 1);
-        // subpad(w: WINDOW, lines: i32, cols: i32, y: i32, x: i32)
-
-        // box_(self.help_pad, 0, 0);
-        // box_(w: WINDOW, v: chtype, h: chtype);
-
-
-        // overlay(help_msg_pad, self.help_pad);
-        // overwrite(self.screen, self.help_pad);
-
-        // let mut _help_msg = "";
-
-
-        // "bbbbb
-        // ccccc
-        // ddddd
-        // eeeee
-        // fffff
-        // ggggg";
-
-
-        // waddstr(self.help_pad, &format!("{}", _help_text));
-
-        // prefresh(pad: WINDOW, pmin_row: i32, pmin_col: i32, smin_row: i32, smin_col: i32, smax_row: i32, smax_col: i32)
-        // box_(self.help_pad, 0, 0);
-        // prefresh(help_msg_pad, 0, 0, 0, 0, 28, 28);
-        // wrefresh(self.help_pad);
-        // overlay(self.help_pad, self.screen);
-        // refresh();
-
-        // wrefresh(self.help_pad);
-
-        // prefresh(help_msg_pad, 0, 0, 0, 0, 0, 0);
-        // wrefresh(help_msg_pad);
-        // prefresh(help_msg_pad, 0, 0, 0, 0, 0, 0);
-
-        // self.help_pad = newpad(10, 10);
-        // prefresh(self.help_pad, 10, 10, 10, 10, 10, 10);
-        // prefresh(self.help_pad, 10, 10, 10, 10, 10, 10);
     }
 
     fn print_history(&mut self, position: i32, word: String, status: bool) {
