@@ -33,6 +33,7 @@ pub fn logging_result(_logpath: &String, _result: &Result) -> serde_json::Result
     let logdata = serde_json::to_string(&_result)?;
 
     // write log
+    // TODO(blacknon): warning出てるので対応
     writeln!(logfile, "{}", logdata);
 
     Ok(())

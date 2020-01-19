@@ -152,7 +152,8 @@ impl Watch {
         // TODO(blacknon): help_winをターミナル中央に表示するように指定
 
         // Create help_window
-        self.help_win = newwin(40, 100, 5, 5);
+        // newwin(lines: i32, cols: i32, y: i32, x: i32)
+        self.help_win = newwin(15, 80, 5, 5);
 
         // Write help text
         wmove(self.help_win, 1, 1);
@@ -160,6 +161,8 @@ impl Watch {
 
         // Write box at self.help_win
         box_(self.help_win, 0, 0);
+        wmove(self.help_win, 0, 2);
+        waddstr(self.help_win, &format!("{}", "[ help ]"));
 
         // refresh and overlay
         wrefresh(self.help_win);
@@ -256,6 +259,7 @@ impl Watch {
         self.watch_pad.resize();
     }
 
+    // append result to history
     pub fn append_history(&mut self, _result: Result) {
         let mut history = self.history.lock().unwrap();
         history.insert(0, _result);
@@ -436,3 +440,12 @@ fn count_line(_string: String, _width: i32) -> i32 {
     }
     return _line_count;
 }
+
+
+// fn get_text_line(_string: String) -> i32 {
+
+// }
+
+// fn get_text_column(_string: String) -> i32 {
+
+// }

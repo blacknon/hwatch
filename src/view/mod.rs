@@ -12,7 +12,7 @@
 // TODO(blacknon): ヘルプ機能の追加(v0.1.4)
 //     - `h`でヘルプウィンドウの表示をする
 //     - `h`キーを再度入力することで切り替える
-//     - `h`キーでヘルプウィンドウを表示するという注意書きを一番下の行に表示させる
+//     - `h`キーでヘルプウィンドウを表示するという注意書きを一番下(or 一番上)の行に表示させる
 
 // TODO(blacknon): キー入力の変更機能を追加？(v0.1.5？)
 //     - pecoのconfig的なやつ？何かしらファイルがあるだろうから探す
@@ -105,6 +105,7 @@ impl View {
             self.watch.draw_history();
 
             // logging data
+            // TODO(blacknon): warning出てるので対応
             if self.logfile != "".to_string() {
                 logging_result(&self.logfile, &_result);
             }
