@@ -443,6 +443,13 @@ fn count_line(_string: String, _width: i32) -> i32 {
 }
 
 // get_text_size is return text line, column size.
-// fn get_text_size(_string: String) -> (i32, i32) {
+fn get_text_size(_string: String) -> (i32, i32) {
+    let mut _line = 0;
+    let mut _column = 0;
 
-// }
+    for _l in _string.lines() {
+        print!("{}", _l);
+    }
+
+    return (_line, _column);
+}
