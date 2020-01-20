@@ -42,11 +42,17 @@ impl Header {
 
         // print interval and exec command
         // ex) Every XXs: Command...
-        mvprintw(
-            0,
-            0,
+        wmove(self.screen, 0, 0);
+        waddstr(
+            self.screen,
             &format!("Every {}s: {}", interval, self.result.clone().command),
         );
+
+        // mvprintw(
+        //     0,
+        //     0,
+        //     &format!("Every {}s: {:}", interval, self.result.clone().command),
+        // );
 
         // print Now time in right end
         // ex) YYYY-mm-dd HH:MM:SS
