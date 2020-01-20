@@ -442,10 +442,7 @@ fn count_line(_string: String, _width: i32) -> i32 {
     return _line_count;
 }
 
-// fn get_text_line(_string: String) -> i32 {
-
-// }
-
-// fn get_text_column(_string: String) -> i32 {
+// get_text_size is return text line, column size.
+// fn get_text_size(_string: String) -> (i32, i32) {
 
 // }

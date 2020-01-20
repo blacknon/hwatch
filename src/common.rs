@@ -13,9 +13,10 @@ use std::io::prelude::*;
 // local module
 use cmd::Result;
 
-//
+// TODO(blacknon): 小数点以下の秒数も考慮するように対応する(別の箇所でも修正が必要)
 pub fn now_str() -> String {
     let date = Local::now();
+    // return date.format("%Y-%m-%d %H:%M:%S.%2f").to_string();
     return date.format("%Y-%m-%d %H:%M:%S").to_string();
 }
 
