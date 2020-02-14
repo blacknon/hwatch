@@ -9,6 +9,7 @@
 // module
 use ncurses::*;
 use std::sync::Mutex;
+use std::convert::TryInto;
 
 // local module
 mod diff;
@@ -148,12 +149,18 @@ impl Watch {
             _help_text, "[Tab] key ... toggle current pad at history, watchpad."
         );
 
-        // TODO(blacknon): help messageのサイズに応じてhelp_winのサイズを設定
-        // TODO(blacknon): help_winをターミナル中央に表示するように指定
+        // get screen size
+        let mut max_x =0;
+        let mut max_y =0;
+        getmaxyx(self.screen, &mut max_y, &mut max_x);
+
+        // get help_window size
+        let (_h_win_line, _h_win_column) = get_text_size(&_help_text);
 
         // Create help_window
         // newwin(lines: i32, cols: i32, y: i32, x: i32)
-        self.help_win = newwin(15, 80, 5, 5);
+        self.help_win = newwin(
+            _h_win_line, _h_win_column, (max_y - _h_win_line)/2, (max_x - _h_win_column) /2);
 
         // Write help text
         wmove(self.help_win, 1, 1);
@@ -443,12 +450,18 @@ fn count_line(_string: String, _width: i32) -> i32 {
 }
 
 // get_text_size is return text line, column size.
-fn get_text_size(_string: String) -> (i32, i32) {
-    let mut _line = 0;
-    let mut _column = 0;
+// TODO: マルチバイト文字列の場合について考慮する
+fn get_text_size(_string: &String) -> (i32, i32) {
+    let mut _line: i32 = 0;
+    let mut _column: i32 = 0;
 
     for _l in _string.lines() {
-        print!("{}", _l);
+        let _length: i32 = _l.to_string().len().try_into().unwrap();
+        if _length > _column {
+            _column = _length;
+        }
+
+        _line += 1;
     }
 
     return (_line, _column);
