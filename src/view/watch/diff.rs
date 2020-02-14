@@ -8,6 +8,8 @@
 
 // TODO(blacknon): 2つの出力を並べてdiffをする機能について追加検討
 
+// TODO(blacknon): line diffのときにうまく改行されなかったり、表示されない場合があるので修正する
+
 extern crate difference;
 
 use self::difference::{Changeset, Difference};
