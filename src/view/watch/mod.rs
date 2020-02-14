@@ -8,8 +8,8 @@
 
 // module
 use ncurses::*;
-use std::sync::Mutex;
 use std::convert::TryInto;
+use std::sync::Mutex;
 
 // local module
 mod diff;
@@ -150,8 +150,8 @@ impl Watch {
         );
 
         // get screen size
-        let mut max_x =0;
-        let mut max_y =0;
+        let mut max_x = 0;
+        let mut max_y = 0;
         getmaxyx(self.screen, &mut max_y, &mut max_x);
 
         // get help_window size
@@ -160,7 +160,11 @@ impl Watch {
         // Create help_window
         // newwin(lines: i32, cols: i32, y: i32, x: i32)
         self.help_win = newwin(
-            _h_win_line, _h_win_column, (max_y - _h_win_line)/2, (max_x - _h_win_column) /2);
+            _h_win_line + 2,
+            _h_win_column + 1,
+            (max_y - _h_win_line) / 2,
+            (max_x - _h_win_column) / 2,
+        );
 
         // Write help text
         wmove(self.help_win, 1, 1);
