@@ -159,6 +159,7 @@ impl Watch {
 
         // Create help_window
         // newwin(lines: i32, cols: i32, y: i32, x: i32)
+        // TODO: (あまりありえないと思うけど) 幅がウィンドウより広くなったり、スクロールが必要になってしまう場合は、それに対応するように記述してやる
         self.help_win = newwin(
             _h_win_line + 2,
             _h_win_column + 1,
