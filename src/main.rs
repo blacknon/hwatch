@@ -3,7 +3,9 @@
 // that can be found in the LICENSE file.
 
 // TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.4)
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
+//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): 検索によるフィルタリング機能の追加(s... search filter, r... regex search filter)
 // TODO(blacknon): panicが表示されないようにエラーハンドリングをちゃんとやる (v0.1.4)
 
 // crate
