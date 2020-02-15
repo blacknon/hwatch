@@ -37,8 +37,7 @@ impl Header {
     // 1st line
     fn printout_1st_line(&mut self, max_x: i32) {
         // interval second num to string
-        // let interval = format!("{:.*}", 2, self.result.interval);
-        let interval = format!("{:.2}", self.interval);
+        let interval = format!("{:.3}", self.interval);
 
         // print interval and exec command
         // ex) Every XXs: Command...
@@ -52,7 +51,7 @@ impl Header {
         // ex) YYYY-mm-dd HH:MM:SS
         mvprintw(
             0,
-            max_x - ::HISTORY_WIDTH,
+            max_x - ::HISTORY_WIDTH + 1,
             &format!("{}", self.result.clone().timestamp),
         );
     }
