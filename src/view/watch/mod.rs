@@ -67,7 +67,7 @@ impl Watch {
 
         // print latest
         let _latest_status = self.latest_result.status;
-        self.print_history(0, "latest             ".to_string(), _latest_status);
+        self.print_history(0, "latest                 ".to_string(), _latest_status);
 
         // set history info
         let mut i = 1;

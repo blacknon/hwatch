@@ -3,7 +3,7 @@
 // that can be found in the LICENSE file.
 
 // TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.4)
-// TODO(blacknon): インターバルの値を小数点付きの値を受け付けるようにする(intではなく、浮動小数点の値を受け付ける) (v0.1.4)
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): panicが表示されないようにエラーハンドリングをちゃんとやる (v0.1.4)
 
 // crate
@@ -46,7 +46,7 @@ use view::View;
 // const
 // default interval value(int)
 pub const DEFAULT_INTERVAL: f64 = 2.0;
-pub const HISTORY_WIDTH: i32 = 21;
+pub const HISTORY_WIDTH: i32 = 25;
 pub const IS_WATCH_PAD: i32 = 0;
 pub const IS_HISTORY_PAD: i32 = 1;
 pub const IS_STDOUT: i32 = 1;
@@ -153,6 +153,9 @@ fn main() {
 
     // matches clone
     let _m = _matches.clone();
+
+    // TODO(blacknon): _intervalの値が数字かどうかのエラーチェックを入れる
+    // TODO(blacknon): _intervalの値の桁数制限をする
 
     // Get options
     let mut _interval: f64 = _matches
