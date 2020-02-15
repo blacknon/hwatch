@@ -50,7 +50,11 @@ impl Header {
 
         // print Now time in right end
         // ex) YYYY-mm-dd HH:MM:SS
-        mvprintw(0, max_x - 20, &format!("{}", self.result.clone().timestamp));
+        mvprintw(
+            0,
+            max_x - ::HISTORY_WIDTH,
+            &format!("{}", self.result.clone().timestamp),
+        );
     }
 
     // 2nd line
