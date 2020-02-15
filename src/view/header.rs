@@ -48,12 +48,6 @@ impl Header {
             &format!("Every {}s: {}", interval, self.result.clone().command),
         );
 
-        // mvprintw(
-        //     0,
-        //     0,
-        //     &format!("Every {}s: {:}", interval, self.result.clone().command),
-        // );
-
         // print Now time in right end
         // ex) YYYY-mm-dd HH:MM:SS
         mvprintw(0, max_x - 20, &format!("{}", self.result.clone().timestamp));
@@ -61,6 +55,11 @@ impl Header {
 
     // 2nd line
     fn printout_2nd_line(&mut self, max_x: i32) {
+        // print h key is help message
+        attron(COLOR_PAIR(COLORSET_K_G));
+        mvprintw(1, 0, &format!("Display help with h key"));
+        attroff(COLOR_PAIR(COLORSET_K_G));
+
         // set var
         let _color_length = 13; // "Color: "(7) + "False"(5) + 1
         let _output_length = 15; // "Output: "(8) + "output"(6) + 1
