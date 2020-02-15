@@ -3,10 +3,10 @@
 // that can be found in the LICENSE file.
 
 // TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.4)
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v1.0.0)
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): 検索によるフィルタリング機能の追加(s... search filter, r... regex search filter)
-// TODO(blacknon): panicが表示されないようにエラーハンドリングをちゃんとやる (v0.1.4)
+// TODO(blacknon): 検索によるフィルタリング機能の追加(v0.1.5)
+//                 (s... search filter, r... regex search filter)
 
 // crate
 extern crate itertools;
@@ -160,11 +160,7 @@ fn main() {
     // TODO(blacknon): _intervalの値の桁数制限をする
 
     // Get options
-    let mut _interval: f64 = _matches
-        .value_of("interval")
-        .unwrap()
-        .parse::<f64>()
-        .unwrap();
+    let mut _interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
     let mut _batch = _m.is_present("batch");
     let mut _diff = _m.is_present("differences");
     let mut _color = _m.is_present("color");
