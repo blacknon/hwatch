@@ -41,7 +41,7 @@ Flags
 
 -d, --differences
 
-:   highlight changes between updates. The diff specified by this flag is similar to the *watch* command. It can be changed later by key binding.
+:   Highlight changes between updates. The diff specified by this flag is similar to the *watch* command. It can be changed later by key binding.
 
 
 
@@ -61,21 +61,67 @@ Options
 KEYBINDS
 ========
 
+**hwatch** uses *Keybind* for operations on the command execution screen.
 
-ENVIRONMENT
-===========
+h
 
-**DEFAULT_HELLO_DEDICATION**
-
-:   The default dedication if none is given. Has the highest precedence
-    if a dedication is not supplied on the command line.
-
-NOTES
-=====
+:   Show help message. Press the *h* key again to return to the previous screen.
 
 
-EXAMPLES
-========
+q
+
+:   Exit hwatch.
+
+
+c
+
+:   Interprets ANSI colors and style sequences and displays them in color. This is the same as the *-c(--color)* option. Press the *c* key again to return to the original.
+
+
+d
+
+:   Highlight changes between updates. The diff specified by this flag is similar to the *watch* command. This is the same as the *-d(--differences)* option. You can switch the diff mode by pressing the *d* key. The *d* key toggles these in order. Use the *0*, *1*, and *2* keys to switch directly to each mode.
+
+      *plane* ... Do not show diff (default).
+
+      *watch* ... Diff like watch command. Specifying the *-d* option applies this mode.
+
+      *line*  ... Can be done diff in line units.
+
+
+0
+
+:   Switch diff mode to *plane*.
+
+
+1
+
+:   Switch diff mode to *watch*.
+
+
+2
+
+:   Switch diff mode to *line*.
+
+
+F1
+
+:   Display only *Stdout*.
+
+
+F2
+
+:   Display only *Stderr*.
+
+
+F3
+
+:   Display *Stdout* and *Stderr*.
+
+
+Tab
+
+:   Switch the target(*history* or *watch* pad). The target is operated with the *up* and *down* keys.
 
 
 BUGS
