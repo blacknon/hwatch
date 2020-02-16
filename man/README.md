@@ -5,5 +5,5 @@ Man page is created from markdown with pandoc. Edit man.md and generate hwatch.m
 
 
 ```bash
-pandoc man.md -s -t man > ./hwatch.man
+pandoc man.md -s -t man > ./hwatch.1
 ```
