@@ -33,7 +33,7 @@ Interpret ANSI colors and style sequences and display in color.
 It can be changed later by key binding.
 .TP
 -d, \[en]differences
-highlight changes between updates.
+Highlight changes between updates.
 The diff specified by this flag is similar to the \f[I]watch\f[R]
 command.
 It can be changed later by key binding.
@@ -41,8 +41,8 @@ It can be changed later by key binding.
 .TP
 -n, \[en]interval \f[I]seconds\f[R]
 Specify update interval.
-The command will not allow quicker than 0.1 second interval, in which
-the smaller values are converted.
+The command will not allow quicker than \f[B]0.001\f[R] second interval,
+in which the smaller values are converted.
 Both `.' and `,' work for any locales.
 .TP
 -l, \[en]logfile \f[I]logfile\f[R]
@@ -50,14 +50,62 @@ Output the command execution result and its time as a log in json.
 The execution results that are recorded are only those that differ from
 the previous execution results.
 .SH KEYBINDS
-.SH ENVIRONMENT
+.PP
+\f[B]hwatch\f[R] uses \f[I]Keybind\f[R] for operations on the command
+execution screen.
 .TP
-\f[B]DEFAULT_HELLO_DEDICATION\f[R]
-The default dedication if none is given.
-Has the highest precedence if a dedication is not supplied on the
-command line.
-.SH NOTES
-.SH EXAMPLES
+h
+Show help message.
+Press the \f[I]h\f[R] key again to return to the previous screen.
+.TP
+q
+Exit hwatch.
+.TP
+c
+Interprets ANSI colors and style sequences and displays them in color.
+This is the same as the \f[I]-c(\[en]color)\f[R] option.
+Press the \f[I]c\f[R] key again to return to the original.
+.TP
+d
+Highlight changes between updates.
+The diff specified by this flag is similar to the \f[I]watch\f[R]
+command.
+This is the same as the \f[I]-d(\[en]differences)\f[R] option.
+You can switch the diff mode by pressing the \f[I]d\f[R] key.
+The \f[I]d\f[R] key toggles these in order.
+Use the \f[I]0\f[R], \f[I]1\f[R], and \f[I]2\f[R] keys to switch
+directly to each mode.
+.RS
+.PP
+\f[I]plane\f[R] \&... Do not show diff (default).
+.PP
+\f[I]watch\f[R] \&... Diff like watch command.
+Specifying the \f[I]-d\f[R] option applies this mode.
+.PP
+\f[I]line\f[R] \&... Can be done diff in line units.
+.RE
+.TP
+0
+Switch diff mode to \f[I]plane\f[R].
+.TP
+1
+Switch diff mode to \f[I]watch\f[R].
+.TP
+2
+Switch diff mode to \f[I]line\f[R].
+.TP
+F1
+Display only \f[I]Stdout\f[R].
+.TP
+F2
+Display only \f[I]Stderr\f[R].
+.TP
+F3
+Display \f[I]Stdout\f[R] and \f[I]Stderr\f[R].
+.TP
+Tab
+Switch the target(\f[I]history\f[R] or \f[I]watch\f[R] pad).
+The target is operated with the \f[I]up\f[R] and \f[I]down\f[R] keys.
 .SH BUGS
 .PP
 See GitHub Issues: <https://github.com/blacknon/hwatch/issues>
