@@ -5,7 +5,7 @@ keywords = ["watch", "command"]
 license-file = "LICENSE"
 name = "hwatch"
 repository = "https://github.com/blacknon/hwatch"
-version = "0.1.5"
+version = "0.1.6"
 
 [dependencies]
 chrono = "0.4"
