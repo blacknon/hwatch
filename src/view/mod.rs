@@ -1,20 +1,19 @@
-// Copyright (c) 2019 Blacknon. All rights reserved.
+// Copyright (c) 2021 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): キーワード検索機能の追加(v0.1.4)
+// TODO(blacknon): キーワード検索機能の追加(v0.1.7)
 //     - `/`でキーボード入力モードに
 //     - `f`でフィルターモードの切り替えか？(ハイライトモードとフィルタリングモード)
 //     - ESCで元に戻す
 //     - lessみたいに、キーワードの検索が行えるようにする
 //     - 検索方式として、`ハイライト方式`及び`絞り込み方式`の2つが必要？
 
-// TODO(blacknon): ヘルプ機能の追加(v0.1.4)
-//     - `h`でヘルプウィンドウの表示をする
-//     - `h`キーを再度入力することで切り替える
-//     - `h`キーでヘルプウィンドウを表示するという注意書きを一番下(or 一番上)の行に表示させる
+// TODO(blacknon): キー入力の追加
+//     - PageUpでページアップ
+//     - PageDownでページダウン
 
-// TODO(blacknon): キー入力の変更機能を追加？(v0.1.5？)
+// TODO(blacknon): キー入力の変更機能を追加？(v0.1.7？)
 //     - pecoのconfig的なやつ？何かしらファイルがあるだろうから探す
 
 // module

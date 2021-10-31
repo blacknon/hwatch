@@ -1,10 +1,12 @@
-// Copyright (c) 2019 Blacknon. All rights reserved.
+// Copyright (c) 2021 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
 // TODO(blacknon): 単語単位でのdiffを行えるようにする
 //   参考:
 //     - https://github.com/tk0miya/diff-highlightf
+
+// TODO(blacknon): 数字が変更になっていた場合、diffで差分の数字表示が行えるようにする
 
 // TODO(blacknon): 2つの出力を並べてdiffをする機能について追加検討
 // TODO(blacknon): line diffのときにうまく改行されなかったり、表示されない場合があるので修正する

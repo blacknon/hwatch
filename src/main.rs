@@ -1,8 +1,8 @@
-// Copyright (c) 2019 Blacknon. All rights reserved.
+// Copyright (c) 2021 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.4)
+// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.7)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v1.0.0)
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v1.0.0)
@@ -12,7 +12,7 @@
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v1.0.0)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
 // TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.1.5)
-//                 (`s`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
+//                 (`/`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
 
 // crate
 extern crate itertools;
@@ -161,9 +161,6 @@ fn main() {
 
     // matches clone
     let _m = _matches.clone();
-
-    // TODO(blacknon): _intervalの値が数字かどうかのエラーチェックを入れる
-    // TODO(blacknon): _intervalの値の桁数制限をする
 
     // Get options
     let mut _interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
