@@ -87,6 +87,7 @@ impl WatchPad {
         }
     }
 
+    //
     pub fn scroll_down(&mut self) {
         let mut max_x = 0;
         let mut max_y = 0;

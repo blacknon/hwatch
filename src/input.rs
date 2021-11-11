@@ -6,6 +6,7 @@ use event::Event;
 use ncurses::*;
 use std::sync::mpsc::Sender;
 use std::thread;
+use std::time::Duration;
 
 pub struct Input {
     tx: Sender<Event>,
@@ -22,6 +23,7 @@ impl Input {
             loop {
                 let _ = self.tx.send(Event::Input(ch));
                 ch = getch();
+                thread::sleep(Duration::from_millis(10));
             }
         });
     }

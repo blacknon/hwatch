@@ -7,13 +7,14 @@
 //     - https://github.com/tk0miya/diff-highlightf
 
 // TODO(blacknon): 数字が変更になっていた場合、diffで差分の数字表示が行えるようにする
-
 // TODO(blacknon): 2つの出力を並べてdiffをする機能について追加検討
 // TODO(blacknon): line diffのときにうまく改行されなかったり、表示されない場合があるので修正する
 
 extern crate difference;
+extern crate similar;
 
 use self::difference::{Changeset, Difference};
+// use self::similar::{ChangeLog, TextDiff};
 use std::cmp;
 
 use view::color::*;
@@ -137,7 +138,26 @@ impl LineDiff {
         }
     }
 
-    pub fn create_dataset(&mut self, data1: String, data2: String) {
+    pub fn create_dataset(&mut self, data1: String, data2: String, with_word: bool) {
+        if !with_word {
+            // self.create_dataset_word(data1, data2);
+            // } else {
+            self.create_dataset_line(data1, data2);
+        }
+    }
+
+    // fn create_dataset_word(&mut self, data1: String, data2: String) {
+    //     let diff = TextDiff::from_lines(&data1, &data2);
+
+    //     for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+    //         if idx > 0 {
+
+    //         }
+    //     }
+    // }
+
+    // TODO: word diffが実装できたらライブラリ置き換える
+    fn create_dataset_line(&mut self, data1: String, data2: String) {
         // Compare both before/after output.
         let Changeset { diffs, .. } = Changeset::new(&data1.clone(), &data2.clone(), "\n");
         let mut dataset: Vec<Color> = Vec::new();
@@ -158,6 +178,7 @@ impl LineDiff {
                         self.line += 1;
                     }
                 }
+
                 Difference::Add(ref diff_data) => {
                     for line in diff_data.lines() {
                         // push line header
@@ -171,6 +192,7 @@ impl LineDiff {
                         self.line += 1;
                     }
                 }
+
                 Difference::Rem(ref diff_data) => {
                     for line in diff_data.lines() {
                         // push line header
@@ -237,8 +259,5 @@ impl LineDiff {
     }
 }
 
-// fn line_diff_print() {}
-
-// pub fn word_diff(mut watch: WatchPad, before_output: String, after_output: String) {
-//
-// }
+// TODO: ↓のライブラリに乗り換えて、Word diffを実装する？
+//       https://github.com/mitsuhiko/similar

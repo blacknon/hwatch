@@ -82,11 +82,11 @@ impl CmdRun {
         let mut vec_stdout = Vec::new();
         let mut vec_stderr = Vec::new();
         {
-            let stdout = child.stdout.as_mut().expect("");
-            let stderr = child.stderr.as_mut().expect("");
+            let child_stdout = child.stdout.as_mut().expect("");
+            let child_stderr = child.stderr.as_mut().expect("");
 
-            let mut stdout = BufReader::new(stdout);
-            let mut stderr = BufReader::new(stderr);
+            let mut stdout = BufReader::new(child_stdout);
+            let mut stderr = BufReader::new(child_stderr);
 
             loop {
                 let (stdout_bytes, stderr_bytes) = match (stdout.fill_buf(), stderr.fill_buf()) {
@@ -113,6 +113,10 @@ impl CmdRun {
                 stdout.consume(stdout_bytes);
                 stderr.consume(stderr_bytes);
             }
+
+            // Memory release.
+            drop(stdout);
+            drop(stderr);
         }
 
         // get command status
@@ -130,5 +134,10 @@ impl CmdRun {
 
         // Send result
         let _ = self.tx.send(Event::OutputUpdate(_result));
+
+        // Memory release.
+        drop(vec_output);
+        drop(vec_stdout);
+        drop(vec_stderr);
     }
 }

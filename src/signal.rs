@@ -18,8 +18,10 @@ pub struct Signal {
     tx: Sender<Event>,
 }
 
+/// Signal Trait
 impl Signal {
     pub fn new(tx: Sender<Event>) -> Self {
+        //! new signal
         Signal { tx: tx }
     }
 
@@ -30,6 +32,7 @@ impl Signal {
             SigSet::empty(),
         );
         unsafe { sigaction(SIGINT, &sa) }.unwrap();
+        drop(sa);
 
         let _ = thread::spawn(move || unsafe {
             loop {

@@ -222,6 +222,9 @@ impl Watch {
             waddstr(self.history_pad, &_print_data);
             wattroff(self.history_pad, A_REVERSE() | COLOR_PAIR(COLORSET_R_D));
         }
+
+        // release memory.
+        drop(_print_data);
     }
 
     pub fn get_latest_history(&mut self) -> Result {
@@ -259,6 +262,14 @@ impl Watch {
     pub fn window_down(&mut self) {
         self.watch_pad.scroll_down();
     }
+
+    pub fn history_page_up(&mut self) {}
+
+    pub fn history_page_down(&mut self) {}
+
+    pub fn window_page_up(&mut self) {}
+
+    pub fn window_page_down(&mut self) {}
 
     pub fn resize(&mut self) {
         let mut max_x = 0;
@@ -310,6 +321,9 @@ impl Watch {
                 self.watch_pad
                     .print(data.data, front_color, back_color, vec![data.ansi.0])
             }
+
+            // memory release
+            drop(result_data);
         } else {
             // color disable
             self.watch_pad
@@ -336,7 +350,7 @@ impl Watch {
             ::DIFF_LINE => {
                 // set watchpad size
                 let mut diff = diff::LineDiff::new(self.color);
-                diff.create_dataset(before_data, target_data);
+                diff.create_dataset(before_data, target_data, false);
                 self.watchpad_create(diff.line + 1);
 
                 diff.print(self.watch_pad.clone());

@@ -20,9 +20,7 @@ hwatch - alternative watch command.
 
 ### Cargo Install
 
-    git clone github.com/blacknon/hwatch
-    cd hwatch
-    cargo install --path .
+    cargo install hwatch
 
 ## Usage
 
@@ -62,4 +60,3 @@ watch window keybind
 - <kbd>F1</kbd>  ... only stdout print.
 - <kbd>F2</kbd>  ... only stderr print.
 - <kbd>F3</kbd>  ... print output.
-

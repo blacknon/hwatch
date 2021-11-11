@@ -11,11 +11,16 @@
 //                 watchコマンドにもある(-g, --chgexit)
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v1.0.0)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-// TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.1.5)
+// TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.1.7)
 //                 (`/`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
+// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.1.7)
+//                 `n`キーでの切り替えが良いか❓ diffでの出力をどうするかがポイントかも？？
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.1.7)
+// TODO(blacknon): Resultのメモリ解放できてないっぽい(全部溜め込んでるっぽい)ので、対処する
 
 // crate
 extern crate itertools;
+extern crate jemallocator;
 extern crate ncurses;
 extern crate nix;
 extern crate regex;
@@ -31,6 +36,13 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+
+#[cfg(not(target_env = "msvc"))]
+use jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 // modules
 use clap::{App, AppSettings, Arg};
@@ -67,7 +79,7 @@ pub const CURSOR_NORMAL_WINDOW: i32 = 0;
 pub const CURSOR_HELP_WINDOW: i32 = 1;
 pub const CURSOR_INPUT_KEYWORD: i32 = 2;
 
-// Parse args and options
+/// Parse args and options function.
 fn build_app() -> clap::App<'static, 'static> {
     // get own name
     let _program = args()
