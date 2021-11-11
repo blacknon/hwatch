@@ -32,11 +32,11 @@ impl Signal {
             SigSet::empty(),
         );
         unsafe { sigaction(SIGINT, &sa) }.unwrap();
-        drop(sa);
 
         let _ = thread::spawn(move || unsafe {
             loop {
                 let _ = self.tx.send(Event::Signal(INPUT_SIGNAL));
+                drop(INPUT_SIGNAL);
                 thread::sleep(Duration::from_millis(100));
             }
         });
