@@ -17,6 +17,8 @@
 //                 `n`キーでの切り替えが良いか❓ diffでの出力をどうするかがポイントかも？？
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.1.7)
 // TODO(blacknon): Resultのメモリ解放できてないっぽい(全部溜め込んでるっぽい)ので、対処する
+// TODO(blacknon): 長いcommand指定時は省略して出力させる
+// TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
 
 // crate
 extern crate itertools;

@@ -317,7 +317,7 @@ impl View {
         while !self.done {
             match self.rx.try_recv() {
                 // get result, run self.update()
-                Ok(Event::OutputUpdate(_cmd)) => self.update(_cmd),
+                Ok(Event::OutputUpdate(_cmd_result)) => self.update(_cmd_result),
 
                 // get exit event
                 Ok(Event::Exit) => self.done = true,
