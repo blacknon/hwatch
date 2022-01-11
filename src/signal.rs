@@ -16,7 +16,7 @@ extern "C" fn signal_handler(signum: i32) {
     unsafe { INPUT_SIGNAL = signum }
 }
 
-pub enum ExecEvent {
+pub enum AppEvent {
     OutputUpdate(Result),
     Input(i32),
     Signal(i32),
@@ -24,12 +24,12 @@ pub enum ExecEvent {
 }
 
 pub struct Signal {
-    tx: Sender<ExecEvent>,
+    tx: Sender<AppEvent>,
 }
 
 /// Signal Trait
 impl Signal {
-    pub fn new(tx: Sender<ExecEvent>) -> Self {
+    pub fn new(tx: Sender<AppEvent>) -> Self {
         //! new signal
         Signal { tx: tx }
     }
@@ -44,7 +44,7 @@ impl Signal {
 
         let _ = thread::spawn(move || unsafe {
             loop {
-                let _ = self.tx.send(ExecEvent::Signal(INPUT_SIGNAL));
+                let _ = self.tx.send(AppEvent::Signal(INPUT_SIGNAL));
                 drop(INPUT_SIGNAL);
                 thread::sleep(Duration::from_millis(100));
             }

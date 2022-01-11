@@ -16,6 +16,8 @@ use std::{
         mpsc::{Receiver, Sender},
         Mutex,
     },
+    thread,
+    time::Duration,
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
@@ -33,20 +35,19 @@ use tui::{
 
 // local module
 use exec;
-use signal::ExecEvent;
+use signal::AppEvent;
 use watch::WatchArea;
 
 /// Struct at watch view window.
 pub struct App<'a> {
-    /// frame area data.
-    /// - 0 ... header area.
-    /// - 1 ... watch area.
-    /// - 2 ... history area.
     pub area_size: [tui::layout::Rect; 3],
 
-    pub watch_area: WatchArea<'a>,
-
+    ///
+    ///
     results: Mutex<Vec<exec::Result>>,
+
+    ///
+    pub watch_area: WatchArea<'a>,
 
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
@@ -55,13 +56,13 @@ pub struct App<'a> {
     /// logfile path.
     pub logfile: String,
 
-    pub tx: Sender<ExecEvent>,
-    pub rx: Receiver<ExecEvent>,
+    pub tx: Sender<AppEvent>,
+    pub rx: Receiver<AppEvent>,
 }
 
 /// Trail at watch view window.
 impl<'a> App<'a> {
-    pub fn new(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Self {
+    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
         ///! method at create new view trail.
         Self {
             area_size: [
@@ -95,26 +96,29 @@ impl<'a> App<'a> {
             .direction(Direction::Horizontal)
             .split(top_chunks[1]);
 
-        self.area_size = [top_chunks[0], main_chanks[0], main_chanks[1]];
+        let areas = [top_chunks[0], main_chanks[0], main_chanks[1]];
 
-        self.watch_area.set_area(self.area_size[1]);
+        self.watch_area.set_area(areas[1]);
     }
 
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         let block = Block::default().title("header");
         f.render_widget(block, self.area_size[0]);
 
-        let mut text = "123\n456\n789";
-        self.watch_area.update_data(text);
+        // Draw watch area.
         self.watch_area.draw(f);
 
         let block = Block::default().title("history");
         f.render_widget(block, self.area_size[2]);
     }
+
+    pub fn result_update(&mut self, result: exec::Result) {
+        self.watch_area.update_data(&result.output);
+    }
 }
 
 /// start hwatch app view.
-pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<dyn Error>> {
+pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn Error>> {
     // Setup Terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -125,7 +129,17 @@ pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<d
     // Create App
     let mut app = App::new(tx, rx);
 
+    // Run App
     run_app(&mut terminal, &mut app);
+
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
 
     Ok(())
 }
@@ -135,9 +149,28 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) {
     let mut frame = terminal.get_frame();
     app.get_area(&mut frame);
 
-    loop {
+    while !app.done {
         // draw
         terminal.draw(|f| draw(f, &mut app));
+        thread::sleep(Duration::from_millis(5));
+
+        match app.rx.try_recv() {
+            // get result, run self.update()
+            Ok(AppEvent::OutputUpdate(exec_result)) => app.result_update(exec_result),
+
+            // get exit event
+            Ok(AppEvent::Exit) => app.done = true,
+
+            // get signal
+            Ok(AppEvent::Signal(i)) => match i {
+                0x02 => app.done = true,
+                _ => {}
+            },
+            // Ok(AppEvent::Input(i)) => app.input(i),
+            Ok(AppEvent::Input(i)) => {}
+            _ => {}
+        };
+        thread::sleep(Duration::from_millis(5));
     }
 }
 

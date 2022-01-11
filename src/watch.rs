@@ -44,16 +44,24 @@ impl<'a> WatchArea<'a> {
 
     pub fn update_data(&mut self, text: &str) {
         // init self.data
-        self.data = vec![Spans::from("")];
+        self.data = vec![];
         let lines = text.split("\n");
 
         for l in lines {
             self.data.push(Spans::from(String::from(l)));
         }
+
+        let length = self.data.len() as i32;
+
+        self.data.push(Spans::from(length.to_string()));
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         let block = Paragraph::new(self.data.clone()).wrap(Wrap { trim: true });
         frame.render_widget(block, self.area);
     }
+
+    pub fn scroll_up(&mut self, num: u16) {}
+
+    pub fn scroll_down(&mut self, num: u16) {}
 }

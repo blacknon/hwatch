@@ -65,7 +65,7 @@ mod signal;
 mod view;
 mod watch;
 // use input::Input;
-use signal::{ExecEvent, Signal};
+use signal::{AppEvent, Signal};
 // use view;
 
 // const
