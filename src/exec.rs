@@ -11,7 +11,7 @@ use std::sync::mpsc::Sender;
 
 // local module
 use common;
-use event::Event;
+use signal::ExecEvent;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Result {
@@ -37,15 +37,15 @@ impl Result {
 }
 
 // TODO(blacknon): commandは削除？
-pub struct CmdRun {
+pub struct ExecuteCommand {
     pub command: String,
     pub is_exec: bool,
-    pub tx: Sender<Event>,
+    pub tx: Sender<ExecEvent>,
 }
 
-impl CmdRun {
+impl ExecuteCommand {
     // set default value
-    pub fn new(tx: Sender<Event>) -> Self {
+    pub fn new(tx: Sender<ExecEvent>) -> Self {
         Self {
             command: "".to_string(),
             is_exec: false,
@@ -133,7 +133,7 @@ impl CmdRun {
         };
 
         // Send result
-        let _ = self.tx.send(Event::OutputUpdate(_result));
+        let _ = self.tx.send(ExecEvent::OutputUpdate(_result));
 
         // Memory release.
         drop(vec_output);

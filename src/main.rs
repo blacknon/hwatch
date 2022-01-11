@@ -20,13 +20,15 @@
 // TODO(blacknon): 長いcommand指定時は省略して出力させる
 // TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
 
+#[warn(unused_doc_comments)]
 // crate
+extern crate crossterm;
 extern crate itertools;
 extern crate jemallocator;
 extern crate nix;
 extern crate regex;
 extern crate serde;
-extern crate termion;
+extern crate tui;
 
 // macro crate
 #[macro_use]
@@ -55,25 +57,26 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
-mod cmd;
 mod common;
-mod event;
+// mod event;
+mod exec;
 // mod input;
 mod signal;
 mod view;
+mod watch;
 // use input::Input;
-use signal::Signal;
-use view::View;
+use signal::{ExecEvent, Signal};
+// use view;
 
 // const
 // default interval value(int)
 pub const DEFAULT_INTERVAL: f64 = 2.0;
-pub const HISTORY_WIDTH: i32 = 25;
-pub const IS_WATCH_PAD: i32 = 0;
-pub const IS_HISTORY_PAD: i32 = 1;
+pub const HISTORY_WIDTH: u16 = 25;
+pub const IS_WATCH_WIDGET: i32 = 0;
+pub const IS_HISTORY_WIDGET: i32 = 1;
+pub const IS_OUTPUT: i32 = 0;
 pub const IS_STDOUT: i32 = 1;
 pub const IS_STDERR: i32 = 2;
-pub const IS_OUTPUT: i32 = 3;
 pub const DIFF_DISABLE: i32 = 0;
 pub const DIFF_WATCH: i32 = 1;
 pub const DIFF_LINE: i32 = 2;
@@ -212,13 +215,13 @@ fn main() {
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
-            let mut cmd = cmd::CmdRun::new(tx.clone());
+            let mut exe = exec::ExecuteCommand::new(tx.clone());
 
             // Set command
-            cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
+            exe.command = _matches.values_of_lossy("command").unwrap().join(" ");
 
             // Exec command
-            cmd.exec_command();
+            exe.exec_command();
 
             // sleep interval
             thread::sleep(Duration::from_secs_f64(_interval));
@@ -230,7 +233,8 @@ fn main() {
         // is watch mode
 
         // Create view
-        let mut _view = View::new(tx.clone(), rx);
+        // let mut _view = View::new(tx.clone(), rx);
+        view::start(tx.clone(), rx);
 
         // Set interval on _view.header
         // _view.set_interval(_interval);
@@ -241,10 +245,10 @@ fn main() {
         // }
 
         // Set diff in _view
-        let mut _diff_type = 0;
-        if _diff {
-            _diff_type = 1;
-        }
+        // let mut _diff_type = 0;
+        // if _diff {
+        //     _diff_type = 1;
+        // }
         // _view.switch_diff(_diff_type);
 
         // Set color in _view
@@ -254,13 +258,13 @@ fn main() {
         // let mut _input = Input::new(tx.clone());
 
         // Create signal
-        let mut _signal = Signal::new(tx.clone());
+        // let mut _signal = Signal::new(tx.clone());
 
         // await input thread
         // _input.run();
 
         // await signal thread
-        _signal.run();
+        // _signal.run();
 
         // view
         // _view.get_event();

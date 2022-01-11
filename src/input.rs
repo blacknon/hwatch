@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: signalに移動(多分分けなくてもいい気がする)
+
 use event::Event;
 use ncurses::*;
 use std::sync::mpsc::Sender;
