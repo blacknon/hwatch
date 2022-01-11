@@ -32,21 +32,21 @@ use tui::{
 };
 
 // local module
-use exec::Result;
+use exec;
 use signal::ExecEvent;
 use watch::WatchArea;
 
 /// Struct at watch view window.
-pub struct App {
+pub struct App<'a> {
     /// frame area data.
     /// - 0 ... header area.
     /// - 1 ... watch area.
     /// - 2 ... history area.
     pub area_size: [tui::layout::Rect; 3],
 
-    pub watch_area: WatchArea,
+    pub watch_area: WatchArea<'a>,
 
-    results: Mutex<Vec<Result>>,
+    results: Mutex<Vec<exec::Result>>,
 
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
@@ -60,7 +60,7 @@ pub struct App {
 }
 
 /// Trail at watch view window.
-impl App {
+impl<'a> App<'a> {
     pub fn new(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Self {
         ///! method at create new view trail.
         Self {
@@ -96,14 +96,17 @@ impl App {
             .split(top_chunks[1]);
 
         self.area_size = [top_chunks[0], main_chanks[0], main_chanks[1]];
+
+        self.watch_area.set_area(self.area_size[1]);
     }
 
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         let block = Block::default().title("header");
         f.render_widget(block, self.area_size[0]);
 
-        let block = Block::default().title("watch");
-        f.render_widget(block, self.area_size[1]);
+        let mut text = "123\n456\n789";
+        self.watch_area.update_data(text);
+        self.watch_area.draw(f);
 
         let block = Block::default().title("history");
         f.render_widget(block, self.area_size[2]);
