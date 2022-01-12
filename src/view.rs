@@ -37,7 +37,7 @@ use tui::{
 
 // local module
 use exec;
-use signal::AppEvent;
+use exec::ExecEvent;
 use watch::WatchArea;
 
 ///
@@ -97,13 +97,13 @@ pub struct App<'a> {
     /// logfile path.
     pub logfile: String,
 
-    pub tx: Sender<AppEvent>,
-    pub rx: Receiver<AppEvent>,
+    pub tx: Sender<ExecEvent>,
+    pub rx: Receiver<ExecEvent>,
 }
 
 /// Trail at watch view window.
 impl<'a> App<'a> {
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
+    pub fn new(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Self {
         ///! method at create new view trail.
         Self {
             area_size: [
@@ -121,6 +121,93 @@ impl<'a> App<'a> {
             logfile: "".to_string(),
             tx: tx,
             rx: rx,
+        }
+    }
+
+    pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+        // get Area Size from terminal.Frame
+        let mut frame = terminal.get_frame();
+        self.get_area(&mut frame);
+
+        loop {
+            if self.done {
+                return Ok(());
+            }
+
+            // Draw data
+            terminal.draw(|f| self.draw(f))?;
+
+            // get input
+            match self.input {
+                InputMode::None => match self.window {
+                    ActiveWindow::Help => {}
+                    ActiveWindow::Normal => match self.area {
+                        ActiveArea::History => {}
+                        ActiveArea::Watch => {}
+                    },
+                },
+
+                InputMode::Filter => {}
+                InputMode::Search => {}
+            }
+
+            match event::read().unwrap() {
+                // Common input key
+                // Input Ctrl + C
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('c'),
+                    modifiers: KeyModifiers::CONTROL,
+                }) => return Ok(()),
+
+                // Input Tab
+                Event::Key(KeyEvent {
+                    code: KeyCode::Tab,
+                    modifiers: KeyModifiers::NONE,
+                }) => return Ok(()),
+
+                // Input ESC
+                _ => {}
+            }
+
+            // match self.active {
+            //     ActiveArea::Watch => match key.code {
+            //         KeyCode::Char('e') => {
+            //             self.input_mode = InputMode::Editing;
+            //         }
+            //         KeyCode::Char('q') => {
+            //             return Ok(());
+            //         }
+            //         _ => {}
+            //     },
+            //     ActiveArea::History => match key.code {
+            //         KeyCode::Enter => {
+            //             self.messages.push(self.input.drain(..).collect());
+            //         }
+            //         KeyCode::Char(c) => {
+            //             self.input.push(c);
+            //         }
+            //         KeyCode::Backspace => {
+            //             self.input.pop();
+            //         }
+            //         KeyCode::Esc => {
+            //             self.input_mode = InputMode::Normal;
+            //         }
+            //         _ => {}
+            //     },
+            // }
+
+            match self.rx.try_recv() {
+                // get result, run self.update()
+                Ok(ExecEvent::OutputUpdate(exec_result)) => self.results_update(exec_result),
+
+                // get exit event
+                Ok(ExecEvent::Exit) => self.done = true,
+
+                _ => {}
+            }
+            thread::sleep(Duration::from_millis(5));
+
+            // Ok(())
         }
     }
 
@@ -157,13 +244,13 @@ impl<'a> App<'a> {
         f.render_widget(block, self.area_size[2]);
     }
 
-    pub fn result_update(&mut self, result: exec::Result) {
+    pub fn results_update(&mut self, result: exec::Result) {
         self.watch_area.update_data(&result.output);
     }
 }
 
 /// start hwatch app view.
-pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn Error>> {
+pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<dyn Error>> {
     // Setup Terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -175,7 +262,7 @@ pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn
     let mut app = App::new(tx, rx);
 
     // Run App
-    run_app(&mut terminal, &mut app);
+    app.run(&mut terminal);
 
     // Restore terminal
     disable_raw_mode()?;
@@ -187,100 +274,4 @@ pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn
     terminal.show_cursor()?;
 
     Ok(())
-}
-
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io::Result<()> {
-    // get Area Size from terminal.Frame
-    let mut frame = terminal.get_frame();
-    app.get_area(&mut frame);
-
-    loop {
-        // draw
-        terminal.draw(|f| draw(f, &mut app))?;
-
-        match app.input {
-            InputMode::None => match app.window {
-                ActiveWindow::Help => {}
-                ActiveWindow::Normal => match app.area {
-                    ActiveArea::History => {}
-                    ActiveArea::Watch => {}
-                },
-            },
-
-            InputMode::Filter => {}
-            InputMode::Search => {}
-        }
-
-        match event::read().unwrap() {
-            // Common input key
-            // Input Ctrl + C
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('c'),
-                modifiers: KeyModifiers::CONTROL,
-            }) => return Ok(()),
-
-            // Input Tab
-            Event::Key(KeyEvent {
-                code: KeyCode::Tab,
-                modifiers: KeyModifiers::NONE,
-            }) => return Ok(()),
-
-            // Input ESC
-            _ => {}
-        }
-
-        // match app.active {
-        //     ActiveArea::Watch => match key.code {
-        //         KeyCode::Char('e') => {
-        //             app.input_mode = InputMode::Editing;
-        //         }
-        //         KeyCode::Char('q') => {
-        //             return Ok(());
-        //         }
-        //         _ => {}
-        //     },
-        //     ActiveArea::History => match key.code {
-        //         KeyCode::Enter => {
-        //             app.messages.push(app.input.drain(..).collect());
-        //         }
-        //         KeyCode::Char(c) => {
-        //             app.input.push(c);
-        //         }
-        //         KeyCode::Backspace => {
-        //             app.input.pop();
-        //         }
-        //         KeyCode::Esc => {
-        //             app.input_mode = InputMode::Normal;
-        //         }
-        //         _ => {}
-        //     },
-        // }
-
-        match app.rx.try_recv() {
-            // get result, run self.update()
-            Ok(AppEvent::OutputUpdate(exec_result)) => app.result_update(exec_result),
-
-            // get exit event
-            // delete?
-            Ok(AppEvent::Exit) => app.done = true,
-
-            _ => {} // // get signal
-                    // // delete?
-                    // Ok(AppEvent::Signal(i)) => match i {
-                    //     0x02 => app.done = true,
-                    //     _ => {}
-                    // },
-                    // // Ok(AppEvent::Input(i)) => app.input(i),
-                    // // delete?
-                    // Ok(AppEvent::Input(i)) => {}
-                    // _ => {}
-        }
-        thread::sleep(Duration::from_millis(5));
-
-        // Ok(())
-    }
-}
-
-fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    app.draw(f)
 }

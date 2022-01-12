@@ -61,6 +61,8 @@ impl<'a> WatchArea<'a> {
         frame.render_widget(block, self.area);
     }
 
+    pub fn input(&mut self, event: crossterm::event::Event) {}
+
     pub fn scroll_up(&mut self, num: u16) {}
 
     pub fn scroll_down(&mut self, num: u16) {}

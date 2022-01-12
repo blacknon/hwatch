@@ -11,7 +11,11 @@ use std::sync::mpsc::Sender;
 
 // local module
 use common;
-use signal::AppEvent;
+
+pub enum ExecEvent {
+    OutputUpdate(Result),
+    Exit,
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Result {
@@ -40,12 +44,12 @@ impl Result {
 pub struct ExecuteCommand {
     pub command: String,
     pub is_exec: bool,
-    pub tx: Sender<AppEvent>,
+    pub tx: Sender<ExecEvent>,
 }
 
 impl ExecuteCommand {
     // set default value
-    pub fn new(tx: Sender<AppEvent>) -> Self {
+    pub fn new(tx: Sender<ExecEvent>) -> Self {
         Self {
             command: "".to_string(),
             is_exec: false,
@@ -133,7 +137,7 @@ impl ExecuteCommand {
         };
 
         // Send result
-        let _ = self.tx.send(AppEvent::OutputUpdate(_result));
+        let _ = self.tx.send(ExecEvent::OutputUpdate(_result));
 
         // Memory release.
         drop(vec_output);

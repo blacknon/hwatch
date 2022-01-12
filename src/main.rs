@@ -58,16 +58,10 @@ use std::time::Duration;
 
 // local modules
 mod common;
-// mod event;
 mod exec;
-// mod input;
-mod signal;
 mod view;
 mod watch;
-// use input::Input;
-// use signal::{AppEvent, Signal};
-use signal::AppEvent;
-// use view;
+use exec::ExecEvent;
 
 // const
 pub const DEFAULT_INTERVAL: f64 = 2.0;
@@ -220,9 +214,7 @@ fn main() {
     // check batch mode
     if !_batch {
         // is watch mode
-
         // Create view
-        // let mut _view = View::new(tx.clone(), rx);
         view::start(tx.clone(), rx);
 
         // Set interval on _view.header
