@@ -5,7 +5,9 @@
 #[warn(unused_doc_comments)]
 // module
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -38,16 +40,46 @@ use exec;
 use signal::AppEvent;
 use watch::WatchArea;
 
+///
+enum ActiveArea {
+    Watch,
+    History,
+}
+
+///
+enum InputMode {
+    Normal,
+    Help,
+    Keyword,
+}
+
+///
+enum DiffMode {
+    Disable,
+    Watch,
+    Line,
+}
+
 /// Struct at watch view window.
 pub struct App<'a> {
+    // debug. after delete
     pub area_size: [tui::layout::Rect; 3],
+
+    ///
+    active: ActiveArea,
+
+    ///
+    input: InputMode,
+
+    ///
+    ansi_color: bool,
 
     ///
     ///
     results: Mutex<Vec<exec::Result>>,
 
     ///
-    pub watch_area: WatchArea<'a>,
+    watch_area: WatchArea<'a>,
 
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
@@ -70,8 +102,11 @@ impl<'a> App<'a> {
                 tui::layout::Rect::new(0, 0, 0, 0),
                 tui::layout::Rect::new(0, 0, 0, 0),
             ],
-            watch_area: WatchArea::new(),
+            active: ActiveArea::History,
+            input: InputMode::Normal,
+            ansi_color: false,
             results: Mutex::new(vec![]),
+            watch_area: WatchArea::new(),
             done: false,
             logfile: "".to_string(),
             tx: tx,
@@ -144,33 +179,73 @@ pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io::Result<()> {
     // get Area Size from terminal.Frame
     let mut frame = terminal.get_frame();
     app.get_area(&mut frame);
 
-    while !app.done {
+    loop {
         // draw
-        terminal.draw(|f| draw(f, &mut app));
+        terminal.draw(|f| draw(f, &mut app))?;
         thread::sleep(Duration::from_millis(5));
+
+        // input key
+        match event::read().unwrap() {
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('c'),
+                modifiers: KeyModifiers::CONTROL,
+            }) => return Ok(()),
+            _ => (),
+            // match app.active {
+            //     ActiveArea::Watch => match key.code {
+            //         KeyCode::Char('e') => {
+            //             app.input_mode = InputMode::Editing;
+            //         }
+            //         KeyCode::Char('q') => {
+            //             return Ok(());
+            //         }
+            //         _ => {}
+            //     },
+            //     ActiveArea::History => match key.code {
+            //         KeyCode::Enter => {
+            //             app.messages.push(app.input.drain(..).collect());
+            //         }
+            //         KeyCode::Char(c) => {
+            //             app.input.push(c);
+            //         }
+            //         KeyCode::Backspace => {
+            //             app.input.pop();
+            //         }
+            //         KeyCode::Esc => {
+            //             app.input_mode = InputMode::Normal;
+            //         }
+            //         _ => {}
+            //     },
+            // }
+        }
 
         match app.rx.try_recv() {
             // get result, run self.update()
             Ok(AppEvent::OutputUpdate(exec_result)) => app.result_update(exec_result),
 
             // get exit event
+            // delete?
             Ok(AppEvent::Exit) => app.done = true,
 
             // get signal
+            // delete?
             Ok(AppEvent::Signal(i)) => match i {
                 0x02 => app.done = true,
                 _ => {}
             },
             // Ok(AppEvent::Input(i)) => app.input(i),
+            // delete?
             Ok(AppEvent::Input(i)) => {}
             _ => {}
-        };
+        }
         thread::sleep(Duration::from_millis(5));
+
+        // Ok(())
     }
 }
 
