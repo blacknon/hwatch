@@ -65,24 +65,13 @@ mod signal;
 mod view;
 mod watch;
 // use input::Input;
-use signal::{AppEvent, Signal};
+// use signal::{AppEvent, Signal};
+use signal::AppEvent;
 // use view;
 
 // const
-// default interval value(int)
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
-// pub const IS_WATCH_WIDGET: i32 = 0;
-// pub const IS_HISTORY_WIDGET: i32 = 1;
-// pub const IS_OUTPUT: i32 = 0;
-// pub const IS_STDOUT: i32 = 1;
-// pub const IS_STDERR: i32 = 2;
-// pub const DIFF_DISABLE: i32 = 0;
-// pub const DIFF_WATCH: i32 = 1;
-// pub const DIFF_LINE: i32 = 2;
-// pub const CURSOR_NORMAL_WINDOW: i32 = 0;
-// pub const CURSOR_HELP_WINDOW: i32 = 1;
-// pub const CURSOR_INPUT_KEYWORD: i32 = 2;
 
 /// Parse args and options function.
 fn build_app() -> clap::App<'static, 'static> {

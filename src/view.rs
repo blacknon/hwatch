@@ -47,10 +47,9 @@ enum ActiveArea {
 }
 
 ///
-enum InputMode {
+enum ActiveWindow {
     Normal,
     Help,
-    Keyword,
 }
 
 ///
@@ -60,13 +59,23 @@ enum DiffMode {
     Line,
 }
 
+///
+enum InputMode {
+    None,
+    Filter,
+    Search,
+}
+
 /// Struct at watch view window.
 pub struct App<'a> {
     // debug. after delete
     pub area_size: [tui::layout::Rect; 3],
 
     ///
-    active: ActiveArea,
+    area: ActiveArea,
+
+    ///
+    window: ActiveWindow,
 
     ///
     input: InputMode,
@@ -102,8 +111,9 @@ impl<'a> App<'a> {
                 tui::layout::Rect::new(0, 0, 0, 0),
                 tui::layout::Rect::new(0, 0, 0, 0),
             ],
-            active: ActiveArea::History,
-            input: InputMode::Normal,
+            area: ActiveArea::History,
+            window: ActiveWindow::Normal,
+            input: InputMode::None,
             ansi_color: false,
             results: Mutex::new(vec![]),
             watch_area: WatchArea::new(),
@@ -187,42 +197,64 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io::Res
     loop {
         // draw
         terminal.draw(|f| draw(f, &mut app))?;
-        thread::sleep(Duration::from_millis(5));
 
-        // input key
+        match app.input {
+            InputMode::None => match app.window {
+                ActiveWindow::Help => {}
+                ActiveWindow::Normal => match app.area {
+                    ActiveArea::History => {}
+                    ActiveArea::Watch => {}
+                },
+            },
+
+            InputMode::Filter => {}
+            InputMode::Search => {}
+        }
+
         match event::read().unwrap() {
+            // Common input key
+            // Input Ctrl + C
             Event::Key(KeyEvent {
                 code: KeyCode::Char('c'),
                 modifiers: KeyModifiers::CONTROL,
             }) => return Ok(()),
-            _ => (),
-            // match app.active {
-            //     ActiveArea::Watch => match key.code {
-            //         KeyCode::Char('e') => {
-            //             app.input_mode = InputMode::Editing;
-            //         }
-            //         KeyCode::Char('q') => {
-            //             return Ok(());
-            //         }
-            //         _ => {}
-            //     },
-            //     ActiveArea::History => match key.code {
-            //         KeyCode::Enter => {
-            //             app.messages.push(app.input.drain(..).collect());
-            //         }
-            //         KeyCode::Char(c) => {
-            //             app.input.push(c);
-            //         }
-            //         KeyCode::Backspace => {
-            //             app.input.pop();
-            //         }
-            //         KeyCode::Esc => {
-            //             app.input_mode = InputMode::Normal;
-            //         }
-            //         _ => {}
-            //     },
-            // }
+
+            // Input Tab
+            Event::Key(KeyEvent {
+                code: KeyCode::Tab,
+                modifiers: KeyModifiers::NONE,
+            }) => return Ok(()),
+
+            // Input ESC
+            _ => {}
         }
+
+        // match app.active {
+        //     ActiveArea::Watch => match key.code {
+        //         KeyCode::Char('e') => {
+        //             app.input_mode = InputMode::Editing;
+        //         }
+        //         KeyCode::Char('q') => {
+        //             return Ok(());
+        //         }
+        //         _ => {}
+        //     },
+        //     ActiveArea::History => match key.code {
+        //         KeyCode::Enter => {
+        //             app.messages.push(app.input.drain(..).collect());
+        //         }
+        //         KeyCode::Char(c) => {
+        //             app.input.push(c);
+        //         }
+        //         KeyCode::Backspace => {
+        //             app.input.pop();
+        //         }
+        //         KeyCode::Esc => {
+        //             app.input_mode = InputMode::Normal;
+        //         }
+        //         _ => {}
+        //     },
+        // }
 
         match app.rx.try_recv() {
             // get result, run self.update()
@@ -232,16 +264,16 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io::Res
             // delete?
             Ok(AppEvent::Exit) => app.done = true,
 
-            // get signal
-            // delete?
-            Ok(AppEvent::Signal(i)) => match i {
-                0x02 => app.done = true,
-                _ => {}
-            },
-            // Ok(AppEvent::Input(i)) => app.input(i),
-            // delete?
-            Ok(AppEvent::Input(i)) => {}
-            _ => {}
+            _ => {} // // get signal
+                    // // delete?
+                    // Ok(AppEvent::Signal(i)) => match i {
+                    //     0x02 => app.done = true,
+                    //     _ => {}
+                    // },
+                    // // Ok(AppEvent::Input(i)) => app.input(i),
+                    // // delete?
+                    // Ok(AppEvent::Input(i)) => {}
+                    // _ => {}
         }
         thread::sleep(Duration::from_millis(5));
 
