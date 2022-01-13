@@ -20,12 +20,12 @@ use tui::{
     Frame, Terminal,
 };
 
-pub struct HistoryArea<'a> {
+pub struct HistoryArea {
     ///
     area: tui::layout::Rect,
 
     ///
-    data: Vec<&'a str>,
+    data: Vec<String>,
 
     ///
     current: i32,
@@ -35,12 +35,12 @@ pub struct HistoryArea<'a> {
 }
 
 /// History Area Object Trait
-impl<'a> HistoryArea<'a> {
+impl HistoryArea {
     pub fn new() -> Self {
         //! new Self
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
-            data: vec![""],
+            data: vec!["".to_string()],
             current: 0,
             scroll_position: 0,
         }
@@ -50,5 +50,5 @@ impl<'a> HistoryArea<'a> {
         self.area = area;
     }
 
-    pub fn update(&mut self, history_data: Vec<&str>, current: i32) {}
+    pub fn update(&mut self, history_data: &Vec<String>, current: i32) {}
 }

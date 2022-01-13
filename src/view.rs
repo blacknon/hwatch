@@ -97,7 +97,7 @@ pub struct App<'a> {
     header_area: HeaderArea<'a>,
 
     ///
-    history_area: HistoryArea<'a>,
+    history_area: HistoryArea,
 
     ///
     watch_area: WatchArea<'a>,
@@ -279,6 +279,7 @@ impl<'a> App<'a> {
         self.header_area.update(_result.clone(), &self.area);
 
         // update HistoryArea
+        self.history_area.update(&self.history, self.current);
 
         // update WatchArea
         if self.current == count_results {
