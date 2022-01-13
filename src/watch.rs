@@ -2,6 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Mutex,
+};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout, Rect},
@@ -16,14 +20,16 @@ use tui::{
     Frame, Terminal,
 };
 
-use std::sync::{
-    mpsc::{Receiver, Sender},
-    Mutex,
-};
+use exec;
 
 pub struct WatchArea<'a> {
+    ///
     area: tui::layout::Rect,
+
+    ///
     data: Vec<Spans<'a>>,
+
+    ///
     scroll_position: u16,
 }
 
@@ -42,7 +48,7 @@ impl<'a> WatchArea<'a> {
         self.area = area;
     }
 
-    pub fn update_data(&mut self, text: &str) {
+    pub fn update(&mut self, text: &str) {
         // init self.data
         self.data = vec![];
         let lines = text.split("\n");
@@ -51,9 +57,8 @@ impl<'a> WatchArea<'a> {
             self.data.push(Spans::from(String::from(l)));
         }
 
-        let length = self.data.len() as i32;
-
-        self.data.push(Spans::from(length.to_string()));
+        // let length = self.data.len() as i32;
+        // self.data.push(Spans::from(length.to_string()));
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {

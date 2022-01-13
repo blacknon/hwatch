@@ -38,25 +38,33 @@ use tui::{
 // local module
 use exec;
 use exec::ExecEvent;
+use header::HeaderArea;
 use watch::WatchArea;
 
 ///
-enum ActiveArea {
+pub enum ActiveArea {
     Watch,
     History,
 }
 
 ///
-enum ActiveWindow {
+pub enum ActiveWindow {
     Normal,
     Help,
 }
 
 ///
-enum DiffMode {
+pub enum DiffMode {
     Disable,
     Watch,
     Line,
+}
+
+///
+pub enum OutputMode {
+    Output,
+    Stdout,
+    Stderr,
 }
 
 ///
@@ -84,8 +92,13 @@ pub struct App<'a> {
     ansi_color: bool,
 
     ///
-    ///
     results: Mutex<Vec<exec::Result>>,
+
+    ///
+    current: i32,
+
+    ///
+    header_area: HeaderArea<'a>,
 
     ///
     watch_area: WatchArea<'a>,
@@ -116,6 +129,8 @@ impl<'a> App<'a> {
             input: InputMode::None,
             ansi_color: false,
             results: Mutex::new(vec![]),
+            current: 0,
+            header_area: HeaderArea::new(),
             watch_area: WatchArea::new(),
             done: false,
             logfile: "".to_string(),
@@ -125,10 +140,6 @@ impl<'a> App<'a> {
     }
 
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        // get Area Size from terminal.Frame
-        let mut frame = terminal.get_frame();
-        self.get_area(&mut frame);
-
         loop {
             if self.done {
                 return Ok(());
@@ -138,36 +149,49 @@ impl<'a> App<'a> {
             terminal.draw(|f| self.draw(f))?;
 
             // get input
-            match self.input {
-                InputMode::None => match self.window {
-                    ActiveWindow::Help => {}
-                    ActiveWindow::Normal => match self.area {
-                        ActiveArea::History => {}
-                        ActiveArea::Watch => {}
+            let timeout = Duration::from_millis(5);
+            if crossterm::event::poll(timeout)? {
+                match self.input {
+                    InputMode::None => match self.window {
+                        ActiveWindow::Help => {}
+                        ActiveWindow::Normal => {}
                     },
-                },
 
-                InputMode::Filter => {}
-                InputMode::Search => {}
+                    InputMode::Filter => {}
+                    InputMode::Search => {}
+                }
+
+                match event::read().unwrap() {
+                    // Common input key
+                    // Input Ctrl + C
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                    }) => return Ok(()),
+
+                    // Input Tab
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Tab,
+                        modifiers: KeyModifiers::NONE,
+                    }) => return Ok(()),
+
+                    // Input ESC
+                    _ => {}
+                }
             }
 
-            match event::read().unwrap() {
-                // Common input key
-                // Input Ctrl + C
-                Event::Key(KeyEvent {
-                    code: KeyCode::Char('c'),
-                    modifiers: KeyModifiers::CONTROL,
-                }) => return Ok(()),
+            // get result data
+            match self.rx.try_recv() {
+                // Get command result.
+                Ok(ExecEvent::OutputUpdate(exec_result)) => self.update_result(exec_result),
 
-                // Input Tab
-                Event::Key(KeyEvent {
-                    code: KeyCode::Tab,
-                    modifiers: KeyModifiers::NONE,
-                }) => return Ok(()),
+                // get exit event
+                Ok(ExecEvent::Exit) => self.done = true,
 
-                // Input ESC
                 _ => {}
             }
+
+            // let aaa = event::read().unwrap();
 
             // match self.active {
             //     ActiveArea::Watch => match key.code {
@@ -196,22 +220,11 @@ impl<'a> App<'a> {
             //     },
             // }
 
-            match self.rx.try_recv() {
-                // get result, run self.update()
-                Ok(ExecEvent::OutputUpdate(exec_result)) => self.results_update(exec_result),
-
-                // get exit event
-                Ok(ExecEvent::Exit) => self.done = true,
-
-                _ => {}
-            }
-            thread::sleep(Duration::from_millis(5));
-
             // Ok(())
         }
     }
 
-    pub fn get_area<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn get_area<B: Backend>(&mut self, f: &mut Frame<B>) {
         // get Area's chunks
         let top_chunks = Layout::default()
             .constraints([Constraint::Length(2), Constraint::Max(0)].as_ref())
@@ -230,12 +243,15 @@ impl<'a> App<'a> {
 
         let areas = [top_chunks[0], main_chanks[0], main_chanks[1]];
 
+        self.header_area.set_area(areas[0]);
         self.watch_area.set_area(areas[1]);
     }
 
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let block = Block::default().title("header");
-        f.render_widget(block, self.area_size[0]);
+        self.get_area(f);
+
+        // Draw header area.
+        self.header_area.draw(f);
 
         // Draw watch area.
         self.watch_area.draw(f);
@@ -244,9 +260,31 @@ impl<'a> App<'a> {
         f.render_widget(block, self.area_size[2]);
     }
 
-    pub fn results_update(&mut self, result: exec::Result) {
-        self.watch_area.update_data(&result.output);
+    pub fn update_result(&mut self, _result: exec::Result) {
+        // diff output data.
+
+        let mut results = self.results.lock().unwrap();
+        results.insert(0, _result.clone());
+        let count_results = results.len() as i32;
+
+        // update current
+        self.current += 1;
+
+        // update WatchArea
+        if self.current == count_results {
+            self.watch_area.update(&_result.output);
+        }
+
+        self.header_area.update(_result.clone(), &self.area);
     }
+
+    pub fn input_key_up(&mut self) {}
+
+    pub fn input_Key_down(&mut self) {}
+
+    pub fn input_key_left(&mut self) {}
+
+    pub fn input_key_right(&mut self) {}
 }
 
 /// start hwatch app view.
@@ -262,7 +300,7 @@ pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<d
     let mut app = App::new(tx, rx);
 
     // Run App
-    app.run(&mut terminal);
+    let res = app.run(&mut terminal);
 
     // Restore terminal
     disable_raw_mode()?;
@@ -272,6 +310,10 @@ pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<d
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err)
+    }
 
     Ok(())
 }
