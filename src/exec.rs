@@ -27,19 +27,6 @@ pub struct Result {
     pub stderr: String,
 }
 
-impl Result {
-    pub fn new() -> Self {
-        Self {
-            timestamp: String::new(),
-            command: String::new(),
-            status: true,
-            output: String::new(),
-            stdout: String::new(),
-            stderr: String::new(),
-        }
-    }
-}
-
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
     pub command: String,

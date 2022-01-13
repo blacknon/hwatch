@@ -60,6 +60,7 @@ use std::time::Duration;
 mod common;
 mod exec;
 mod header;
+mod history;
 mod view;
 mod watch;
 // use exec::ExecEvent;

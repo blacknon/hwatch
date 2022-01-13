@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える
+
 use std::iter;
 use tui::{
     backend::Backend,
@@ -40,6 +42,7 @@ pub struct HeaderArea<'a> {
     output_mode: OutputMode,
 }
 
+/// Header Area Object Trait
 impl<'a> HeaderArea<'a> {
     pub fn new() -> Self {
         Self {

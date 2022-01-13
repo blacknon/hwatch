@@ -33,10 +33,10 @@ pub struct WatchArea<'a> {
     scroll_position: u16,
 }
 
-/// Signal Trait
+/// Watch Area Object Trait
 impl<'a> WatchArea<'a> {
     pub fn new() -> Self {
-        //! new WatchArea
+        //! new Self
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
             data: vec![Spans::from("")],

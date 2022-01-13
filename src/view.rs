@@ -18,20 +18,12 @@ use std::{
         mpsc::{Receiver, Sender},
         Mutex,
     },
-    thread,
     time::Duration,
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols,
-    text::{Span, Spans},
-    widgets::canvas::{Canvas, Line, Map, MapResolution, Rectangle},
-    widgets::{
-        Axis, BarChart, Block, Borders, Cell, Chart, Dataset, Gauge, LineGauge, List, ListItem,
-        Paragraph, Row, Sparkline, Table, Tabs, Wrap,
-    },
+    layout::{Constraint, Direction, Layout},
+    widgets::Block,
     Frame, Terminal,
 };
 
@@ -39,6 +31,7 @@ use tui::{
 use exec;
 use exec::ExecEvent;
 use header::HeaderArea;
+use history::HistoryArea;
 use watch::WatchArea;
 
 ///
@@ -95,10 +88,16 @@ pub struct App<'a> {
     results: Mutex<Vec<exec::Result>>,
 
     ///
+    history: Vec<String>,
+
+    ///
     current: i32,
 
     ///
     header_area: HeaderArea<'a>,
+
+    ///
+    history_area: HistoryArea<'a>,
 
     ///
     watch_area: WatchArea<'a>,
@@ -129,8 +128,10 @@ impl<'a> App<'a> {
             input: InputMode::None,
             ansi_color: false,
             results: Mutex::new(vec![]),
+            history: vec![],
             current: 0,
             header_area: HeaderArea::new(),
+            history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
             done: false,
             logfile: "".to_string(),
@@ -263,19 +264,26 @@ impl<'a> App<'a> {
     pub fn update_result(&mut self, _result: exec::Result) {
         // diff output data.
 
+        // append results
         let mut results = self.results.lock().unwrap();
         results.insert(0, _result.clone());
         let count_results = results.len() as i32;
 
+        // append history
+        self.history.push(_result.timestamp.to_string());
+
         // update current
         self.current += 1;
+
+        // update HeaderArea
+        self.header_area.update(_result.clone(), &self.area);
+
+        // update HistoryArea
 
         // update WatchArea
         if self.current == count_results {
             self.watch_area.update(&_result.output);
         }
-
-        self.header_area.update(_result.clone(), &self.area);
     }
 
     pub fn input_key_up(&mut self) {}
