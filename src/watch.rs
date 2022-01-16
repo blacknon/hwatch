@@ -7,7 +7,7 @@ use std::sync::{
     Mutex,
 };
 use tui::{
-    backend::{Backend, CrosstermBackend},
+    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,

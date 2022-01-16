@@ -88,9 +88,6 @@ pub struct App<'a> {
     results: Mutex<Vec<exec::Result>>,
 
     ///
-    history: Vec<String>,
-
-    ///
     current: i32,
 
     ///
@@ -128,7 +125,6 @@ impl<'a> App<'a> {
             input: InputMode::None,
             ansi_color: false,
             results: Mutex::new(vec![]),
-            history: vec![],
             current: 0,
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
@@ -246,6 +242,7 @@ impl<'a> App<'a> {
 
         self.header_area.set_area(areas[0]);
         self.watch_area.set_area(areas[1]);
+        self.history_area.set_area(areas[2]);
     }
 
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -257,8 +254,8 @@ impl<'a> App<'a> {
         // Draw watch area.
         self.watch_area.draw(f);
 
-        let block = Block::default().title("history");
-        f.render_widget(block, self.area_size[2]);
+        // Draw history area
+        self.history_area.draw(f);
     }
 
     pub fn update_result(&mut self, _result: exec::Result) {
@@ -269,17 +266,16 @@ impl<'a> App<'a> {
         results.insert(0, _result.clone());
         let count_results = results.len() as i32;
 
-        // append history
-        self.history.push(_result.timestamp.to_string());
-
-        // update current
+        // update current and timestamp
         self.current += 1;
+
+        // update HistoryArea
+        let _timestamp = &results[0].timestamp;
+        self.history_area
+            .update(_timestamp.to_string(), self.current);
 
         // update HeaderArea
         self.header_area.update(_result.clone(), &self.area);
-
-        // update HistoryArea
-        self.history_area.update(&self.history, self.current);
 
         // update WatchArea
         if self.current == count_results {
