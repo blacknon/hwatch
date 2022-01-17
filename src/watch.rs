@@ -30,7 +30,7 @@ pub struct WatchArea<'a> {
     data: Vec<Spans<'a>>,
 
     ///
-    scroll_position: u16,
+    state: u16,
 }
 
 /// Watch Area Object Trait
@@ -40,7 +40,7 @@ impl<'a> WatchArea<'a> {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
             data: vec![Spans::from("")],
-            scroll_position: 0,
+            state: 0,
         }
     }
 

@@ -14,7 +14,7 @@ use tui::{
 };
 
 // local module
-use exec::Result;
+use exec::CommandResult;
 use view::{ActiveArea, DiffMode, OutputMode};
 
 //const
@@ -59,7 +59,7 @@ impl<'a> HeaderArea<'a> {
         self.area = area;
     }
 
-    pub fn update(&mut self, result: Result, active: &ActiveArea) {
+    pub fn update(&mut self, result: CommandResult, active: &ActiveArea) {
         // init data
         self.data = vec![];
 

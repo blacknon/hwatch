@@ -11,7 +11,7 @@ use std::fs::OpenOptions;
 use std::io::prelude::*;
 
 // local module
-use exec::Result;
+use exec::CommandResult;
 
 pub fn now_str() -> String {
     let date = Local::now();
@@ -19,7 +19,7 @@ pub fn now_str() -> String {
 }
 
 // logging result data to log file(_logpath).
-pub fn logging_result(_logpath: &String, _result: &Result) -> serde_json::Result<()> {
+pub fn logging_result(_logpath: &String, _result: &CommandResult) -> serde_json::Result<()> {
     // Open logfile
     let mut logfile = OpenOptions::new()
         .write(true)

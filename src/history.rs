@@ -32,9 +32,6 @@ pub struct HistoryArea {
 
     ///
     current: i32,
-
-    ///
-    scroll_position: u16,
 }
 
 /// History Area Object Trait
@@ -46,7 +43,6 @@ impl HistoryArea {
             data: vec![vec!["latest".to_string()]],
             state: TableState::default(),
             current: 0,
-            scroll_position: 0,
         }
     }
 
@@ -68,7 +64,6 @@ impl HistoryArea {
 
         // style
         let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-        // let normal_style = Style::default().bg(Color::Blue);
 
         let rows = draw_data.iter().map(|item| {
             let height = item
@@ -88,5 +83,33 @@ impl HistoryArea {
             .widths(&[Constraint::Percentage(100)]);
 
         frame.render_stateful_widget(table, self.area, &mut self.state);
+    }
+
+    pub fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.data.len() - 1 {
+                    0
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    pub fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.data.len() - 1
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
     }
 }

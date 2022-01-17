@@ -23,13 +23,12 @@ use std::{
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    widgets::Block,
     Frame, Terminal,
 };
 
 // local module
-use exec;
-use exec::ExecEvent;
+use event::AppEvent;
+use exec::CommandResult;
 use header::HeaderArea;
 use history::HistoryArea;
 use watch::WatchArea;
@@ -69,8 +68,8 @@ enum InputMode {
 
 /// Struct at watch view window.
 pub struct App<'a> {
-    // debug. after delete
-    pub area_size: [tui::layout::Rect; 3],
+    ///
+    timeout: std::time::Duration,
 
     ///
     area: ActiveArea,
@@ -85,7 +84,7 @@ pub struct App<'a> {
     ansi_color: bool,
 
     ///
-    results: Mutex<Vec<exec::Result>>,
+    results: Mutex<Vec<CommandResult>>,
 
     ///
     current: i32,
@@ -106,20 +105,16 @@ pub struct App<'a> {
     /// logfile path.
     pub logfile: String,
 
-    pub tx: Sender<ExecEvent>,
-    pub rx: Receiver<ExecEvent>,
+    pub tx: Sender<AppEvent>,
+    pub rx: Receiver<AppEvent>,
 }
 
 /// Trail at watch view window.
 impl<'a> App<'a> {
-    pub fn new(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Self {
+    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
         ///! method at create new view trail.
         Self {
-            area_size: [
-                tui::layout::Rect::new(0, 0, 0, 0),
-                tui::layout::Rect::new(0, 0, 0, 0),
-                tui::layout::Rect::new(0, 0, 0, 0),
-            ],
+            timeout: Duration::from_millis(10),
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
             input: InputMode::None,
@@ -137,6 +132,8 @@ impl<'a> App<'a> {
     }
 
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+        self.history_area.next();
+
         loop {
             if self.done {
                 return Ok(());
@@ -145,79 +142,19 @@ impl<'a> App<'a> {
             // Draw data
             terminal.draw(|f| self.draw(f))?;
 
-            // get input
-            let timeout = Duration::from_millis(5);
-            if crossterm::event::poll(timeout)? {
-                match self.input {
-                    InputMode::None => match self.window {
-                        ActiveWindow::Help => {}
-                        ActiveWindow::Normal => {}
-                    },
-
-                    InputMode::Filter => {}
-                    InputMode::Search => {}
-                }
-
-                match event::read().unwrap() {
-                    // Common input key
-                    // Input Ctrl + C
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                    }) => return Ok(()),
-
-                    // Input Tab
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Tab,
-                        modifiers: KeyModifiers::NONE,
-                    }) => return Ok(()),
-
-                    // Input ESC
-                    _ => {}
-                }
-            }
-
-            // get result data
+            // get event
             match self.rx.try_recv() {
+                // Get terminal event.
+                Ok(AppEvent::TerminalEvent(terminal_event)) => self.get_event(terminal_event),
+
                 // Get command result.
-                Ok(ExecEvent::OutputUpdate(exec_result)) => self.update_result(exec_result),
+                Ok(AppEvent::OutputUpdate(exec_result)) => self.update_result(exec_result),
 
                 // get exit event
-                Ok(ExecEvent::Exit) => self.done = true,
+                Ok(AppEvent::Exit) => self.done = true,
 
                 _ => {}
             }
-
-            // let aaa = event::read().unwrap();
-
-            // match self.active {
-            //     ActiveArea::Watch => match key.code {
-            //         KeyCode::Char('e') => {
-            //             self.input_mode = InputMode::Editing;
-            //         }
-            //         KeyCode::Char('q') => {
-            //             return Ok(());
-            //         }
-            //         _ => {}
-            //     },
-            //     ActiveArea::History => match key.code {
-            //         KeyCode::Enter => {
-            //             self.messages.push(self.input.drain(..).collect());
-            //         }
-            //         KeyCode::Char(c) => {
-            //             self.input.push(c);
-            //         }
-            //         KeyCode::Backspace => {
-            //             self.input.pop();
-            //         }
-            //         KeyCode::Esc => {
-            //             self.input_mode = InputMode::Normal;
-            //         }
-            //         _ => {}
-            //     },
-            // }
-
-            // Ok(())
         }
     }
 
@@ -245,6 +182,17 @@ impl<'a> App<'a> {
         self.history_area.set_area(areas[2]);
     }
 
+    fn get_event(&mut self, terminal_event: crossterm::event::Event) {
+        match self.input {
+            InputMode::None => match self.window {
+                ActiveWindow::Normal => self.get_input_key(terminal_event),
+                ActiveWindow::Help => {}
+            },
+            InputMode::Filter => {}
+            InputMode::Search => {}
+        }
+    }
+
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.get_area(f);
 
@@ -258,7 +206,7 @@ impl<'a> App<'a> {
         self.history_area.draw(f);
     }
 
-    pub fn update_result(&mut self, _result: exec::Result) {
+    pub fn update_result(&mut self, _result: CommandResult) {
         // diff output data.
 
         // append results
@@ -283,23 +231,102 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn input_key_up(&mut self) {}
+    fn get_input_key(&mut self, terminal_event: crossterm::event::Event) {
+        match terminal_event {
+            // q ... exit hwatch.
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('q'),
+                modifiers: KeyModifiers::NONE,
+            }) => self
+                .tx
+                .send(AppEvent::Exit)
+                .expect("send error hwatch exit."),
 
-    pub fn input_Key_down(&mut self) {}
+            // h ... toggel help window.
 
-    pub fn input_key_left(&mut self) {}
+            // up
+            Event::Key(KeyEvent {
+                code: KeyCode::Up,
+                modifiers: KeyModifiers::NONE,
+            }) => self.input_key_up(),
 
-    pub fn input_key_right(&mut self) {}
+            // down
+            Event::Key(KeyEvent {
+                code: KeyCode::Down,
+                modifiers: KeyModifiers::NONE,
+            }) => self.input_key_down(),
+
+            // Tab ... Toggle Area(Watch or History).
+            Event::Key(KeyEvent {
+                code: KeyCode::Tab,
+                modifiers: KeyModifiers::NONE,
+            }) => self.toggle_area(),
+
+            // Common input key
+
+            // Ctrl + C ... exit hwatch.
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('c'),
+                modifiers: KeyModifiers::CONTROL,
+            }) => self
+                .tx
+                .send(AppEvent::Exit)
+                .expect("send error hwatch exit."),
+
+            _ => {}
+        }
+    }
+
+    fn toggle_area(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => self.area = ActiveArea::History,
+                ActiveArea::History => self.area = ActiveArea::Watch,
+            },
+            _ => {}
+        }
+    }
+
+    fn input_key_up(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {}
+                ActiveArea::History => self.history_area.next(),
+            },
+            ActiveWindow::Help => {}
+        }
+    }
+
+    fn input_key_down(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {}
+                ActiveArea::History => self.history_area.previous(),
+            },
+            ActiveWindow::Help => {}
+        }
+    }
+
+    fn input_key_left(&mut self) {}
+
+    fn input_key_right(&mut self) {}
 }
 
 /// start hwatch app view.
-pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<dyn Error>> {
+pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn Error>> {
     // Setup Terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+
+    {
+        let input_tx = tx.clone();
+        let _ = std::thread::spawn(move || loop {
+            send_input(input_tx.clone());
+        });
+    }
 
     // Create App
     let mut app = App::new(tx, rx);
@@ -318,6 +345,16 @@ pub fn start(tx: Sender<ExecEvent>, rx: Receiver<ExecEvent>) -> Result<(), Box<d
 
     if let Err(err) = res {
         println!("{:?}", err)
+    }
+
+    Ok(())
+}
+
+fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
+    let timeout = Duration::from_millis(5);
+    if crossterm::event::poll(timeout)? {
+        let event = crossterm::event::read().expect("failed to read crossterm event");
+        tx.clone().send(AppEvent::TerminalEvent(event));
     }
 
     Ok(())

@@ -58,12 +58,12 @@ use std::time::Duration;
 
 // local modules
 mod common;
+mod event;
 mod exec;
 mod header;
 mod history;
 mod view;
 mod watch;
-// use exec::ExecEvent;
 
 // const
 pub const DEFAULT_INTERVAL: f64 = 2.0;
