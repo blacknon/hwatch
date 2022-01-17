@@ -193,6 +193,23 @@ impl<'a> App<'a> {
         }
     }
 
+    fn push_watch_data(&mut self, num: usize) {
+        let results = self.results.lock().unwrap();
+        let count = results.len();
+
+        let mut target = num;
+        if num >= 1 {
+            target = target - 1;
+        }
+
+        // outpu text
+        let output_data = &results[target].timestamp;
+
+        if count > target {
+            self.watch_area.update(output_data);
+        }
+    }
+
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.get_area(f);
 
@@ -212,7 +229,6 @@ impl<'a> App<'a> {
         // append results
         let mut results = self.results.lock().unwrap();
         results.insert(0, _result.clone());
-        let count_results = results.len() as i32;
 
         // update current and timestamp
         self.current += 1;
@@ -222,11 +238,17 @@ impl<'a> App<'a> {
         self.history_area
             .update(_timestamp.to_string(), self.current);
 
+        // update selected
+        let selected = self.history_area.get_state_select();
+        if selected != 0 {
+            self.history_area.previous();
+        }
+
         // update HeaderArea
         self.header_area.update(_result.clone(), &self.area);
 
         // update WatchArea
-        if self.current == count_results {
+        if selected == 0 {
             self.watch_area.update(&_result.output);
         }
     }
@@ -291,7 +313,14 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {}
-                ActiveArea::History => self.history_area.next(),
+                ActiveArea::History => {
+                    // move next history
+                    self.history_area.next();
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.push_watch_data(selected);
+                }
             },
             ActiveWindow::Help => {}
         }
@@ -301,7 +330,14 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {}
-                ActiveArea::History => self.history_area.previous(),
+                ActiveArea::History => {
+                    // move previous history
+                    self.history_area.previous();
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.push_watch_data(selected);
+                }
             },
             ActiveWindow::Help => {}
         }
@@ -324,7 +360,7 @@ pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn
     {
         let input_tx = tx.clone();
         let _ = std::thread::spawn(move || loop {
-            send_input(input_tx.clone());
+            let _ = send_input(input_tx.clone());
         });
     }
 
@@ -354,7 +390,7 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     let timeout = Duration::from_millis(5);
     if crossterm::event::poll(timeout)? {
         let event = crossterm::event::read().expect("failed to read crossterm event");
-        tx.clone().send(AppEvent::TerminalEvent(event));
+        let _ = tx.clone().send(AppEvent::TerminalEvent(event));
     }
 
     Ok(())

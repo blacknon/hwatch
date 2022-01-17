@@ -56,9 +56,6 @@ impl<'a> WatchArea<'a> {
         for l in lines {
             self.data.push(Spans::from(String::from(l)));
         }
-
-        // let length = self.data.len() as i32;
-        // self.data.push(Spans::from(length.to_string()));
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {

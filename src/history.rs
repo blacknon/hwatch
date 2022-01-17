@@ -85,13 +85,21 @@ impl HistoryArea {
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 
+    pub fn get_state_select(&mut self) -> usize {
+        let i = match self.state.selected() {
+            Some(i) => i,
+            None => 0,
+        };
+        return i;
+    }
+
     pub fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.data.len() - 1 {
-                    0
-                } else {
+                if i > 0 {
                     i - 1
+                } else {
+                    i
                 }
             }
             None => 0,
@@ -102,10 +110,10 @@ impl HistoryArea {
     pub fn previous(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i == 0 {
-                    self.data.len() - 1
-                } else {
+                if i < self.data.len() - 1 {
                     i + 1
+                } else {
+                    i
                 }
             }
             None => 0,
