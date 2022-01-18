@@ -26,17 +26,28 @@ pub struct HeaderArea<'a> {
     area: tui::layout::Rect,
 
     ///
+    interval: f64,
+
+    ///
+    command: String,
+
+    ///
+    timestamp: String,
+
+    ///
+    exec_status: bool,
+
+    ///
+    data: Vec<Spans<'a>>,
+
+    ///
     color: bool,
 
     ///
     diff_mode: DiffMode,
 
     ///
-    interval: f64,
-
-    ///
-    ///
-    data: Vec<Spans<'a>>,
+    active_area: ActiveArea,
 
     ///
     output_mode: OutputMode,
@@ -47,10 +58,17 @@ impl<'a> HeaderArea<'a> {
     pub fn new() -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
+
+            interval: ::DEFAULT_INTERVAL,
+
+            command: "".to_string(),
+            timestamp: "".to_string(),
+            exec_status: true,
+
+            data: vec![Spans::from("")],
             color: false,
             diff_mode: DiffMode::Disable,
-            interval: ::DEFAULT_INTERVAL,
-            data: vec![Spans::from("")],
+            active_area: ActiveArea::History,
             output_mode: OutputMode::Output,
         }
     }
@@ -59,7 +77,21 @@ impl<'a> HeaderArea<'a> {
         self.area = area;
     }
 
-    pub fn update(&mut self, result: CommandResult, active: &ActiveArea) {
+    pub fn set_active_area(&mut self, active: ActiveArea) {
+        self.active_area = active;
+    }
+
+    pub fn set_output_mode(&mut self, mode: OutputMode) {
+        self.output_mode = mode;
+    }
+
+    pub fn set_current_result(&mut self, result: CommandResult) {
+        self.command = result.command;
+        self.timestamp = result.timestamp;
+        self.exec_status = result.status;
+    }
+
+    pub fn update(&mut self) {
         // init data
         self.data = vec![];
 
@@ -78,9 +110,6 @@ impl<'a> HeaderArea<'a> {
 
         // Get the data to display at header.
         let interval = format!("{:.3}", self.interval);
-        let command = result.command;
-        let timestamp = result.timestamp;
-        let status = result.status;
 
         // Set output type value
         let value_output: String;
@@ -92,7 +121,7 @@ impl<'a> HeaderArea<'a> {
 
         // Set Active Area value
         let value_active: String;
-        match active {
+        match self.active_area {
             ActiveArea::History => value_active = "history".to_string(),
             ActiveArea::Watch => value_active = "watch".to_string(),
         }
@@ -108,7 +137,7 @@ impl<'a> HeaderArea<'a> {
         // Set Color
         let command_color: Color;
         let is_enable_color: Color;
-        match status {
+        match self.exec_status {
             true => command_color = Color::Green,
             false => command_color = Color::Red,
         }
@@ -126,7 +155,7 @@ impl<'a> HeaderArea<'a> {
             ),
             Span::raw("s: "),
             Span::styled(
-                format!("{:wid$}", command, wid = command_width),
+                format!("{:wid$}", self.command, wid = command_width),
                 Style::default().fg(command_color),
             ),
             Span::styled(
@@ -134,7 +163,7 @@ impl<'a> HeaderArea<'a> {
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
             Span::styled(
-                format!("{:>wid$}", timestamp, wid = timestamp_width),
+                format!("{:>wid$}", self.timestamp, wid = timestamp_width),
                 Style::default().fg(Color::Cyan),
             ),
         ]));

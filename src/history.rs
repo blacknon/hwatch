@@ -29,9 +29,6 @@ pub struct HistoryArea {
 
     ///
     state: TableState,
-
-    ///
-    current: i32,
 }
 
 /// History Area Object Trait
@@ -42,7 +39,6 @@ impl HistoryArea {
             area: tui::layout::Rect::new(0, 0, 0, 0),
             data: vec![vec!["latest".to_string()]],
             state: TableState::default(),
-            current: 0,
         }
     }
 
@@ -50,12 +46,9 @@ impl HistoryArea {
         self.area = area;
     }
 
-    pub fn update(&mut self, timestamp: String, current: i32) {
+    pub fn update(&mut self, timestamp: String) {
         // insert latest timestamp
         self.data.insert(1, vec![timestamp]);
-
-        // set data.
-        self.current = current;
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {

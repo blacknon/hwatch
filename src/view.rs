@@ -34,18 +34,21 @@ use history::HistoryArea;
 use watch::WatchArea;
 
 ///
+#[derive(Clone, Copy)]
 pub enum ActiveArea {
     Watch,
     History,
 }
 
 ///
+#[derive(Clone, Copy)]
 pub enum ActiveWindow {
     Normal,
     Help,
 }
 
 ///
+#[derive(Clone, Copy)]
 pub enum DiffMode {
     Disable,
     Watch,
@@ -53,6 +56,7 @@ pub enum DiffMode {
 }
 
 ///
+#[derive(Clone, Copy)]
 pub enum OutputMode {
     Output,
     Stdout,
@@ -60,6 +64,7 @@ pub enum OutputMode {
 }
 
 ///
+#[derive(Clone, Copy)]
 enum InputMode {
     None,
     Filter,
@@ -78,16 +83,16 @@ pub struct App<'a> {
     window: ActiveWindow,
 
     ///
-    input: InputMode,
-
-    ///
     ansi_color: bool,
 
     ///
-    results: Mutex<Vec<CommandResult>>,
+    input_mode: InputMode,
 
     ///
-    current: i32,
+    output_mode: OutputMode,
+
+    ///
+    results: Mutex<Vec<CommandResult>>,
 
     ///
     header_area: HeaderArea<'a>,
@@ -117,10 +122,13 @@ impl<'a> App<'a> {
             timeout: Duration::from_millis(10),
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
-            input: InputMode::None,
+
             ansi_color: false,
+            input_mode: InputMode::None,
+            output_mode: OutputMode::Output,
+
             results: Mutex::new(vec![]),
-            current: 0,
+
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
@@ -183,17 +191,14 @@ impl<'a> App<'a> {
     }
 
     fn get_event(&mut self, terminal_event: crossterm::event::Event) {
-        match self.input {
-            InputMode::None => match self.window {
-                ActiveWindow::Normal => self.get_input_key(terminal_event),
-                ActiveWindow::Help => {}
-            },
+        match self.input_mode {
+            InputMode::None => self.get_input_key(terminal_event),
             InputMode::Filter => {}
             InputMode::Search => {}
         }
     }
 
-    fn push_watch_data(&mut self, num: usize) {
+    fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
         let count = results.len();
 
@@ -203,11 +208,25 @@ impl<'a> App<'a> {
         }
 
         // outpu text
-        let output_data = &results[target].timestamp;
+        let output_data: &str;
+        match self.output_mode {
+            OutputMode::Output => output_data = &results[target].output,
+            OutputMode::Stdout => output_data = &results[target].stdout,
+            OutputMode::Stderr => output_data = &results[target].stderr,
+        }
 
         if count > target {
-            self.watch_area.update(output_data);
+            self.watch_area.update_output(output_data);
         }
+    }
+
+    fn set_output_mode(&mut self, mode: OutputMode) {
+        self.output_mode = mode;
+        self.header_area.set_output_mode(mode);
+        self.header_area.update();
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -230,13 +249,9 @@ impl<'a> App<'a> {
         let mut results = self.results.lock().unwrap();
         results.insert(0, _result.clone());
 
-        // update current and timestamp
-        self.current += 1;
-
         // update HistoryArea
         let _timestamp = &results[0].timestamp;
-        self.history_area
-            .update(_timestamp.to_string(), self.current);
+        self.history_area.update(_timestamp.to_string());
 
         // update selected
         let selected = self.history_area.get_state_select();
@@ -245,67 +260,133 @@ impl<'a> App<'a> {
         }
 
         // update HeaderArea
-        self.header_area.update(_result.clone(), &self.area);
+        self.header_area.set_current_result(_result.clone());
+        self.header_area.update();
 
         // update WatchArea
-        if selected == 0 {
-            self.watch_area.update(&_result.output);
-        }
+        drop(results);
+        self.set_output_data(selected);
+
+        //
+        // if selected == 0 {
+        //     self.watch_area.update(&_result.output);
+        // }
     }
 
     fn get_input_key(&mut self, terminal_event: crossterm::event::Event) {
-        match terminal_event {
-            // q ... exit hwatch.
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('q'),
-                modifiers: KeyModifiers::NONE,
-            }) => self
-                .tx
-                .send(AppEvent::Exit)
-                .expect("send error hwatch exit."),
+        match self.window {
+            ActiveWindow::Normal => {
+                match terminal_event {
+                    // up
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Up,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.input_key_up(),
 
-            // h ... toggel help window.
+                    // down
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Down,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.input_key_down(),
 
-            // up
-            Event::Key(KeyEvent {
-                code: KeyCode::Up,
-                modifiers: KeyModifiers::NONE,
-            }) => self.input_key_up(),
+                    // pgup
 
-            // down
-            Event::Key(KeyEvent {
-                code: KeyCode::Down,
-                modifiers: KeyModifiers::NONE,
-            }) => self.input_key_down(),
+                    // pgdn
 
-            // Tab ... Toggle Area(Watch or History).
-            Event::Key(KeyEvent {
-                code: KeyCode::Tab,
-                modifiers: KeyModifiers::NONE,
-            }) => self.toggle_area(),
+                    // left
 
-            // Common input key
+                    // right
 
-            // Ctrl + C ... exit hwatch.
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('c'),
-                modifiers: KeyModifiers::CONTROL,
-            }) => self
-                .tx
-                .send(AppEvent::Exit)
-                .expect("send error hwatch exit."),
+                    // c
 
-            _ => {}
+                    // d
+
+                    // o
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('o'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_output(),
+
+                    // Tab ... Toggle Area(Watch or History).
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Tab,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_area(),
+
+                    // Common input key
+                    // h ... toggel help window.
+
+                    // q ... exit hwatch.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('q'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self
+                        .tx
+                        .send(AppEvent::Exit)
+                        .expect("send error hwatch exit."),
+
+                    // Ctrl + C ... exit hwatch.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                    }) => self
+                        .tx
+                        .send(AppEvent::Exit)
+                        .expect("send error hwatch exit."),
+
+                    _ => {}
+                }
+            }
+            ActiveWindow::Help => {
+                match terminal_event {
+                    // Common input key
+                    // h ... toggel help window.
+
+                    // q ... exit hwatch.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('q'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self
+                        .tx
+                        .send(AppEvent::Exit)
+                        .expect("send error hwatch exit."),
+
+                    // Ctrl + C ... exit hwatch.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                    }) => self
+                        .tx
+                        .send(AppEvent::Exit)
+                        .expect("send error hwatch exit."),
+
+                    _ => {}
+                }
+            }
         }
     }
 
     fn toggle_area(&mut self) {
         match self.window {
-            ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => self.area = ActiveArea::History,
-                ActiveArea::History => self.area = ActiveArea::Watch,
-            },
+            ActiveWindow::Normal => {
+                match self.area {
+                    ActiveArea::Watch => self.area = ActiveArea::History,
+                    ActiveArea::History => self.area = ActiveArea::Watch,
+                }
+
+                // set active window to header.
+                self.header_area.set_active_area(self.area.clone());
+                self.header_area.update();
+            }
             _ => {}
+        }
+    }
+
+    fn toggle_output(&mut self) {
+        match self.output_mode {
+            OutputMode::Output => self.set_output_mode(OutputMode::Stdout),
+            OutputMode::Stdout => self.set_output_mode(OutputMode::Stderr),
+            OutputMode::Stderr => self.set_output_mode(OutputMode::Output),
         }
     }
 
@@ -319,7 +400,7 @@ impl<'a> App<'a> {
 
                     // get now selected history
                     let selected = self.history_area.get_state_select();
-                    self.push_watch_data(selected);
+                    self.set_output_data(selected);
                 }
             },
             ActiveWindow::Help => {}
@@ -336,7 +417,7 @@ impl<'a> App<'a> {
 
                     // get now selected history
                     let selected = self.history_area.get_state_select();
-                    self.push_watch_data(selected);
+                    self.set_output_data(selected);
                 }
             },
             ActiveWindow::Help => {}

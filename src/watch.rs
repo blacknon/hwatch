@@ -20,14 +20,15 @@ use tui::{
     Frame, Terminal,
 };
 
-use exec;
-
 pub struct WatchArea<'a> {
     ///
     area: tui::layout::Rect,
 
     ///
     data: Vec<Spans<'a>>,
+
+    ///
+    color: bool,
 
     ///
     state: u16,
@@ -40,6 +41,7 @@ impl<'a> WatchArea<'a> {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
             data: vec![Spans::from("")],
+            color: false,
             state: 0,
         }
     }
@@ -48,7 +50,7 @@ impl<'a> WatchArea<'a> {
         self.area = area;
     }
 
-    pub fn update(&mut self, text: &str) {
+    pub fn update_output(&mut self, text: &str) {
         // init self.data
         self.data = vec![];
         let lines = text.split("\n");
@@ -57,6 +59,8 @@ impl<'a> WatchArea<'a> {
             self.data.push(Spans::from(String::from(l)));
         }
     }
+
+    pub fn update_output_diff(&mut self, text1: &str, text2: &str) {}
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         let block = Paragraph::new(self.data.clone()).wrap(Wrap { trim: true });
