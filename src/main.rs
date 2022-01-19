@@ -20,6 +20,7 @@
 // TODO(blacknon): 長いcommand指定時は省略して出力させる
 // TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
 
+extern crate ansi_to_tui;
 #[warn(unused_doc_comments)]
 // crate
 extern crate crossterm;

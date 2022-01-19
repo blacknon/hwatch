@@ -8,6 +8,7 @@ repository = "https://github.com/blacknon/hwatch"
 version = "0.2.0"
 
 [dependencies]
+ansi-to-tui = "0.4.1"
 chrono = "0.4"
 clap = "2.20.3"
 crossterm = "0.22"

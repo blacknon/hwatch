@@ -2,6 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use ansi_to_tui::ansi_to_text;
 use std::sync::{
     mpsc::{Receiver, Sender},
     Mutex,
@@ -53,10 +54,17 @@ impl<'a> WatchArea<'a> {
     pub fn update_output(&mut self, text: &str) {
         // init self.data
         self.data = vec![];
-        let lines = text.split("\n");
 
+        // let data = ansi_to_tui::ansi_to_text(text.as_bytes().to_vec()).unwrap();
+        // self.data = data.lines;
+
+        let lines = text.split("\n");
         for l in lines {
-            self.data.push(Spans::from(String::from(l)));
+            let line = ansi_to_tui::ansi_to_text(l.as_bytes().to_vec()).unwrap();
+            // self.data.push(Spans::from(String::from(l)));
+            for d in line.lines {
+                self.data.push(d);
+            }
         }
     }
 
