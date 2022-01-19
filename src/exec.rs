@@ -42,7 +42,14 @@ impl ExecuteCommand {
 
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
+    // TODO(blacknon): Windowsに対応していないのでどうにかする
     pub fn exec_command(&mut self) {
+        // command parse
+        let parse_command: Vec<&str> = self.command.split(" ").collect();
+        let length = parse_command.len();
+        let command_name = &parse_command[0];
+        let command_args = &parse_command[1..length];
+
         // generate exec command
         let mut child = Command::new("sh")
             .arg("-c")
@@ -51,6 +58,14 @@ impl ExecuteCommand {
             .stderr(Stdio::piped())
             .spawn()
             .expect("failed to execute prog");
+        // let mut child = Command::new(command_name)
+        //     .args(command_args)
+        //     // .arg("-c")
+        //     // .arg(&self.command)
+        //     .stdout(Stdio::piped())
+        //     .stderr(Stdio::piped())
+        //     .spawn()
+        //     .expect("failed to execute prog");
 
         // TODO(blacknon): 何かしらの方法で、シェルの環境変数や関数、エイリアスの継承を行わせてコマンドを実行させる
 

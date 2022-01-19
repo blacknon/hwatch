@@ -2,7 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use ansi_to_tui::ansi_to_text;
 use std::sync::{
     mpsc::{Receiver, Sender},
     Mutex,
@@ -56,22 +55,25 @@ impl<'a> WatchArea<'a> {
         self.data = vec![];
 
         // let data = ansi_to_tui::ansi_to_text(text.as_bytes().to_vec()).unwrap();
-        // self.data = data.lines;
+        let data = ansi4tui::bytes_to_text(text.as_bytes().to_vec());
+        self.data = data.lines;
 
-        let lines = text.split("\n");
-        for l in lines {
-            let line = ansi_to_tui::ansi_to_text(l.as_bytes().to_vec()).unwrap();
-            // self.data.push(Spans::from(String::from(l)));
-            for d in line.lines {
-                self.data.push(d);
-            }
-        }
+        // let lines = text.split("\n");
+        // for l in lines {
+        //     let line = ansi_to_tui::ansi_to_text(l.as_bytes().to_vec()).unwrap().;
+        //     // self.data.push(Spans::from(String::from(l)));
+        //     for d in line.lines {
+        //         self.data.push(d);
+        //     }
+        // }
     }
 
     pub fn update_output_diff(&mut self, text1: &str, text2: &str) {}
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
-        let block = Paragraph::new(self.data.clone()).wrap(Wrap { trim: true });
+        let block = Paragraph::new(self.data.clone())
+            .wrap(Wrap { trim: true })
+            .style(Style::default());
         frame.render_widget(block, self.area);
     }
 

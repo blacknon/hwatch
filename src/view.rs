@@ -208,15 +208,17 @@ impl<'a> App<'a> {
         }
 
         // outpu text
-        let output_data: &str;
-        match self.output_mode {
-            OutputMode::Output => output_data = &results[target].output,
-            OutputMode::Stdout => output_data = &results[target].stdout,
-            OutputMode::Stderr => output_data = &results[target].stderr,
-        }
+        if results.len() > target {
+            let output_data: &str;
+            match self.output_mode {
+                OutputMode::Output => output_data = &results[target].output,
+                OutputMode::Stdout => output_data = &results[target].stdout,
+                OutputMode::Stderr => output_data = &results[target].stderr,
+            }
 
-        if count > target {
-            self.watch_area.update_output(output_data);
+            if count > target {
+                self.watch_area.update_output(output_data);
+            }
         }
     }
 

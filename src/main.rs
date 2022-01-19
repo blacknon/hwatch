@@ -20,12 +20,14 @@
 // TODO(blacknon): 長いcommand指定時は省略して出力させる
 // TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
 
-extern crate ansi_to_tui;
+// TODO(blacknon): メンテナンスの都合から、colorとdiffは同時には使えないようにしよう(diffが勝つ方式に変更. あとからcolorを有効にした場合はcolorを有効化してdiff無効化にする)
+
 #[warn(unused_doc_comments)]
 // crate
+extern crate ansi4tui;
+// extern crate ansi_to_tui;
 extern crate crossterm;
-extern crate itertools;
-extern crate jemallocator;
+// extern crate itertools;
 extern crate nix;
 extern crate regex;
 extern crate serde;
@@ -35,19 +37,18 @@ extern crate tui;
 #[macro_use]
 extern crate clap;
 
-#[macro_use]
-extern crate lazy_static;
-
+// #[macro_use]
+// extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 
-#[cfg(not(target_env = "msvc"))]
-use jemallocator::Jemalloc;
+// #[cfg(not(target_env = "msvc"))]
+// use jemallocator::Jemalloc;
 
-#[cfg(not(target_env = "msvc"))]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+// #[cfg(not(target_env = "msvc"))]
+// #[global_allocator]
+// static GLOBAL: Jemalloc = Jemalloc;
 
 // modules
 use clap::{App, AppSettings, Arg};
