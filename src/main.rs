@@ -25,10 +25,7 @@
 #[warn(unused_doc_comments)]
 // crate
 extern crate ansi4tui;
-// extern crate ansi_to_tui;
 extern crate crossterm;
-// extern crate itertools;
-extern crate nix;
 extern crate regex;
 extern crate serde;
 extern crate tui;
@@ -37,18 +34,9 @@ extern crate tui;
 #[macro_use]
 extern crate clap;
 
-// #[macro_use]
-// extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-
-// #[cfg(not(target_env = "msvc"))]
-// use jemallocator::Jemalloc;
-
-// #[cfg(not(target_env = "msvc"))]
-// #[global_allocator]
-// static GLOBAL: Jemalloc = Jemalloc;
 
 // modules
 use clap::{App, AppSettings, Arg};
@@ -146,7 +134,7 @@ fn build_app() -> clap::App<'static, 'static> {
         //         .takes_value(true)
         //         .default_value("sh -c"),
         // )
-        // Interval optionMacの場合は更に背景画像も変わる
+        // Interval option
         //   [--interval,-n] second(default:2)
         .arg(
             Arg::with_name("interval")

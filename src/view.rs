@@ -74,9 +74,6 @@ enum InputMode {
 /// Struct at watch view window.
 pub struct App<'a> {
     ///
-    timeout: std::time::Duration,
-
-    ///
     area: ActiveArea,
 
     ///
@@ -90,6 +87,9 @@ pub struct App<'a> {
 
     ///
     output_mode: OutputMode,
+
+    ///
+    diff_mode: DiffMode,
 
     ///
     results: Mutex<Vec<CommandResult>>,
@@ -126,6 +126,7 @@ impl<'a> App<'a> {
             ansi_color: false,
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
+            diff_mode: DiffMode::Disable,
 
             results: Mutex::new(vec![]),
 
@@ -210,6 +211,7 @@ impl<'a> App<'a> {
         // outpu text
         if results.len() > target {
             let output_data: &str;
+            let data: tui::text::Text;
             match self.output_mode {
                 OutputMode::Output => output_data = &results[target].output,
                 OutputMode::Stdout => output_data = &results[target].stdout,
@@ -226,6 +228,22 @@ impl<'a> App<'a> {
         self.output_mode = mode;
         self.header_area.set_output_mode(mode);
         self.header_area.update();
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    fn set_ansi_color(&mut self, ansi_color: bool) {
+        self.ansi_color = ansi_color;
+
+        self.header_area.set_ansi_color(ansi_color);
+        self.header_area.update();
+        self.watch_area.set_ansi_color(ansi_color);
+
+        if self.ansi_color {
+            // TODO: set_diff_mode()を作ったらそっちに書き換える
+            self.diff_mode = DiffMode::Disable;
+        }
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -268,11 +286,6 @@ impl<'a> App<'a> {
         // update WatchArea
         drop(results);
         self.set_output_data(selected);
-
-        //
-        // if selected == 0 {
-        //     self.watch_area.update(&_result.output);
-        // }
     }
 
     fn get_input_key(&mut self, terminal_event: crossterm::event::Event) {
@@ -300,6 +313,10 @@ impl<'a> App<'a> {
                     // right
 
                     // c
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_ansi_color(),
 
                     // d
 
@@ -392,10 +409,20 @@ impl<'a> App<'a> {
         }
     }
 
+    fn toggle_ansi_color(&mut self) {
+        match self.ansi_color {
+            true => self.set_ansi_color(false),
+            false => self.set_ansi_color(true),
+        }
+    }
+
     fn input_key_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {}
+                ActiveArea::Watch => {
+                    // scroll up watch
+                    self.watch_area.scroll_up(1);
+                }
                 ActiveArea::History => {
                     // move next history
                     self.history_area.next();
@@ -412,7 +439,10 @@ impl<'a> App<'a> {
     fn input_key_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {}
+                ActiveArea::Watch => {
+                    // scroll up watch
+                    self.watch_area.scroll_down(1);
+                }
                 ActiveArea::History => {
                     // move previous history
                     self.history_area.previous();

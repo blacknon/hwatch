@@ -41,7 +41,7 @@ pub struct HeaderArea<'a> {
     data: Vec<Spans<'a>>,
 
     ///
-    color: bool,
+    ansi_color: bool,
 
     ///
     diff_mode: DiffMode,
@@ -66,7 +66,7 @@ impl<'a> HeaderArea<'a> {
             exec_status: true,
 
             data: vec![Spans::from("")],
-            color: false,
+            ansi_color: false,
             diff_mode: DiffMode::Disable,
             active_area: ActiveArea::History,
             output_mode: OutputMode::Output,
@@ -83,6 +83,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_output_mode(&mut self, mode: OutputMode) {
         self.output_mode = mode;
+    }
+
+    pub fn set_ansi_color(&mut self, ansi_color: bool) {
+        self.ansi_color = ansi_color;
     }
 
     pub fn set_current_result(&mut self, result: CommandResult) {
@@ -141,7 +145,7 @@ impl<'a> HeaderArea<'a> {
             true => command_color = Color::Green,
             false => command_color = Color::Red,
         }
-        match self.color {
+        match self.ansi_color {
             true => is_enable_color = Color::Green,
             false => is_enable_color = Color::Reset,
         }
@@ -176,7 +180,7 @@ impl<'a> HeaderArea<'a> {
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
-                format!("{:wid$}", self.color, wid = 5),
+                format!("{:wid$}", self.ansi_color, wid = 5),
                 Style::default().fg(is_enable_color),
             ),
             Span::raw(" "),

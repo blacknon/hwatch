@@ -28,10 +28,10 @@ pub struct WatchArea<'a> {
     data: Vec<Spans<'a>>,
 
     ///
-    color: bool,
+    ansi_color: bool,
 
     ///
-    state: u16,
+    position: i16,
 }
 
 /// Watch Area Object Trait
@@ -41,8 +41,8 @@ impl<'a> WatchArea<'a> {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
             data: vec![Spans::from("")],
-            color: false,
-            state: 0,
+            ansi_color: false,
+            position: 0,
         }
     }
 
@@ -54,32 +54,45 @@ impl<'a> WatchArea<'a> {
         // init self.data
         self.data = vec![];
 
-        // let data = ansi_to_tui::ansi_to_text(text.as_bytes().to_vec()).unwrap();
-        let data = ansi4tui::bytes_to_text(text.as_bytes().to_vec());
-        self.data = data.lines;
+        match self.ansi_color {
+            true => {
+                let data = ansi4tui::bytes_to_text(text.as_bytes().to_vec());
+                self.data = data.lines;
+            }
 
-        // let lines = text.split("\n");
-        // for l in lines {
-        //     let line = ansi_to_tui::ansi_to_text(l.as_bytes().to_vec()).unwrap().;
-        //     // self.data.push(Spans::from(String::from(l)));
-        //     for d in line.lines {
-        //         self.data.push(d);
-        //     }
-        // }
+            false => {
+                let lines = text.split("\n");
+                for l in lines {
+                    self.data.push(Spans::from(String::from(l)));
+                }
+            }
+        }
     }
 
     pub fn update_output_diff(&mut self, text1: &str, text2: &str) {}
 
+    pub fn set_ansi_color(&mut self, ansi_color: bool) {
+        self.ansi_color = ansi_color;
+    }
+
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         let block = Paragraph::new(self.data.clone())
-            .wrap(Wrap { trim: true })
-            .style(Style::default());
+            .style(Style::default())
+            .scroll((self.position as u16, 0));
         frame.render_widget(block, self.area);
     }
 
     pub fn input(&mut self, event: crossterm::event::Event) {}
 
-    pub fn scroll_up(&mut self, num: u16) {}
+    pub fn scroll_up(&mut self, num: i16) {
+        if 0 <= self.position - num {
+            self.position = self.position - num
+        }
+    }
 
-    pub fn scroll_down(&mut self, num: u16) {}
+    pub fn scroll_down(&mut self, num: i16) {
+        if self.data.len() as i16 > self.position + num {
+            self.position = self.position + num
+        }
+    }
 }
