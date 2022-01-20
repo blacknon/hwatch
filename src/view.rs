@@ -5,9 +5,7 @@
 #[warn(unused_doc_comments)]
 // module
 use crossterm::{
-    event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
-    },
+    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -119,7 +117,6 @@ impl<'a> App<'a> {
     pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
         ///! method at create new view trail.
         Self {
-            timeout: Duration::from_millis(10),
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
 
@@ -271,7 +268,9 @@ impl<'a> App<'a> {
 
         // update HistoryArea
         let _timestamp = &results[0].timestamp;
-        self.history_area.update(_timestamp.to_string());
+        let _status = &results[0].status;
+        self.history_area
+            .update(_timestamp.to_string(), _status.clone());
 
         // update selected
         let selected = self.history_area.get_state_select();
@@ -309,8 +308,16 @@ impl<'a> App<'a> {
                     // pgdn
 
                     // left
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Left,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.input_key_left(),
 
                     // right
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Right,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.input_key_right(),
 
                     // c
                     Event::Key(KeyEvent {
@@ -456,9 +463,31 @@ impl<'a> App<'a> {
         }
     }
 
-    fn input_key_left(&mut self) {}
+    fn input_key_left(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => {
+                self.area = ActiveArea::Watch;
 
-    fn input_key_right(&mut self) {}
+                // set active window to header.
+                self.header_area.set_active_area(self.area.clone());
+                self.header_area.update();
+            }
+            _ => {}
+        }
+    }
+
+    fn input_key_right(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => {
+                self.area = ActiveArea::History;
+
+                // set active window to header.
+                self.header_area.set_active_area(self.area.clone());
+                self.header_area.update();
+            }
+            _ => {}
+        }
+    }
 }
 
 /// start hwatch app view.

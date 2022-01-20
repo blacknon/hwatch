@@ -4,7 +4,6 @@
 
 // TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える
 
-use std::iter;
 use tui::{
     backend::Backend,
     style::{Color, Modifier, Style},

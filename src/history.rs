@@ -2,30 +2,26 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use std::sync::{
-    mpsc::{Receiver, Sender},
-    Mutex,
-};
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Constraint,
     style::{Color, Modifier, Style},
-    symbols,
-    text::{Span, Spans, Text},
-    widgets::canvas::{Canvas, Line, Map, MapResolution, Rectangle},
-    widgets::{
-        Axis, BarChart, Block, Borders, Cell, Chart, Dataset, Gauge, LineGauge, List, ListItem,
-        Paragraph, Row, Sparkline, Table, TableState, Tabs, Wrap,
-    },
-    Frame, Terminal,
+    text::Span,
+    widgets::{Block, Cell, Row, Table, TableState},
+    Frame,
 };
+
+struct History {
+    timestamp: String,
+    status: bool,
+}
 
 pub struct HistoryArea {
     ///
     area: tui::layout::Rect,
 
     ///
-    data: Vec<Vec<String>>,
+    data: Vec<Vec<History>>,
 
     ///
     state: TableState,
@@ -37,7 +33,10 @@ impl HistoryArea {
         //! new Self
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
-            data: vec![vec!["latest".to_string()]],
+            data: vec![vec![History {
+                timestamp: "latest                 ".to_string(),
+                status: true,
+            }]],
             state: TableState::default(),
         }
     }
@@ -46,9 +45,21 @@ impl HistoryArea {
         self.area = area;
     }
 
-    pub fn update(&mut self, timestamp: String) {
+    pub fn set_latest_status(&mut self, latest_status: bool) {
+        self.data[0][0].status = latest_status;
+    }
+
+    pub fn update(&mut self, timestamp: String, status: bool) {
+        self.set_latest_status(status);
+
         // insert latest timestamp
-        self.data.insert(1, vec![timestamp]);
+        self.data.insert(
+            1,
+            vec![History {
+                timestamp: timestamp,
+                status: status,
+            }],
+        );
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
@@ -59,20 +70,30 @@ impl HistoryArea {
         let selected_style = Style::default().add_modifier(Modifier::REVERSED);
 
         let rows = draw_data.iter().map(|item| {
+            // set table height
             let height = item
                 .iter()
-                .map(|content| content.chars().filter(|c| *c == '\n').count())
+                .map(|content| content.timestamp.chars().filter(|c| *c == '\n').count())
                 .max()
                 .unwrap_or(0)
                 + 1;
-            let cells = item.iter().map(|c| Cell::from(c.as_str()));
+            // set cell data
+            let cells = item.iter().map(|c| {
+                let cell_style: Style;
+                match c.status {
+                    true => cell_style = Style::default().fg(Color::Green),
+                    false => cell_style = Style::default().fg(Color::Red),
+                }
+                Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
+            });
+
             Row::new(cells).height(height as u16)
         });
 
         let table = Table::new(rows)
             .block(Block::default())
             .highlight_style(selected_style)
-            .highlight_symbol("> ")
+            .highlight_symbol(">>")
             .widths(&[Constraint::Percentage(100)]);
 
         frame.render_stateful_widget(table, self.area, &mut self.state);

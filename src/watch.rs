@@ -2,23 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use std::sync::{
-    mpsc::{Receiver, Sender},
-    Mutex,
-};
-use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols,
-    text::{Span, Spans, Text},
-    widgets::canvas::{Canvas, Line, Map, MapResolution, Rectangle},
-    widgets::{
-        Axis, BarChart, Block, Borders, Cell, Chart, Dataset, Gauge, LineGauge, List, ListItem,
-        Paragraph, Row, Sparkline, Table, Tabs, Wrap,
-    },
-    Frame, Terminal,
-};
+use tui::{backend::Backend, style::Style, text::Spans, widgets::Paragraph, Frame};
 
 pub struct WatchArea<'a> {
     ///
