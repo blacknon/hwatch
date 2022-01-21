@@ -94,6 +94,10 @@ impl<'a> HeaderArea<'a> {
         self.exec_status = result.status;
     }
 
+    pub fn set_interval(&mut self, interval: f64) {
+        self.interval = interval;
+    }
+
     pub fn update(&mut self) {
         // init data
         self.data = vec![];
@@ -105,7 +109,12 @@ impl<'a> HeaderArea<'a> {
         let width = self.area.width as usize;
 
         // Value for width calculation.
-        let command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
+        let command_width: usize;
+        if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
+            command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
+        } else {
+            command_width = 0;
+        }
         let timestamp_width =
             width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
         let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2;
@@ -174,7 +183,7 @@ impl<'a> HeaderArea<'a> {
         // Create 2nd line
         self.data.push(Spans::from(vec![
             // filter keyword
-            Span::styled(":", Style::default().fg(Color::Yellow)),
+            Span::styled(" ", Style::default().fg(Color::Yellow)),
             Span::styled(filter_keyword, Style::default().fg(Color::Yellow)),
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
@@ -207,7 +216,7 @@ impl<'a> HeaderArea<'a> {
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
-        let block = Paragraph::new(self.data.clone()).wrap(Wrap { trim: true });
+        let block = Paragraph::new(self.data.clone());
         frame.render_widget(block, self.area);
     }
 }

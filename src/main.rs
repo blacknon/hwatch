@@ -207,10 +207,10 @@ fn main() {
     if !_batch {
         // is watch mode
         // Create view
-        view::start(tx.clone(), rx);
+        let mut _view = view::View::new();
 
         // Set interval on _view.header
-        // _view.set_interval(_interval);
+        _view.set_interval(_interval);
 
         // Set logfile
         // if _logfile != None {
@@ -241,6 +241,9 @@ fn main() {
 
         // view
         // _view.get_event();
+
+        // start app
+        let _res = _view.start(tx.clone(), rx);
     } else {
         // is batch mode
         println!("is batch (developing now)");

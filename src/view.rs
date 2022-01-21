@@ -25,6 +25,7 @@ use tui::{
 };
 
 // local module
+use common::differences_result;
 use event::AppEvent;
 use exec::CommandResult;
 use header::HeaderArea;
@@ -114,8 +115,9 @@ pub struct App<'a> {
 
 /// Trail at watch view window.
 impl<'a> App<'a> {
+    ///
     pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
-        ///! method at create new view trail.
+        // method at create new view trail.
         Self {
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
@@ -130,6 +132,7 @@ impl<'a> App<'a> {
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
+
             done: false,
             logfile: "".to_string(),
             tx: tx,
@@ -246,6 +249,10 @@ impl<'a> App<'a> {
         self.set_output_data(selected);
     }
 
+    fn set_interval(&mut self, interval: f64) {
+        self.header_area.set_interval(interval);
+    }
+
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.get_area(f);
 
@@ -260,10 +267,36 @@ impl<'a> App<'a> {
     }
 
     pub fn update_result(&mut self, _result: CommandResult) {
-        // diff output data.
+        // unlock self.results
+        let mut results = self.results.lock().unwrap();
+
+        // check results size.
+        let mut latest_result: &CommandResult;
+        let tmp_result = CommandResult {
+            timestamp: "".to_string(),
+            command: "".to_string(),
+            status: true,
+            output: "".to_string(),
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+        };
+        latest_result = &tmp_result;
+        if results.len() > 0 {
+            // diff output data.
+            latest_result = &results[0];
+        }
+
+        // update HeaderArea
+        self.header_area.set_current_result(_result.clone());
+        self.header_area.update();
+
+        // check result diff
+        let check_result_diff = differences_result(&latest_result, &_result);
+        if check_result_diff {
+            return;
+        }
 
         // append results
-        let mut results = self.results.lock().unwrap();
         results.insert(0, _result.clone());
 
         // update HistoryArea
@@ -277,10 +310,6 @@ impl<'a> App<'a> {
         if selected != 0 {
             self.history_area.previous();
         }
-
-        // update HeaderArea
-        self.header_area.set_current_result(_result.clone());
-        self.header_area.update();
 
         // update WatchArea
         drop(results);
@@ -491,41 +520,64 @@ impl<'a> App<'a> {
 }
 
 /// start hwatch app view.
-pub fn start(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Result<(), Box<dyn Error>> {
-    // Setup Terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+pub struct View {
+    interval: f64,
+}
 
-    {
-        let input_tx = tx.clone();
-        let _ = std::thread::spawn(move || loop {
-            let _ = send_input(input_tx.clone());
-        });
+impl View {
+    pub fn new() -> Self {
+        Self {
+            interval: ::DEFAULT_INTERVAL,
+        }
     }
 
-    // Create App
-    let mut app = App::new(tx, rx);
-
-    // Run App
-    let res = app.run(&mut terminal);
-
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{:?}", err)
+    pub fn set_interval(&mut self, interval: f64) {
+        self.interval = interval;
     }
 
-    Ok(())
+    pub fn start(
+        &mut self,
+        tx: Sender<AppEvent>,
+        rx: Receiver<AppEvent>,
+    ) -> Result<(), Box<dyn Error>> {
+        // Setup Terminal
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+
+        {
+            let input_tx = tx.clone();
+            let _ = std::thread::spawn(move || loop {
+                let _ = send_input(input_tx.clone());
+            });
+        }
+
+        // Create App
+        let mut app = App::new(tx, rx);
+
+        // set interval
+        app.set_interval(self.interval);
+
+        // Run App
+        let res = app.run(&mut terminal);
+
+        // Restore terminal
+        disable_raw_mode()?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+        terminal.show_cursor()?;
+
+        if let Err(err) = res {
+            println!("{:?}", err)
+        }
+
+        Ok(())
+    }
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
