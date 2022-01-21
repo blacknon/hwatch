@@ -18,6 +18,7 @@ use std::{
     },
     time::Duration,
 };
+use thread;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -52,6 +53,7 @@ pub enum DiffMode {
     Disable,
     Watch,
     Line,
+    Word,
 }
 
 ///
@@ -152,7 +154,7 @@ impl<'a> App<'a> {
             terminal.draw(|f| self.draw(f))?;
 
             // get event
-            match self.rx.try_recv() {
+            match self.rx.recv_timeout(Duration::from_secs(60)) {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => self.get_event(terminal_event),
 
@@ -211,7 +213,6 @@ impl<'a> App<'a> {
         // outpu text
         if results.len() > target {
             let output_data: &str;
-            let data: tui::text::Text;
             match self.output_mode {
                 OutputMode::Output => output_data = &results[target].output,
                 OutputMode::Stdout => output_data = &results[target].stdout,
@@ -586,6 +587,5 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         let event = crossterm::event::read().expect("failed to read crossterm event");
         let _ = tx.clone().send(AppEvent::TerminalEvent(event));
     }
-
     Ok(())
 }

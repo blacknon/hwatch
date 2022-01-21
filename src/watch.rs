@@ -4,6 +4,9 @@
 
 use tui::{backend::Backend, style::Style, text::Spans, widgets::Paragraph, Frame};
 
+// local module
+use view::DiffMode;
+
 pub struct WatchArea<'a> {
     ///
     area: tui::layout::Rect,
@@ -53,7 +56,11 @@ impl<'a> WatchArea<'a> {
         }
     }
 
-    pub fn update_output_diff(&mut self, text1: &str, text2: &str) {}
+    pub fn update_output_diff(&mut self, diff_mode: DiffMode, text1: &str, text2: &str) {
+        // get diffrense str
+
+        //init self.data
+    }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;

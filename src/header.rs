@@ -144,6 +144,7 @@ impl<'a> HeaderArea<'a> {
             DiffMode::Disable => value_diff = "None".to_string(),
             DiffMode::Watch => value_diff = "Watch".to_string(),
             DiffMode::Line => value_diff = "Line".to_string(),
+            DiffMode::Word => value_diff = "Word".to_string(),
         }
 
         // Set Color
