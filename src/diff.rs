@@ -34,7 +34,11 @@ pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
         }
 
         // TODO: 1行ごとの出力用関数呼び出し
-        let line_data = get_watch_diff_line(old_vec[i], new_vec[i]);
+        let line_data: Spans;
+        match color {
+            false => line_data = get_watch_diff_line(old_vec[i], new_vec[i]),
+            true => line_data = get_watch_diff_line_with_ansi(old_vec[i], new_vec[i]),
+        }
         result.push(line_data);
     }
 
@@ -80,4 +84,17 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     }
 
     return Spans::from(_result);
+}
+
+fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
+    // TODO: 書く. 差分発生箇所をANSIで記述して、それをansi4tuiに渡して変換する方式とする
+    return vec![];
+}
+
+pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+    return vec![];
+}
+
+pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+    return vec![];
 }

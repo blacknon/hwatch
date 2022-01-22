@@ -4,10 +4,6 @@
 
 use tui::{backend::Backend, style::Style, text::Spans, widgets::Paragraph, Frame};
 
-// local module
-use diff;
-use view::DiffMode;
-
 #[derive(Clone)]
 pub struct WatchArea<'a> {
     ///
@@ -41,47 +37,9 @@ impl<'a> WatchArea<'a> {
         self.area = area;
     }
 
-    // pub fn update_output(&mut self, text: String) {
-    //     // init self.data
-    //     self.data = vec![];
-
-    //     let lines = text.split("\n");
-    //     for l in lines {
-    //         match self.ansi_color {
-    //             false => {
-    //                 self.data.push(Spans::from(String::from(l)));
-    //             }
-
-    //             true => {
-    //                 let data = ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
-
-    //                 for d in data.lines {
-    //                     self.data.push(d);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     pub fn update_output(&mut self, data: Vec<Spans<'a>>) {
         self.data = data;
     }
-
-    // pub fn update_output_diff(mut self, diff_mode: DiffMode, text1: &'a str, text2: &'a str) {
-    //     let mut data = vec![];
-
-    //     // get diffrense str
-    //     match diff_mode {
-    //         DiffMode::Watch => {
-    //             data = diff::get_watch_diff(text1, text2);
-    //         }
-
-    //         _ => {}
-    //     }
-
-    //     //init self.data
-    //     self.data = data;
-    // }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
@@ -93,8 +51,6 @@ impl<'a> WatchArea<'a> {
             .scroll((self.position as u16, 0));
         frame.render_widget(block, self.area);
     }
-
-    pub fn input(&mut self, event: crossterm::event::Event) {}
 
     pub fn scroll_up(&mut self, num: i16) {
         if 0 <= self.position - num {

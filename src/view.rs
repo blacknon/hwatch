@@ -223,6 +223,18 @@ impl<'a> App<'a> {
             OutputMode::Stderr => text = &results[target].stderr,
         }
 
+        let old_target = target + 1;
+        let text_old: &str;
+        if results.len() > old_target {
+            match self.output_mode {
+                OutputMode::Output => text_old = &results[old_target].output,
+                OutputMode::Stdout => text_old = &results[old_target].stdout,
+                OutputMode::Stderr => text_old = &results[old_target].stderr,
+            }
+        } else {
+            text_old = "";
+        }
+
         match self.diff_mode {
             DiffMode::Disable => {
                 let lines = text.split("\n");
@@ -244,42 +256,11 @@ impl<'a> App<'a> {
                 }
             }
 
-            _ => {
-                let old_target = target + 1;
-                let text_old: &str;
-                if results.len() > old_target {
-                    match self.output_mode {
-                        OutputMode::Output => text_old = &results[old_target].output,
-                        OutputMode::Stdout => text_old = &results[old_target].stdout,
-                        OutputMode::Stderr => text_old = &results[old_target].stderr,
-                    }
-                } else {
-                    text_old = "";
-                }
-
-                // let mut watch_area = self.watch_area.clone();
+            DiffMode::Watch => {
                 output_data = diff::get_watch_diff(self.ansi_color, &text_old, &text);
+            }
 
-                // self.watch_area
-                //     .update_output_diff(self.diff_mode, old_output_data, output_data);
-            } // _ => {
-              //     // get old history num.
-              //     let old_target = target + 1;
-              //     let old_output_data: &str;
-              //     if results.len() > old_target {
-              //         match self.output_mode {
-              //             OutputMode::Output => old_output_data = &results[old_target].output,
-              //             OutputMode::Stdout => old_output_data = &results[old_target].stdout,
-              //             OutputMode::Stderr => old_output_data = &results[old_target].stderr,
-              //         }
-              //     } else {
-              //         old_output_data = "";
-              //     }
-
-              //     let data = diff::get_watch_diff(&old_output_data, &output_data);
-
-              //     self.watch_area.data = data;
-              // }
+            _ => {}
         }
         self.watch_area.update_output(output_data);
     }
