@@ -13,7 +13,7 @@ use tui::{
     text::{Span, Spans},
 };
 
-pub fn get_watch_diff<'a>(old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     let mut result = vec![];
 
     // output to vector
@@ -68,9 +68,7 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
             // add span
             _result.push(Span::styled(
                 new_line_chars[x].to_string(),
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::REVERSED),
+                Style::default().add_modifier(Modifier::REVERSED),
             ));
         } else {
             // add span

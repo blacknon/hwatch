@@ -8,6 +8,7 @@ use tui::{backend::Backend, style::Style, text::Spans, widgets::Paragraph, Frame
 use diff;
 use view::DiffMode;
 
+#[derive(Clone)]
 pub struct WatchArea<'a> {
     ///
     area: tui::layout::Rect,
@@ -40,45 +41,47 @@ impl<'a> WatchArea<'a> {
         self.area = area;
     }
 
-    pub fn update_output(&mut self, text: String) {
-        // init self.data
-        self.data = vec![];
+    // pub fn update_output(&mut self, text: String) {
+    //     // init self.data
+    //     self.data = vec![];
 
-        match self.ansi_color {
-            true => {
-                let data = ansi4tui::bytes_to_text(text.as_bytes().to_vec());
-                self.data = data.lines;
-            }
+    //     let lines = text.split("\n");
+    //     for l in lines {
+    //         match self.ansi_color {
+    //             false => {
+    //                 self.data.push(Spans::from(String::from(l)));
+    //             }
 
-            false => {
-                let lines = text.split("\n");
-                for l in lines {
-                    self.data.push(Spans::from(String::from(l)));
-                }
-            }
-        }
-    }
+    //             true => {
+    //                 let data = ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
 
-    pub fn update_output_diff<'watch_data>(
-        &'watch_data mut self,
-        diff_mode: DiffMode,
-        text1: &'a str,
-        text2: &'a str,
-    ) {
-        let mut data = vec![];
+    //                 for d in data.lines {
+    //                     self.data.push(d);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
-        // get diffrense str
-        match diff_mode {
-            DiffMode::Watch => {
-                data = diff::get_watch_diff(text1, text2);
-            }
-
-            _ => {}
-        }
-
-        //init self.data
+    pub fn update_output(&mut self, data: Vec<Spans<'a>>) {
         self.data = data;
     }
+
+    // pub fn update_output_diff(mut self, diff_mode: DiffMode, text1: &'a str, text2: &'a str) {
+    //     let mut data = vec![];
+
+    //     // get diffrense str
+    //     match diff_mode {
+    //         DiffMode::Watch => {
+    //             data = diff::get_watch_diff(text1, text2);
+    //         }
+
+    //         _ => {}
+    //     }
+
+    //     //init self.data
+    //     self.data = data;
+    // }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;

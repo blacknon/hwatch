@@ -105,9 +105,6 @@ pub struct App<'a> {
     ///
     watch_area: WatchArea<'a>,
 
-    ///
-    data: Vec<Spans<'a>>,
-
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
     pub done: bool,
@@ -138,8 +135,6 @@ impl<'a> App<'a> {
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
-
-            data: vec![Spans::from("")],
 
             done: false,
             logfile: "".to_string(),
@@ -209,7 +204,8 @@ impl<'a> App<'a> {
 
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
-        let output_data: &str;
+        let text: &str;
+        let mut output_data = vec![];
 
         let mut target: usize = num;
         if num >= 1 {
@@ -221,35 +217,71 @@ impl<'a> App<'a> {
             return;
         }
 
-        // let output_result = results[target].clone();
-
         match self.output_mode {
-            OutputMode::Output => output_data = results[target].output.as_str(),
-            OutputMode::Stdout => output_data = results[target].stdout.as_str(),
-            OutputMode::Stderr => output_data = results[target].stderr.as_str(),
+            OutputMode::Output => text = &results[target].output,
+            OutputMode::Stdout => text = &results[target].stdout,
+            OutputMode::Stderr => text = &results[target].stderr,
         }
 
         match self.diff_mode {
-            DiffMode::Disable => self.watch_area.update_output(output_data.to_string()),
+            DiffMode::Disable => {
+                let lines = text.split("\n");
+                for l in lines {
+                    match self.ansi_color {
+                        false => {
+                            output_data.push(Spans::from(String::from(l)));
+                        }
+
+                        true => {
+                            let data =
+                                ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
+
+                            for d in data.lines {
+                                output_data.push(d);
+                            }
+                        }
+                    }
+                }
+            }
+
             _ => {
-                // get old history num.
                 let old_target = target + 1;
-                let old_output_data: &str;
+                let text_old: &str;
                 if results.len() > old_target {
                     match self.output_mode {
-                        OutputMode::Output => old_output_data = &results[old_target].output,
-                        OutputMode::Stdout => old_output_data = &results[old_target].stdout,
-                        OutputMode::Stderr => old_output_data = &results[old_target].stderr,
+                        OutputMode::Output => text_old = &results[old_target].output,
+                        OutputMode::Stdout => text_old = &results[old_target].stdout,
+                        OutputMode::Stderr => text_old = &results[old_target].stderr,
                     }
                 } else {
-                    old_output_data = "";
+                    text_old = "";
                 }
 
-                let data = diff::get_watch_diff(&old_output_data, &output_data);
+                // let mut watch_area = self.watch_area.clone();
+                output_data = diff::get_watch_diff(self.ansi_color, &text_old, &text);
 
-                self.watch_area.data = data;
-            }
+                // self.watch_area
+                //     .update_output_diff(self.diff_mode, old_output_data, output_data);
+            } // _ => {
+              //     // get old history num.
+              //     let old_target = target + 1;
+              //     let old_output_data: &str;
+              //     if results.len() > old_target {
+              //         match self.output_mode {
+              //             OutputMode::Output => old_output_data = &results[old_target].output,
+              //             OutputMode::Stdout => old_output_data = &results[old_target].stdout,
+              //             OutputMode::Stderr => old_output_data = &results[old_target].stderr,
+              //         }
+              //     } else {
+              //         old_output_data = "";
+              //     }
+
+              //     let data = diff::get_watch_diff(&old_output_data, &output_data);
+
+              //     self.watch_area.data = data;
+              // }
         }
+        self.watch_area.update_output(output_data);
     }
 
     fn set_output_mode(&mut self, mode: OutputMode) {
@@ -340,10 +372,11 @@ impl<'a> App<'a> {
             .update(_timestamp.to_string(), _status.clone());
 
         // update selected
-        let selected = self.history_area.get_state_select();
+        let mut selected = self.history_area.get_state_select();
         if selected != 0 {
             self.history_area.previous();
         }
+        selected = self.history_area.get_state_select();
 
         // drop mutex
         drop(results);
