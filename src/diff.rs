@@ -153,5 +153,141 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
 
 ///
 pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
-    return vec![];
+    // Create changeset
+    let Changeset { diffs, .. } = Changeset::new(old, new, "\n");
+
+    // create result
+    let mut result = vec![];
+
+    for i in 0..diffs.len() {
+        match diffs[i] {
+            // Same line.
+            Difference::Same(ref diff_data_x) => {
+                for line in diff_data_x.lines() {
+                    let line_data = Spans::from(format!("   {}\n", line));
+                    result.push(line_data);
+                }
+            }
+
+            // Add line.
+            Difference::Add(ref diff_data_x) => {
+                // line Spans
+                let mut line_data = vec![];
+
+                // check lines.
+                if i > 0 {
+                    match diffs[i - 1] {
+                        // Remvoe positon.
+                        Difference::Rem(ref diff_data_y) => {
+                            let Changeset { diffs, .. } =
+                                Changeset::new(diff_data_y, diff_data_x, " ");
+                            for c2 in diffs {
+                                match c2 {
+                                    // Same
+                                    Difference::Same(ref char) => {
+                                        for l in char.split("\n") {
+                                            //
+                                            line_data.push(Span::styled(
+                                                l.to_string().clone(),
+                                                Style::default().fg(Color::Green),
+                                            ));
+                                            line_data.push(Span::styled(
+                                                " ",
+                                                Style::default().fg(Color::Green),
+                                            ))
+                                        }
+                                    }
+
+                                    // Add
+                                    Difference::Add(ref char) => {
+                                        for l in char.split("\n") {
+                                            //
+                                            line_data.push(Span::styled(
+                                                l.to_string().clone(),
+                                                Style::default().fg(Color::White).bg(Color::Green),
+                                            ));
+                                            line_data.push(Span::styled(
+                                                " ",
+                                                Style::default().fg(Color::Green),
+                                            ))
+                                        }
+                                    }
+
+                                    // No data.
+                                    _ => {}
+                                }
+                            }
+                        }
+                        //
+                        _ => {
+                            for l in diff_data_x.split("\n") {
+                                //
+                                line_data.push(Span::styled(
+                                    l.to_string().clone(),
+                                    Style::default().fg(Color::Red),
+                                ));
+                                line_data.push(Span::styled(" ", Style::default().fg(Color::Red)))
+                            }
+                        }
+                    }
+                }
+
+                result.push(Spans::from(line_data));
+            }
+
+            // Add line.
+            Difference::Rem(ref diff_data_x) => {
+                // line Spans
+                let mut line_data = vec![];
+                // line_data.push(Span::styled("-  ", Style::default().fg(Color::Red)));
+
+                if i > 0 {
+                    match diffs[i - 1] {
+                        // Remvoe positon.
+                        Difference::Add(ref diff_data_y) => {
+                            let Changeset { diffs, .. } =
+                                Changeset::new(diff_data_y, diff_data_x, " ");
+                            for c in diffs {
+                                match c {
+                                    // Same
+                                    Difference::Same(ref char) => {
+                                        //
+                                        line_data.push(Span::styled(
+                                            char.clone(),
+                                            Style::default().fg(Color::Red),
+                                        ))
+                                    }
+
+                                    // Rem
+                                    Difference::Rem(ref char) => {
+                                        //
+                                        line_data.push(Span::styled(
+                                            char.clone(),
+                                            Style::default().fg(Color::White).bg(Color::Red),
+                                        ))
+                                    }
+
+                                    // No data.
+                                    _ => {}
+                                }
+                            }
+                        }
+
+                        //
+                        _ => {
+                            //
+                            line_data.push(Span::styled(
+                                format!("-  {}", diff_data_x.clone()),
+                                Style::default().fg(Color::Red),
+                            ))
+                        }
+                    }
+                }
+
+                result.push(Spans::from(line_data));
+            }
+        }
+    }
+
+    return result;
 }

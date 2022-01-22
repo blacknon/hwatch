@@ -278,7 +278,9 @@ impl<'a> App<'a> {
                 output_data = diff::get_line_diff(self.ansi_color, &text_old, &text);
             }
 
-            _ => {}
+            DiffMode::Word => {
+                output_data = diff::get_word_diff(self.ansi_color, &text_old, &text);
+            }
         }
         self.watch_area.update_output(output_data);
     }
@@ -526,8 +528,8 @@ impl<'a> App<'a> {
         match self.diff_mode {
             DiffMode::Disable => self.set_diff_mode(DiffMode::Watch),
             DiffMode::Watch => self.set_diff_mode(DiffMode::Line),
-            DiffMode::Line => self.set_diff_mode(DiffMode::Disable),
-            _ => {}
+            DiffMode::Line => self.set_diff_mode(DiffMode::Word),
+            DiffMode::Word => self.set_diff_mode(DiffMode::Disable),
         }
     }
 
