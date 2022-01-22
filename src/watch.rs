@@ -5,6 +5,7 @@
 use tui::{backend::Backend, style::Style, text::Spans, widgets::Paragraph, Frame};
 
 // local module
+use diff;
 use view::DiffMode;
 
 pub struct WatchArea<'a> {
@@ -12,7 +13,7 @@ pub struct WatchArea<'a> {
     area: tui::layout::Rect,
 
     ///
-    data: Vec<Spans<'a>>,
+    pub data: Vec<Spans<'a>>,
 
     ///
     ansi_color: bool,
@@ -27,7 +28,9 @@ impl<'a> WatchArea<'a> {
         //! new Self
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
+
             data: vec![Spans::from("")],
+
             ansi_color: false,
             position: 0,
         }
@@ -37,7 +40,7 @@ impl<'a> WatchArea<'a> {
         self.area = area;
     }
 
-    pub fn update_output(&mut self, text: &str) {
+    pub fn update_output(&mut self, text: String) {
         // init self.data
         self.data = vec![];
 
@@ -56,10 +59,25 @@ impl<'a> WatchArea<'a> {
         }
     }
 
-    pub fn update_output_diff(&mut self, diff_mode: DiffMode, text1: &str, text2: &str) {
+    pub fn update_output_diff<'watch_data>(
+        &'watch_data mut self,
+        diff_mode: DiffMode,
+        text1: &'a str,
+        text2: &'a str,
+    ) {
+        let mut data = vec![];
+
         // get diffrense str
+        match diff_mode {
+            DiffMode::Watch => {
+                data = diff::get_watch_diff(text1, text2);
+            }
+
+            _ => {}
+        }
 
         //init self.data
+        self.data = data;
     }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {

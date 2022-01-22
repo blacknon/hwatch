@@ -11,6 +11,7 @@ use tui::{
     Frame,
 };
 
+#[derive(Clone)]
 struct History {
     timestamp: String,
     status: bool,

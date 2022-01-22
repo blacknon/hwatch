@@ -20,6 +20,7 @@ use view::{ActiveArea, DiffMode, OutputMode};
 const POSITION_X_HELP_TEXT: usize = 56;
 const WIDTH_TEXT_INTERVAL: usize = 19;
 
+#[derive(Clone)]
 pub struct HeaderArea<'a> {
     ///
     area: tui::layout::Rect,
@@ -96,6 +97,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_interval(&mut self, interval: f64) {
         self.interval = interval;
+    }
+
+    pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
+        self.diff_mode = diff_mode;
     }
 
     pub fn update(&mut self) {

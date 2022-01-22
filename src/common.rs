@@ -2,11 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// crate
-extern crate chrono;
-
 // module
-use self::chrono::Local;
+use chrono::Local;
 use serde_json;
 use std::fs::OpenOptions;
 use std::io::prelude::*;

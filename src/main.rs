@@ -25,7 +25,9 @@
 #[warn(unused_doc_comments)]
 // crate
 extern crate ansi4tui;
+extern crate chrono;
 extern crate crossterm;
+extern crate difference;
 extern crate regex;
 extern crate serde;
 extern crate tui;
@@ -48,6 +50,7 @@ use std::time::Duration;
 
 // local modules
 mod common;
+mod diff;
 mod event;
 mod exec;
 mod header;

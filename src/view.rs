@@ -18,15 +18,16 @@ use std::{
     },
     time::Duration,
 };
-use thread;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
+    text::Spans,
     Frame, Terminal,
 };
 
 // local module
 use common::differences_result;
+use diff;
 use event::AppEvent;
 use exec::CommandResult;
 use header::HeaderArea;
@@ -104,6 +105,9 @@ pub struct App<'a> {
     ///
     watch_area: WatchArea<'a>,
 
+    ///
+    data: Vec<Spans<'a>>,
+
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
     pub done: bool,
@@ -134,6 +138,8 @@ impl<'a> App<'a> {
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
+
+            data: vec![Spans::from("")],
 
             done: false,
             logfile: "".to_string(),
@@ -203,24 +209,45 @@ impl<'a> App<'a> {
 
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
-        let count = results.len();
+        let output_data: &str;
 
-        let mut target = num;
+        let mut target: usize = num;
         if num >= 1 {
             target = target - 1;
         }
 
-        // outpu text
-        if results.len() > target {
-            let output_data: &str;
-            match self.output_mode {
-                OutputMode::Output => output_data = &results[target].output,
-                OutputMode::Stdout => output_data = &results[target].stdout,
-                OutputMode::Stderr => output_data = &results[target].stderr,
-            }
+        // check results over target...
+        if results.len() <= target {
+            return;
+        }
 
-            if count > target {
-                self.watch_area.update_output(output_data);
+        // let output_result = results[target].clone();
+
+        match self.output_mode {
+            OutputMode::Output => output_data = results[target].output.as_str(),
+            OutputMode::Stdout => output_data = results[target].stdout.as_str(),
+            OutputMode::Stderr => output_data = results[target].stderr.as_str(),
+        }
+
+        match self.diff_mode {
+            DiffMode::Disable => self.watch_area.update_output(output_data.to_string()),
+            _ => {
+                // get old history num.
+                let old_target = target + 1;
+                let old_output_data: &str;
+                if results.len() > old_target {
+                    match self.output_mode {
+                        OutputMode::Output => old_output_data = &results[old_target].output,
+                        OutputMode::Stdout => old_output_data = &results[old_target].stdout,
+                        OutputMode::Stderr => old_output_data = &results[old_target].stderr,
+                    }
+                } else {
+                    old_output_data = "";
+                }
+
+                let data = diff::get_watch_diff(&old_output_data, &output_data);
+
+                self.watch_area.data = data;
             }
         }
     }
@@ -252,6 +279,12 @@ impl<'a> App<'a> {
 
     fn set_interval(&mut self, interval: f64) {
         self.header_area.set_interval(interval);
+    }
+
+    fn set_diff_mode(&mut self, diff_mode: DiffMode) {
+        self.diff_mode = diff_mode;
+        self.header_area.set_diff_mode(diff_mode);
+        self.header_area.update();
     }
 
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -312,9 +345,11 @@ impl<'a> App<'a> {
             self.history_area.previous();
         }
 
-        // update WatchArea
+        // drop mutex
         drop(results);
-        self.set_output_data(selected);
+
+        // update WatchArea
+        self.set_output_data(selected)
     }
 
     fn get_input_key(&mut self, terminal_event: crossterm::event::Event) {
@@ -356,6 +391,10 @@ impl<'a> App<'a> {
                     }) => self.toggle_ansi_color(),
 
                     // d
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('d'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_diff_mode(),
 
                     // o
                     Event::Key(KeyEvent {
@@ -450,6 +489,14 @@ impl<'a> App<'a> {
         match self.ansi_color {
             true => self.set_ansi_color(false),
             false => self.set_ansi_color(true),
+        }
+    }
+
+    fn toggle_diff_mode(&mut self) {
+        match self.diff_mode {
+            DiffMode::Disable => self.set_diff_mode(DiffMode::Watch),
+            DiffMode::Watch => self.set_diff_mode(DiffMode::Disable),
+            _ => {}
         }
     }
 
