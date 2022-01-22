@@ -4,15 +4,22 @@
 
 // TODO: diff時のカラーコードについても対応する
 //       (1行ごとにansi4tui::bytes_to_textに放り込む方式？行最後のカラーコードを保持して続きを記述することでdiffでも対応出来るかも？)
+//       - watch ... 同居(ansiで対応)
+//       - line ... 差分のある行はansiを削除(強制でdiff colorに書き換え)
+//       - word ... 差分のある行はansiを削除(強制でdiff colorに書き換え)
 
 // modules
 use difference::{Changeset, Difference};
-use std::{cmp, option::Option};
+use std::cmp;
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
 };
 
+// watch diff
+// ==========
+
+///
 pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     let mut result = vec![];
 
@@ -45,6 +52,7 @@ pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     return result;
 }
 
+///
 fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     // If the contents are the same line.
     if old_line == new_line {
@@ -86,15 +94,64 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     return Spans::from(_result);
 }
 
+///
 fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     // TODO: 書く. 差分発生箇所をANSIで記述して、それをansi4tuiに渡して変換する方式とする
-    return vec![];
+    return Spans::from("");
 }
 
+// line diff
+// ==========
+
+///
 pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
-    return vec![];
+    // Create changeset
+    let Changeset { diffs, .. } = Changeset::new(old, new, "\n");
+
+    // create result
+    let mut result = vec![];
+
+    for i in 0..diffs.len() {
+        match diffs[i] {
+            // Same line.
+            Difference::Same(ref diff_data) => {
+                for line in diff_data.lines() {
+                    let data = Spans::from(format!("   {}\n", line));
+                    result.push(data);
+                }
+            }
+
+            // Add line.
+            Difference::Add(ref diff_data) => {
+                for line in diff_data.lines() {
+                    let data = Spans::from(Span::styled(
+                        format!("+  {}\n", line),
+                        Style::default().fg(Color::Green),
+                    ));
+                    result.push(data);
+                }
+            }
+
+            // Remove line.
+            Difference::Rem(ref diff_data) => {
+                for line in diff_data.lines() {
+                    let data = Spans::from(Span::styled(
+                        format!("-  {}\n", line),
+                        Style::default().fg(Color::Red),
+                    ));
+                    result.push(data);
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
+// word diff
+// ==========
+
+///
 pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     return vec![];
 }

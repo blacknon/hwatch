@@ -2,7 +2,13 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use tui::{backend::Backend, style::Style, text::Spans, widgets::Paragraph, Frame};
+use tui::{
+    backend::Backend,
+    style::Style,
+    text::Spans,
+    widgets::{Paragraph, Wrap},
+    Frame,
+};
 
 #[derive(Clone)]
 pub struct WatchArea<'a> {
@@ -48,6 +54,7 @@ impl<'a> WatchArea<'a> {
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         let block = Paragraph::new(self.data.clone())
             .style(Style::default())
+            .wrap(Wrap { trim: false })
             .scroll((self.position as u16, 0));
         frame.render_widget(block, self.area);
     }

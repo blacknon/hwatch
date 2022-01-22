@@ -170,6 +170,19 @@ impl<'a> App<'a> {
         }
     }
 
+    pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
+        self.get_area(f);
+
+        // Draw header area.
+        self.header_area.draw(f);
+
+        // Draw watch area.
+        self.watch_area.draw(f);
+
+        // Draw history area
+        self.history_area.draw(f);
+    }
+
     fn get_area<B: Backend>(&mut self, f: &mut Frame<B>) {
         // get Area's chunks
         let top_chunks = Layout::default()
@@ -202,6 +215,7 @@ impl<'a> App<'a> {
         }
     }
 
+    /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
         let text: &str;
@@ -260,6 +274,10 @@ impl<'a> App<'a> {
                 output_data = diff::get_watch_diff(self.ansi_color, &text_old, &text);
             }
 
+            DiffMode::Line => {
+                output_data = diff::get_line_diff(self.ansi_color, &text_old, &text);
+            }
+
             _ => {}
         }
         self.watch_area.update_output(output_data);
@@ -277,14 +295,15 @@ impl<'a> App<'a> {
     fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
 
+        // TODO: diffでcolorが使えるようになったら修正
+        if self.ansi_color {
+            self.diff_mode = DiffMode::Disable;
+            self.set_diff_mode(self.diff_mode);
+        }
+
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
         self.watch_area.set_ansi_color(ansi_color);
-
-        if self.ansi_color {
-            // TODO: set_diff_mode()を作ったらそっちに書き換える
-            self.diff_mode = DiffMode::Disable;
-        }
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -296,24 +315,21 @@ impl<'a> App<'a> {
 
     fn set_diff_mode(&mut self, diff_mode: DiffMode) {
         self.diff_mode = diff_mode;
+
+        // TODO: diffでcolorを使えるようになったら修正
+        match self.diff_mode {
+            DiffMode::Disable => {}
+            _ => self.set_ansi_color(false),
+        }
+
         self.header_area.set_diff_mode(diff_mode);
         self.header_area.update();
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
-    pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.get_area(f);
-
-        // Draw header area.
-        self.header_area.draw(f);
-
-        // Draw watch area.
-        self.watch_area.draw(f);
-
-        // Draw history area
-        self.history_area.draw(f);
-    }
-
-    pub fn update_result(&mut self, _result: CommandResult) {
+    fn update_result(&mut self, _result: CommandResult) {
         // unlock self.results
         let mut results = self.results.lock().unwrap();
 
@@ -509,7 +525,8 @@ impl<'a> App<'a> {
     fn toggle_diff_mode(&mut self) {
         match self.diff_mode {
             DiffMode::Disable => self.set_diff_mode(DiffMode::Watch),
-            DiffMode::Watch => self.set_diff_mode(DiffMode::Disable),
+            DiffMode::Watch => self.set_diff_mode(DiffMode::Line),
+            DiffMode::Line => self.set_diff_mode(DiffMode::Disable),
             _ => {}
         }
     }
