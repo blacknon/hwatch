@@ -11,6 +11,7 @@
 // modules
 use difference::{Changeset, Difference};
 use std::cmp;
+// use termwiz::escape::parser::Parser;
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
@@ -96,7 +97,49 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
 
 ///
 fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
-    // TODO: 書く. 差分発生箇所をANSIで記述して、それをansi4tuiに渡して変換する方式とする
+    //     // TODO: 書く. 差分発生箇所をANSIで記述して、それをansi4tuiに渡して変換する方式とする
+    //     // If the contents are the same line.
+    //     if old_line == new_line {
+    //         return Spans::from(String::from(new_line));
+    //     }
+
+    // let debug_span = Span::styled(" ", Style::default().fg(Color::Yellow));
+    // debug_span.style.add_modifier(modifier: Modifier) = Style::default().fg(Color::Yellow);
+
+    //     // Decompose lines by character.
+    //     let mut old_line_chars: Vec<char> = old_line..collect();
+    //     let mut new_line_chars: Vec<char> = new_line.escape_default().collect();
+
+    //     let space: char = ' ';
+    //     let max_char = cmp::max(old_line_chars.len(), new_line_chars.len());
+
+    //     let mut _result = vec![];
+    //     // let mut _result_anis = vec![];
+
+    //     for x in 0..max_char {
+    //         if old_line_chars.len() <= max_char {
+    //             old_line_chars.push(space);
+    //         }
+
+    //         if new_line_chars.len() <= max_char {
+    //             new_line_chars.push(space);
+    //         }
+
+    //         if old_line_chars[x] != new_line_chars[x] {
+    //             // add span
+    //             _result.push(Span::styled(
+    //                 new_line_chars[x].to_string(),
+    //                 Style::default().add_modifier(Modifier::REVERSED),
+    //             ));
+    //         } else {
+    //             // add span
+    //             _result.push(Span::styled(
+    //                 new_line_chars[x].to_string(),
+    //                 Style::default(),
+    //             ));
+    //         }
+    //     }
+
     return Spans::from("");
 }
 
@@ -230,7 +273,7 @@ pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                     for line in diff_data.lines() {
                         lines_data.push(vec![Span::styled(
                             line.to_string(),
-                            Style::default().fg(Color::Green),
+                            Style::default().fg(Color::Red),
                         )]);
                     }
                 }

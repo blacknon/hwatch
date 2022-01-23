@@ -14,13 +14,10 @@
 // TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.2.1)
 //                 (`/`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
 // TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.2.1)
-//                 `n`キーでの切り替えが良いか❓ diffでの出力をどうするかがポイントかも？？
+//                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.2.0)
-// TODO(blacknon): Resultのメモリ解放できてないっぽい(全部溜め込んでるっぽい)ので、対処する
 // TODO(blacknon): 長いcommand指定時は省略して出力させる
 // TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
-
-// TODO(blacknon): メンテナンスの都合から、colorとdiffは同時には使えないようにしよう(diffが勝つ方式に変更. あとからcolorを有効にした場合はcolorを有効化してdiff無効化にする)
 
 #[warn(unused_doc_comments)]
 // crate
@@ -30,6 +27,7 @@ extern crate crossterm;
 extern crate difference;
 extern crate regex;
 extern crate serde;
+extern crate termwiz;
 extern crate tui;
 
 // macro crate
@@ -64,6 +62,7 @@ pub const HISTORY_WIDTH: u16 = 25;
 
 #[cfg(windows)]
 const LINE_ENDING: &'static str = "\r\n";
+
 #[cfg(not(windows))]
 const LINE_ENDING: &'static str = "\n";
 
@@ -220,6 +219,9 @@ fn main() {
         // Set interval on _view.header
         _view.set_interval(_interval);
 
+        // Set color in _view
+        _view.set_color(_color);
+
         // Set logfile
         // if _logfile != None {
         //     _view.set_logfile(_logfile.unwrap().to_string());
@@ -231,24 +233,6 @@ fn main() {
         //     _diff_type = 1;
         // }
         // _view.switch_diff(_diff_type);
-
-        // Set color in _view
-        // _view.set_color(_color);
-
-        // Create input
-        // let mut _input = Input::new(tx.clone());
-
-        // Create signal
-        // let mut _signal = Signal::new(tx.clone());
-
-        // await input thread
-        // _input.run();
-
-        // await signal thread
-        // _signal.run();
-
-        // view
-        // _view.get_event();
 
         // start app
         let _res = _view.start(tx.clone(), rx);

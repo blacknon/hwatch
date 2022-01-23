@@ -603,17 +603,23 @@ impl<'a> App<'a> {
 /// start hwatch app view.
 pub struct View {
     interval: f64,
+    color: bool,
 }
 
 impl View {
     pub fn new() -> Self {
         Self {
             interval: ::DEFAULT_INTERVAL,
+            color: false,
         }
     }
 
     pub fn set_interval(&mut self, interval: f64) {
         self.interval = interval;
+    }
+
+    pub fn set_color(&mut self, color: bool) {
+        self.color = color;
     }
 
     pub fn start(
@@ -643,6 +649,9 @@ impl View {
 
         // Run App
         let res = app.run(&mut terminal);
+
+        // set color
+        app.set_ansi_color(self.color);
 
         // Restore terminal
         disable_raw_mode()?;

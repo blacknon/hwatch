@@ -8,7 +8,7 @@ use tui::{
     backend::Backend,
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Paragraph, Wrap},
+    widgets::Paragraph,
     Frame,
 };
 

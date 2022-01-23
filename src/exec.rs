@@ -44,11 +44,12 @@ impl ExecuteCommand {
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
     // TODO(blacknon): Windowsに対応していないのでどうにかする
     pub fn exec_command(&mut self) {
+        // TODO: evalでの処理追加時に利用.
         // command parse
-        let parse_command: Vec<&str> = self.command.split(" ").collect();
-        let length = parse_command.len();
-        let command_name = &parse_command[0];
-        let command_args = &parse_command[1..length];
+        // let parse_command: Vec<&str> = self.command.split(" ").collect();
+        // let length = parse_command.len();
+        // let command_name = &parse_command[0];
+        // let command_args = &parse_command[1..length];
 
         // generate exec command
         let mut child = Command::new("sh")
