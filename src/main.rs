@@ -62,6 +62,11 @@ mod watch;
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
 
+#[cfg(windows)]
+const LINE_ENDING: &'static str = "\r\n";
+#[cfg(not(windows))]
+const LINE_ENDING: &'static str = "\n";
+
 /// Parse args and options function.
 fn build_app() -> clap::App<'static, 'static> {
     // get own name
