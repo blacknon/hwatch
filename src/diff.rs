@@ -169,7 +169,24 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
             // Same line.
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data = Spans::from(format!("   {}\n", line));
+                    let data: Spans;
+
+                    if color {
+                        // ansi color code => rs-tui colored span.
+                        let mut colored_span = vec![];
+                        colored_span.push(Span::from("   "));
+                        let colored_data =
+                            ansi4tui::bytes_to_text(format!("{}\n", line).as_bytes().to_vec());
+                        for d in colored_data.lines {
+                            for x in d.0 {
+                                colored_span.push(x);
+                            }
+                        }
+                        data = Spans::from(colored_span);
+                    } else {
+                        // to string => rs-tui span.
+                        data = Spans::from(format!("   {}\n", line));
+                    }
                     result.push(data);
                 }
             }
@@ -177,10 +194,29 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
             // Add line.
             Difference::Add(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data = Spans::from(Span::styled(
-                        format!("+  {}\n", line),
-                        Style::default().fg(Color::Green),
-                    ));
+                    let data: Spans;
+                    if color {
+                        // ansi color code => parse and delete. to rs-tui span(green).
+                        let parsed: Vec<Output> = line.ansi_parse().collect();
+                        let mut line_str = "+  ".to_string();
+                        for block in parsed.into_iter() {
+                            match block {
+                                Output::TextBlock(text) => {
+                                    line_str.push_str(text);
+                                }
+                                _ => {}
+                            }
+                        }
+                        data =
+                            Spans::from(Span::styled(line_str, Style::default().fg(Color::Green)));
+                    } else {
+                        // to string => rs-tui span.
+                        data = Spans::from(Span::styled(
+                            format!("+  {}\n", line),
+                            Style::default().fg(Color::Green),
+                        ));
+                    }
+
                     result.push(data);
                 }
             }
@@ -188,10 +224,28 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
             // Remove line.
             Difference::Rem(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data = Spans::from(Span::styled(
-                        format!("-  {}\n", line),
-                        Style::default().fg(Color::Red),
-                    ));
+                    let data: Spans;
+                    if color {
+                        // ansi color code => parse and delete. to rs-tui span(green).
+                        let parsed: Vec<Output> = line.ansi_parse().collect();
+                        let mut line_str = "-  ".to_string();
+                        for block in parsed.into_iter() {
+                            match block {
+                                Output::TextBlock(text) => {
+                                    line_str.push_str(text);
+                                }
+                                _ => {}
+                            }
+                        }
+                        data = Spans::from(Span::styled(line_str, Style::default().fg(Color::Red)));
+                    } else {
+                        // to string => rs-tui span.
+                        data = Spans::from(Span::styled(
+                            format!("-  {}\n", line),
+                            Style::default().fg(Color::Red),
+                        ));
+                    }
+
                     result.push(data);
                 }
             }
