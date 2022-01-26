@@ -109,135 +109,33 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
         }
     }
 
-    // // // get colored Vec<Vec<Span>>
-    // let mut old_line_spans = vec![];
-    // let mut new_line_spans = vec![];
-
-    // // ansi reset code heapless_vec
-    // let mut ansi_reset_vec = heapless::Vec::<u8, U5>::new();
-    // let _ = ansi_reset_vec.push(0);
-
-    // // get ansi reset code string
-    // let ansi_reset_seq = AnsiSequence::SetGraphicsMode(ansi_reset_vec);
-    // let ansi_reset_seq_str = ansi_reset_seq.to_string();
-
-    // // text parse ansi color code set.
-    // let old_parsed: Vec<Output> = old_line.ansi_parse().collect();
-
-    // // init sequence.
-    // let mut sequence: AnsiSequence;
-    // let mut sequence_str = "".to_string();
-
-    // // text processing
-    // let mut processed_text: String = "".to_string();
-    // for block in old_parsed.into_iter() {
-    //     match block {
-    //         Output::TextBlock(text) => {
-    //             for char in text.chars() {
-    //                 let append_text: String;
-    //                 if &sequence_str.len() > &0 {
-    //                     append_text = format!("{}{}{}", sequence_str, char, ansi_reset_seq_str);
-    //                 } else {
-    //                     append_text = format!("{}", char);
-    //                 }
-    //                 processed_text.push_str(&append_text);
-    //             }
-    //         }
-    //         Output::Escape(seq) => {
-    //             sequence = seq;
-    //             sequence_str = sequence.to_string();
-    //         }
-    //     }
-    // }
-
-    // let data = ansi4tui::bytes_to_text(processed_text.as_bytes().to_vec());
-
-    // for d in data.lines {
-    //     let mut line = vec![];
-
-    //     for el in d.0 {
-    //         line.push(el)
-    //     }
-
-    //     old_line_spans.push(line);
-    // }
-
-    // // text parse ansi color code set.
-    // let new_parsed: Vec<Output> = new_line.ansi_parse().collect();
-
-    // // init sequence.
-    // let mut sequence: AnsiSequence;
-    // let mut sequence_str = "".to_string();
-
-    // // text processing
-    // let mut processed_text: String = "".to_string();
-    // for block in new_parsed.into_iter() {
-    //     match block {
-    //         Output::TextBlock(text) => {
-    //             for char in text.chars() {
-    //                 let append_text: String;
-    //                 if &sequence_str.len() > &0 {
-    //                     append_text = format!("{}{}{}", sequence_str, char, ansi_reset_seq_str);
-    //                 } else {
-    //                     append_text = format!("{}", char);
-    //                 }
-    //                 processed_text.push_str(&append_text);
-    //             }
-    //         }
-    //         Output::Escape(seq) => {
-    //             sequence = seq;
-    //             sequence_str = sequence.to_string();
-    //         }
-    //     }
-    // }
-
-    // let data = ansi4tui::bytes_to_text(format!("{}\n", processed_text).as_bytes().to_vec());
-
-    // for d in data.lines {
-    //     let mut line = vec![];
-
-    //     for el in d.0 {
-    //         line.push(el)
-    //     }
-
-    //     new_line_spans.push(line);
-    // }
-
-    // let mut old_spans = vec![];
-    // for old_span in old_line_spans {
-    //     old_spans = old_span;
-    //     break;
-    // }
-    // let mut new_spans = vec![];
-    // for new_span in new_line_spans {
-    //     new_spans = new_span;
-    //     break;
-    // }
-
     let old_colored_spans = gen_ansi_all_set_str(old_line);
     let new_colored_spans = gen_ansi_all_set_str(new_line);
     let mut old_spans = vec![];
-    for old_span in old_colored_spans {
-        old_spans = old_span;
-        break;
+    for mut old_span in old_colored_spans {
+        old_spans.append(&mut old_span);
+        // break;
     }
     let mut new_spans = vec![];
-    for new_span in new_colored_spans {
-        new_spans = new_span;
-        break;
+    for mut new_span in new_colored_spans {
+        new_spans.append(&mut new_span);
+        // break;
     }
 
     let max_span = cmp::max(old_spans.len(), new_spans.len());
     //
     let mut _result = vec![];
     for x in 0..max_span {
+        //
         if old_spans.len() <= max_span {
             old_spans.push(Span::from(" ".to_string()));
         }
+
         //
         if new_spans.len() <= max_span {
             new_spans.push(Span::from(" ".to_string()));
         }
+
         //
         if old_spans[x].content != new_spans[x].content || old_spans[x].style != new_spans[x].style
         {
@@ -246,13 +144,13 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
                 .style
                 .patch(Style::default().add_modifier(Modifier::REVERSED));
         }
+
         //
         _result.push(new_spans[x].clone());
     }
+
     //
     return Spans::from(_result);
-
-    // return Spans::from(String::from(old_line));
 }
 
 // line diff
@@ -646,7 +544,7 @@ fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
     let mut sequence_str = "".to_string();
 
     // text processing
-    let mut processed_text: String = "".to_string();
+    let mut processed_text = vec![];
     for block in parsed.into_iter() {
         match block {
             Output::TextBlock(text) => {
@@ -657,7 +555,16 @@ fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
                     } else {
                         append_text = format!("{}", char);
                     }
-                    processed_text.push_str(&append_text);
+
+                    // parse ansi text to tui text.
+                    let data =
+                        ansi4tui::bytes_to_text(format!("{}\n", append_text).as_bytes().to_vec());
+                    for d in data {
+                        for x in d.0 {
+                            processed_text.push(x);
+                        }
+                        break;
+                    }
                 }
             }
             Output::Escape(seq) => {
@@ -667,17 +574,7 @@ fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
         }
     }
 
-    let data = ansi4tui::bytes_to_text(format!("{}\n", processed_text).as_bytes().to_vec());
-
-    for d in data.lines {
-        let mut line = vec![];
-
-        for el in d.0 {
-            line.push(el)
-        }
-
-        result.push(line);
-    }
+    result.push(processed_text);
 
     return result;
 }
