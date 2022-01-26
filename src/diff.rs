@@ -198,8 +198,10 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                     if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
-                        data =
-                            Spans::from(Span::styled(strip_str, Style::default().fg(Color::Green)));
+                        data = Spans::from(Span::styled(
+                            format!("+  {}\n", strip_str),
+                            Style::default().fg(Color::Green),
+                        ));
                     } else {
                         // to string => rs-tui span.
                         data = Spans::from(Span::styled(
@@ -219,8 +221,10 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                     if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
-                        data =
-                            Spans::from(Span::styled(strip_str, Style::default().fg(Color::Red)));
+                        data = Spans::from(Span::styled(
+                            format!("+  {}\n", strip_str),
+                            Style::default().fg(Color::Red),
+                        ));
                     } else {
                         // to string => rs-tui span.
                         data = Spans::from(Span::styled(
@@ -597,10 +601,6 @@ fn get_word_diff_line_to_spans<'a>(
 ) -> Vec<Vec<Span<'a>>> {
     // result
     let mut result = vec![];
-    let mut counter = 0;
-
-    // Decompose a string for each character.
-    let chars: Vec<char> = diff_str.chars().collect();
 
     for l in diff_str.split("\n") {
         let text: String;
@@ -615,8 +615,6 @@ fn get_word_diff_line_to_spans<'a>(
         line.push(Span::styled(text.clone(), style));
         line.push(Span::styled(" ", Style::default()));
         result.push(line);
-
-        counter += 1;
     }
 
     return result;
@@ -681,6 +679,7 @@ fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
     return result;
 }
 
+///
 fn get_ansi_strip_str<'a>(text: &'a str) -> String {
     let parsed: Vec<Output> = text.ansi_parse().collect();
     let mut line_str = "".to_string();

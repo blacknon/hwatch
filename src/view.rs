@@ -143,6 +143,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         self.history_area.next();
 
@@ -170,6 +171,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.get_area(f);
 
@@ -183,6 +185,7 @@ impl<'a> App<'a> {
         self.history_area.draw(f);
     }
 
+    ///
     fn get_area<B: Backend>(&mut self, f: &mut Frame<B>) {
         // get Area's chunks
         let top_chunks = Layout::default()
@@ -207,6 +210,7 @@ impl<'a> App<'a> {
         self.history_area.set_area(areas[2]);
     }
 
+    ///
     fn get_event(&mut self, terminal_event: crossterm::event::Event) {
         match self.input_mode {
             InputMode::None => self.get_input_key(terminal_event),
@@ -217,7 +221,7 @@ impl<'a> App<'a> {
 
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
-        let mut results = self.results.lock().unwrap();
+        let results = self.results.lock().unwrap();
 
         let text: &str;
         let mut output_data = vec![];
@@ -287,6 +291,7 @@ impl<'a> App<'a> {
         self.watch_area.update_output(output_data);
     }
 
+    ///
     fn set_output_mode(&mut self, mode: OutputMode) {
         self.output_mode = mode;
         self.header_area.set_output_mode(mode);
@@ -296,6 +301,7 @@ impl<'a> App<'a> {
         self.set_output_data(selected);
     }
 
+    ///
     fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
 
@@ -313,10 +319,12 @@ impl<'a> App<'a> {
         self.set_output_data(selected);
     }
 
+    ///
     fn set_interval(&mut self, interval: f64) {
         self.header_area.set_interval(interval);
     }
 
+    ///
     fn set_diff_mode(&mut self, diff_mode: DiffMode) {
         self.diff_mode = diff_mode;
 
@@ -333,6 +341,7 @@ impl<'a> App<'a> {
         self.set_output_data(selected);
     }
 
+    ///
     fn update_result(&mut self, _result: CommandResult) {
         // unlock self.results
         let mut results = self.results.lock().unwrap();
@@ -386,6 +395,7 @@ impl<'a> App<'a> {
         self.set_output_data(selected)
     }
 
+    ///
     fn get_input_key(&mut self, terminal_event: crossterm::event::Event) {
         match self.window {
             ActiveWindow::Normal => {
@@ -495,6 +505,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn toggle_area(&mut self) {
         match self.window {
             ActiveWindow::Normal => {
@@ -511,6 +522,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn toggle_output(&mut self) {
         match self.output_mode {
             OutputMode::Output => self.set_output_mode(OutputMode::Stdout),
@@ -519,6 +531,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn toggle_ansi_color(&mut self) {
         match self.ansi_color {
             true => self.set_ansi_color(false),
@@ -526,6 +539,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn toggle_diff_mode(&mut self) {
         match self.diff_mode {
             DiffMode::Disable => self.set_diff_mode(DiffMode::Watch),
@@ -535,6 +549,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn input_key_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
@@ -555,6 +570,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn input_key_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
@@ -575,6 +591,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn input_key_left(&mut self) {
         match self.window {
             ActiveWindow::Normal => {
@@ -588,6 +605,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn input_key_right(&mut self) {
         match self.window {
             ActiveWindow::Normal => {

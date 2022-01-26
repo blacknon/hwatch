@@ -51,7 +51,7 @@ impl ExecuteCommand {
         // let command_name = &parse_command[0];
         // let command_args = &parse_command[1..length];
 
-        // generate exec command
+        // generate exec command(not windows)
         let mut child = Command::new("sh")
             .arg("-c")
             .arg(&self.command)
@@ -59,6 +59,8 @@ impl ExecuteCommand {
             .stderr(Stdio::piped())
             .spawn()
             .expect("failed to execute prog");
+
+        // generate exec command(windows)
         // let mut child = Command::new(command_name)
         //     .args(command_args)
         //     // .arg("-c")
@@ -126,7 +128,7 @@ impl ExecuteCommand {
         let status = child.wait().expect("");
 
         // Set result
-        let _result = CommandResult {
+        let result = CommandResult {
             timestamp: common::now_str(),
             command: self.command.clone(),
             status: status.success(),
@@ -136,7 +138,7 @@ impl ExecuteCommand {
         };
 
         // Send result
-        let _ = self.tx.send(AppEvent::OutputUpdate(_result));
+        let _ = self.tx.send(AppEvent::OutputUpdate(result));
 
         // Memory release.
         drop(vec_output);
