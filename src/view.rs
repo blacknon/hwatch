@@ -217,7 +217,8 @@ impl<'a> App<'a> {
 
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
-        let results = self.results.lock().unwrap();
+        let mut results = self.results.lock().unwrap();
+
         let text: &str;
         let mut output_data = vec![];
 
@@ -282,6 +283,7 @@ impl<'a> App<'a> {
                 output_data = diff::get_word_diff(self.ansi_color, &text_old, &text);
             }
         }
+
         self.watch_area.update_output(output_data);
     }
 
@@ -298,10 +300,10 @@ impl<'a> App<'a> {
         self.ansi_color = ansi_color;
 
         // TODO: diffでcolorが使えるようになったら修正
-        if self.ansi_color {
-            self.diff_mode = DiffMode::Disable;
-            self.set_diff_mode(self.diff_mode);
-        }
+        // if self.ansi_color {
+        //     self.diff_mode = DiffMode::Disable;
+        //     self.set_diff_mode(self.diff_mode);
+        // }
 
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
@@ -319,10 +321,10 @@ impl<'a> App<'a> {
         self.diff_mode = diff_mode;
 
         // TODO: diffでcolorを使えるようになったら修正
-        match self.diff_mode {
-            DiffMode::Disable => {}
-            _ => self.set_ansi_color(false),
-        }
+        // match self.diff_mode {
+        //     DiffMode::Disable => {}
+        //     _ => self.set_ansi_color(false),
+        // }
 
         self.header_area.set_diff_mode(diff_mode);
         self.header_area.update();

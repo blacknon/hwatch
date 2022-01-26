@@ -11,6 +11,8 @@
 //                 watchコマンドにもある(-g, --chgexit)
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v1.0.0)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
+// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加。
+//                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 // TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.2.1)
 //                 (`/`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
 // TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.2.1)
@@ -22,9 +24,11 @@
 #[warn(unused_doc_comments)]
 // crate
 extern crate ansi4tui;
+extern crate ansi_parser;
 extern crate chrono;
 extern crate crossterm;
 extern crate difference;
+extern crate heapless;
 extern crate regex;
 extern crate serde;
 extern crate termwiz;
