@@ -227,9 +227,9 @@ fn main() {
         _view.set_color(_color);
 
         // Set logfile
-        // if _logfile != None {
-        //     _view.set_logfile(_logfile.unwrap().to_string());
-        // }
+        if _logfile != None {
+            _view.set_logfile(_logfile.unwrap().to_string());
+        }
 
         // Set diff in _view
         // let mut _diff_type = 0;

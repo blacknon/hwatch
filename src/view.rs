@@ -26,7 +26,7 @@ use tui::{
 };
 
 // local module
-use common::differences_result;
+use common::{differences_result, logging_result};
 use diff;
 use event::AppEvent;
 use exec::CommandResult;
@@ -110,7 +110,7 @@ pub struct App<'a> {
     pub done: bool,
 
     /// logfile path.
-    pub logfile: String,
+    logfile: String,
 
     pub tx: Sender<AppEvent>,
     pub rx: Receiver<AppEvent>,
@@ -342,6 +342,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn set_logpath(&mut self, logpath: String) {
+        self.logfile = logpath;
+    }
+
+    ///
     fn update_result(&mut self, _result: CommandResult) {
         // unlock self.results
         let mut results = self.results.lock().unwrap();
@@ -356,6 +361,8 @@ impl<'a> App<'a> {
             stdout: "".to_string(),
             stderr: "".to_string(),
         };
+
+        // set latest result
         latest_result = &tmp_result;
         if results.len() > 0 {
             // diff output data.
@@ -370,6 +377,11 @@ impl<'a> App<'a> {
         let check_result_diff = differences_result(&latest_result, &_result);
         if check_result_diff {
             return;
+        }
+
+        // logging result.
+        if self.logfile != "" {
+            let _ = logging_result(&self.logfile, &latest_result);
         }
 
         // append results
@@ -624,6 +636,7 @@ impl<'a> App<'a> {
 pub struct View {
     interval: f64,
     color: bool,
+    log_path: String,
 }
 
 impl View {
@@ -631,6 +644,7 @@ impl View {
         Self {
             interval: ::DEFAULT_INTERVAL,
             color: false,
+            log_path: "".to_string(),
         }
     }
 
@@ -640,6 +654,10 @@ impl View {
 
     pub fn set_color(&mut self, color: bool) {
         self.color = color;
+    }
+
+    pub fn set_logfile(&mut self, log_path: String) {
+        self.log_path = log_path;
     }
 
     pub fn start(
@@ -666,6 +684,9 @@ impl View {
 
         // set interval
         app.set_interval(self.interval);
+
+        // set logfile path.
+        app.set_logpath(self.log_path.clone());
 
         // Run App
         let res = app.run(&mut terminal);
