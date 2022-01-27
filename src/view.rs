@@ -326,12 +326,6 @@ impl<'a> App<'a> {
     fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
 
-        // TODO: diffでcolorが使えるようになったら修正
-        // if self.ansi_color {
-        //     self.diff_mode = DiffMode::Disable;
-        //     self.set_diff_mode(self.diff_mode);
-        // }
-
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
         self.watch_area.set_ansi_color(ansi_color);
@@ -348,12 +342,6 @@ impl<'a> App<'a> {
     ///
     fn set_diff_mode(&mut self, diff_mode: DiffMode) {
         self.diff_mode = diff_mode;
-
-        // TODO: diffでcolorを使えるようになったら修正
-        // match self.diff_mode {
-        //     DiffMode::Disable => {}
-        //     _ => self.set_ansi_color(false),
-        // }
 
         self.header_area.set_diff_mode(diff_mode);
         self.header_area.update();
@@ -400,13 +388,13 @@ impl<'a> App<'a> {
             return;
         }
 
-        // logging result.
-        if self.logfile != "" {
-            let _ = logging_result(&self.logfile, &latest_result);
-        }
-
         // append results
         results.insert(0, _result.clone());
+
+        // logging result.
+        if self.logfile != "" {
+            let _ = logging_result(&self.logfile, &results[0]);
+        }
 
         // update HistoryArea
         let _timestamp = &results[0].timestamp;
