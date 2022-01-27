@@ -5,7 +5,10 @@
 #[warn(unused_doc_comments)]
 // module
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+        MouseButton, MouseEvent, MouseEventKind,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -507,7 +510,8 @@ impl<'a> App<'a> {
                         .send(AppEvent::Exit)
                         .expect("send error hwatch exit."),
 
-                    // TODO: add mouse event.
+                    // mouse event.
+                    // Event::Mouse(ref mouse_event) => self.get_input_mouse_event(mouse_event),
                     _ => {}
                 }
             }
@@ -541,6 +545,20 @@ impl<'a> App<'a> {
                     _ => {}
                 }
             }
+        }
+    }
+
+    // Not currently used.
+    ///
+    fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
+        let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
+        match mouse_event_tupple {
+            // Click Mouse Left.
+            (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) => {
+                self.mouse_click_left(mouse_event.column, mouse_event.row);
+            }
+
+            _ => {}
         }
     }
 
@@ -662,6 +680,29 @@ impl<'a> App<'a> {
             _ => {}
         }
     }
+
+    // NOTE: TODO:
+    // Not currently used.
+    // It will not be supported until the following issues are resolved.
+    //     - https://github.com/fdehau/tui-rs/issues/495
+    ///
+    fn mouse_click_left(&mut self, column: u16, row: u16) {
+        // check in hisotry area
+        let is_history_area = check_in_area(self.history_area.area, column, row);
+        if is_history_area {
+            let headline_count = self.history_area.area.y;
+            // self.history_area.click_row(row - headline_count);
+
+            // self.history_area.previous();
+
+            let selected = self.history_area.get_state_select();
+            self.set_output_data(selected);
+        }
+    }
+
+    fn mouse_scroll_up(&mut self, column: u16, row: u16) {}
+
+    fn mouse_scroll_down(&mut self, column: u16, row: u16) {}
 }
 
 /// start hwatch app view.
@@ -829,4 +870,27 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
+}
+
+fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
+    let mut result = true;
+
+    // get area range's
+    let area_top = area.top();
+    let area_bottom = area.bottom();
+    let area_left = area.left();
+    let area_right = area.right();
+
+    let area_row_range = area_top..area_bottom;
+    let area_column_range = area_left..area_right;
+
+    if !area_row_range.contains(&row) {
+        result = false;
+    }
+
+    if !area_column_range.contains(&column) {
+        result = false;
+    }
+
+    return result;
 }

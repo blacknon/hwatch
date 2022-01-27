@@ -19,7 +19,7 @@ struct History {
 
 pub struct HistoryArea {
     ///
-    area: tui::layout::Rect,
+    pub area: tui::layout::Rect,
 
     ///
     data: Vec<Vec<History>>,
@@ -135,4 +135,13 @@ impl HistoryArea {
         };
         self.state.select(Some(i));
     }
+
+    // NOTE: TODO:
+    // It will not be supported until the following issues are resolved.
+    //     - https://github.com/fdehau/tui-rs/issues/495
+    //
+    // pub fn click_row(&mut self, row: u16) {
+    //     let select_num = row as usize;
+    //     self.state.select(Some(select_num));
+    // }
 }
