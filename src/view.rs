@@ -20,8 +20,10 @@ use std::{
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
     text::Spans,
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame, Terminal,
 };
 
@@ -105,6 +107,9 @@ pub struct App<'a> {
     ///
     watch_area: WatchArea<'a>,
 
+    ///
+    help_block: Paragraph<'a>,
+
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
     pub done: bool,
@@ -135,6 +140,8 @@ impl<'a> App<'a> {
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
+
+            help_block: gen_popup_help_block(),
 
             done: false,
             logfile: "".to_string(),
@@ -183,6 +190,17 @@ impl<'a> App<'a> {
 
         // Draw history area
         self.history_area.draw(f);
+
+        // if help mode
+        match self.window {
+            ActiveWindow::Help => {
+                let size = f.size();
+                let area = centered_rect(60, 50, size);
+                f.render_widget(Clear, area);
+                f.render_widget(self.help_block.clone(), area);
+            }
+            _ => {}
+        }
     }
 
     ///
@@ -466,6 +484,10 @@ impl<'a> App<'a> {
 
                     // Common input key
                     // h ... toggel help window.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('h'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_window(),
 
                     // q ... exit hwatch.
                     Event::Key(KeyEvent {
@@ -492,6 +514,10 @@ impl<'a> App<'a> {
                 match terminal_event {
                     // Common input key
                     // h ... toggel help window.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('h'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_window(),
 
                     // q ... exit hwatch.
                     Event::Key(KeyEvent {
@@ -545,10 +571,7 @@ impl<'a> App<'a> {
 
     ///
     fn toggle_ansi_color(&mut self) {
-        match self.ansi_color {
-            true => self.set_ansi_color(false),
-            false => self.set_ansi_color(true),
-        }
+        self.set_ansi_color(!self.ansi_color);
     }
 
     ///
@@ -558,6 +581,14 @@ impl<'a> App<'a> {
             DiffMode::Watch => self.set_diff_mode(DiffMode::Line),
             DiffMode::Line => self.set_diff_mode(DiffMode::Word),
             DiffMode::Word => self.set_diff_mode(DiffMode::Disable),
+        }
+    }
+
+    ///
+    fn toggle_window(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => self.window = ActiveWindow::Help,
+            ActiveWindow::Help => self.window = ActiveWindow::Normal,
         }
     }
 
@@ -718,4 +749,83 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         let _ = tx.clone().send(AppEvent::TerminalEvent(event));
     }
     Ok(())
+}
+
+///
+fn gen_popup_help_block<'a>() -> Paragraph<'a> {
+    // set popup title.
+    let title = "help";
+
+    // set help messages.
+    let mut text = vec![];
+    text.push(Spans::from(" - [h] key   ... show this help message."));
+
+    // toggle
+    text.push(Spans::from(" - [c] key   ... toggle color mode."));
+    text.push(Spans::from(
+        " - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. ",
+    ));
+
+    // exit hwatch
+    text.push(Spans::from(" - [q] key   ... exit hwatch."));
+
+    // change diff
+    text.push(Spans::from(" - [0] key   ... disable diff."));
+    text.push(Spans::from(" - [1] key   ... switch Watch type diff."));
+    text.push(Spans::from(" - [2] key   ... switch Line type diff."));
+    text.push(Spans::from(" - [3] key   ... switch Word type diff."));
+
+    // change output
+    text.push(Spans::from(
+        " - [F1] key  ... change output mode as stdout.",
+    ));
+    text.push(Spans::from(
+        " - [F2] key  ... change output mode as stderr.",
+    ));
+    text.push(Spans::from(
+        " - [F3] key  ... change output mode as output(stdout/stderr set.)",
+    ));
+
+    // change use area
+    text.push(Spans::from(
+        " - [Tab] key ... toggle current area at history or watch.",
+    ));
+
+    // create block.
+    let block = Paragraph::new(text)
+        .style(Style::default().fg(Color::LightGreen))
+        .block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Gray).bg(Color::Reset)),
+        );
+
+    return block;
+}
+
+///
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
