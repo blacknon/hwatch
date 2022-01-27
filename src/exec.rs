@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Blacknon. All rights reserved.
+// Copyright (c) 2021 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -11,10 +11,10 @@ use std::sync::mpsc::Sender;
 
 // local module
 use common;
-use event::Event;
+use event::AppEvent;
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct Result {
+pub struct CommandResult {
     pub timestamp: String,
     pub command: String,
     pub status: bool,
@@ -23,29 +23,16 @@ pub struct Result {
     pub stderr: String,
 }
 
-impl Result {
-    pub fn new() -> Self {
-        Self {
-            timestamp: String::new(),
-            command: String::new(),
-            status: true,
-            output: String::new(),
-            stdout: String::new(),
-            stderr: String::new(),
-        }
-    }
-}
-
 // TODO(blacknon): commandは削除？
-pub struct CmdRun {
+pub struct ExecuteCommand {
     pub command: String,
     pub is_exec: bool,
-    pub tx: Sender<Event>,
+    pub tx: Sender<AppEvent>,
 }
 
-impl CmdRun {
+impl ExecuteCommand {
     // set default value
-    pub fn new(tx: Sender<Event>) -> Self {
+    pub fn new(tx: Sender<AppEvent>) -> Self {
         Self {
             command: "".to_string(),
             is_exec: false,
@@ -55,15 +42,42 @@ impl CmdRun {
 
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
+    // TODO(blacknon): Windowsに対応していないのでどうにかする
     pub fn exec_command(&mut self) {
-        // generate exec command
-        let mut child = Command::new("sh")
-            .arg("-c")
+        // TODO: evalでの処理追加時に利用.
+
+        // generate exec command(not windows)
+        let mut exec_cmd = "sh";
+        let mut exec_cmd_arg = "-c";
+
+        if cfg!(windows) {
+            exec_cmd = "cmd";
+            exec_cmd_arg = "/C";
+        }
+
+        let mut child = Command::new(exec_cmd)
+            .arg(exec_cmd_arg)
             .arg(&self.command)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .expect("failed to execute prog");
+
+        // command parse
+        // let parse_command: Vec<&str> = self.command.split(" ").collect();
+        // let length = parse_command.len();
+        // let command_name = &parse_command[0];
+        // let command_args = &parse_command[1..length];
+
+        // generate exec command(windows)
+        // let mut child = Command::new(command_name)
+        //     .args(command_args)
+        //     // .arg("-c")
+        //     // .arg(&self.command)
+        //     .stdout(Stdio::piped())
+        //     .stderr(Stdio::piped())
+        //     .spawn()
+        //     .expect("failed to execute prog");
 
         // TODO(blacknon): 何かしらの方法で、シェルの環境変数や関数、エイリアスの継承を行わせてコマンドを実行させる
 
@@ -82,11 +96,11 @@ impl CmdRun {
         let mut vec_stdout = Vec::new();
         let mut vec_stderr = Vec::new();
         {
-            let stdout = child.stdout.as_mut().expect("");
-            let stderr = child.stderr.as_mut().expect("");
+            let child_stdout = child.stdout.as_mut().expect("");
+            let child_stderr = child.stderr.as_mut().expect("");
 
-            let mut stdout = BufReader::new(stdout);
-            let mut stderr = BufReader::new(stderr);
+            let mut stdout = BufReader::new(child_stdout);
+            let mut stderr = BufReader::new(child_stderr);
 
             loop {
                 let (stdout_bytes, stderr_bytes) = match (stdout.fill_buf(), stderr.fill_buf()) {
@@ -113,13 +127,17 @@ impl CmdRun {
                 stdout.consume(stdout_bytes);
                 stderr.consume(stderr_bytes);
             }
+
+            // Memory release.
+            drop(stdout);
+            drop(stderr);
         }
 
         // get command status
         let status = child.wait().expect("");
 
         // Set result
-        let _result = Result {
+        let result = CommandResult {
             timestamp: common::now_str(),
             command: self.command.clone(),
             status: status.success(),
@@ -129,6 +147,11 @@ impl CmdRun {
         };
 
         // Send result
-        let _ = self.tx.send(Event::OutputUpdate(_result));
+        let _ = self.tx.send(AppEvent::OutputUpdate(result));
+
+        // Memory release.
+        drop(vec_output);
+        drop(vec_stdout);
+        drop(vec_stderr);
     }
 }

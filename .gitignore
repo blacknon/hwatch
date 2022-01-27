@@ -1,7 +1,17 @@
+# MacOS files
+.DS_Store
+
+# Sublime Text files
+hwatch.sublime-project
+
+# VSCode files
+.vscode*
+
+# Rust files
+Cargo.lock
 tmp*
 /target/
-Cargo.lock
-hwatch.sublime-project
 .rustc_info.json
-.DS_Store
-.vscode*
+
+# tmp files
+old_*
