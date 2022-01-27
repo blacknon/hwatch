@@ -479,6 +479,48 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_output(),
 
+                    // 0 (DiffMode::Disable)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('0'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_diff_mode(DiffMode::Disable),
+
+                    // 1 (DiffMode::Watch)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('1'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_diff_mode(DiffMode::Watch),
+
+                    // 2 (DiffMode::Line)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('2'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_diff_mode(DiffMode::Line),
+
+                    // 3 (DiffMode::Word)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('3'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_diff_mode(DiffMode::Word),
+
+                    // F1 (OutputMode::Stdout)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::F(1),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_output_mode(OutputMode::Stdout),
+
+                    // F2 (OutputMode::Stderr)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::F(2),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_output_mode(OutputMode::Stderr),
+
+                    // F3 (OutputMode::Output)
+                    Event::Key(KeyEvent {
+                        code: KeyCode::F(3),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_output_mode(OutputMode::Output),
+
                     // Tab ... Toggle Area(Watch or History).
                     Event::Key(KeyEvent {
                         code: KeyCode::Tab,
