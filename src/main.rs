@@ -1,8 +1,8 @@
-// Copyright (c) 2019 Blacknon. All rights reserved.
+// Copyright (c) 2021 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.1.4)
+// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.2.0)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v1.0.0)
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v1.0.0)
@@ -11,22 +11,32 @@
 //                 watchコマンドにもある(-g, --chgexit)
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v1.0.0)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-// TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.1.5)
-//                 (`s`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
+// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加。
+//                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
+// TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.2.1)
+//                 (`/`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
+// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.2.1)
+//                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.2.0)
+// TODO(blacknon): 長いcommand指定時は省略して出力させる
+// TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
 
+#[warn(unused_doc_comments)]
 // crate
-extern crate itertools;
-extern crate ncurses;
-extern crate nix;
+extern crate ansi4tui;
+extern crate ansi_parser;
+extern crate chrono;
+extern crate crossterm;
+extern crate difference;
+extern crate heapless;
 extern crate regex;
 extern crate serde;
+extern crate termwiz;
+extern crate tui;
 
 // macro crate
 #[macro_use]
 extern crate clap;
-
-#[macro_use]
-extern crate lazy_static;
 
 #[macro_use]
 extern crate serde_derive;
@@ -41,33 +51,26 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
-mod cmd;
 mod common;
+mod diff;
 mod event;
-mod input;
-mod signal;
+mod exec;
+mod header;
+mod history;
 mod view;
-use input::Input;
-use signal::Signal;
-use view::View;
+mod watch;
 
 // const
-// default interval value(int)
 pub const DEFAULT_INTERVAL: f64 = 2.0;
-pub const HISTORY_WIDTH: i32 = 25;
-pub const IS_WATCH_PAD: i32 = 0;
-pub const IS_HISTORY_PAD: i32 = 1;
-pub const IS_STDOUT: i32 = 1;
-pub const IS_STDERR: i32 = 2;
-pub const IS_OUTPUT: i32 = 3;
-pub const DIFF_DISABLE: i32 = 0;
-pub const DIFF_WATCH: i32 = 1;
-pub const DIFF_LINE: i32 = 2;
-pub const CURSOR_NORMAL_WINDOW: i32 = 0;
-pub const CURSOR_HELP_WINDOW: i32 = 1;
-pub const CURSOR_INPUT_KEYWORD: i32 = 2;
+pub const HISTORY_WIDTH: u16 = 25;
 
-// Parse args and options
+#[cfg(windows)]
+const LINE_ENDING: &'static str = "\r\n";
+
+#[cfg(not(windows))]
+const LINE_ENDING: &'static str = "\n";
+
+/// Parse args and options function.
 fn build_app() -> clap::App<'static, 'static> {
     // get own name
     let _program = args()
@@ -142,8 +145,7 @@ fn build_app() -> clap::App<'static, 'static> {
         //         .takes_value(true)
         //         .default_value("sh -c"),
         // )
-        //
-        // Interval optionMacの場合は更に背景画像も変わる
+        // Interval option
         //   [--interval,-n] second(default:2)
         .arg(
             Arg::with_name("interval")
@@ -162,14 +164,13 @@ fn main() {
     // matches clone
     let _m = _matches.clone();
 
-    // TODO(blacknon): _intervalの値が数字かどうかのエラーチェックを入れる
-    // TODO(blacknon): _intervalの値の桁数制限をする
-
-    // Get options
-    let mut _interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
+    // Get options flag
     let mut _batch = _m.is_present("batch");
     let mut _diff = _m.is_present("differences");
     let mut _color = _m.is_present("color");
+
+    // Get options value
+    let mut _interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
     let mut _exec = _m.value_of("exec");
     let mut _logfile = _m.value_of("logfile");
 
@@ -200,16 +201,15 @@ fn main() {
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
-            let mut cmd = cmd::CmdRun::new(tx.clone());
+            let mut exe = exec::ExecuteCommand::new(tx.clone());
 
             // Set command
-            cmd.command = _matches.values_of_lossy("command").unwrap().join(" ");
+            exe.command = _matches.values_of_lossy("command").unwrap().join(" ");
 
             // Exec command
-            cmd.exec_command();
+            exe.exec_command();
 
             // sleep interval
-            // thread::sleep(Duration::from_float_secs(_interval));
             thread::sleep(Duration::from_secs_f64(_interval));
         });
     }
@@ -217,12 +217,14 @@ fn main() {
     // check batch mode
     if !_batch {
         // is watch mode
-
         // Create view
-        let mut _view = View::new(tx.clone(), rx);
+        let mut _view = view::View::new();
 
         // Set interval on _view.header
         _view.set_interval(_interval);
+
+        // Set color in _view
+        _view.set_color(_color);
 
         // Set logfile
         if _logfile != None {
@@ -230,29 +232,14 @@ fn main() {
         }
 
         // Set diff in _view
-        let mut _diff_type = 0;
-        if _diff {
-            _diff_type = 1;
-        }
-        _view.switch_diff(_diff_type);
+        // let mut _diff_type = 0;
+        // if _diff {
+        //     _diff_type = 1;
+        // }
+        // _view.switch_diff(_diff_type);
 
-        // Set color in _view
-        _view.set_color(_color);
-
-        // Create input
-        let mut _input = Input::new(tx.clone());
-
-        // Create signal
-        let mut _signal = Signal::new(tx.clone());
-
-        // await input thread
-        _input.run();
-
-        // await signal thread
-        _signal.run();
-
-        // view
-        _view.get_event();
+        // start app
+        let _res = _view.start(tx.clone(), rx);
     } else {
         // is batch mode
         println!("is batch (developing now)");
