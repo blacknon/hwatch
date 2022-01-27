@@ -45,20 +45,29 @@ impl ExecuteCommand {
     // TODO(blacknon): Windowsに対応していないのでどうにかする
     pub fn exec_command(&mut self) {
         // TODO: evalでの処理追加時に利用.
-        // command parse
-        // let parse_command: Vec<&str> = self.command.split(" ").collect();
-        // let length = parse_command.len();
-        // let command_name = &parse_command[0];
-        // let command_args = &parse_command[1..length];
 
         // generate exec command(not windows)
-        let mut child = Command::new("sh")
-            .arg("-c")
+        let mut exec_cmd = "sh";
+        let mut exec_cmd_arg = "-c";
+
+        if cfg!(windows) {
+            exec_cmd = "cmd";
+            exec_cmd_arg = "/C";
+        }
+
+        let mut child = Command::new(exec_cmd)
+            .arg(exec_cmd_arg)
             .arg(&self.command)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .expect("failed to execute prog");
+
+        // command parse
+        // let parse_command: Vec<&str> = self.command.split(" ").collect();
+        // let length = parse_command.len();
+        // let command_name = &parse_command[0];
+        // let command_args = &parse_command[1..length];
 
         // generate exec command(windows)
         // let mut child = Command::new(command_name)

@@ -507,6 +507,7 @@ impl<'a> App<'a> {
                         .send(AppEvent::Exit)
                         .expect("send error hwatch exit."),
 
+                    // TODO: add mouse event.
                     _ => {}
                 }
             }
