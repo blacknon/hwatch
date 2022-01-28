@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.2.0)
+// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.3.0)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v1.0.0)
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v1.0.0)
@@ -11,15 +11,15 @@
 //                 watchコマンドにもある(-g, --chgexit)
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v1.0.0)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加。
+// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.0)
 //                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
-// TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.2.1)
+// TODO(blacknon): 検索によるフィルタリング機能の追加.(v0.3.0)
 //                 (`/`キーで処理。正規表現検索も機能としてデフォルトで有効にしたいが、果たして…？ できればリアルタイムフィルタリングを行いたいところだけど…？)
-// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.2.1)
+// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.3.0)
 //                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
-// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.2.0)
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.2.2)
 // TODO(blacknon): 長いcommand指定時は省略して出力させる
-// TODO(blacknon): ncursesからtui-rsを利用した方式に切り替える
+// TODO(blacknon): Windows対応(v0.3.0). 一応、あとはライブラリが対応すればイケる.
 
 #[warn(unused_doc_comments)]
 // crate

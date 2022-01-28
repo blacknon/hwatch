@@ -2,12 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: diff時のカラーコードについても対応する
-//       (1行ごとにansi4tui::bytes_to_textに放り込む方式？行最後のカラーコードを保持して続きを記述することでdiffでも対応出来るかも？)
-//       - watch ... 同居(ansiで対応)
-//       - line ... 差分のある行はansiを削除(強制でdiff colorに書き換え)
-//       - word ... 差分のある行はansiを削除(強制でdiff colorに書き換え)
-
 // modules
 use ansi_parser::{AnsiParser, AnsiSequence, Output};
 use difference::{Changeset, Difference};
