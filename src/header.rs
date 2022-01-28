@@ -2,7 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える
+// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える(v0.3.0)
+// TODO: input内容の表示
 
 use tui::{
     backend::Backend,
