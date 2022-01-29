@@ -21,6 +21,7 @@
 // TODO(blacknon): 長いcommand指定時は省略して出力させる
 // TODO(blacknon): Windows対応(v0.4.0). 一応、あとはライブラリが対応すればイケる.
 // TODO(blakcnon): batch modeの実装(v0.3.0).
+// TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.4.0).
 
 #[warn(unused_doc_comments)]
 // crate
@@ -231,13 +232,6 @@ fn main() {
         if _logfile != None {
             _view.set_logfile(_logfile.unwrap().to_string());
         }
-
-        // Set diff in _view
-        // let mut _diff_type = 0;
-        // if _diff {
-        //     _diff_type = 1;
-        // }
-        // _view.switch_diff(_diff_type);
 
         // start app
         let _res = _view.start(tx.clone(), rx);
