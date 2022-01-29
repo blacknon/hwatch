@@ -17,7 +17,7 @@ use std::{
     io,
     sync::{
         mpsc::{Receiver, Sender},
-        Mutex,
+        Mutex, MutexGuard,
     },
     time::Duration,
 };
@@ -199,8 +199,10 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 let size = f.size();
                 let area = centered_rect(60, 50, size);
+                let block = self.help_block.clone();
+
                 f.render_widget(Clear, area);
-                f.render_widget(self.help_block.clone(), area);
+                f.render_widget(block, area);
             }
             _ => {}
         }
@@ -234,50 +236,58 @@ impl<'a> App<'a> {
     ///
     fn get_event(&mut self, terminal_event: crossterm::event::Event) {
         match self.input_mode {
-            InputMode::None => self.get_input_key(terminal_event),
+            InputMode::None => self.get_normal_input_key(terminal_event),
             InputMode::Filter => {}
             InputMode::Search => {}
         }
     }
 
+    // TODO: target1のresult取得処理を外だし+Structで取得させる+その時の値をOption<>で処理に切り替える
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
 
-        let text: &str;
+        // text_src ... old text.
+        // text_dst ... new text.
+        let text_src: &str;
+        let text_dst: &str;
         let mut output_data = vec![];
 
-        let mut target: usize = num;
+        // set target number at new history.
+        let mut target_dst: usize = num;
         if num >= 1 {
-            target = target - 1;
+            target_dst = target_dst - 1;
         }
 
+        // set target number at old history.
+        let target_src = target_dst + 1;
+
         // check results over target...
-        if results.len() <= target {
+        if results.len() <= target_dst {
             return;
         }
 
+        // set new text(text_dst)
         match self.output_mode {
-            OutputMode::Output => text = &results[target].output,
-            OutputMode::Stdout => text = &results[target].stdout,
-            OutputMode::Stderr => text = &results[target].stderr,
+            OutputMode::Output => text_dst = &results[target_dst].output,
+            OutputMode::Stdout => text_dst = &results[target_dst].stdout,
+            OutputMode::Stderr => text_dst = &results[target_dst].stderr,
         }
 
-        let old_target = target + 1;
-        let text_old: &str;
-        if results.len() > old_target {
+        // set old text(text_src)
+        if results.len() > target_src {
             match self.output_mode {
-                OutputMode::Output => text_old = &results[old_target].output,
-                OutputMode::Stdout => text_old = &results[old_target].stdout,
-                OutputMode::Stderr => text_old = &results[old_target].stderr,
+                OutputMode::Output => text_src = &results[target_src].output,
+                OutputMode::Stdout => text_src = &results[target_src].stdout,
+                OutputMode::Stderr => text_src = &results[target_src].stderr,
             }
         } else {
-            text_old = "";
+            text_src = "";
         }
 
         match self.diff_mode {
             DiffMode::Disable => {
-                let lines = text.split("\n");
+                let lines = text_dst.split("\n");
                 for l in lines {
                     match self.ansi_color {
                         false => {
@@ -297,15 +307,15 @@ impl<'a> App<'a> {
             }
 
             DiffMode::Watch => {
-                output_data = diff::get_watch_diff(self.ansi_color, &text_old, &text);
+                output_data = diff::get_watch_diff(self.ansi_color, &text_src, &text_dst);
             }
 
             DiffMode::Line => {
-                output_data = diff::get_line_diff(self.ansi_color, &text_old, &text);
+                output_data = diff::get_line_diff(self.ansi_color, &text_src, &text_dst);
             }
 
             DiffMode::Word => {
-                output_data = diff::get_word_diff(self.ansi_color, &text_old, &text);
+                output_data = diff::get_word_diff(self.ansi_color, &text_src, &text_dst);
             }
         }
 
@@ -417,7 +427,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_input_key(&mut self, terminal_event: crossterm::event::Event) {
+    fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
         match self.window {
             ActiveWindow::Normal => {
                 match terminal_event {
@@ -684,6 +694,12 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn input_key_pgup(&mut self) {}
+
+    ///
+    fn input_key_pgdn(&mut self) {}
+
+    ///
     fn input_key_left(&mut self) {
         match self.window {
             ActiveWindow::Normal => {
@@ -730,8 +746,10 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn mouse_scroll_up(&mut self, column: u16, row: u16) {}
 
+    ///
     fn mouse_scroll_down(&mut self, column: u16, row: u16) {}
 }
 
