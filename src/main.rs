@@ -22,6 +22,7 @@
 // TODO(blacknon): Windows対応(v0.4.0). 一応、あとはライブラリが対応すればイケる.
 // TODO(blakcnon): batch modeの実装(v0.3.0).
 // TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.4.0).
+// TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.4.0).
 
 #[warn(unused_doc_comments)]
 // crate

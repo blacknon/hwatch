@@ -12,9 +12,10 @@ use tui::{
 };
 
 #[derive(Clone)]
-struct History {
-    timestamp: String,
-    status: bool,
+pub struct History {
+    pub timestamp: String,
+    pub status: bool,
+    pub num: u16,
 }
 
 pub struct HistoryArea {
@@ -37,6 +38,7 @@ impl HistoryArea {
             data: vec![vec![History {
                 timestamp: "latest                 ".to_string(),
                 status: true,
+                num: 0,
             }]],
             state: TableState::default(),
         }
@@ -50,7 +52,7 @@ impl HistoryArea {
         self.data[0][0].status = latest_status;
     }
 
-    pub fn update(&mut self, timestamp: String, status: bool) {
+    pub fn update(&mut self, timestamp: String, status: bool, num: u16) {
         self.set_latest_status(status);
 
         // insert latest timestamp
@@ -59,8 +61,14 @@ impl HistoryArea {
             vec![History {
                 timestamp: timestamp,
                 status: status,
+                num: num,
             }],
         );
+    }
+
+    ///
+    pub fn reset_history_data(&mut self, data: Vec<Vec<History>>) {
+        self.data = data;
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
@@ -74,7 +82,14 @@ impl HistoryArea {
             // set table height
             let height = item
                 .iter()
-                .map(|content| content.timestamp.chars().filter(|c| *c == '\n').count())
+                .map(|content| {
+                    content
+                        .num
+                        .to_string()
+                        .chars()
+                        .filter(|c| *c == '\n')
+                        .count()
+                })
                 .max()
                 .unwrap_or(0)
                 + 1;
@@ -85,7 +100,8 @@ impl HistoryArea {
                     true => cell_style = Style::default().fg(Color::Green),
                     false => cell_style = Style::default().fg(Color::Red),
                 }
-                Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
+                // Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
+                Cell::from(Span::styled(format!("{}", c.num), cell_style))
             });
 
             Row::new(cells).height(height as u16)
@@ -105,7 +121,9 @@ impl HistoryArea {
             Some(i) => i,
             None => 0,
         };
-        return i;
+
+        let result = self.data[i][0].num as usize;
+        return result;
     }
 
     pub fn next(&mut self) {

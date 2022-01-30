@@ -17,7 +17,7 @@ use std::{
     io,
     sync::{
         mpsc::{Receiver, Sender},
-        Mutex, MutexGuard,
+        Mutex,
     },
     time::Duration,
 };
@@ -36,7 +36,7 @@ use diff;
 use event::AppEvent;
 use exec::CommandResult;
 use header::HeaderArea;
-use history::HistoryArea;
+use history::{History, HistoryArea};
 use watch::WatchArea;
 
 ///
@@ -72,7 +72,7 @@ pub enum OutputMode {
 
 ///
 #[derive(Clone, Copy)]
-enum InputMode {
+pub enum InputMode {
     None,
     Filter,
     Search,
@@ -88,6 +88,12 @@ pub struct App<'a> {
 
     ///
     ansi_color: bool,
+
+    ///
+    is_filtered: bool,
+
+    ///
+    filtered_text: String,
 
     ///
     input_mode: InputMode,
@@ -134,6 +140,9 @@ impl<'a> App<'a> {
             window: ActiveWindow::Normal,
 
             ansi_color: false,
+            is_filtered: false,
+            filtered_text: "".to_string(),
+
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
@@ -194,7 +203,7 @@ impl<'a> App<'a> {
         // Draw history area
         self.history_area.draw(f);
 
-        // if help mode
+        // match help mode
         match self.window {
             ActiveWindow::Help => {
                 let size = f.size();
@@ -204,6 +213,20 @@ impl<'a> App<'a> {
                 f.render_widget(Clear, area);
                 f.render_widget(block, area);
             }
+            _ => {}
+        }
+
+        // match input_mode
+        match self.input_mode {
+            InputMode::Filter => {
+                //
+                let input_text_x = self.header_area.input_text.len() as u16 + 1;
+                let input_text_y = self.header_area.area.y + 1;
+
+                // set cursor
+                f.set_cursor(input_text_x, input_text_y);
+            }
+
             _ => {}
         }
     }
@@ -237,12 +260,11 @@ impl<'a> App<'a> {
     fn get_event(&mut self, terminal_event: crossterm::event::Event) {
         match self.input_mode {
             InputMode::None => self.get_normal_input_key(terminal_event),
-            InputMode::Filter => {}
+            InputMode::Filter => self.get_filter_input_key(terminal_event),
             InputMode::Search => {}
         }
     }
 
-    // TODO: target1のresult取得処理を外だし+Structで取得させる+その時の値をOption<>で処理に切り替える
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
@@ -366,6 +388,52 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn set_input_mode(&mut self, input_mode: InputMode) {
+        self.input_mode = input_mode;
+
+        self.header_area.set_input_mode(self.input_mode.clone());
+        self.header_area.update();
+    }
+
+    ///
+    fn reset_history(&mut self) {
+        // unlock self.results
+        let results = self.results.lock().unwrap();
+        let count = results.len();
+        let mut history = vec![];
+
+        // append result.
+        history.push(vec![History {
+            timestamp: "latest                 ".to_string(),
+            status: results[0].status.clone(),
+            num: 0,
+        }]);
+
+        for i in 1..count {
+            let result_text = &results[i].output.clone();
+
+            if self.is_filtered {
+                if result_text.contains(&self.filtered_text) {
+                    history.push(vec![History {
+                        timestamp: results[i].timestamp.clone(),
+                        status: results[i].status.clone(),
+                        num: i as u16,
+                    }]);
+                }
+            } else {
+                history.push(vec![History {
+                    timestamp: results[i].timestamp.clone(),
+                    status: results[i].status.clone(),
+                    num: i as u16,
+                }]);
+            }
+        }
+
+        // reset data.
+        self.history_area.reset_history_data(history);
+    }
+
+    ///
     fn update_result(&mut self, _result: CommandResult) {
         // unlock self.results
         let mut results = self.results.lock().unwrap();
@@ -409,8 +477,11 @@ impl<'a> App<'a> {
         // update HistoryArea
         let _timestamp = &results[0].timestamp;
         let _status = &results[0].status;
-        self.history_area
-            .update(_timestamp.to_string(), _status.clone());
+        self.history_area.update(
+            _timestamp.to_string(),
+            _status.clone(),
+            results.len() as u16,
+        );
 
         // update selected
         let mut selected = self.history_area.get_state_select();
@@ -525,6 +596,24 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_area(),
 
+                    // / ... Change Filter Mode.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('/'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_input_mode(InputMode::Filter),
+
+                    // ESC ... Reset.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Esc,
+                        modifiers: KeyModifiers::NONE,
+                    }) => {
+                        self.set_input_mode(InputMode::None);
+                        self.is_filtered = false;
+                        self.filtered_text = "".to_string();
+                        self.reset_history();
+                        self.set_input_mode(InputMode::None);
+                    }
+
                     // Common input key
                     // h ... toggel help window.
                     Event::Key(KeyEvent {
@@ -585,6 +674,42 @@ impl<'a> App<'a> {
                     _ => {}
                 }
             }
+        }
+    }
+
+    ///
+    fn get_filter_input_key(&mut self, terminal_event: crossterm::event::Event) {
+        match terminal_event {
+            Event::Key(key) => match key.code {
+                KeyCode::Char(c) => {
+                    // add header input_text;
+                    self.header_area.input_text.push(c);
+                    self.header_area.update();
+                }
+
+                KeyCode::Backspace => {
+                    // remove header input_text;
+                    self.header_area.input_text.pop();
+                    self.header_area.update();
+                }
+
+                KeyCode::Enter => {
+                    // set filtered mode enable
+                    self.is_filtered = true;
+                    self.filtered_text = self.header_area.input_text.clone();
+                    self.set_input_mode(InputMode::None);
+                    self.reset_history();
+                }
+
+                KeyCode::Esc => {
+                    self.header_area.input_text = self.filtered_text.clone();
+                    self.set_input_mode(InputMode::None);
+                }
+
+                _ => {}
+            },
+
+            _ => {}
         }
     }
 
@@ -693,9 +818,17 @@ impl<'a> App<'a> {
         }
     }
 
+    // NOTE: TODO:
+    // Not currently used.
+    // It will not be supported until the following issues are resolved.
+    //     - https://github.com/fdehau/tui-rs/issues/495
     ///
     fn input_key_pgup(&mut self) {}
 
+    // NOTE: TODO:
+    // Not currently used.
+    // It will not be supported until the following issues are resolved.
+    //     - https://github.com/fdehau/tui-rs/issues/495
     ///
     fn input_key_pgdn(&mut self) {}
 
