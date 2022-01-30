@@ -145,10 +145,18 @@ impl<'a> HeaderArea<'a> {
         let filter_prompt: String;
         let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2;
         let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
-        match self.input_mode {
-            InputMode::Filter => filter_prompt = "/".to_string(),
-
-            _ => filter_prompt = " ".to_string(),
+        let filter_keyword_style: Style;
+        if matches!(self.input_mode, InputMode::Filter) {
+            filter_prompt = "/".to_string();
+            filter_keyword_style = Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD);
+        } else if self.input_text.len() > 0 {
+            filter_prompt = "/".to_string();
+            filter_keyword_style = Style::default().fg(Color::Gray);
+        } else {
+            filter_prompt = "".to_string();
+            filter_keyword_style = Style::default().fg(Color::Gray);
         }
 
         // Get the data to display at header.
@@ -216,7 +224,7 @@ impl<'a> HeaderArea<'a> {
         self.data.push(Spans::from(vec![
             // filter keyword
             Span::styled(filter_prompt, Style::default().fg(Color::Gray)),
-            Span::styled(filter_keyword, Style::default().fg(Color::Gray)),
+            Span::styled(filter_keyword, filter_keyword_style),
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(

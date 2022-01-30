@@ -98,7 +98,6 @@ impl HistoryArea {
                     false => cell_style = Style::default().fg(Color::Red),
                 }
                 Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
-                // Cell::from(Span::styled(format!("{}", c.num), cell_style))
             });
 
             Row::new(cells).height(height as u16)
