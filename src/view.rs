@@ -396,16 +396,15 @@ impl<'a> App<'a> {
         // unlock self.results
         let results = self.results.lock().unwrap();
         let counter = results.len();
-        let mut history = vec![];
+        let mut tmp_history = vec![];
 
         // append result.
         let latest_num = counter - 1;
-        history.push(vec![History {
+        tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
-
             status: results[&latest_num].status.clone(),
             num: 0 as u16,
-        }]);
+        });
 
         for result in results.clone().into_iter() {
             if result.0 == 0 {
@@ -421,14 +420,23 @@ impl<'a> App<'a> {
             }
 
             if is_push {
-                history.insert(
-                    1,
-                    vec![History {
-                        timestamp: result.1.timestamp.clone(),
-                        status: result.1.status.clone(),
-                        num: result.0 as u16,
-                    }],
-                );
+                tmp_history.push(History {
+                    timestamp: result.1.timestamp.clone(),
+                    status: result.1.status.clone(),
+                    num: result.0 as u16,
+                });
+            }
+        }
+
+        // sort tmp_history, to push history
+        let mut history = vec![];
+        tmp_history.sort_by(|a, b| b.num.cmp(&a.num));
+
+        for h in tmp_history.into_iter() {
+            if h.num == 0 {
+                history.insert(0, vec![h]);
+            } else {
+                history.push(vec![h]);
             }
         }
 
@@ -482,10 +490,19 @@ impl<'a> App<'a> {
         }
 
         // update HistoryArea
-        let _timestamp = &results[&result_index].timestamp;
-        let _status = &results[&result_index].status;
-        self.history_area
-            .update(_timestamp.to_string(), _status.clone(), result_index as u16);
+        let mut is_push = true;
+        if self.is_filtered {
+            let result_text = &results[&result_index].output.clone();
+            if !result_text.contains(&self.filtered_text) {
+                is_push = false;
+            }
+        }
+        if is_push {
+            let _timestamp = &results[&result_index].timestamp;
+            let _status = &results[&result_index].status;
+            self.history_area
+                .update(_timestamp.to_string(), _status.clone(), result_index as u16);
+        }
 
         // update selected
         let mut selected = self.history_area.get_state_select();

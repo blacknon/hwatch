@@ -11,7 +11,7 @@ use tui::{
     Frame,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
     pub timestamp: String,
     pub status: bool,
@@ -72,6 +72,7 @@ impl HistoryArea {
         self.data = data;
 
         // set select num
+        self.state.select(Some(0));
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
