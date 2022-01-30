@@ -13,6 +13,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{
+    collections::HashMap,
     error::Error,
     io,
     sync::{
@@ -75,7 +76,6 @@ pub enum OutputMode {
 pub enum InputMode {
     None,
     Filter,
-    Search,
 }
 
 /// Struct at watch view window.
@@ -105,7 +105,7 @@ pub struct App<'a> {
     diff_mode: DiffMode,
 
     ///
-    results: Mutex<Vec<CommandResult>>,
+    results: Mutex<HashMap<usize, CommandResult>>,
 
     ///
     header_area: HeaderArea<'a>,
@@ -147,7 +147,7 @@ impl<'a> App<'a> {
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
 
-            results: Mutex::new(vec![]),
+            results: Mutex::new(HashMap::new()),
 
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
@@ -261,7 +261,6 @@ impl<'a> App<'a> {
         match self.input_mode {
             InputMode::None => self.get_normal_input_key(terminal_event),
             InputMode::Filter => self.get_filter_input_key(terminal_event),
-            InputMode::Search => {}
         }
     }
 
@@ -277,31 +276,28 @@ impl<'a> App<'a> {
 
         // set target number at new history.
         let mut target_dst: usize = num;
-        if num >= 1 {
-            target_dst = target_dst - 1;
+
+        // check results over target...
+        if target_dst == 0 {
+            target_dst = results.len() - 1;
         }
 
         // set target number at old history.
-        let target_src = target_dst + 1;
-
-        // check results over target...
-        if results.len() <= target_dst {
-            return;
-        }
+        let target_src = target_dst - 1;
 
         // set new text(text_dst)
         match self.output_mode {
-            OutputMode::Output => text_dst = &results[target_dst].output,
-            OutputMode::Stdout => text_dst = &results[target_dst].stdout,
-            OutputMode::Stderr => text_dst = &results[target_dst].stderr,
+            OutputMode::Output => text_dst = &results[&target_dst].output,
+            OutputMode::Stdout => text_dst = &results[&target_dst].stdout,
+            OutputMode::Stderr => text_dst = &results[&target_dst].stderr,
         }
 
         // set old text(text_src)
         if results.len() > target_src {
             match self.output_mode {
-                OutputMode::Output => text_src = &results[target_src].output,
-                OutputMode::Stdout => text_src = &results[target_src].stdout,
-                OutputMode::Stderr => text_src = &results[target_src].stderr,
+                OutputMode::Output => text_src = &results[&target_src].output,
+                OutputMode::Stdout => text_src = &results[&target_src].stdout,
+                OutputMode::Stderr => text_src = &results[&target_src].stderr,
             }
         } else {
             text_src = "";
@@ -399,33 +395,40 @@ impl<'a> App<'a> {
     fn reset_history(&mut self) {
         // unlock self.results
         let results = self.results.lock().unwrap();
-        let count = results.len();
+        let counter = results.len();
         let mut history = vec![];
 
         // append result.
+        let latest_num = counter - 1;
         history.push(vec![History {
             timestamp: "latest                 ".to_string(),
-            status: results[0].status.clone(),
-            num: 0,
+
+            status: results[&latest_num].status.clone(),
+            num: 0 as u16,
         }]);
 
-        for i in 1..count {
-            let result_text = &results[i].output.clone();
+        for result in results.clone().into_iter() {
+            if result.0 == 0 {
+                continue;
+            }
 
+            let mut is_push = true;
             if self.is_filtered {
-                if result_text.contains(&self.filtered_text) {
-                    history.push(vec![History {
-                        timestamp: results[i].timestamp.clone(),
-                        status: results[i].status.clone(),
-                        num: i as u16,
-                    }]);
+                let result_text = &result.1.output.clone();
+                if !result_text.contains(&self.filtered_text) {
+                    is_push = false;
                 }
-            } else {
-                history.push(vec![History {
-                    timestamp: results[i].timestamp.clone(),
-                    status: results[i].status.clone(),
-                    num: i as u16,
-                }]);
+            }
+
+            if is_push {
+                history.insert(
+                    1,
+                    vec![History {
+                        timestamp: result.1.timestamp.clone(),
+                        status: result.1.status.clone(),
+                        num: result.0 as u16,
+                    }],
+                );
             }
         }
 
@@ -449,11 +452,14 @@ impl<'a> App<'a> {
             stderr: "".to_string(),
         };
 
-        // set latest result
+        // set tmp result
         latest_result = &tmp_result;
-        if results.len() > 0 {
+        if results.len() == 0 {
             // diff output data.
-            latest_result = &results[0];
+            results.insert(0, tmp_result.clone());
+        } else {
+            let latest_num = results.len() - 1;
+            latest_result = &results[&latest_num];
         }
 
         // update HeaderArea
@@ -461,27 +467,25 @@ impl<'a> App<'a> {
         self.header_area.update();
 
         // check result diff
-        let check_result_diff = differences_result(&latest_result, &_result);
+        let check_result_diff = differences_result(latest_result, &_result);
         if check_result_diff {
             return;
         }
 
         // append results
-        results.insert(0, _result.clone());
+        let result_index = results.len();
+        results.insert(result_index, _result.clone());
 
         // logging result.
         if self.logfile != "" {
-            let _ = logging_result(&self.logfile, &results[0]);
+            let _ = logging_result(&self.logfile, &results[&result_index]);
         }
 
         // update HistoryArea
-        let _timestamp = &results[0].timestamp;
-        let _status = &results[0].status;
-        self.history_area.update(
-            _timestamp.to_string(),
-            _status.clone(),
-            results.len() as u16,
-        );
+        let _timestamp = &results[&result_index].timestamp;
+        let _status = &results[&result_index].status;
+        self.history_area
+            .update(_timestamp.to_string(), _status.clone(), result_index as u16);
 
         // update selected
         let mut selected = self.history_area.get_state_select();
@@ -607,11 +611,11 @@ impl<'a> App<'a> {
                         code: KeyCode::Esc,
                         modifiers: KeyModifiers::NONE,
                     }) => {
-                        self.set_input_mode(InputMode::None);
                         self.is_filtered = false;
                         self.filtered_text = "".to_string();
-                        self.reset_history();
+                        self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
+                        self.reset_history();
                     }
 
                     // Common input key
