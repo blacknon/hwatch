@@ -68,7 +68,10 @@ impl HistoryArea {
 
     ///
     pub fn reset_history_data(&mut self, data: Vec<Vec<History>>) {
+        // update data
         self.data = data;
+
+        // set select num
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
@@ -82,14 +85,7 @@ impl HistoryArea {
             // set table height
             let height = item
                 .iter()
-                .map(|content| {
-                    content
-                        .num
-                        .to_string()
-                        .chars()
-                        .filter(|c| *c == '\n')
-                        .count()
-                })
+                .map(|content| content.timestamp.chars().filter(|c| *c == '\n').count())
                 .max()
                 .unwrap_or(0)
                 + 1;
@@ -100,8 +96,8 @@ impl HistoryArea {
                     true => cell_style = Style::default().fg(Color::Green),
                     false => cell_style = Style::default().fg(Color::Red),
                 }
-                // Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
-                Cell::from(Span::styled(format!("{}", c.num), cell_style))
+                Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
+                // Cell::from(Span::styled(format!("{}", c.num), cell_style))
             });
 
             Row::new(cells).height(height as u16)
@@ -119,7 +115,7 @@ impl HistoryArea {
     pub fn get_state_select(&mut self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
-            None => 0,
+            None => self.data.len() - 1,
         };
 
         let result = self.data[i][0].num as usize;
