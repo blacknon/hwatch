@@ -490,6 +490,7 @@ impl<'a> App<'a> {
         }
 
         // update HistoryArea
+        let mut selected = self.history_area.get_state_select();
         let mut is_push = true;
         if self.is_filtered {
             let result_text = &results[&result_index].output.clone();
@@ -502,12 +503,11 @@ impl<'a> App<'a> {
             let _status = &results[&result_index].status;
             self.history_area
                 .update(_timestamp.to_string(), _status.clone(), result_index as u16);
-        }
 
-        // update selected
-        let mut selected = self.history_area.get_state_select();
-        if selected != 0 {
-            self.history_area.previous();
+            // update selected
+            if selected != 0 {
+                self.history_area.previous();
+            }
         }
         selected = self.history_area.get_state_select();
 
