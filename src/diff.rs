@@ -216,7 +216,7 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
                         data = Spans::from(Span::styled(
-                            format!("+  {}\n", strip_str),
+                            format!("-  {}\n", strip_str),
                             Style::default().fg(Color::Red),
                         ));
                     } else {
