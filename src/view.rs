@@ -12,6 +12,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use regex::Regex;
 use std::{
     collections::HashMap,
     error::Error,
@@ -76,6 +77,7 @@ pub enum OutputMode {
 pub enum InputMode {
     None,
     Filter,
+    RegexFilter,
 }
 
 /// Struct at watch view window.
@@ -140,6 +142,7 @@ impl<'a> App<'a> {
             window: ActiveWindow::Normal,
 
             ansi_color: false,
+
             is_filtered: false,
             filtered_text: "".to_string(),
 
@@ -260,7 +263,8 @@ impl<'a> App<'a> {
     fn get_event(&mut self, terminal_event: crossterm::event::Event) {
         match self.input_mode {
             InputMode::None => self.get_normal_input_key(terminal_event),
-            InputMode::Filter => self.get_filter_input_key(terminal_event),
+            InputMode::Filter => self.get_filter_input_key(false, terminal_event),
+            InputMode::RegexFilter => self.get_filter_input_key(true, terminal_event),
         }
     }
 
@@ -392,7 +396,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn reset_history(&mut self) {
+    fn reset_history(&mut self, is_regex: bool) {
         // unlock self.results
         let results = self.results.lock().unwrap();
         let counter = results.len();
@@ -414,8 +418,17 @@ impl<'a> App<'a> {
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = &result.1.output.clone();
-                if !result_text.contains(&self.filtered_text) {
-                    is_push = false;
+
+                if is_regex {
+                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let regex_match = re.is_match(result_text);
+                    if !regex_match {
+                        is_push = false;
+                    }
+                } else {
+                    if !result_text.contains(&self.filtered_text) {
+                        is_push = false;
+                    }
                 }
             }
 
@@ -617,11 +630,17 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_area(),
 
-                    // / ... Change Filter Mode.
+                    // / ... Change Filter Mode(plane text).
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('/'),
                         modifiers: KeyModifiers::NONE,
                     }) => self.set_input_mode(InputMode::Filter),
+
+                    // / ... Change Filter Mode(regex text).
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('*'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_input_mode(InputMode::RegexFilter),
 
                     // ESC ... Reset.
                     Event::Key(KeyEvent {
@@ -632,7 +651,7 @@ impl<'a> App<'a> {
                         self.filtered_text = "".to_string();
                         self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
-                        self.reset_history();
+                        self.reset_history(false);
                     }
 
                     // Common input key
@@ -699,7 +718,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_filter_input_key(&mut self, terminal_event: crossterm::event::Event) {
+    fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
         match terminal_event {
             Event::Key(key) => match key.code {
                 KeyCode::Char(c) => {
@@ -717,9 +736,12 @@ impl<'a> App<'a> {
                 KeyCode::Enter => {
                     // set filtered mode enable
                     self.is_filtered = true;
+
                     self.filtered_text = self.header_area.input_text.clone();
+
                     self.set_input_mode(InputMode::None);
-                    self.reset_history();
+
+                    self.reset_history(is_regex);
                 }
 
                 KeyCode::Esc => {
@@ -1035,6 +1057,11 @@ fn gen_popup_help_block<'a>() -> Paragraph<'a> {
         " - [Tab] key ... toggle current area at history or watch.",
     ));
 
+    // filter text inpu
+    text.push(Spans::from(" - [/] key ... filter history by string."));
+    text.push(Spans::from(" - [*] key ... filter history by regex."));
+    text.push(Spans::from(" - [ESC] key ... unfiltering."));
+
     // create block.
     let block = Paragraph::new(text)
         .style(Style::default().fg(Color::LightGreen))
@@ -1074,6 +1101,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+///
 fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
     let mut result = true;
 
