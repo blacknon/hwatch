@@ -57,6 +57,9 @@ pub struct HeaderArea<'a> {
     input_mode: InputMode,
 
     ///
+    input_prompt: String,
+
+    ///
     pub input_text: String,
 }
 
@@ -82,7 +85,7 @@ impl<'a> HeaderArea<'a> {
             output_mode: OutputMode::Output,
 
             input_mode: InputMode::None,
-
+            input_prompt: "".to_string(),
             input_text: "".to_string(),
         }
     }
@@ -142,21 +145,23 @@ impl<'a> HeaderArea<'a> {
             width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
 
         // filter keyword.
-        let filter_prompt: String;
         let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2;
         let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
         let filter_keyword_style: Style;
-        if matches!(self.input_mode, InputMode::Filter) {
-            filter_prompt = "/".to_string();
+
+        if self.input_text.len() == 0 {
+            match self.input_mode {
+                InputMode::Filter => self.input_prompt = "/".to_string(),
+                InputMode::RegexFilter => self.input_prompt = "*".to_string(),
+
+                _ => self.input_prompt = "".to_string(),
+            }
+
+            filter_keyword_style = Style::default().fg(Color::Gray);
+        } else {
             filter_keyword_style = Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD);
-        } else if self.input_text.len() > 0 {
-            filter_prompt = "/".to_string();
-            filter_keyword_style = Style::default().fg(Color::Gray);
-        } else {
-            filter_prompt = "".to_string();
-            filter_keyword_style = Style::default().fg(Color::Gray);
         }
 
         // Get the data to display at header.
@@ -223,7 +228,7 @@ impl<'a> HeaderArea<'a> {
         // Create 2nd line
         self.data.push(Spans::from(vec![
             // filter keyword
-            Span::styled(filter_prompt, Style::default().fg(Color::Gray)),
+            Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
