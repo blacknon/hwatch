@@ -12,12 +12,14 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use regex::Regex;
 use std::{
+    collections::HashMap,
     error::Error,
     io,
     sync::{
         mpsc::{Receiver, Sender},
-        Mutex, MutexGuard,
+        Mutex,
     },
     time::Duration,
 };
@@ -36,7 +38,7 @@ use diff;
 use event::AppEvent;
 use exec::CommandResult;
 use header::HeaderArea;
-use history::HistoryArea;
+use history::{History, HistoryArea};
 use watch::WatchArea;
 
 ///
@@ -72,10 +74,10 @@ pub enum OutputMode {
 
 ///
 #[derive(Clone, Copy)]
-enum InputMode {
+pub enum InputMode {
     None,
     Filter,
-    Search,
+    RegexFilter,
 }
 
 /// Struct at watch view window.
@@ -90,6 +92,15 @@ pub struct App<'a> {
     ansi_color: bool,
 
     ///
+    is_filtered: bool,
+
+    ///
+    is_regex_filter: bool,
+
+    ///
+    filtered_text: String,
+
+    ///
     input_mode: InputMode,
 
     ///
@@ -99,7 +110,7 @@ pub struct App<'a> {
     diff_mode: DiffMode,
 
     ///
-    results: Mutex<Vec<CommandResult>>,
+    results: Mutex<HashMap<usize, CommandResult>>,
 
     ///
     header_area: HeaderArea<'a>,
@@ -134,11 +145,16 @@ impl<'a> App<'a> {
             window: ActiveWindow::Normal,
 
             ansi_color: false,
+
+            is_filtered: false,
+            is_regex_filter: false,
+            filtered_text: "".to_string(),
+
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
 
-            results: Mutex::new(vec![]),
+            results: Mutex::new(HashMap::new()),
 
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
@@ -194,7 +210,7 @@ impl<'a> App<'a> {
         // Draw history area
         self.history_area.draw(f);
 
-        // if help mode
+        // match help mode
         match self.window {
             ActiveWindow::Help => {
                 let size = f.size();
@@ -204,6 +220,20 @@ impl<'a> App<'a> {
                 f.render_widget(Clear, area);
                 f.render_widget(block, area);
             }
+            _ => {}
+        }
+
+        // match input_mode
+        match self.input_mode {
+            InputMode::Filter | InputMode::RegexFilter => {
+                //
+                let input_text_x = self.header_area.input_text.len() as u16 + 1;
+                let input_text_y = self.header_area.area.y + 1;
+
+                // set cursor
+                f.set_cursor(input_text_x, input_text_y);
+            }
+
             _ => {}
         }
     }
@@ -237,12 +267,11 @@ impl<'a> App<'a> {
     fn get_event(&mut self, terminal_event: crossterm::event::Event) {
         match self.input_mode {
             InputMode::None => self.get_normal_input_key(terminal_event),
-            InputMode::Filter => {}
-            InputMode::Search => {}
+            InputMode::Filter => self.get_filter_input_key(false, terminal_event),
+            InputMode::RegexFilter => self.get_filter_input_key(true, terminal_event),
         }
     }
 
-    // TODO: target1のresult取得処理を外だし+Structで取得させる+その時の値をOption<>で処理に切り替える
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
@@ -255,31 +284,28 @@ impl<'a> App<'a> {
 
         // set target number at new history.
         let mut target_dst: usize = num;
-        if num >= 1 {
-            target_dst = target_dst - 1;
+
+        // check results over target...
+        if target_dst == 0 {
+            target_dst = results.len() - 1;
         }
 
         // set target number at old history.
-        let target_src = target_dst + 1;
-
-        // check results over target...
-        if results.len() <= target_dst {
-            return;
-        }
+        let target_src = target_dst - 1;
 
         // set new text(text_dst)
         match self.output_mode {
-            OutputMode::Output => text_dst = &results[target_dst].output,
-            OutputMode::Stdout => text_dst = &results[target_dst].stdout,
-            OutputMode::Stderr => text_dst = &results[target_dst].stderr,
+            OutputMode::Output => text_dst = &results[&target_dst].output,
+            OutputMode::Stdout => text_dst = &results[&target_dst].stdout,
+            OutputMode::Stderr => text_dst = &results[&target_dst].stderr,
         }
 
         // set old text(text_src)
         if results.len() > target_src {
             match self.output_mode {
-                OutputMode::Output => text_src = &results[target_src].output,
-                OutputMode::Stdout => text_src = &results[target_src].stdout,
-                OutputMode::Stderr => text_src = &results[target_src].stderr,
+                OutputMode::Output => text_src = &results[&target_src].output,
+                OutputMode::Stdout => text_src = &results[&target_src].stdout,
+                OutputMode::Stderr => text_src = &results[&target_src].stderr,
             }
         } else {
             text_src = "";
@@ -366,6 +392,76 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn set_input_mode(&mut self, input_mode: InputMode) {
+        self.input_mode = input_mode;
+
+        self.header_area.set_input_mode(self.input_mode.clone());
+        self.header_area.update();
+    }
+
+    ///
+    fn reset_history(&mut self, is_regex: bool) {
+        // unlock self.results
+        let results = self.results.lock().unwrap();
+        let counter = results.len();
+        let mut tmp_history = vec![];
+
+        // append result.
+        let latest_num = counter - 1;
+        tmp_history.push(History {
+            timestamp: "latest                 ".to_string(),
+            status: results[&latest_num].status.clone(),
+            num: 0 as u16,
+        });
+
+        for result in results.clone().into_iter() {
+            if result.0 == 0 {
+                continue;
+            }
+
+            let mut is_push = true;
+            if self.is_filtered {
+                let result_text = &result.1.output.clone();
+
+                if is_regex {
+                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let regex_match = re.is_match(result_text);
+                    if !regex_match {
+                        is_push = false;
+                    }
+                } else {
+                    if !result_text.contains(&self.filtered_text) {
+                        is_push = false;
+                    }
+                }
+            }
+
+            if is_push {
+                tmp_history.push(History {
+                    timestamp: result.1.timestamp.clone(),
+                    status: result.1.status.clone(),
+                    num: result.0 as u16,
+                });
+            }
+        }
+
+        // sort tmp_history, to push history
+        let mut history = vec![];
+        tmp_history.sort_by(|a, b| b.num.cmp(&a.num));
+
+        for h in tmp_history.into_iter() {
+            if h.num == 0 {
+                history.insert(0, vec![h]);
+            } else {
+                history.push(vec![h]);
+            }
+        }
+
+        // reset data.
+        self.history_area.reset_history_data(history);
+    }
+
+    ///
     fn update_result(&mut self, _result: CommandResult) {
         // unlock self.results
         let mut results = self.results.lock().unwrap();
@@ -381,11 +477,14 @@ impl<'a> App<'a> {
             stderr: "".to_string(),
         };
 
-        // set latest result
+        // set tmp result
         latest_result = &tmp_result;
-        if results.len() > 0 {
+        if results.len() == 0 {
             // diff output data.
-            latest_result = &results[0];
+            results.insert(0, tmp_result.clone());
+        } else {
+            let latest_num = results.len() - 1;
+            latest_result = &results[&latest_num];
         }
 
         // update HeaderArea
@@ -393,29 +492,52 @@ impl<'a> App<'a> {
         self.header_area.update();
 
         // check result diff
-        let check_result_diff = differences_result(&latest_result, &_result);
+        let check_result_diff = differences_result(latest_result, &_result);
         if check_result_diff {
             return;
         }
 
         // append results
-        results.insert(0, _result.clone());
+        let result_index = results.len();
+        results.insert(result_index, _result.clone());
 
         // logging result.
         if self.logfile != "" {
-            let _ = logging_result(&self.logfile, &results[0]);
+            let _ = logging_result(&self.logfile, &results[&result_index]);
         }
 
         // update HistoryArea
-        let _timestamp = &results[0].timestamp;
-        let _status = &results[0].status;
-        self.history_area
-            .update(_timestamp.to_string(), _status.clone());
-
-        // update selected
         let mut selected = self.history_area.get_state_select();
-        if selected != 0 {
-            self.history_area.previous();
+        let mut is_push = true;
+        if self.is_filtered {
+            let result_text = &results[&result_index].output.clone();
+
+            match self.is_regex_filter {
+                true => {
+                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let regex_match = re.is_match(result_text);
+                    if !regex_match {
+                        is_push = false;
+                    }
+                }
+
+                false => {
+                    if !result_text.contains(&self.filtered_text) {
+                        is_push = false;
+                    }
+                }
+            }
+        }
+        if is_push {
+            let _timestamp = &results[&result_index].timestamp;
+            let _status = &results[&result_index].status;
+            self.history_area
+                .update(_timestamp.to_string(), _status.clone(), result_index as u16);
+
+            // update selected
+            if selected != 0 {
+                self.history_area.previous();
+            }
         }
         selected = self.history_area.get_state_select();
 
@@ -525,6 +647,31 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_area(),
 
+                    // / ... Change Filter Mode(plane text).
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('/'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_input_mode(InputMode::Filter),
+
+                    // / ... Change Filter Mode(regex text).
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('*'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_input_mode(InputMode::RegexFilter),
+
+                    // ESC ... Reset.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Esc,
+                        modifiers: KeyModifiers::NONE,
+                    }) => {
+                        self.is_filtered = false;
+                        self.is_regex_filter = false;
+                        self.filtered_text = "".to_string();
+                        self.header_area.input_text = self.filtered_text.clone();
+                        self.set_input_mode(InputMode::None);
+                        self.reset_history(false);
+                    }
+
                     // Common input key
                     // h ... toggel help window.
                     Event::Key(KeyEvent {
@@ -585,6 +732,44 @@ impl<'a> App<'a> {
                     _ => {}
                 }
             }
+        }
+    }
+
+    ///
+    fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+        match terminal_event {
+            Event::Key(key) => match key.code {
+                KeyCode::Char(c) => {
+                    // add header input_text;
+                    self.header_area.input_text.push(c);
+                    self.header_area.update();
+                }
+
+                KeyCode::Backspace => {
+                    // remove header input_text;
+                    self.header_area.input_text.pop();
+                    self.header_area.update();
+                }
+
+                KeyCode::Enter => {
+                    // set filtered mode enable
+                    self.is_filtered = true;
+                    self.is_regex_filter = is_regex;
+                    self.filtered_text = self.header_area.input_text.clone();
+                    self.set_input_mode(InputMode::None);
+                    self.reset_history(is_regex);
+                }
+
+                KeyCode::Esc => {
+                    self.header_area.input_text = self.filtered_text.clone();
+                    self.set_input_mode(InputMode::None);
+                    self.reset_history(is_regex);
+                }
+
+                _ => {}
+            },
+
+            _ => {}
         }
     }
 
@@ -693,9 +878,17 @@ impl<'a> App<'a> {
         }
     }
 
+    // NOTE: TODO:
+    // Not currently used.
+    // It will not be supported until the following issues are resolved.
+    //     - https://github.com/fdehau/tui-rs/issues/495
     ///
     fn input_key_pgup(&mut self) {}
 
+    // NOTE: TODO:
+    // Not currently used.
+    // It will not be supported until the following issues are resolved.
+    //     - https://github.com/fdehau/tui-rs/issues/495
     ///
     fn input_key_pgdn(&mut self) {}
 
@@ -881,6 +1074,11 @@ fn gen_popup_help_block<'a>() -> Paragraph<'a> {
         " - [Tab] key ... toggle current area at history or watch.",
     ));
 
+    // filter text inpu
+    text.push(Spans::from(" - [/] key ... filter history by string."));
+    text.push(Spans::from(" - [*] key ... filter history by regex."));
+    text.push(Spans::from(" - [ESC] key ... unfiltering."));
+
     // create block.
     let block = Paragraph::new(text)
         .style(Style::default().fg(Color::LightGreen))
@@ -920,6 +1118,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+///
 fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
     let mut result = true;
 

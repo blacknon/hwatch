@@ -11,10 +11,11 @@ use tui::{
     Frame,
 };
 
-#[derive(Clone)]
-struct History {
-    timestamp: String,
-    status: bool,
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct History {
+    pub timestamp: String,
+    pub status: bool,
+    pub num: u16,
 }
 
 pub struct HistoryArea {
@@ -37,6 +38,7 @@ impl HistoryArea {
             data: vec![vec![History {
                 timestamp: "latest                 ".to_string(),
                 status: true,
+                num: 0,
             }]],
             state: TableState::default(),
         }
@@ -50,7 +52,7 @@ impl HistoryArea {
         self.data[0][0].status = latest_status;
     }
 
-    pub fn update(&mut self, timestamp: String, status: bool) {
+    pub fn update(&mut self, timestamp: String, status: bool, num: u16) {
         self.set_latest_status(status);
 
         // insert latest timestamp
@@ -59,8 +61,18 @@ impl HistoryArea {
             vec![History {
                 timestamp: timestamp,
                 status: status,
+                num: num,
             }],
         );
+    }
+
+    ///
+    pub fn reset_history_data(&mut self, data: Vec<Vec<History>>) {
+        // update data
+        self.data = data;
+
+        // set select num
+        self.state.select(Some(0));
     }
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
@@ -103,9 +115,11 @@ impl HistoryArea {
     pub fn get_state_select(&mut self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
-            None => 0,
+            None => self.data.len() - 1,
         };
-        return i;
+
+        let result = self.data[i][0].num as usize;
+        return result;
     }
 
     pub fn next(&mut self) {
