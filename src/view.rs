@@ -95,6 +95,9 @@ pub struct App<'a> {
     is_filtered: bool,
 
     ///
+    is_regex_filter: bool,
+
+    ///
     filtered_text: String,
 
     ///
@@ -144,6 +147,7 @@ impl<'a> App<'a> {
             ansi_color: false,
 
             is_filtered: false,
+            is_regex_filter: false,
             filtered_text: "".to_string(),
 
             input_mode: InputMode::None,
@@ -221,7 +225,7 @@ impl<'a> App<'a> {
 
         // match input_mode
         match self.input_mode {
-            InputMode::Filter => {
+            InputMode::Filter | InputMode::RegexFilter => {
                 //
                 let input_text_x = self.header_area.input_text.len() as u16 + 1;
                 let input_text_y = self.header_area.area.y + 1;
@@ -507,8 +511,21 @@ impl<'a> App<'a> {
         let mut is_push = true;
         if self.is_filtered {
             let result_text = &results[&result_index].output.clone();
-            if !result_text.contains(&self.filtered_text) {
-                is_push = false;
+
+            match self.is_regex_filter {
+                true => {
+                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let regex_match = re.is_match(result_text);
+                    if !regex_match {
+                        is_push = false;
+                    }
+                }
+
+                false => {
+                    if !result_text.contains(&self.filtered_text) {
+                        is_push = false;
+                    }
+                }
             }
         }
         if is_push {
@@ -648,6 +665,7 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => {
                         self.is_filtered = false;
+                        self.is_regex_filter = false;
                         self.filtered_text = "".to_string();
                         self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
@@ -736,17 +754,16 @@ impl<'a> App<'a> {
                 KeyCode::Enter => {
                     // set filtered mode enable
                     self.is_filtered = true;
-
+                    self.is_regex_filter = is_regex;
                     self.filtered_text = self.header_area.input_text.clone();
-
                     self.set_input_mode(InputMode::None);
-
                     self.reset_history(is_regex);
                 }
 
                 KeyCode::Esc => {
                     self.header_area.input_text = self.filtered_text.clone();
                     self.set_input_mode(InputMode::None);
+                    self.reset_history(is_regex);
                 }
 
                 _ => {}
