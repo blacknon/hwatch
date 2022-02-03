@@ -15,7 +15,7 @@ use tui::{
 
 // local module
 use exec::CommandResult;
-use view::{ActiveArea, DiffMode, OutputMode};
+use view::{ActiveArea, DiffMode, InputMode, OutputMode};
 
 //const
 const POSITION_X_HELP_TEXT: usize = 56;
@@ -24,7 +24,7 @@ const WIDTH_TEXT_INTERVAL: usize = 19;
 #[derive(Clone)]
 pub struct HeaderArea<'a> {
     ///
-    area: tui::layout::Rect,
+    pub area: tui::layout::Rect,
 
     ///
     interval: f64,
@@ -45,13 +45,22 @@ pub struct HeaderArea<'a> {
     ansi_color: bool,
 
     ///
-    diff_mode: DiffMode,
-
-    ///
     active_area: ActiveArea,
 
     ///
+    diff_mode: DiffMode,
+
+    ///
     output_mode: OutputMode,
+
+    ///
+    input_mode: InputMode,
+
+    ///
+    input_prompt: String,
+
+    ///
+    pub input_text: String,
 }
 
 /// Header Area Object Trait
@@ -68,9 +77,16 @@ impl<'a> HeaderArea<'a> {
 
             data: vec![Spans::from("")],
             ansi_color: false,
-            diff_mode: DiffMode::Disable,
+
             active_area: ActiveArea::History,
+
+            diff_mode: DiffMode::Disable,
+
             output_mode: OutputMode::Output,
+
+            input_mode: InputMode::None,
+            input_prompt: "".to_string(),
+            input_text: "".to_string(),
         }
     }
 
@@ -104,6 +120,10 @@ impl<'a> HeaderArea<'a> {
         self.diff_mode = diff_mode;
     }
 
+    pub fn set_input_mode(&mut self, input_mode: InputMode) {
+        self.input_mode = input_mode;
+    }
+
     pub fn update(&mut self) {
         // init data
         self.data = vec![];
@@ -123,8 +143,26 @@ impl<'a> HeaderArea<'a> {
         }
         let timestamp_width =
             width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
+
+        // filter keyword.
         let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2;
-        let filter_keyword: String = format!("{:wid$}", "", wid = filter_keyword_width);
+        let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
+        let filter_keyword_style: Style;
+
+        if self.input_text.len() == 0 {
+            match self.input_mode {
+                InputMode::Filter => self.input_prompt = "/".to_string(),
+                InputMode::RegexFilter => self.input_prompt = "*".to_string(),
+
+                _ => self.input_prompt = "".to_string(),
+            }
+
+            filter_keyword_style = Style::default().fg(Color::Gray);
+        } else {
+            filter_keyword_style = Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD);
+        }
 
         // Get the data to display at header.
         let interval = format!("{:.3}", self.interval);
@@ -190,8 +228,8 @@ impl<'a> HeaderArea<'a> {
         // Create 2nd line
         self.data.push(Spans::from(vec![
             // filter keyword
-            Span::styled(" ", Style::default().fg(Color::Yellow)),
-            Span::styled(filter_keyword, Style::default().fg(Color::Yellow)),
+            Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
+            Span::styled(filter_keyword, filter_keyword_style),
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
