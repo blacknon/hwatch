@@ -14,8 +14,8 @@ use tui::{
 };
 
 // local module
+use app::{ActiveArea, DiffMode, InputMode, OutputMode};
 use exec::CommandResult;
-use view::{ActiveArea, DiffMode, InputMode, OutputMode};
 
 //const
 const POSITION_X_HELP_TEXT: usize = 56;
