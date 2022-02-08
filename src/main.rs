@@ -58,6 +58,7 @@ mod diff;
 mod event;
 mod exec;
 mod header;
+mod help;
 mod history;
 mod view;
 mod watch;
