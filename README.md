@@ -24,7 +24,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.2.1
+    hwatch 0.3.0
     blacknon <blacknon@orebibou.com>
     alternative watch command.
 
@@ -45,11 +45,11 @@ hwatch - alternative watch command.
         <command>...
 
 
+
 watch window keybind
 
 - <kbd>↑</kbd>, <kbd>↓</kbd>  ... move selected screen(history/watch).
-- <kbd>Tab</kbd> ... toggle select screen(history/watch).
-- <kbd>H</kbd>   ... show help text.
+- <kbd>H</kbd>   ... show help window.
 - <kbd>C</kbd>   ... toggle color.
 - <kbd>D</kbd>   ... switch diff mode.
 - <kbd>Q</kbd>   ... exit hwatch.
@@ -60,3 +60,7 @@ watch window keybind
 - <kbd>F1</kbd>  ... only stdout print.
 - <kbd>F2</kbd>  ... only stderr print.
 - <kbd>F3</kbd>  ... print output.
+- <kbd>Tab</kbd> ... toggle select screen(history/watch).
+- <kbd>/</kbd>   ... filter history by string.
+- <kbd>*</kbd>   ... filter history by regex.
+- <kbd>Tab</kbd> ... unfiltering.
