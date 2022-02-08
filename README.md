@@ -9,7 +9,15 @@ hwatch - alternative watch command.
 
 ## Description
 
-`hwatch` is a alternative watch command. That records the result of command execution and can display it later.
+`hwatch` is a alternative **watch** command. That records the result of command execution and can display it history and diffs.
+
+### Features
+
+- Can keep the history when the difference, occurs and check it later.
+- Can check the difference in the history. The display method can be changed in real time.
+- Can output the execution result as log (json format).
+- Support ANSI color code.
+- Execution result can be scroll.
 
 ## Install
 
