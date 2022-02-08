@@ -2,25 +2,38 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.3.0)
+// v0.3.1
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.1)
+// TODO(blacknon): color, diffがfalseの場合のみ、filtered textの箇所をハイライト表示する.
+
+// v0.3.2
+// TODO(blakcnon): batch modeの実装(v0.3.2).
+// TODO(blacknon): 長いcommand指定時は省略して出力させる(v0.3.2)
+
+// v0.3.3
+// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.3.3)
+//                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
+
+// v.0.3.4
+// TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.4)
+//                 watchコマンドにもある(-e, --errexit)
+// TODO(blacknon): 出力結果が変わった場合はそこで終了する機能の追加(v0.3.4)
+//                 watchコマンドにもある(-g, --chgexit)
+// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
+//                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
+// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.4)
+//                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
+
+// v0.3.5
+// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.3.5)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v1.0.0)
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.0)
-//                 watchコマンドにもある(-e, --errexit)
-// TODO(blacknon): 出力結果が変わった場合はそこで終了する機能の追加(v0.3.0)
-//                 watchコマンドにもある(-g, --chgexit)
-// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.0)
-//                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.0)
-//                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
-// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.3.0)
-//                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
-// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.0)
-// TODO(blacknon): 長いcommand指定時は省略して出力させる
+
+// v0.4.0
 // TODO(blacknon): Windows対応(v0.4.0). 一応、あとはライブラリが対応すればイケる.
-// TODO(blakcnon): batch modeの実装(v0.3.0).
 // TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.4.0).
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.4.0).
+//                 `OnlyLine`, `OnlyWord` mode.
 
 #[warn(unused_doc_comments)]
 // crate
