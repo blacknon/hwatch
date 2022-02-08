@@ -9,7 +9,15 @@ hwatch - alternative watch command.
 
 ## Description
 
-`hwatch` is a alternative watch command. That records the result of command execution and can display it later.
+`hwatch` is a alternative **watch** command. That records the result of command execution and can display it history and diffs.
+
+### Features
+
+- Can keep the history when the difference, occurs and check it later.
+- Can check the difference in the history. The display method can be changed in real time.
+- Can output the execution result as log (json format).
+- Support ANSI color code.
+- Execution result can be scroll.
 
 ## Install
 
@@ -24,7 +32,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.2.1
+    hwatch 0.3.0
     blacknon <blacknon@orebibou.com>
     alternative watch command.
 
@@ -45,11 +53,11 @@ hwatch - alternative watch command.
         <command>...
 
 
+
 watch window keybind
 
 - <kbd>↑</kbd>, <kbd>↓</kbd>  ... move selected screen(history/watch).
-- <kbd>Tab</kbd> ... toggle select screen(history/watch).
-- <kbd>H</kbd>   ... show help text.
+- <kbd>H</kbd>   ... show help window.
 - <kbd>C</kbd>   ... toggle color.
 - <kbd>D</kbd>   ... switch diff mode.
 - <kbd>Q</kbd>   ... exit hwatch.
@@ -60,3 +68,7 @@ watch window keybind
 - <kbd>F1</kbd>  ... only stdout print.
 - <kbd>F2</kbd>  ... only stderr print.
 - <kbd>F3</kbd>  ... print output.
+- <kbd>Tab</kbd> ... toggle select screen(history/watch).
+- <kbd>/</kbd>   ... filter history by string.
+- <kbd>*</kbd>   ... filter history by regex.
+- <kbd>Tab</kbd> ... unfiltering.

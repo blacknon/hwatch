@@ -27,6 +27,7 @@ pub struct WatchArea<'a> {
 
 /// Watch Area Object Trait
 impl<'a> WatchArea<'a> {
+    ///
     pub fn new() -> Self {
         //! new Self
         Self {
@@ -39,18 +40,22 @@ impl<'a> WatchArea<'a> {
         }
     }
 
+    ///
     pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
     }
 
+    ///
     pub fn update_output(&mut self, data: Vec<Spans<'a>>) {
         self.data = data;
     }
 
+    ///
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
     }
 
+    ///
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         let block = Paragraph::new(self.data.clone())
             .style(Style::default())
@@ -59,14 +64,20 @@ impl<'a> WatchArea<'a> {
         frame.render_widget(block, self.area);
     }
 
+    ///
     pub fn scroll_up(&mut self, num: i16) {
         if 0 <= self.position - num {
             self.position = self.position - num
         }
     }
 
+    // TODO: 折返しによって発生する行数差分の計算方法が思いつかないため、思いついたら対応を追加する。(うまく取得が出来ない)
+    ///
     pub fn scroll_down(&mut self, num: i16) {
-        if self.data.len() as i16 > self.position + num {
+        // get area data size
+        let data_size = self.data.len() as i16;
+
+        if data_size > self.position + num {
             self.position = self.position + num
         }
     }
