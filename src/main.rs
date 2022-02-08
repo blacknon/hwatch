@@ -52,6 +52,7 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
+mod app;
 mod common;
 mod diff;
 mod event;
