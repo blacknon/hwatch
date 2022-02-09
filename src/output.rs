@@ -32,8 +32,9 @@ pub fn get_plane_output<'a>(
     if !color && (is_filter || is_regex_filter) {
         if is_filter {
             pattern = Regex::new(&regex::escape(&filtered_text)).unwrap();
-        } else if is_regex_filter {
-            pattern = Regex::new(&filtered_text).unwrap();
+            if is_regex_filter {
+                pattern = Regex::new(&filtered_text).unwrap();
+            }
         }
     }
 

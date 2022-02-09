@@ -649,6 +649,11 @@ impl<'a> App<'a> {
                         self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
                         self.reset_history(false);
+
+                        let selected = self.history_area.get_state_select();
+
+                        // update WatchArea
+                        self.set_output_data(selected);
                     }
 
                     // Common input key
@@ -749,12 +754,22 @@ impl<'a> App<'a> {
                     self.filtered_text = self.header_area.input_text.clone();
                     self.set_input_mode(InputMode::None);
                     self.reset_history(is_regex);
+
+                    let selected = self.history_area.get_state_select();
+
+                    // update WatchArea
+                    self.set_output_data(selected);
                 }
 
                 KeyCode::Esc => {
                     self.header_area.input_text = self.filtered_text.clone();
                     self.set_input_mode(InputMode::None);
                     self.reset_history(is_regex);
+
+                    let selected = self.history_area.get_state_select();
+
+                    // update WatchArea
+                    self.set_output_data(selected);
                 }
 
                 _ => {}
