@@ -6,11 +6,89 @@
 use ansi_parser::{AnsiParser, AnsiSequence, Output};
 use difference::{Changeset, Difference};
 use heapless::consts::*;
+use regex::Regex;
 use std::cmp;
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
 };
+
+// plane output
+// ==========
+
+///
+pub fn get_plane_output<'a>(
+    color: bool,
+    text: &str,
+    is_filter: bool,
+    is_regex_filter: bool,
+    filtered_text: &str,
+) -> Vec<Spans<'a>> {
+    // set result `output_data`.
+    let mut output_data = vec![];
+
+    // set filter regex.
+    let mut pattern: Regex = Regex::new(filtered_text).unwrap();
+    if !color && (is_filter || is_regex_filter) {
+        if is_filter {
+            pattern = Regex::new(&regex::escape(filtered_text)).unwrap();
+        } else if is_regex_filter {
+            pattern = Regex::new(filtered_text).unwrap();
+        }
+    }
+
+    // color
+    match color {
+        // is color
+        true => {
+            let lines = text.split("\n");
+            for l in lines {
+                let data = ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
+
+                for d in data.lines {
+                    output_data.push(d);
+                }
+            }
+        }
+
+        // is not color
+        false => {
+            if is_filter || is_regex_filter {
+                let mut last_match: usize = 0;
+                for mch in pattern.find_iter(text) {
+                    let start: usize = mch.start();
+                    let end: usize = mch.end();
+
+                    let before_range_spans = Spans::from(String::from(&text[last_match..start]));
+                    let range_spans = Spans::from(String::from(&text[start..end]));
+                    let mut highlight_spans = vec![];
+
+                    // set highlight
+                    for mut highlight_span in range_spans.0 {
+                        highlight_span.style = highlight_span
+                            .style
+                            .patch(Style::default().add_modifier(Modifier::REVERSED));
+
+                        highlight_spans.push(highlight_span);
+                    }
+
+                    output_data.push(before_range_spans);
+                    output_data.push(Spans::from(highlight_spans));
+
+                    last_match = end;
+                }
+                output_data.push(Spans::from(String::from(&text[last_match..])));
+            } else {
+                let lines = text.split("\n");
+                for l in lines {
+                    output_data.push(Spans::from(String::from(l)));
+                }
+            }
+        }
+    }
+
+    return output_data;
+}
 
 // watch diff
 // ==========
@@ -67,11 +145,11 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
 
     let mut _result = vec![];
     for x in 0..max_char {
-        if old_line_chars.len() <= max_char {
+        if old_line_chars.len() <= x {
             old_line_chars.push(space);
         }
 
-        if new_line_chars.len() <= max_char {
+        if new_line_chars.len() <= x {
             new_line_chars.push(space);
         }
 
@@ -121,12 +199,12 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
     let mut _result = vec![];
     for x in 0..max_span {
         //
-        if old_spans.len() <= max_span {
+        if old_spans.len() <= x {
             old_spans.push(Span::from(" ".to_string()));
         }
 
         //
-        if new_spans.len() <= max_span {
+        if new_spans.len() <= x {
             new_spans.push(Span::from(" ".to_string()));
         }
 

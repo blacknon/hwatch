@@ -26,12 +26,12 @@ use tui::{
 
 // local module
 use common::{differences_result, logging_result};
-use diff;
 use event::AppEvent;
 use exec::CommandResult;
 use header::HeaderArea;
 use help::HelpWindow;
 use history::{History, HistoryArea};
+use output;
 use watch::WatchArea;
 
 ///
@@ -302,35 +302,25 @@ impl<'a> App<'a> {
 
         match self.diff_mode {
             DiffMode::Disable => {
-                let lines = text_dst.split("\n");
-                for l in lines {
-                    match self.ansi_color {
-                        false => {
-                            output_data.push(Spans::from(String::from(l)));
-                        }
-
-                        true => {
-                            let data =
-                                ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
-
-                            for d in data.lines {
-                                output_data.push(d);
-                            }
-                        }
-                    }
-                }
+                output_data = output::get_plane_output(
+                    self.ansi_color,
+                    &text_dst,
+                    self.is_filtered,
+                    self.is_regex_filter,
+                    &self.filtered_text,
+                );
             }
 
             DiffMode::Watch => {
-                output_data = diff::get_watch_diff(self.ansi_color, &text_src, &text_dst);
+                output_data = output::get_watch_diff(self.ansi_color, &text_src, &text_dst);
             }
 
             DiffMode::Line => {
-                output_data = diff::get_line_diff(self.ansi_color, &text_src, &text_dst);
+                output_data = output::get_line_diff(self.ansi_color, &text_src, &text_dst);
             }
 
             DiffMode::Word => {
-                output_data = diff::get_word_diff(self.ansi_color, &text_src, &text_dst);
+                output_data = output::get_word_diff(self.ansi_color, &text_src, &text_dst);
             }
         }
 

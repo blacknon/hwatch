@@ -67,12 +67,12 @@ use std::time::Duration;
 // local modules
 mod app;
 mod common;
-mod diff;
 mod event;
 mod exec;
 mod header;
 mod help;
 mod history;
+mod output;
 mod view;
 mod watch;
 
