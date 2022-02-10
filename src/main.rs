@@ -2,10 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.1
-// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.3.1)
-//                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
-
 // v0.3.2
 // TODO(blakcnon): batch modeの実装(v0.3.2).
 // TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.2)
