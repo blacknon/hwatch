@@ -19,6 +19,7 @@ use tui::{
 ///
 pub fn get_plane_output<'a>(
     color: bool,
+    line_number: bool,
     text: &str,
     is_filter: bool,
     is_regex_filter: bool,
@@ -29,103 +30,151 @@ pub fn get_plane_output<'a>(
 
     // set filter regex.
     let mut pattern: Regex = Regex::new(&filtered_text).unwrap();
-    if !color && (is_filter || is_regex_filter) {
-        if is_filter {
-            pattern = Regex::new(&regex::escape(&filtered_text)).unwrap();
-            if is_regex_filter {
-                pattern = Regex::new(&filtered_text).unwrap();
-            }
+    if !color && is_filter {
+        pattern = Regex::new(&regex::escape(&filtered_text)).unwrap();
+
+        if is_regex_filter {
+            pattern = Regex::new(&filtered_text).unwrap();
         }
     }
 
-    // color
-    match color {
-        // is color
-        true => {
-            let lines = text.split("\n");
-            for l in lines {
+    if is_filter {
+        // line_span is vec for span on a line-by-line basis
+        let mut line_span = vec![];
+
+        // line number
+        let mut counter = 1;
+        let header_width = &text
+            .split("\n")
+            .clone()
+            .collect::<Vec<&str>>()
+            .len()
+            .to_string()
+            .chars()
+            .collect::<Vec<char>>()
+            .len();
+
+        let mut last_match: usize = 0;
+
+        for mch in pattern.find_iter(&text) {
+            let start: usize = mch.start();
+            let end: usize = mch.end();
+
+            // before regex hit.
+            let before_range_text = &text[last_match..start];
+
+            // regex hit.
+            let range_text = &text[start..end];
+
+            // split newline to Spans, at before_range_text
+            let mut before_range_count = 0;
+            for before_text_line in before_range_text.split('\n') {
+                if before_range_count > 0 {
+                    let line_data = line_span.clone();
+                    output_data.push(Spans::from(line_data));
+                    line_span = vec![];
+                    counter += 1;
+                }
+
+                if line_number && line_span.len() == 0 {
+                    line_span.push(Span::styled(
+                        format!("{:>wid$} | ", counter, wid = header_width),
+                        Style::default().fg(Color::DarkGray),
+                    ));
+                }
+
+                // push to line_span at before_text_line.
+                line_span.push(Span::from(before_text_line.to_string()));
+
+                before_range_count += 1;
+            }
+
+            // split newline to Spans, at range_text
+            let mut range_count = 0;
+            for text_line in range_text.split('\n') {
+                if range_count > 0 {
+                    if line_number && line_span.len() == 0 {
+                        line_span.push(Span::styled(
+                            format!("{:>wid$} | ", counter, wid = header_width),
+                            Style::default().fg(Color::DarkGray),
+                        ));
+                    }
+
+                    let line_data = line_span.clone();
+                    output_data.push(Spans::from(line_data));
+                    line_span = vec![];
+                    counter += 1;
+                }
+
+                // push to line_span at text_line.
+                line_span.push(Span::styled(
+                    text_line.to_string(),
+                    Style::default().add_modifier(Modifier::REVERSED),
+                ));
+
+                range_count += 1;
+            }
+
+            last_match = end;
+        }
+
+        // last push
+        let last_str = &text[last_match..];
+
+        for last_str_line in last_str.split('\n') {
+            let mut last_str_line_span = vec![];
+            if line_span.len() > 0 {
+                last_str_line_span = line_span;
+                line_span = vec![];
+            }
+
+            if line_number && last_str_line_span.len() == 0 {
+                last_str_line_span.push(Span::styled(
+                    format!("{:>wid$} | ", counter, wid = header_width),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+            last_str_line_span.push(Span::from(String::from(last_str_line)));
+
+            output_data.push(Spans::from(last_str_line_span));
+
+            counter += 1;
+        }
+    } else {
+        let lines = text.split("\n");
+
+        let mut counter = 1;
+        let header_width = lines
+            .clone()
+            .collect::<Vec<&str>>()
+            .len()
+            .to_string()
+            .chars()
+            .collect::<Vec<char>>()
+            .len();
+
+        for l in lines {
+            let mut line_span = vec![];
+
+            if line_number {
+                line_span.push(Span::styled(
+                    format!("{:>wid$} | ", counter, wid = header_width),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+
+            if color {
                 let data = ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
 
                 for d in data.lines {
-                    output_data.push(d);
-                }
-            }
-        }
-
-        // is not color
-        false => {
-            if is_filter || is_regex_filter {
-                // line_span is vec for span on a line-by-line basis
-                let mut line_span = vec![];
-
-                let mut last_match: usize = 0;
-
-                for mch in pattern.find_iter(&text) {
-                    let start: usize = mch.start();
-                    let end: usize = mch.end();
-
-                    // before regex hit.
-                    let before_range_text = &text[last_match..start];
-
-                    // regex hit.
-                    let range_text = &text[start..end];
-
-                    // split newline to Spans, at before_range_text
-                    let mut before_range_count = 0;
-                    for before_text_line in before_range_text.split('\n') {
-                        if before_range_count > 0 {
-                            let line_data = line_span.clone();
-                            output_data.push(Spans::from(line_data));
-                            line_span = vec![];
-                        }
-
-                        // push to line_span at before_text_line.
-                        line_span.push(Span::from(before_text_line.to_string()));
-
-                        before_range_count += 1;
-                    }
-
-                    // split newline to Spans, at range_text
-                    let mut range_count = 0;
-                    for text_line in range_text.split('\n') {
-                        if range_count > 0 {
-                            let line_data = line_span.clone();
-                            output_data.push(Spans::from(line_data));
-                            line_span = vec![];
-                        }
-
-                        // push to line_span at text_line.
-                        line_span.push(Span::styled(
-                            text_line.to_string(),
-                            Style::default().add_modifier(Modifier::REVERSED),
-                        ));
-
-                        range_count += 1;
-                    }
-
-                    last_match = end;
-                }
-
-                // last push
-                let last_str = &text[last_match..];
-
-                for last_str_line in last_str.split('\n') {
-                    let mut last_str_line_span = vec![];
-                    if line_span.len() > 0 {
-                        last_str_line_span = line_span;
-                        line_span = vec![];
-                    }
-
-                    last_str_line_span.push(Span::from(String::from(last_str_line)));
-
-                    output_data.push(Spans::from(last_str_line_span));
+                    line_span.extend(d.0);
                 }
             } else {
-                let lines = text.split("\n");
-                for l in lines {
-                    output_data.push(Spans::from(String::from(l)));
-                }
+                line_span.push(Span::from(String::from(l)));
             }
+
+            output_data.push(Spans::from(line_span));
+            counter += 1;
         }
     }
 

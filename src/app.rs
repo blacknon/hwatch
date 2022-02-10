@@ -85,6 +85,9 @@ pub struct App<'a> {
     ansi_color: bool,
 
     ///
+    line_number: bool,
+
+    ///
     is_filtered: bool,
 
     ///
@@ -138,6 +141,7 @@ impl<'a> App<'a> {
             window: ActiveWindow::Normal,
 
             ansi_color: false,
+            line_number: true, // debug
 
             is_filtered: false,
             is_regex_filter: false,
@@ -304,6 +308,7 @@ impl<'a> App<'a> {
             DiffMode::Disable => {
                 output_data = output::get_plane_output(
                     self.ansi_color,
+                    self.line_number,
                     &text_dst,
                     self.is_filtered,
                     self.is_regex_filter,

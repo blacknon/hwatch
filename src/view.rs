@@ -21,13 +21,14 @@ use tui::{backend::CrosstermBackend, Terminal};
 use app::App;
 use event::AppEvent;
 
-/// start hwatch app view.
+/// Struct at run hwatch on tui
 pub struct View {
     interval: f64,
     color: bool,
     log_path: String,
 }
 
+///
 impl View {
     pub fn new() -> Self {
         Self {
