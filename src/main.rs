@@ -189,7 +189,7 @@ fn main() {
 
     // Get options value
     let interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
-    let exec = _m.value_of("exec");
+    // let exec = _m.value_of("exec");
     let logfile = _m.value_of("logfile");
 
     // check _logfile directory
@@ -248,6 +248,7 @@ fn main() {
         view.set_line_number(line_number);
 
         // Set diff(watch diff) in view
+        view.set_watch_diff(diff);
 
         // Set logfile
         if logfile != None {
