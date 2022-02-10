@@ -18,7 +18,7 @@ use std::{
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
-use app::App;
+use app::{App, DiffMode};
 use event::AppEvent;
 
 /// Struct at run hwatch on tui
@@ -26,6 +26,7 @@ pub struct View {
     interval: f64,
     color: bool,
     line_number: bool,
+    watch_diff: bool,
     log_path: String,
 }
 
@@ -36,6 +37,7 @@ impl View {
             interval: ::DEFAULT_INTERVAL,
             color: false,
             line_number: false,
+            watch_diff: false,
             log_path: "".to_string(),
         }
     }
@@ -50,6 +52,10 @@ impl View {
 
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
+    }
+
+    pub fn set_watch_diff(&mut self, watch_diff: bool) {
+        self.watch_diff = watch_diff;
     }
 
     pub fn set_logfile(&mut self, log_path: String) {
@@ -92,6 +98,11 @@ impl View {
 
         // set line_number
         app.set_line_number(self.line_number);
+
+        // set watch diff
+        if self.watch_diff {
+            app.set_diff_mode(DiffMode::Watch);
+        }
 
         // Restore terminal
         disable_raw_mode()?;
