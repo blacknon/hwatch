@@ -182,19 +182,20 @@ fn main() {
     let _m = _matches.clone();
 
     // Get options flag
-    let mut _batch = _m.is_present("batch");
-    let mut _diff = _m.is_present("differences");
-    let mut _color = _m.is_present("color");
+    let batch = _m.is_present("batch");
+    let diff = _m.is_present("differences");
+    let color = _m.is_present("color");
+    let line_number = _m.is_present("line_number");
 
     // Get options value
-    let mut _interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
-    let mut _exec = _m.value_of("exec");
-    let mut _logfile = _m.value_of("logfile");
+    let interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
+    let exec = _m.value_of("exec");
+    let logfile = _m.value_of("logfile");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
-    if _logfile != None {
-        let _log_path = Path::new(_logfile.clone().unwrap());
+    if logfile != None {
+        let _log_path = Path::new(logfile.clone().unwrap());
         let _log_dir = _log_path.parent().unwrap();
 
         // check _log_path exist
@@ -227,29 +228,34 @@ fn main() {
             exe.exec_command();
 
             // sleep interval
-            thread::sleep(Duration::from_secs_f64(_interval));
+            thread::sleep(Duration::from_secs_f64(interval));
         });
     }
 
     // check batch mode
-    if !_batch {
+    if !batch {
         // is watch mode
         // Create view
-        let mut _view = view::View::new();
+        let mut view = view::View::new();
 
-        // Set interval on _view.header
-        _view.set_interval(_interval);
+        // Set interval on view.header
+        view.set_interval(interval);
 
-        // Set color in _view
-        _view.set_color(_color);
+        // Set color in view
+        view.set_color(color);
+
+        // Set color in view
+        view.set_line_number(line_number);
+
+        // Set diff(watch diff) in view
 
         // Set logfile
-        if _logfile != None {
-            _view.set_logfile(_logfile.unwrap().to_string());
+        if logfile != None {
+            view.set_logfile(logfile.unwrap().to_string());
         }
 
         // start app
-        let _res = _view.start(tx.clone(), rx);
+        let _res = view.start(tx.clone(), rx);
     } else {
         // is batch mode
         println!("is batch (developing now)");
