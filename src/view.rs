@@ -25,6 +25,7 @@ use event::AppEvent;
 pub struct View {
     interval: f64,
     color: bool,
+    line_number: bool,
     log_path: String,
 }
 
@@ -34,6 +35,7 @@ impl View {
         Self {
             interval: ::DEFAULT_INTERVAL,
             color: false,
+            line_number: false,
             log_path: "".to_string(),
         }
     }
@@ -44,6 +46,10 @@ impl View {
 
     pub fn set_color(&mut self, color: bool) {
         self.color = color;
+    }
+
+    pub fn set_line_number(&mut self, line_number: bool) {
+        self.line_number = line_number;
     }
 
     pub fn set_logfile(&mut self, log_path: String) {
@@ -83,6 +89,9 @@ impl View {
 
         // set color
         app.set_ansi_color(self.color);
+
+        // set line_number
+        app.set_line_number(self.line_number);
 
         // Restore terminal
         disable_raw_mode()?;

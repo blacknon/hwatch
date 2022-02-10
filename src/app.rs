@@ -141,7 +141,7 @@ impl<'a> App<'a> {
             window: ActiveWindow::Normal,
 
             ansi_color: false,
-            line_number: true, // debug
+            line_number: false,
 
             is_filtered: false,
             is_regex_filter: false,
@@ -322,11 +322,13 @@ impl<'a> App<'a> {
             }
 
             DiffMode::Line => {
-                output_data = output::get_line_diff(self.ansi_color, &text_src, &text_dst);
+                output_data =
+                    output::get_line_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
             }
 
             DiffMode::Word => {
-                output_data = output::get_word_diff(self.ansi_color, &text_src, &text_dst);
+                output_data =
+                    output::get_word_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
             }
         }
 
@@ -349,7 +351,16 @@ impl<'a> App<'a> {
 
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
-        self.watch_area.set_ansi_color(ansi_color);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    pub fn set_line_number(&mut self, line_number: bool) {
+        self.line_number = line_number;
+
+        self.header_area.set_line_number(line_number);
+        self.header_area.update();
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -570,13 +581,19 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::NONE,
-                    }) => self.toggle_ansi_color(),
+                    }) => self.set_ansi_color(!self.ansi_color),
 
                     // d
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('d'),
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_diff_mode(),
+
+                    // n
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('n'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_line_number(!self.line_number),
 
                     // o
                     Event::Key(KeyEvent {
@@ -823,11 +840,6 @@ impl<'a> App<'a> {
             OutputMode::Stdout => self.set_output_mode(OutputMode::Stderr),
             OutputMode::Stderr => self.set_output_mode(OutputMode::Output),
         }
-    }
-
-    ///
-    fn toggle_ansi_color(&mut self) {
-        self.set_ansi_color(!self.ansi_color);
     }
 
     ///

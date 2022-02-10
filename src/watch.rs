@@ -19,9 +19,6 @@ pub struct WatchArea<'a> {
     pub data: Vec<Spans<'a>>,
 
     ///
-    ansi_color: bool,
-
-    ///
     position: i16,
 }
 
@@ -35,7 +32,6 @@ impl<'a> WatchArea<'a> {
 
             data: vec![Spans::from("")],
 
-            ansi_color: false,
             position: 0,
         }
     }
@@ -48,11 +44,6 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn update_output(&mut self, data: Vec<Spans<'a>>) {
         self.data = data;
-    }
-
-    ///
-    pub fn set_ansi_color(&mut self, ansi_color: bool) {
-        self.ansi_color = ansi_color;
     }
 
     ///

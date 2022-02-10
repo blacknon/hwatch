@@ -253,11 +253,11 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     let mut _result = vec![];
     for x in 0..max_char {
         if old_line_chars.len() <= x {
-            old_line_chars.push(space);
+            old_line_chars.push(space.clone());
         }
 
         if new_line_chars.len() <= x {
-            new_line_chars.push(space);
+            new_line_chars.push(space.clone());
         }
 
         if old_line_chars[x] != new_line_chars[x] {
@@ -336,9 +336,24 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
 // ==========
 
 ///
-pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_line_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     // Create changeset
-    let Changeset { diffs, .. } = Changeset::new(old, new, "\n");
+    let Changeset { diffs, .. } = Changeset::new(old, new, ::LINE_ENDING);
+
+    // old and new text's line count.
+    let old_len = &old.lines().collect::<Vec<&str>>().len();
+    let new_len = &new.lines().collect::<Vec<&str>>().len();
+
+    // get line_number width
+    let header_width = cmp::max(old_len, new_len)
+        .to_string()
+        .chars()
+        .collect::<Vec<char>>()
+        .len();
+
+    // line_number counter
+    let mut old_counter = 1;
+    let mut new_counter = 1;
 
     // create result
     let mut result = vec![];
@@ -348,7 +363,7 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
             // Same line.
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data: Spans;
+                    let mut data: Spans;
 
                     if color {
                         // ansi color code => rs-tui colored span.
@@ -366,14 +381,30 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         // to string => rs-tui span.
                         data = Spans::from(format!("   {}\n", line));
                     }
+
+                    if line_number {
+                        data.0.insert(
+                            0,
+                            Span::styled(
+                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                Style::default().fg(Color::DarkGray),
+                            ),
+                        );
+                    }
+
                     result.push(data);
+
+                    // add counter
+                    old_counter += 1;
+                    new_counter += 1;
                 }
             }
 
             // Add line.
             Difference::Add(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data: Spans;
+                    let mut data: Spans;
+
                     if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
@@ -389,14 +420,28 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         ));
                     }
 
+                    if line_number {
+                        data.0.insert(
+                            0,
+                            Span::styled(
+                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                Style::default().fg(Color::Rgb(56, 119, 120)),
+                            ),
+                        );
+                    }
+
                     result.push(data);
+
+                    // add new_counter
+                    new_counter += 1;
                 }
             }
 
             // Remove line.
             Difference::Rem(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data: Spans;
+                    let mut data: Spans;
+
                     if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
@@ -412,7 +457,20 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         ));
                     }
 
+                    if line_number {
+                        data.0.insert(
+                            0,
+                            Span::styled(
+                                format!("{:>wid$} | ", old_counter, wid = header_width),
+                                Style::default().fg(Color::Rgb(118, 0, 0)),
+                            ),
+                        );
+                    }
+
                     result.push(data);
+
+                    // add old_counter
+                    old_counter += 1;
                 }
             }
         }
@@ -425,9 +483,24 @@ pub fn get_line_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
 // ==========
 
 ///
-pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_word_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     // Create changeset
     let Changeset { diffs, .. } = Changeset::new(old, new, ::LINE_ENDING);
+
+    // old and new text's line count.
+    let old_len = &old.lines().collect::<Vec<&str>>().len();
+    let new_len = &new.lines().collect::<Vec<&str>>().len();
+
+    // get line_number width
+    let header_width = cmp::max(old_len, new_len)
+        .to_string()
+        .chars()
+        .collect::<Vec<char>>()
+        .len();
+
+    // line_number counter
+    let mut old_counter = 1;
+    let mut new_counter = 1;
 
     // create result
     let mut result = vec![];
@@ -437,7 +510,7 @@ pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
             // Same line.
             Difference::Same(ref diff_data) => {
                 for line in diff_data.lines() {
-                    let data: Spans;
+                    let mut data: Spans;
 
                     if color {
                         // ansi color code => rs-tui colored span.
@@ -455,7 +528,22 @@ pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         // to string => rs-tui span.
                         data = Spans::from(format!("   {}\n", line));
                     }
+
+                    if line_number {
+                        data.0.insert(
+                            0,
+                            Span::styled(
+                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                Style::default().fg(Color::DarkGray),
+                            ),
+                        );
+                    }
+
                     result.push(data);
+
+                    // add counter
+                    old_counter += 1;
+                    new_counter += 1;
                 }
             }
 
@@ -500,7 +588,20 @@ pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         data.push(line);
                     }
 
+                    if line_number {
+                        data.insert(
+                            0,
+                            Span::styled(
+                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                Style::default().fg(Color::Rgb(56, 119, 120)),
+                            ),
+                        );
+                    }
+
                     result.push(Spans::from(data.clone()));
+
+                    // add new_counter
+                    new_counter += 1;
                 }
             }
 
@@ -545,7 +646,20 @@ pub fn get_word_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                         data.push(line);
                     }
 
+                    if line_number {
+                        data.insert(
+                            0,
+                            Span::styled(
+                                format!("{:>wid$} | ", old_counter, wid = header_width),
+                                Style::default().fg(Color::Rgb(118, 0, 0)),
+                            ),
+                        );
+                    }
+
                     result.push(Spans::from(data.clone()));
+
+                    // add old_counter
+                    old_counter += 1;
                 }
             }
         }
