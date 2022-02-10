@@ -3,9 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.1
-// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.1)
-// TODO(blacknon): マニュアル(manのデータ)を自動作成させる (v0.3.1)
-//                 https://github.com/rust-cli/man
 // TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.3.1)
 //                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
 
@@ -27,6 +24,9 @@
 //                 `OnlyLine`, `OnlyWord` mode.
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v0.3.3)
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.3)
+// TODO(blacknon): マニュアル(manのデータ)を自動作成させる (v0.3.3)
+//                 https://github.com/rust-cli/man
 
 #[warn(unused_doc_comments)]
 // crate
@@ -128,6 +128,14 @@ fn build_app() -> clap::App<'static, 'static> {
                 .help("highlight changes between updates")
                 .short("d")
                 .long("differences"),
+        )
+        // Enable line number mode option
+        //   [--line-number,-N]
+        .arg(
+            Arg::with_name("line_number")
+                .help("show line number")
+                .short("N")
+                .long("line-number"),
         )
         // Logging option
         //   [--logfile,-l] /path/to/logfile
