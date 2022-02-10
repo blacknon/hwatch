@@ -185,7 +185,7 @@ pub fn get_plane_output<'a>(
 // ==========
 
 ///
-pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     let mut result = vec![];
 
     // output to vector
@@ -194,6 +194,9 @@ pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
 
     // get max line
     let max_line = cmp::max(old_vec.len(), new_vec.len());
+
+    let mut counter = 1;
+    let header_width = max_line.to_string().chars().collect::<Vec<char>>().len();
 
     // for diff lines
     for i in 0..max_line {
@@ -205,8 +208,8 @@ pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
             new_vec.push("");
         }
 
-        // TODO: 1行ごとの出力用関数呼び出し
-        let line_data: Spans;
+        let mut line_data: Spans;
+
         match color {
             false => line_data = get_watch_diff_line(old_vec[i], new_vec[i]),
             true => {
@@ -214,7 +217,20 @@ pub fn get_watch_diff<'a>(color: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
                 line_data = get_watch_diff_line_with_ansi(old_vec[i], new_vec[i])
             }
         }
+
+        if line_number {
+            line_data.0.insert(
+                0,
+                Span::styled(
+                    format!("{:>wid$} | ", counter, wid = header_width),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            );
+        }
+
         result.push(line_data);
+
+        counter += 1;
     }
 
     return result;

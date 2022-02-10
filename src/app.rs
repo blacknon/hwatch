@@ -317,7 +317,8 @@ impl<'a> App<'a> {
             }
 
             DiffMode::Watch => {
-                output_data = output::get_watch_diff(self.ansi_color, &text_src, &text_dst);
+                output_data =
+                    output::get_watch_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
             }
 
             DiffMode::Line => {
