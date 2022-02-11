@@ -150,7 +150,6 @@ jobs:
   create-release:
     needs:
       - build
-      - build-distribution-packages
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.package_version.outputs.version }}
