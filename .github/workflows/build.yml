@@ -11,8 +11,8 @@ name: Release Job.
 on:
   push:
     branches:
-      - master
       - 0.3.1
+      - master
 
 jobs:
   # build rust binary
@@ -137,17 +137,50 @@ jobs:
       - uses: actions/download-artifact@v1
         with:
           name: create-release
+
       - id: upload-url
         run: |
           echo "::set-output name=url::$(cat create-release/release_upload_url.txt)"
+
       - uses: actions/download-artifact@v1
         with:
           name: build-${{ matrix.target }}
+
+      - name: target name replace
+        id: target_name_in_file
+        run: |
+          echo "::set-output name=target::$(echo ${{ matrix.target }} | tr - _)"
+
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.upload-url.outputs.url }}
           asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
-          asset_name: hwatch_${{ needs.create-release.outputs.version }}_${{ matrix.target }}.zip
+          asset_name: hwatch_${{ needs.create-release.outputs.version }}_${{ steps.target_name_in_file.outputs.target }}.zip
           asset_content_type: application/zip
+
+  build-distribution-packages:
+    strategy:
+      matrix:
+        target:
+          - deb
+          - rpm
+        include:
+          - target: deb
+            install_package: cargo-deb
+          - target: rpm
+            install_package: cargo-rpm
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install cargo package
+        run: |
+          cargo install ${{ matrix.install_package }}
+
+      - name: Build distribution Packages
+        run: |
+          cargo ${{ matrix.target }}
+          ls -la target/*/hwatch
