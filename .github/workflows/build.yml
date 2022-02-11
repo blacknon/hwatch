@@ -75,9 +75,6 @@ jobs:
           args: --release --target=${{ matrix.target }}
           use-cross: true
 
-      - name: wait 3 seconds.
-        run: sleep 3
-
       - name: Check release binary
         run: find target/ -type f -name "hwatch"
 
@@ -91,52 +88,61 @@ jobs:
           path: hwatch-${{ matrix.target }}.zip
 
   # create package release
-  # create-release:
-  #   needs: [build]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - id: create-release
-  #       uses: actions/create-release@v1.0.0
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         tag_name: ${{ github.ref }}
-  #         release_name: Release ${{ github.ref }}
-  #         draft: false
-  #         prerelease: false
-  #     - run: |
-  #         echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
-  #     - uses: actions/upload-artifact@v1
-  #       with:
-  #         name: create-release
-  #         path: release_upload_url.txt
-#
-  # upload-release:
-    # strategy:
-      # matrix:
-        # target:
-          # - x86_64-unknown-linux-gnu
-          # - x86_64-unknown-linux-musl
-          # - x86_64-apple-darwin
-          # - aarch64-apple-darwin
-          # # - x86_64-pc-windows-gnu
-    # needs: [create-release]
-    # runs-on: ubuntu-latest
-    # steps:
-      # - uses: actions/download-artifact@v1
-        # with:
-          # name: create-release
-      # - id: upload-url
-        # run: |
-          # echo "::set-output name=url::$(cat create-release/release_upload_url.txt)"
-      # - uses: actions/download-artifact@v1
-        # with:
-          # name: build-${{ matrix.target }}
-      # - uses: actions/upload-release-asset@v1.0.1
-        # env:
-          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # with:
-          # upload_url: ${{ steps.upload-url.outputs.url }}
-          # asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
-          # asset_name: hwatch-${{ matrix.target }}.zip
-          # asset_content_type: application/zip
+  create-release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - id: package_version
+        name: Get version.
+        shell: bash
+        run: |
+          VERSION="$(cargo run --example version)"
+          echo "::set-output name=version::$VERSION"
+
+      - id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.package_version.outputs.version }}
+          release_name: Version ${{ steps.package_version.outputs.version }}
+          draft: true
+          prerelease: false
+
+      - run: |
+          echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: create-release
+          path: release_upload_url.txt
+
+  upload-release:
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          # - x86_64-pc-windows-gnu
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v1
+        with:
+          name: create-release
+      - id: upload-url
+        run: |
+          echo "::set-output name=url::$(cat create-release/release_upload_url.txt)"
+      - uses: actions/download-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.upload-url.outputs.url }}
+          asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
+          asset_name: hwatch-${{ matrix.target }}.zip
+          asset_content_type: application/zip
