@@ -23,6 +23,7 @@ jobs:
           - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
           - x86_64-apple-darwin
+          - aarch64-apple-darwin
           # - x86_64-pc-windows-gnu
         include:
           - target: x86_64-unknown-linux-gnu
@@ -30,6 +31,8 @@ jobs:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
           - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
             os: macos-latest
           # - target: x86_64-pc-windows-gnu
           #   os: ubuntu-latest
@@ -71,24 +74,24 @@ jobs:
 
   # create package release
   # create-release:
-    # needs: [build]
-    # runs-on: ubuntu-latest
-    # steps:
-      # - id: create-release
-        # uses: actions/create-release@v1.0.0
-        # env:
-          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # with:
-          # tag_name: ${{ github.ref }}
-          # release_name: Release ${{ github.ref }}
-          # draft: false
-          # prerelease: false
-      # - run: |
-          # echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
-      # - uses: actions/upload-artifact@v1
-        # with:
-          # name: create-release
-          # path: release_upload_url.txt
+  #   needs: [build]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - id: create-release
+  #       uses: actions/create-release@v1.0.0
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         tag_name: ${{ github.ref }}
+  #         release_name: Release ${{ github.ref }}
+  #         draft: false
+  #         prerelease: false
+  #     - run: |
+  #         echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
+  #     - uses: actions/upload-artifact@v1
+  #       with:
+  #         name: create-release
+  #         path: release_upload_url.txt
 #
   # upload-release:
     # strategy:
@@ -97,6 +100,7 @@ jobs:
           # - x86_64-unknown-linux-gnu
           # - x86_64-unknown-linux-musl
           # - x86_64-apple-darwin
+          # - aarch64-apple-darwin
           # # - x86_64-pc-windows-gnu
     # needs: [create-release]
     # runs-on: ubuntu-latest
