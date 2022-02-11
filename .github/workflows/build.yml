@@ -169,8 +169,10 @@ jobs:
         include:
           - target: deb
             install_package: cargo-deb
+            args: deb
           - target: rpm
             install_package: cargo-rpm
+            args: rpm build -v
     needs: [create-release]
     runs-on: ubuntu-latest
     steps:
@@ -182,5 +184,5 @@ jobs:
 
       - name: Build distribution Packages
         run: |
-          cargo ${{ matrix.target }}
+          cargo ${{ matrix.args }}
           ls -la target/*/hwatch
