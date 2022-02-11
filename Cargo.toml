@@ -1,6 +1,6 @@
 [package]
 authors = ["blacknon <blacknon@orebibou.com>"]
-description = "alternative watch command."
+description = "A modern alternative to the watch command, records the differences in execution results and can check this differences at after."
 keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
@@ -24,15 +24,3 @@ serde_json = "1.0.44"
 termwiz = "0.15.0"
 # TODO: マージされたらバージョン上げる(0.16.0)
 tui = {version = "0.14.0", default-features = false, features = ['crossterm']}
-
-[package.metadata.deb]
-extended-description = "alternative watch command."
-maintainer = "blacknon <blacknon@orebibou.com>"
-priority = "optional"
-section = "utility"
-
-[package.metadata.rpm.cargo]
-buildflags = ["--release"]
-
-[package.metadata.rpm.targets]
-hwatch = {path = "/usr/bin/hwatch"}

@@ -4,6 +4,7 @@
 # reference:
 #   - https://motemen.hatenablog.com/entry/2019/11/github-actions-crossbuild-rust
 #     - https://github.com/motemen/hwatch/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
+#   - https://github.com/greymd/teip/blob/master/.github/workflows/release.yml
 
 
 name: Release Job.
@@ -19,30 +20,37 @@ jobs:
   build:
     strategy:
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-          # - x86_64-pc-windows-gnu
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            attachment: misc/completions man/hwatch.1
+            ext: tar.gz
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            attachment: misc/completions man/hwatch.1
+            ext: tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: rpm
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: deb
           - target: x86_64-apple-darwin
             os: macos-latest
-            attachment: misc/completions man/hwatch.1
+            ext: tar.gz
           - target: aarch64-apple-darwin
             os: macos-latest
-            attachment: misc/completions man/hwatch.1
+            ext: tar.gz
           # - target: x86_64-pc-windows-gnu
           #   os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
+
+      - name: Get version
+        id: package_version
+        shell: bash
+        run: |
+          VERSION="$(cargo run --example version)"
+          echo "::set-output name=version::$VERSION"
 
       # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
       - name: Cache cargo registry
@@ -75,66 +83,68 @@ jobs:
           args: --release --target=${{ matrix.target }}
           use-cross: true
 
-      - name: Check release binary
-        run: find target/ -type f -name "hwatch"
-
-      - name: Create zip file
+      - name: Create package file
+        if: matrix.ext == "tar.gz" || matrix.ext == "rpm" || matrix.ext == "deb"
         run: |
-          zip --junk-paths hwatch-${{ matrix.target }} target/${{ matrix.target }}/release/hwatch{,.exe} ${{ matrix.attachment }}
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          mv target/${{ matrix.target }}/release/hwatch package/bin
+          mkdir -p package/man
+          cp man/hwatch.1 package/man
+          cp -r misc/completions package/
+          ## sed -i is not used due to difference between macOS and Linux
+          perl -i -pe s/___VERSION___/${{ steps.package_version.outputs.version }}/ ./package/.tar2package.yml
+          tar zcvf "$_TAR" -C "$PWD/package" misc/completions bin man .tar2package.yml
 
-      - uses: actions/upload-artifact@v1
+      # use: https://github.com/greymd/tar2package
+      - name: Build rpm
+        id: rpm
+        if: matrix.ext == 'rpm'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          docker run -i "greymd/tar2rpm:1.0.1" < "$_TAR" > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
+          echo ::set-output name=sha256::$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm | awk '{print $1}' )
+
+      # use: https://github.com/greymd/tar2package
+      - name: Build deb
+        id: deb
+        if: matrix.ext == 'deb'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          docker run -i "greymd/tar2deb:1.0.1" < "$_TAR" > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
+          echo ::set-output name=sha256::$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb | awk '{print $1}' )
+
+      - name: README for rpm
+        if: matrix.ext == 'rpm'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
+          echo "$_TAR" > ./digest.txt
+          echo "${{ steps.rpm.outputs.sha256 }}" >> ./digest.txt
+      - name: Upload artifact
+        if: matrix.ext == 'rpm'
+        uses: actions/upload-artifact@v1
+        with:
+          name: rpm.x86_64
+          path: digest.txt
+
+      - name: README for deb
+        if: matrix.ext == 'deb'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
+          echo "$_TAR" > ./digest.txt
+          echo "${{ steps.deb.outputs.sha256 }}" >> ./digest.txt
+      - name: Upload artifact
+        if: matrix.ext == 'deb'
+        uses: actions/upload-artifact@v1
+        with:
+          name: deb.x86_64
+          path: digest.txt
+
+      - name: Upload artifact
+        if: matrix.ext == 'tar.gz'
+        uses: actions/upload-artifact@v1
         with:
           name: build-${{ matrix.target }}
-          path: hwatch-${{ matrix.target }}.zip
-
-  # build rpm/deb file
-  build-distribution-packages:
-    strategy:
-      matrix:
-        target:
-          - deb
-          - rpm
-        include:
-          - target: deb
-            install_package: cargo-deb
-            args: deb
-          - target: rpm
-            install_package: cargo-rpm
-            args: rpm build -v
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-
-      - name: Install cargo package
-        run: |
-          cargo install ${{ matrix.install_package }}
-
-      - id: package_version
-        name: Get version.
-        shell: bash
-        run: |
-          ls -la
-          VERSION="$(cargo run --example version)"
-          echo "::set-output name=version::$VERSION"
-
-      - name: Build distribution Packages
-        run: |
-          cargo ${{ matrix.args }}
-
-      - name: Copy build file
-        run: |
-          if [[ "${{ matrix.target }}" == "rpm" ]]; then
-            cp target/release/rpmbuild/RPMS/x86_64/hwatch-${{ steps.package_version.outputs.version }}-1.x86_64.rpm ./hwatch.rpm
-          fi
-
-          if [[ "${{ matrix.target }}" == "deb" ]]; then
-            cp /home/runner/work/hwatch/hwatch/target/debian/hwatch_${{ steps.package_version.outputs.version }}_amd64.deb ./hwatch.deb
-          fi
-
-      - uses: actions/upload-artifact@v1
-        with:
-          name: build-hwatch.${{ matrix.target }}
-          path: hwatch.${{ matrix.target }}
+          path: hwatch-${{ matrix.target }}.tar.gz
 
   # create package release
   create-release:
@@ -151,7 +161,6 @@ jobs:
         name: Get version.
         shell: bash
         run: |
-          ls -la
           VERSION="$(cargo run --example version)"
           echo "::set-output name=version::$VERSION"
 
@@ -237,9 +246,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.upload-url.outputs.url }}
-          asset_path: ./build-hwatch.${{ matrix.target }}/hwatch.${{ matrix.target }}
+          asset_path: ./build-hwatch.${{ matrix.target }}/${{ matrix.target }}.x86_64
           asset_name: hwatch_${{ needs.create-release.outputs.version }}.${{ matrix.target }}
-          asset_content_type: application/zip
 
   # release-cargo-publish:
   #   needs: [create-release]
