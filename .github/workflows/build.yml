@@ -118,27 +118,25 @@ jobs:
         if: matrix.ext == 'rpm'
         run: |
           _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
-          echo "$_TAR" > ./digest.txt
-          echo "${{ steps.rpm.outputs.sha256 }}" >> ./digest.txt
+
       - name: Upload artifact
         if: matrix.ext == 'rpm'
         uses: actions/upload-artifact@v1
         with:
-          name: rpm.x86_64
-          path: digest.txt
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
 
       - name: README for deb
         if: matrix.ext == 'deb'
         run: |
           _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
-          echo "$_TAR" > ./digest.txt
-          echo "${{ steps.deb.outputs.sha256 }}" >> ./digest.txt
+
       - name: Upload artifact
         if: matrix.ext == 'deb'
         uses: actions/upload-artifact@v1
         with:
-          name: deb.x86_64
-          path: digest.txt
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
 
       - name: Upload artifact
         if: matrix.ext == 'tar.gz'
