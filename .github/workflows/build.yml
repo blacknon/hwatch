@@ -65,7 +65,7 @@ jobs:
           override: true
 
       - name: Build binary
-        uses: actions-rs/cargo@v1.0.1
+        uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target=${{ matrix.target }}
