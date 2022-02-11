@@ -93,7 +93,7 @@ jobs:
           cp -r completion package/
           ## sed -i is not used due to difference between macOS and Linux
           perl -i -pe s/___VERSION___/${{ steps.package_version.outputs.version }}/ ./package/.tar2package.yml
-          tar zcvf "$_TAR" -C "$PWD/package" completion bin man .tar2package.yml
+          tar czvf "$_TAR" -C "$PWD/package" completion bin man .tar2package.yml
 
       # use: https://github.com/greymd/tar2package
       - name: Build rpm
@@ -144,7 +144,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: build-${{ matrix.target }}
-          path: hwatch-${{ matrix.target }}.tar.gz
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
 
   # create package release
   create-release:
