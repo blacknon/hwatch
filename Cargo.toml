@@ -36,11 +36,3 @@ buildflags = ["--release"]
 
 [package.metadata.rpm.targets]
 hwatch = {path = "/usr/bin/hwatch"}
-
-[[bin]]
-name = "main"
-path = "src/main.rs"
-
-[[bin]]
-name = "version"
-path = "scripts/version.rs"
