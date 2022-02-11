@@ -109,15 +109,26 @@ jobs:
         run: |
           cargo install ${{ matrix.install_package }}
 
+      - id: package_version
+        name: Get version.
+        shell: bash
+        run: |
+          ls -la
+          VERSION="$(cargo run --example version)"
+          echo "::set-output name=version::$VERSION"
+
       - name: Build distribution Packages
         run: |
           cargo ${{ matrix.args }}
+
+      - name: Copy build file
+        run: |
           if [[ ${{ matrix.target }} == "rpm" ]]; then
-            cp target/release/rpmbuild/RPMS/x86_64/hwatch-${{ needs.create-release.outputs.version }}-1.x86_64.rpm /tmp
+            cp target/release/rpmbuild/RPMS/x86_64/hwatch-${{ steps.package_version.outputs.version }}-1.x86_64.rpm /tmp
           fi
 
           if [[ ${{ matrix.target }} == "deb" ]]; then
-            cp /home/runner/work/hwatch/hwatch/target/debian/hwatch_${{ needs.create-release.outputs.version }}_amd64.deb /tmp
+            cp /home/runner/work/hwatch/hwatch/target/debian/hwatch_${{ steps.package_version.outputs.version }}_amd64.deb /tmp
           fi
 
       - uses: actions/upload-artifact@v1
@@ -127,7 +138,9 @@ jobs:
 
   # create package release
   create-release:
-    needs: [build]
+    needs:
+      - build
+      - build-distribution-packages
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.package_version.outputs.version }}
