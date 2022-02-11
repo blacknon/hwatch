@@ -96,6 +96,7 @@ jobs:
         name: Get version.
         shell: bash
         run: |
+          ls -la
           VERSION="$(cargo run --example version)"
           echo "::set-output name=version::$VERSION"
 
