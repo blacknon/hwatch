@@ -41,6 +41,7 @@ jobs:
             ext: tar.gz
           # - target: x86_64-pc-windows-gnu
           #   os: ubuntu-latest
+          #   ext: zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
@@ -184,7 +185,7 @@ jobs:
   upload-release:
     strategy:
       matrix:
-        target:
+        include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             ext: tar.gz
