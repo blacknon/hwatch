@@ -72,7 +72,7 @@ jobs:
           use-cross: true
 
       - name: Check release binary
-        run: ls -la target/${{ matrix.target }}/release/
+        run: find target/${{ matrix.target }}/release/ -type f | sort
 
       - name: Create zip file
         run: |
