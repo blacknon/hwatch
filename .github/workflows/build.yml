@@ -87,6 +87,44 @@ jobs:
           name: build-${{ matrix.target }}
           path: hwatch-${{ matrix.target }}.zip
 
+  # build rpm/deb file
+  build-distribution-packages:
+    strategy:
+      matrix:
+        target:
+          - deb
+          - rpm
+        include:
+          - target: deb
+            install_package: cargo-deb
+            args: deb
+          - target: rpm
+            install_package: cargo-rpm
+            args: rpm build -v
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install cargo package
+        run: |
+          cargo install ${{ matrix.install_package }}
+
+      - name: Build distribution Packages
+        run: |
+          cargo ${{ matrix.args }}
+          if [[ ${{ matrix.target }} == "rpm" ]]; then
+            cp target/release/rpmbuild/RPMS/x86_64/hwatch-${{ needs.create-release.outputs.version }}-1.x86_64.rpm /tmp
+          fi
+
+          if [[ ${{ matrix.target }} == "deb" ]]; then
+            cp target/debian/hwatch_${{ needs.create-release.outputs.version }}_amd64.deb /tmp
+          fi
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build-hwatch.${{ matrix.target }}
+          path: /tmp/*.${{ matrix.target }}
+
   # create package release
   create-release:
     needs: [build]
@@ -159,30 +197,3 @@ jobs:
           asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
           asset_name: hwatch_${{ needs.create-release.outputs.version }}_${{ steps.target_name_in_file.outputs.target }}.zip
           asset_content_type: application/zip
-
-  build-distribution-packages:
-    strategy:
-      matrix:
-        target:
-          - deb
-          - rpm
-        include:
-          - target: deb
-            install_package: cargo-deb
-            args: deb
-          - target: rpm
-            install_package: cargo-rpm
-            args: rpm build -v
-    needs: [create-release]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-
-      - name: Install cargo package
-        run: |
-          cargo install ${{ matrix.install_package }}
-
-      - name: Build distribution Packages
-        run: |
-          cargo ${{ matrix.args }}
-          ls -la target/*/hwatch
