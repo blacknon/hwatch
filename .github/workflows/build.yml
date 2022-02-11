@@ -123,18 +123,18 @@ jobs:
 
       - name: Copy build file
         run: |
-          if [[ ${{ matrix.target }} == "rpm" ]]; then
-            cp target/release/rpmbuild/RPMS/x86_64/hwatch-${{ steps.package_version.outputs.version }}-1.x86_64.rpm /tmp
+          if [[ "${{ matrix.target }}" == "rpm" ]]; then
+            cp target/release/rpmbuild/RPMS/x86_64/hwatch-${{ steps.package_version.outputs.version }}-1.x86_64.rpm ./hwatch.rpm
           fi
 
-          if [[ ${{ matrix.target }} == "deb" ]]; then
-            cp /home/runner/work/hwatch/hwatch/target/debian/hwatch_${{ steps.package_version.outputs.version }}_amd64.deb /tmp
+          if [[ "${{ matrix.target }}" == "deb" ]]; then
+            cp /home/runner/work/hwatch/hwatch/target/debian/hwatch_${{ steps.package_version.outputs.version }}_amd64.deb ./hwatch.deb
           fi
 
       - uses: actions/upload-artifact@v1
         with:
           name: build-hwatch.${{ matrix.target }}
-          path: /tmp/*.${{ matrix.target }}
+          path: hwatch.${{ matrix.target }}
 
   # create package release
   create-release:
@@ -209,4 +209,34 @@ jobs:
           upload_url: ${{ steps.upload-url.outputs.url }}
           asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
           asset_name: hwatch_${{ needs.create-release.outputs.version }}_${{ steps.target_name_in_file.outputs.target }}.zip
+          asset_content_type: application/zip
+
+  upload-release-distribution-packages:
+    strategy:
+      matrix:
+        target:
+          - deb
+          - rpm
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v1
+        with:
+          name: create-release
+
+      - id: upload-url
+        run: |
+          echo "::set-output name=url::$(cat create-release/release_upload_url.txt)"
+
+      - uses: actions/download-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.upload-url.outputs.url }}
+          asset_path: ./build-hwatch.${{ matrix.target }}/hwatch.${{ matrix.target }}
+          asset_name: hwatch_${{ needs.create-release.outputs.version }}.${{ matrix.target }}
           asset_content_type: application/zip
