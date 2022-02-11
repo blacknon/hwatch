@@ -227,3 +227,4 @@ jobs:
           upload_url: ${{ steps.upload-url.outputs.url }}
           asset_path: ./build-${{ matrix.target }}/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
           asset_name: hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
+          asset_content_type: application/octet-stream
