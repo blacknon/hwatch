@@ -90,10 +90,10 @@ jobs:
           mv target/${{ matrix.target }}/release/hwatch package/bin
           mkdir -p package/man
           cp man/hwatch.1 package/man
-          cp -r misc/completions package/
+          cp -r completion package/
           ## sed -i is not used due to difference between macOS and Linux
           perl -i -pe s/___VERSION___/${{ steps.package_version.outputs.version }}/ ./package/.tar2package.yml
-          tar zcvf "$_TAR" -C "$PWD/package" misc/completions bin man .tar2package.yml
+          tar zcvf "$_TAR" -C "$PWD/package" completion bin man .tar2package.yml
 
       # use: https://github.com/greymd/tar2package
       - name: Build rpm
