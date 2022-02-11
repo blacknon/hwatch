@@ -2,38 +2,27 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.1
-// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.1)
-// TODO(blacknon): color, diffがfalseの場合のみ、filtered textの箇所をハイライト表示する.
-
 // v0.3.2
 // TODO(blakcnon): batch modeの実装(v0.3.2).
-// TODO(blacknon): 長いcommand指定時は省略して出力させる(v0.3.2)
-
-// v0.3.3
-// TODO(blacknon): 行頭に行番号を表示する機能の追加.(v0.3.3)
-//                 `n`キーでの切り替えが良いか? diffでの出力をどうするかがポイントかも？？
-
-// v.0.3.4
-// TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.4)
+// TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.2)
 //                 watchコマンドにもある(-e, --errexit)
-// TODO(blacknon): 出力結果が変わった場合はそこで終了する機能の追加(v0.3.4)
+// TODO(blacknon): 出力結果が変わった場合はそこで終了する機能の追加(v0.3.2)
 //                 watchコマンドにもある(-g, --chgexit)
-// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
+// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.2)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.4)
+// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.2)
 //                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 
-// v0.3.5
-// TODO(blacknon): マニュアル(manのデータ)を作成 (v0.3.5)
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v1.0.0)
-//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-
-// v0.4.0
-// TODO(blacknon): Windows対応(v0.4.0). 一応、あとはライブラリが対応すればイケる.
-// TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.4.0).
-// TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.4.0).
+// v0.3.3
+// TODO(blacknon): Windows対応(v0.3.3). 一応、あとはライブラリが対応すればイケる.
+// TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.3.3).
+// TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.3.3).
 //                 `OnlyLine`, `OnlyWord` mode.
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v0.3.3)
+//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.3)
+// TODO(blacknon): マニュアル(manのデータ)を自動作成させる (v0.3.3)
+//                 https://github.com/rust-cli/man
 
 #[warn(unused_doc_comments)]
 // crate
@@ -67,12 +56,12 @@ use std::time::Duration;
 // local modules
 mod app;
 mod common;
-mod diff;
 mod event;
 mod exec;
 mod header;
 mod help;
 mod history;
+mod output;
 mod view;
 mod watch;
 
@@ -136,6 +125,14 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("d")
                 .long("differences"),
         )
+        // Enable line number mode option
+        //   [--line-number,-N]
+        .arg(
+            Arg::with_name("line_number")
+                .help("show line number")
+                .short("N")
+                .long("line-number"),
+        )
         // Logging option
         //   [--logfile,-l] /path/to/logfile
         // ex.)
@@ -181,19 +178,20 @@ fn main() {
     let _m = _matches.clone();
 
     // Get options flag
-    let mut _batch = _m.is_present("batch");
-    let mut _diff = _m.is_present("differences");
-    let mut _color = _m.is_present("color");
+    let batch = _m.is_present("batch");
+    let diff = _m.is_present("differences");
+    let color = _m.is_present("color");
+    let line_number = _m.is_present("line_number");
 
     // Get options value
-    let mut _interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
-    let mut _exec = _m.value_of("exec");
-    let mut _logfile = _m.value_of("logfile");
+    let interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
+    // let exec = _m.value_of("exec");
+    let logfile = _m.value_of("logfile");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
-    if _logfile != None {
-        let _log_path = Path::new(_logfile.clone().unwrap());
+    if logfile != None {
+        let _log_path = Path::new(logfile.clone().unwrap());
         let _log_dir = _log_path.parent().unwrap();
 
         // check _log_path exist
@@ -226,29 +224,35 @@ fn main() {
             exe.exec_command();
 
             // sleep interval
-            thread::sleep(Duration::from_secs_f64(_interval));
+            thread::sleep(Duration::from_secs_f64(interval));
         });
     }
 
     // check batch mode
-    if !_batch {
+    if !batch {
         // is watch mode
         // Create view
-        let mut _view = view::View::new();
+        let mut view = view::View::new();
 
-        // Set interval on _view.header
-        _view.set_interval(_interval);
+        // Set interval on view.header
+        view.set_interval(interval);
 
-        // Set color in _view
-        _view.set_color(_color);
+        // Set color in view
+        view.set_color(color);
+
+        // Set color in view
+        view.set_line_number(line_number);
+
+        // Set diff(watch diff) in view
+        view.set_watch_diff(diff);
 
         // Set logfile
-        if _logfile != None {
-            _view.set_logfile(_logfile.unwrap().to_string());
+        if logfile != None {
+            view.set_logfile(logfile.unwrap().to_string());
         }
 
         // start app
-        let _res = _view.start(tx.clone(), rx);
+        let _res = view.start(tx.clone(), rx);
     } else {
         // is batch mode
         println!("is batch (developing now)");
