@@ -20,7 +20,6 @@ use std::{
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
-    text::Spans,
     Frame, Terminal,
 };
 

@@ -1,0 +1,118 @@
+# Copyright (c) 2021 Blacknon. All rights reserved.
+# Use of this source code is governed by an MIT license
+# that can be found in the LICENSE file.
+# reference:
+#   - https://github.com/motemen/slack-stream-json/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
+
+name: Release Job.
+
+on:
+  push:
+    branches:
+      - master
+      - 0.3.1
+
+jobs:
+  # build rust binary
+  build:
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          # - x86_64-pc-windows-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          # - target: x86_64-pc-windows-gnu
+          #   os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+
+      # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1.0.1
+        with:
+          command: build
+          args: --release --target=${{ matrix.target }}
+          use-cross: true
+      - run: |
+          zip --junk-paths slack-stream-json-${{ matrix.target }} target/${{ matrix.target }}/release/slack-stream-json{,.exe}
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: slack-stream-json-${{ matrix.target }}.zip
+
+  # create package release
+  # create-release:
+    # needs: [build]
+    # runs-on: ubuntu-latest
+    # steps:
+      # - id: create-release
+        # uses: actions/create-release@v1.0.0
+        # env:
+          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # with:
+          # tag_name: ${{ github.ref }}
+          # release_name: Release ${{ github.ref }}
+          # draft: false
+          # prerelease: false
+      # - run: |
+          # echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
+      # - uses: actions/upload-artifact@v1
+        # with:
+          # name: create-release
+          # path: release_upload_url.txt
+#
+  # upload-release:
+    # strategy:
+      # matrix:
+        # target:
+          # - x86_64-unknown-linux-gnu
+          # - x86_64-unknown-linux-musl
+          # - x86_64-apple-darwin
+          # # - x86_64-pc-windows-gnu
+    # needs: [create-release]
+    # runs-on: ubuntu-latest
+    # steps:
+      # - uses: actions/download-artifact@v1
+        # with:
+          # name: create-release
+      # - id: upload-url
+        # run: |
+          # echo "::set-output name=url::$(cat create-release/release_upload_url.txt)"
+      # - uses: actions/download-artifact@v1
+        # with:
+          # name: build-${{ matrix.target }}
+      # - uses: actions/upload-release-asset@v1.0.1
+        # env:
+          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # with:
+          # upload_url: ${{ steps.upload-url.outputs.url }}
+          # asset_path: ./build-${{ matrix.target }}/slack-stream-json-${{ matrix.target }}.zip
+          # asset_name: slack-stream-json-${{ matrix.target }}.zip
+          # asset_content_type: application/zip
