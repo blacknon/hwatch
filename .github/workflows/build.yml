@@ -117,7 +117,7 @@ jobs:
           fi
 
           if [[ ${{ matrix.target }} == "deb" ]]; then
-            cp target/debian/hwatch_${{ needs.create-release.outputs.version }}_amd64.deb /tmp
+            cp /home/runner/work/hwatch/hwatch/target/debian/hwatch_${{ needs.create-release.outputs.version }}_amd64.deb /tmp
           fi
 
       - uses: actions/upload-artifact@v1
