@@ -69,8 +69,11 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --release --target=${{ matrix.target }}
+          args: --release --target=${{ matrix.target }}
           use-cross: true
+
+      - name: wait 3 seconds.
+        run: sleep 3
 
       - name: Check release binary
         run: find target/ -type f -name "hwatch"
