@@ -91,6 +91,8 @@ jobs:
   create-release:
     needs: [build]
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package_version.outputs.version }}
     steps:
       - uses: actions/checkout@v1
 
@@ -147,5 +149,5 @@ jobs:
         with:
           upload_url: ${{ steps.upload-url.outputs.url }}
           asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
-          asset_name: hwatch_${{ steps.create-release.outputs.upload_url }}_${{ matrix.target }}.zip
+          asset_name: hwatch_${{ needs.create-release.outputs.version }}_${{ matrix.target }}.zip
           asset_content_type: application/zip
