@@ -88,6 +88,7 @@ jobs:
         if: ${{ (matrix.ext == 'tar.gz') || (matrix.ext == 'rpm') || (matrix.ext == 'deb') }}
         run: |
           _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          mkdir -p package/bin
           mv target/${{ matrix.target }}/release/hwatch package/bin
           mkdir -p package/man
           cp man/hwatch.1 package/man
