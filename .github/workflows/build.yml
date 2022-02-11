@@ -230,7 +230,7 @@ jobs:
 
       - uses: actions/download-artifact@v1
         with:
-          name: build-${{ matrix.target }}
+          name: build-hwatch.${{ matrix.target }}
 
       - uses: actions/upload-release-asset@v1
         env:
@@ -240,3 +240,12 @@ jobs:
           asset_path: ./build-hwatch.${{ matrix.target }}/hwatch.${{ matrix.target }}
           asset_name: hwatch_${{ needs.create-release.outputs.version }}.${{ matrix.target }}
           asset_content_type: application/zip
+
+  # release-cargo-publish:
+  #   needs: [create-release]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v1
+
+  #     - name: Run cargo publish
+  #       run:
