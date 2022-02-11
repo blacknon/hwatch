@@ -18,7 +18,6 @@ jobs:
   # build rust binary
   build:
     strategy:
-      max-parallel: 1
       matrix:
         target:
           - x86_64-unknown-linux-gnu
@@ -29,12 +28,16 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            attachment: misc/completions man/hwatch.1
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
+            attachment: misc/completions man/hwatch.1
           - target: x86_64-apple-darwin
             os: macos-latest
+            attachment: misc/completions man/hwatch.1
           - target: aarch64-apple-darwin
             os: macos-latest
+            attachment: misc/completions man/hwatch.1
           # - target: x86_64-pc-windows-gnu
           #   os: ubuntu-latest
     runs-on: ${{ matrix.os }}
@@ -80,7 +83,7 @@ jobs:
 
       - name: Create zip file
         run: |
-          zip --junk-paths hwatch-${{ matrix.target }} target/${{ matrix.target }}/release/hwatch{,.exe}
+          zip --junk-paths hwatch-${{ matrix.target }} target/${{ matrix.target }}/release/hwatch{,.exe} ${{ matrix.attachment }}
 
       - uses: actions/upload-artifact@v1
         with:
