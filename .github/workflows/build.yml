@@ -18,7 +18,7 @@ jobs:
   # build rust binary
   build:
     strategy:
-      max-parallel: 1
+      # max-parallel: 1
       matrix:
         target:
           - x86_64-unknown-linux-gnu
