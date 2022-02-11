@@ -1,0 +1,228 @@
+# Copyright (c) 2021 Blacknon. All rights reserved.
+# Use of this source code is governed by an MIT license
+# that can be found in the LICENSE file.
+# reference:
+#   - https://motemen.hatenablog.com/entry/2019/11/github-actions-crossbuild-rust
+#     - https://github.com/motemen/hwatch/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
+#   - https://github.com/greymd/teip/blob/master/.github/workflows/release.yml
+
+
+name: Release Job.
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  # build rust binary
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: rpm
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: deb
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            ext: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            ext: tar.gz
+          # - target: x86_64-pc-windows-gnu
+          #   os: ubuntu-latest
+          #   ext: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Get version
+        id: package_version
+        shell: bash
+        run: |
+          VERSION="$(cargo run --example version)"
+          echo "::set-output name=version::$VERSION"
+
+      # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target=${{ matrix.target }}
+          use-cross: true
+
+      - name: Create package file
+        if: ${{ (matrix.ext == 'tar.gz') || (matrix.ext == 'rpm') || (matrix.ext == 'deb') }}
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          mkdir -p package/bin
+          mv target/${{ matrix.target }}/release/hwatch package/bin
+          mkdir -p package/man
+          cp man/hwatch.1 package/man
+          cp -r completion package/
+          ## sed -i is not used due to difference between macOS and Linux
+          perl -i -pe s/___VERSION___/${{ steps.package_version.outputs.version }}/ ./package/.tar2package.yml
+          tar czvf "$_TAR" -C "$PWD/package" completion bin man .tar2package.yml
+
+      # use: https://github.com/greymd/tar2package
+      - name: Build rpm
+        id: rpm
+        if: matrix.ext == 'rpm'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          docker run -i "greymd/tar2rpm:1.0.1" < "$_TAR" > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
+          echo ::set-output name=sha256::$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm | awk '{print $1}' )
+
+      # use: https://github.com/greymd/tar2package
+      - name: Build deb
+        id: deb
+        if: matrix.ext == 'deb'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          docker run -i "greymd/tar2deb:1.0.1" < "$_TAR" > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
+          echo ::set-output name=sha256::$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb | awk '{print $1}' )
+
+      - name: README for rpm
+        if: matrix.ext == 'rpm'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
+
+      - name: Upload artifact
+        if: matrix.ext == 'rpm'
+        uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
+
+      - name: README for deb
+        if: matrix.ext == 'deb'
+        run: |
+          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
+
+      - name: Upload artifact
+        if: matrix.ext == 'deb'
+        uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
+
+      - name: Upload artifact
+        if: matrix.ext == 'tar.gz'
+        uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+
+  # create package release
+  create-release:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v1
+
+      - id: package_version
+        name: Get version.
+        shell: bash
+        run: |
+          VERSION="$(cargo run --example version)"
+          echo "::set-output name=version::$VERSION"
+
+      - id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.package_version.outputs.version }}
+          release_name: Version ${{ steps.package_version.outputs.version }}
+          draft: true
+          prerelease: false
+
+      - run: |
+          echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: create-release
+          path: release_upload_url.txt
+
+  upload-release:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: rpm
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: deb
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            ext: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            ext: tar.gz
+          # - x86_64-pc-windows-gnu
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v1
+        with:
+          name: create-release
+
+      - id: upload-url
+        run: |
+          echo "::set-output name=url::$(cat create-release/release_upload_url.txt)"
+
+      - uses: actions/download-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.upload-url.outputs.url }}
+          asset_path: ./build-${{ matrix.target }}/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
+          asset_name: hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
+          asset_content_type: application/octet-stream

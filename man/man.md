@@ -1,9 +1,9 @@
-% hwatch(1) Version 0.1.4 | alternative watch command.
+% hwatch(1) Version 0.3.1 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
 NAME
 ====
 
-**hwatch** - alternative watch command.
+**hwatch** - A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
 SYNOPSIS
 ========
@@ -42,6 +42,11 @@ Flags
 -d, --differences
 
 :   Highlight changes between updates. The diff specified by this flag is similar to the *watch* command. It can be changed later by key binding.
+
+
+-N, --line-number
+
+:   Show line number.
 
 
 
@@ -88,6 +93,8 @@ d
 
       *line*  ... Can be done diff in line units.
 
+      *word*  ... Can be done diff in line word units.
+
 
 0
 
@@ -102,6 +109,11 @@ d
 2
 
 :   Switch diff mode to *line*.
+
+
+3
+
+:   Switch diff mode to *word*.
 
 
 F1
@@ -122,6 +134,17 @@ F3
 Tab
 
 :   Switch the target(*history* or *watch* pad). The target is operated with the *up* and *down* keys.
+
+
+/
+
+:   Filter diffs by keyword.
+
+
+\*
+
+:   Filter diffs by regex.
+
 
 
 BUGS

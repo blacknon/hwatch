@@ -1,0 +1,10 @@
+name : hwatch
+cmdname : hwatch
+summary : A modern alternative watch command.
+description : A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
+version : ___VERSION___
+changelog : See https://github.com/blacknon/hwatch/releases
+url : https://github.com/blacknon/hwatch
+author : blacknon
+email : blacknon@orebibou.com
+libdir : null

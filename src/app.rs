@@ -20,18 +20,17 @@ use std::{
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
-    text::Spans,
     Frame, Terminal,
 };
 
 // local module
 use common::{differences_result, logging_result};
-use diff;
 use event::AppEvent;
 use exec::CommandResult;
 use header::HeaderArea;
 use help::HelpWindow;
 use history::{History, HistoryArea};
+use output;
 use watch::WatchArea;
 
 ///
@@ -83,6 +82,9 @@ pub struct App<'a> {
 
     ///
     ansi_color: bool,
+
+    ///
+    line_number: bool,
 
     ///
     is_filtered: bool,
@@ -138,6 +140,7 @@ impl<'a> App<'a> {
             window: ActiveWindow::Normal,
 
             ansi_color: false,
+            line_number: false,
 
             is_filtered: false,
             is_regex_filter: false,
@@ -302,35 +305,29 @@ impl<'a> App<'a> {
 
         match self.diff_mode {
             DiffMode::Disable => {
-                let lines = text_dst.split("\n");
-                for l in lines {
-                    match self.ansi_color {
-                        false => {
-                            output_data.push(Spans::from(String::from(l)));
-                        }
-
-                        true => {
-                            let data =
-                                ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
-
-                            for d in data.lines {
-                                output_data.push(d);
-                            }
-                        }
-                    }
-                }
+                output_data = output::get_plane_output(
+                    self.ansi_color,
+                    self.line_number,
+                    &text_dst,
+                    self.is_filtered,
+                    self.is_regex_filter,
+                    &self.filtered_text,
+                );
             }
 
             DiffMode::Watch => {
-                output_data = diff::get_watch_diff(self.ansi_color, &text_src, &text_dst);
+                output_data =
+                    output::get_watch_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
             }
 
             DiffMode::Line => {
-                output_data = diff::get_line_diff(self.ansi_color, &text_src, &text_dst);
+                output_data =
+                    output::get_line_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
             }
 
             DiffMode::Word => {
-                output_data = diff::get_word_diff(self.ansi_color, &text_src, &text_dst);
+                output_data =
+                    output::get_word_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
             }
         }
 
@@ -353,7 +350,16 @@ impl<'a> App<'a> {
 
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
-        self.watch_area.set_ansi_color(ansi_color);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    pub fn set_line_number(&mut self, line_number: bool) {
+        self.line_number = line_number;
+
+        self.header_area.set_line_number(line_number);
+        self.header_area.update();
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -574,13 +580,19 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::NONE,
-                    }) => self.toggle_ansi_color(),
+                    }) => self.set_ansi_color(!self.ansi_color),
 
                     // d
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('d'),
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_diff_mode(),
+
+                    // n
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('n'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.set_line_number(!self.line_number),
 
                     // o
                     Event::Key(KeyEvent {
@@ -659,6 +671,11 @@ impl<'a> App<'a> {
                         self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
                         self.reset_history(false);
+
+                        let selected = self.history_area.get_state_select();
+
+                        // update WatchArea
+                        self.set_output_data(selected);
                     }
 
                     // Common input key
@@ -759,12 +776,22 @@ impl<'a> App<'a> {
                     self.filtered_text = self.header_area.input_text.clone();
                     self.set_input_mode(InputMode::None);
                     self.reset_history(is_regex);
+
+                    let selected = self.history_area.get_state_select();
+
+                    // update WatchArea
+                    self.set_output_data(selected);
                 }
 
                 KeyCode::Esc => {
                     self.header_area.input_text = self.filtered_text.clone();
                     self.set_input_mode(InputMode::None);
                     self.reset_history(is_regex);
+
+                    let selected = self.history_area.get_state_select();
+
+                    // update WatchArea
+                    self.set_output_data(selected);
                 }
 
                 _ => {}
@@ -812,11 +839,6 @@ impl<'a> App<'a> {
             OutputMode::Stdout => self.set_output_mode(OutputMode::Stderr),
             OutputMode::Stderr => self.set_output_mode(OutputMode::Output),
         }
-    }
-
-    ///
-    fn toggle_ansi_color(&mut self) {
-        self.set_ansi_color(!self.ansi_color);
     }
 
     ///

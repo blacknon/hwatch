@@ -42,6 +42,9 @@ pub struct HeaderArea<'a> {
     data: Vec<Spans<'a>>,
 
     ///
+    line_number: bool,
+
+    ///
     ansi_color: bool,
 
     ///
@@ -77,6 +80,7 @@ impl<'a> HeaderArea<'a> {
 
             data: vec![Spans::from("")],
             ansi_color: false,
+            line_number: false,
 
             active_area: ActiveArea::History,
 
@@ -100,6 +104,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_output_mode(&mut self, mode: OutputMode) {
         self.output_mode = mode;
+    }
+
+    pub fn set_line_number(&mut self, line_number: bool) {
+        self.line_number = line_number;
     }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
@@ -145,7 +153,7 @@ impl<'a> HeaderArea<'a> {
             width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
 
         // filter keyword.
-        let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2;
+        let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2 - 13;
         let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
         let filter_keyword_style: Style;
 
@@ -193,14 +201,19 @@ impl<'a> HeaderArea<'a> {
 
         // Set Color
         let command_color: Color;
-        let is_enable_color: Color;
+        let is_color_enable_color: Color;
+        let is_line_number_enable_color: Color;
         match self.exec_status {
             true => command_color = Color::Green,
             false => command_color = Color::Red,
         }
         match self.ansi_color {
-            true => is_enable_color = Color::Green,
-            false => is_enable_color = Color::Reset,
+            true => is_color_enable_color = Color::Green,
+            false => is_color_enable_color = Color::Reset,
+        }
+        match self.line_number {
+            true => is_line_number_enable_color = Color::Green,
+            false => is_line_number_enable_color = Color::Reset,
         }
 
         // Create 1st line.
@@ -230,11 +243,17 @@ impl<'a> HeaderArea<'a> {
             // filter keyword
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
+            // Line number flag
+            Span::styled("Number: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{:wid$}", self.line_number, wid = 5),
+                Style::default().fg(is_line_number_enable_color),
+            ),
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", self.ansi_color, wid = 5),
-                Style::default().fg(is_enable_color),
+                Style::default().fg(is_color_enable_color),
             ),
             Span::raw(" "),
             // Output Type

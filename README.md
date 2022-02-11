@@ -32,7 +32,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.3.0
+    hwatch 0.3.1
     blacknon <blacknon@orebibou.com>
     alternative watch command.
 
@@ -42,6 +42,7 @@ hwatch - alternative watch command.
     FLAGS:
         -c, --color          interpret ANSI color and style sequences
         -d, --differences    highlight changes between updates
+        -N, --line-number    show line number
         -h, --help           Prints help information
         -V, --version        Prints version information
 
@@ -53,13 +54,13 @@ hwatch - alternative watch command.
         <command>...
 
 
-
 watch window keybind
 
 - <kbd>↑</kbd>, <kbd>↓</kbd>  ... move selected screen(history/watch).
 - <kbd>H</kbd>   ... show help window.
 - <kbd>C</kbd>   ... toggle color.
 - <kbd>D</kbd>   ... switch diff mode.
+- <kbd>N</kbd>   ... switch line number display.
 - <kbd>Q</kbd>   ... exit hwatch.
 - <kbd>0</kbd>   ... disable diff.
 - <kbd>1</kbd>   ... switch watch type diff.
