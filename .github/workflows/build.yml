@@ -12,7 +12,6 @@ name: Release Job.
 on:
   push:
     branches:
-      - 0.3.1
       - master
 
 jobs:
