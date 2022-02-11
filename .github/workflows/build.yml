@@ -20,14 +20,14 @@ jobs:
     strategy:
       matrix:
         target:
-          # - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
           - x86_64-apple-darwin
           - aarch64-apple-darwin
           # - x86_64-pc-windows-gnu
         include:
-          # - target: x86_64-unknown-linux-gnu
-            # os: ubuntu-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
           - target: x86_64-apple-darwin
@@ -72,7 +72,7 @@ jobs:
           use-cross: true
 
       - name: Check release binary
-        run: find target/${{ matrix.target }}/release/ -type f | sort
+        run: find target/ -type f -name "hwatch"
 
       - name: Create zip file
         run: |
