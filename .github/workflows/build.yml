@@ -92,6 +92,8 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v1
+
       - id: package_version
         name: Get version.
         shell: bash
