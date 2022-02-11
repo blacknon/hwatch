@@ -2,7 +2,9 @@
 # Use of this source code is governed by an MIT license
 # that can be found in the LICENSE file.
 # reference:
-#   - https://github.com/motemen/slack-stream-json/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
+#   - https://motemen.hatenablog.com/entry/2019/11/github-actions-crossbuild-rust
+#     - https://github.com/motemen/hwatch/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
+
 
 name: Release Job.
 
@@ -61,11 +63,11 @@ jobs:
           args: --release --target=${{ matrix.target }}
           use-cross: true
       - run: |
-          zip --junk-paths slack-stream-json-${{ matrix.target }} target/${{ matrix.target }}/release/slack-stream-json{,.exe}
+          zip --junk-paths hwatch-${{ matrix.target }} target/${{ matrix.target }}/release/hwatch{,.exe}
       - uses: actions/upload-artifact@v1
         with:
           name: build-${{ matrix.target }}
-          path: slack-stream-json-${{ matrix.target }}.zip
+          path: hwatch-${{ matrix.target }}.zip
 
   # create package release
   # create-release:
@@ -113,6 +115,6 @@ jobs:
           # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # with:
           # upload_url: ${{ steps.upload-url.outputs.url }}
-          # asset_path: ./build-${{ matrix.target }}/slack-stream-json-${{ matrix.target }}.zip
-          # asset_name: slack-stream-json-${{ matrix.target }}.zip
+          # asset_path: ./build-${{ matrix.target }}/hwatch-${{ matrix.target }}.zip
+          # asset_name: hwatch-${{ matrix.target }}.zip
           # asset_content_type: application/zip
