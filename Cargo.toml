@@ -25,10 +25,6 @@ termwiz = "0.15.0"
 # TODO: マージされたらバージョン上げる(0.16.0)
 tui = {version = "0.14.0", default-features = false, features = ['crossterm']}
 
-[[bin]]
-name = "version"
-path = "scripts/version.rs"
-
 [package.metadata.deb]
 extended-description = "alternative watch command."
 maintainer = "blacknon <blacknon@orebibou.com>"
@@ -40,3 +36,11 @@ buildflags = ["--release"]
 
 [package.metadata.rpm.targets]
 hwatch = {path = "/usr/bin/hwatch"}
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
+name = "version"
+path = "scripts/version.rs"
