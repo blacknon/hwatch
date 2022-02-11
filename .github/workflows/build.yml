@@ -226,8 +226,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.upload-url.outputs.url }}
-          asset_path: ./build-${{ matrix.target }}/hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
-          asset_name: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+          asset_path: ./build-${{ matrix.target }}/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.tar.gz
+          asset_name: hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.tar.gz
           asset_content_type: application/zip
 
       - uses: actions/upload-release-asset@v1
@@ -236,5 +236,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.upload-url.outputs.url }}
-          asset_path: ./build-${{ matrix.target }}/hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
-          asset_name: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
+          asset_path: ./build-${{ matrix.target }}/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
+          asset_name: hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
