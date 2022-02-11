@@ -84,7 +84,7 @@ jobs:
           use-cross: true
 
       - name: Create package file
-        if: matrix.ext == "tgz" || matrix.ext == "rpm" || matrix.ext == "deb"
+        if: ${{ matrix.ext == "tgz" || matrix.ext == "rpm" || matrix.ext == "deb" }}
         run: |
           _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
           mv target/${{ matrix.target }}/release/hwatch package/bin
