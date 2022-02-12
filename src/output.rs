@@ -38,7 +38,7 @@ pub fn get_plane_output<'a>(
         }
     }
 
-    if is_filter {
+    if is_filter && !color {
         // line_span is vec for span on a line-by-line basis
         let mut line_span = vec![];
 
