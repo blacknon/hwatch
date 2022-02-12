@@ -10,8 +10,8 @@ version = "0.3.2"
 [dependencies]
 ansi-parser = "0.8.0"
 # TODO: マージされたらバージョン置き換える
-ansi4tui = {git = "https://github.com/blacknon/ansi4tui.git", branch = "master", version = "0.2.1"}
-# ansi4tui = "0.2"
+# ansi4tui = {git = "https://github.com/blacknon/ansi4tui.git", branch = "master", version = "0.2.1"}
+ansi4tui = "0.2"
 chrono = "0.4"
 clap = "2.20.3"
 crossterm = "0.22"
@@ -23,5 +23,5 @@ serde_derive = "1.0.104"
 serde_json = "1.0.44"
 termwiz = "0.15.0"
 # TODO: マージされたらバージョン上げる(0.16.0)
-# tui = {version = "0.14.0", default-features = false, features = ['crossterm']}
-tui = {version = "0.16.0", default-features = false, features = ['crossterm']}
+tui = {version = "0.14.0", default-features = false, features = ['crossterm']}
+# tui = {version = "0.16.0", default-features = false, features = ['crossterm']}
