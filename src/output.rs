@@ -244,6 +244,8 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     let mut old_line_chars: Vec<char> = old_line.chars().collect();
     let mut new_line_chars: Vec<char> = new_line.chars().collect();
 
+    // 007f ... delete char.
+    // NOTE: Use hidden characters to branch processing because tui-rs skips space characters.
     let space: char = '\u{007f}';
     let max_char = cmp::max(old_line_chars.len(), new_line_chars.len());
 
@@ -283,7 +285,7 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     }
 
     // last char
-    //
+    // NOTE: Added hidden characters as tui-rs forces trimming of end-of-line spaces.
     _result.push(Span::styled(space.to_string(), Style::default()));
 
     return Spans::from(_result);
@@ -312,6 +314,8 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
         // break;
     }
 
+    // 007f ... delete char.
+    // NOTE: Use hidden characters to branch processing because tui-rs skips space characters.
     let space = '\u{007f}'.to_string();
     let max_span = cmp::max(old_spans.len(), new_spans.len());
     //
@@ -347,7 +351,7 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
     }
 
     // last char
-    //
+    // NOTE: Added hidden characters as tui-rs forces trimming of end-of-line spaces.
     _result.push(Span::styled(space.to_string(), Style::default()));
 
     //
