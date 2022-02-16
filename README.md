@@ -21,10 +21,14 @@ hwatch - alternative watch command.
 
 ## Install
 
-### MacOS(brew)
+### macOS (brew)
 
     brew tap blacknon/hwatch
     brew install hwatch
+
+### macOS (MacPorts)
+
+    sudo port install hwatch
 
 ### Cargo Install
 
