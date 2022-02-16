@@ -73,6 +73,7 @@ impl View {
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
+        let _ = terminal.clear();
 
         {
             let input_tx = tx.clone();
