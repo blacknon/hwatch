@@ -77,4 +77,4 @@ watch window keybind
 - <kbd>Tab</kbd> ... toggle select screen(history/watch).
 - <kbd>/</kbd>   ... filter history by string.
 - <kbd>*</kbd>   ... filter history by regex.
-- <kbd>Tab</kbd> ... unfiltering.
+- <kbd>Esc</kbd> ... unfiltering.
