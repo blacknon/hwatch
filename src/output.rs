@@ -38,7 +38,7 @@ pub fn get_plane_output<'a>(
         }
     }
 
-    if is_filter {
+    if is_filter && !color {
         // line_span is vec for span on a line-by-line basis
         let mut line_span = vec![];
 
@@ -212,10 +212,7 @@ pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) 
 
         match color {
             false => line_data = get_watch_diff_line(old_vec[i], new_vec[i]),
-            true => {
-                // line_data = Spans::from(vec![]);
-                line_data = get_watch_diff_line_with_ansi(old_vec[i], new_vec[i])
-            }
+            true => line_data = get_watch_diff_line_with_ansi(old_vec[i], new_vec[i]),
         }
 
         if line_number {
@@ -247,25 +244,37 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     let mut old_line_chars: Vec<char> = old_line.chars().collect();
     let mut new_line_chars: Vec<char> = new_line.chars().collect();
 
-    let space: char = ' ';
+    // 007f ... delete char.
+    // NOTE: Use hidden characters to branch processing because tui-rs skips space characters.
+    let space: char = '\u{007f}';
     let max_char = cmp::max(old_line_chars.len(), new_line_chars.len());
 
     let mut _result = vec![];
     for x in 0..max_char {
         if old_line_chars.len() <= x {
-            old_line_chars.push(space.clone());
+            old_line_chars.push(space);
         }
 
         if new_line_chars.len() <= x {
-            new_line_chars.push(space.clone());
+            new_line_chars.push(space);
         }
 
-        if old_line_chars[x] != new_line_chars[x] {
+        let old_char = old_line_chars[x];
+        let new_char = new_line_chars[x];
+
+        if old_char != new_char {
+            let mut data: Span;
+            if new_char == space {
+                data = Span::from(' '.to_string());
+                data.style = Style::default().add_modifier(Modifier::REVERSED);
+            } else {
+                data = Span::styled(
+                    new_line_chars[x].to_string(),
+                    Style::default().add_modifier(Modifier::REVERSED),
+                );
+            }
             // add span
-            _result.push(Span::styled(
-                new_line_chars[x].to_string(),
-                Style::default().add_modifier(Modifier::REVERSED),
-            ));
+            _result.push(data);
         } else {
             // add span
             _result.push(Span::styled(
@@ -274,6 +283,10 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
             ));
         }
     }
+
+    // last char
+    // NOTE: Added hidden characters as tui-rs forces trimming of end-of-line spaces.
+    _result.push(Span::styled(space.to_string(), Style::default()));
 
     return Spans::from(_result);
 }
@@ -301,32 +314,45 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
         // break;
     }
 
+    // 007f ... delete char.
+    // NOTE: Use hidden characters to branch processing because tui-rs skips space characters.
+    let space = '\u{007f}'.to_string();
     let max_span = cmp::max(old_spans.len(), new_spans.len());
     //
     let mut _result = vec![];
     for x in 0..max_span {
         //
         if old_spans.len() <= x {
-            old_spans.push(Span::from(" ".to_string()));
+            old_spans.push(Span::from(space.to_string()));
         }
 
         //
         if new_spans.len() <= x {
-            new_spans.push(Span::from(" ".to_string()));
+            new_spans.push(Span::from(space.to_string()));
         }
 
         //
         if old_spans[x].content != new_spans[x].content || old_spans[x].style != new_spans[x].style
         {
-            // add span
-            new_spans[x].style = new_spans[x]
-                .style
-                .patch(Style::default().add_modifier(Modifier::REVERSED));
+            if new_spans[x].content == space {
+                let mut data = Span::from(' '.to_string());
+                data.style = Style::default().add_modifier(Modifier::REVERSED);
+                new_spans[x] = data;
+            } else {
+                // add span
+                new_spans[x].style = new_spans[x]
+                    .style
+                    .patch(Style::default().add_modifier(Modifier::REVERSED));
+            }
         }
 
         //
         _result.push(new_spans[x].clone());
     }
+
+    // last char
+    // NOTE: Added hidden characters as tui-rs forces trimming of end-of-line spaces.
+    _result.push(Span::styled(space.to_string(), Style::default()));
 
     //
     return Spans::from(_result);

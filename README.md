@@ -21,10 +21,14 @@ hwatch - alternative watch command.
 
 ## Install
 
-### MacOS(brew)
+### macOS (brew)
 
     brew tap blacknon/hwatch
     brew install hwatch
+
+### macOS (MacPorts)
+
+    sudo port install hwatch
 
 ### Cargo Install
 
@@ -32,9 +36,10 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.3.1
+    hwatch 0.3.2
     blacknon <blacknon@orebibou.com>
-    alternative watch command.
+    A modern alternative to the watch command, records the differences in execution results and can check this differences
+    at after.
 
     USAGE:
         hwatch [FLAGS] [OPTIONS] <command>...
@@ -72,4 +77,4 @@ watch window keybind
 - <kbd>Tab</kbd> ... toggle select screen(history/watch).
 - <kbd>/</kbd>   ... filter history by string.
 - <kbd>*</kbd>   ... filter history by regex.
-- <kbd>Tab</kbd> ... unfiltering.
+- <kbd>Esc</kbd> ... unfiltering.

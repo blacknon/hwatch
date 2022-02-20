@@ -153,7 +153,7 @@ impl<'a> HeaderArea<'a> {
             width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
 
         // filter keyword.
-        let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2 - 13;
+        let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2 - 14;
         let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
         let filter_keyword_style: Style;
 
@@ -249,6 +249,7 @@ impl<'a> HeaderArea<'a> {
                 format!("{:wid$}", self.line_number, wid = 5),
                 Style::default().fg(is_line_number_enable_color),
             ),
+            Span::raw(" "),
             // Color flag
             Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
