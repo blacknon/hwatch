@@ -20,6 +20,7 @@ use std::{
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
+    text::Spans,
     Frame, Terminal,
 };
 
@@ -272,7 +273,6 @@ impl<'a> App<'a> {
         // text_dst ... new text.
         let text_src: &str;
         let text_dst: &str;
-        let mut output_data = vec![];
 
         // set target number at new history.
         let mut target_dst: usize = num;
@@ -303,6 +303,7 @@ impl<'a> App<'a> {
             text_src = "";
         }
 
+        let output_data: Vec<Spans>;
         match self.diff_mode {
             DiffMode::Disable => {
                 output_data = output::get_plane_output(

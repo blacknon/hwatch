@@ -5,7 +5,7 @@ keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
 repository = "https://github.com/blacknon/hwatch"
-version = "0.3.1"
+version = "0.3.2"
 
 [dependencies]
 ansi-parser = "0.8.0"
@@ -24,3 +24,4 @@ serde_json = "1.0.44"
 termwiz = "0.15.0"
 # TODO: マージされたらバージョン上げる(0.16.0)
 tui = {version = "0.14.0", default-features = false, features = ['crossterm']}
+# tui = {version = "0.16.0", default-features = false, features = ['crossterm']}
