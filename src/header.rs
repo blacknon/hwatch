@@ -153,7 +153,12 @@ impl<'a> HeaderArea<'a> {
             width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
 
         // filter keyword.
-        let filter_keyword_width = width - POSITION_X_HELP_TEXT - 2 - 14;
+        let filter_keyword_width: usize;
+        if width > (POSITION_X_HELP_TEXT + 2 + 14) {
+            filter_keyword_width = width - POSITION_X_HELP_TEXT - 2 - 14;
+        } else {
+            filter_keyword_width = 0;
+        }
         let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
         let filter_keyword_style: Style;
 
