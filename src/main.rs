@@ -12,6 +12,8 @@
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.4)
 //                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
+// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
+// TODO(blacknon): methodを関数式の書き方にする(`hogehoge.xxx(1).shfieshfe.(2)...`みたいな)
 
 // v0.3.5
 // TODO(blacknon): Windows対応(v0.3.5). 一応、あとはライブラリが対応すればイケる.
@@ -172,21 +174,18 @@ fn build_app() -> clap::App<'static, 'static> {
 
 fn main() {
     // Get command args matches
-    let _matches = build_app().get_matches();
-
-    // matches clone
-    let _m = _matches.clone();
+    let matche = build_app().get_matches();
 
     // Get options flag
-    let batch = _m.is_present("batch");
-    let diff = _m.is_present("differences");
-    let color = _m.is_present("color");
-    let line_number = _m.is_present("line_number");
+    let batch = matche.is_present("batch");
+    let diff = matche.is_present("differences");
+    let color = matche.is_present("color");
+    let line_number = matche.is_present("line_number");
 
     // Get options value
-    let interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
-    // let exec = _m.value_of("exec");
-    let logfile = _m.value_of("logfile");
+    let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
+    // let exec = matche.value_of("exec");
+    let logfile = matche.value_of("logfile");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
@@ -212,13 +211,14 @@ fn main() {
 
     // Start Command Thread
     {
+        let m = matche.clone();
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
 
             // Set command
-            exe.command = _matches.values_of_lossy("command").unwrap().join(" ");
+            exe.command = m.values_of_lossy("command").unwrap().join(" ");
 
             // Exec command
             exe.exec_command();
