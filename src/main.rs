@@ -4,18 +4,12 @@
 
 // v0.3.4
 // TODO(blakcnon): batch modeの実装(v0.3.4).
-// TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.4)
-//                 watchコマンドにもある(-e, --errexit)
-// TODO(blacknon): 出力結果が変わった場合はそこで終了する機能の追加(v0.3.4)
-//                 watchコマンドにもある(-g, --chgexit)
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.4)
 //                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
-// TODO(blacknon): methodを関数式の書き方にする(`hogehoge.xxx(1).shfieshfe.(2)...`みたいな)
-// TODO(blacknon): Bug: 初回起動時、出力待ち状態で操作をすると落ちる(処理の追加)
-// TODO(blacknon): Bug: フィルタ機能を使う際、構文解析でエラーになると落ちる(Resultを受けて対応するような書き方に改修)
+// TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // v0.3.5
 // TODO(blacknon): Windows対応(v0.3.5). 一応、あとはライブラリが対応すればイケる.
@@ -51,7 +45,6 @@ extern crate serde_json;
 
 // modules
 use clap::{App, AppSettings, Arg};
-use std::borrow::BorrowMut;
 use std::env::args;
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -114,6 +107,10 @@ fn build_app() -> clap::App<'static, 'static> {
         //         .short("b")
         //         .long("batch"),
         // )
+        // Beep option
+        //     [-b,--beep]
+        // Option to specify the command to be executed when the output fluctuates.
+        //     [-C,--changed-command]
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
