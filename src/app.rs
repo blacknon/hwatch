@@ -269,6 +269,12 @@ impl<'a> App<'a> {
     fn set_output_data(&mut self, num: usize) {
         let results = self.results.lock().unwrap();
 
+        // check result size.
+        //　If the size of result is not 0 or more, return and do not process.
+        if ! results.len() > 0 {
+            return;
+        }
+
         // text_src ... old text.
         // text_dst ... new text.
         let text_src: &str;

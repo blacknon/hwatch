@@ -22,6 +22,7 @@ use app::{App, DiffMode};
 use event::AppEvent;
 
 /// Struct at run hwatch on tui
+#[derive(Clone)]
 pub struct View {
     interval: f64,
     color: bool,
@@ -42,24 +43,29 @@ impl View {
         }
     }
 
-    pub fn set_interval(&mut self, interval: f64) {
+    pub fn set_interval(mut self, interval: f64) -> Self {
         self.interval = interval;
+        self
     }
 
-    pub fn set_color(&mut self, color: bool) {
+    pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
+        self
     }
 
-    pub fn set_line_number(&mut self, line_number: bool) {
+    pub fn set_line_number(mut self, line_number: bool) -> Self {
         self.line_number = line_number;
+        self
     }
 
-    pub fn set_watch_diff(&mut self, watch_diff: bool) {
+    pub fn set_watch_diff(mut self, watch_diff: bool) -> Self {
         self.watch_diff = watch_diff;
+        self
     }
 
-    pub fn set_logfile(&mut self, log_path: String) {
+    pub fn set_logfile(mut self, log_path: String) -> Self {
         self.log_path = log_path;
+        self
     }
 
     pub fn start(
