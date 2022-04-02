@@ -51,6 +51,7 @@ extern crate serde_json;
 
 // modules
 use clap::{App, AppSettings, Arg};
+use std::borrow::BorrowMut;
 use std::env::args;
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -234,23 +235,19 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new();
-
-        // Set interval on view.header
-        view.set_interval(interval);
-
-        // Set color in view
-        view.set_color(color);
-
-        // Set color in view
-        view.set_line_number(line_number);
-
-        // Set diff(watch diff) in view
-        view.set_watch_diff(diff);
+        let mut view = view::View::new()
+            // Set interval on view.header
+            .set_interval(interval)
+            // Set color in view
+            .set_color(color)
+            // Set line number in view
+            .set_line_number(line_number)
+            // Set diff(watch diff) in view
+            .set_watch_diff(diff);
 
         // Set logfile
         if logfile != None {
-            view.set_logfile(logfile.unwrap().to_string());
+            view = view.set_logfile(logfile.unwrap().to_string());
         }
 
         // start app
