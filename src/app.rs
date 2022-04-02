@@ -271,7 +271,7 @@ impl<'a> App<'a> {
 
         // check result size.
         //　If the size of result is not 0 or more, return and not process.
-        if !results.len() > 0 {
+        if results.len() == 0 {
             return;
         }
 
