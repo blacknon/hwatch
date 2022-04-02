@@ -270,8 +270,8 @@ impl<'a> App<'a> {
         let results = self.results.lock().unwrap();
 
         // check result size.
-        //　If the size of result is not 0 or more, return and do not process.
-        if ! results.len() > 0 {
+        //　If the size of result is not 0 or more, return and not process.
+        if !results.len() > 0 {
             return;
         }
 
@@ -777,6 +777,16 @@ impl<'a> App<'a> {
                 }
 
                 KeyCode::Enter => {
+                    // check regex error...
+                    if is_regex {
+                        let input_text = self.header_area.input_text.clone();
+                        let re_result = Regex::new(&input_text);
+                        if re_result.is_err() {
+                            // TODO: create print message method.
+                            return;
+                        }
+                    }
+
                     // set filtered mode enable
                     self.is_filtered = true;
                     self.is_regex_filter = is_regex;
