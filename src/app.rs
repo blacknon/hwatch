@@ -362,6 +362,7 @@ impl<'a> App<'a> {
         self.set_output_data(selected);
     }
 
+    ///
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
 
