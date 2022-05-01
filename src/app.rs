@@ -25,14 +25,17 @@ use tui::{
 };
 
 // local module
-use common::{differences_result, logging_result};
-use event::AppEvent;
-use exec::CommandResult;
-use header::HeaderArea;
-use help::HelpWindow;
-use history::{History, HistoryArea};
-use output;
-use watch::WatchArea;
+use crate::common::{differences_result, logging_result};
+use crate::event::AppEvent;
+use crate::exec::CommandResult;
+use crate::header::HeaderArea;
+use crate::help::HelpWindow;
+use crate::history::{History, HistoryArea};
+use crate::output;
+use crate::watch::WatchArea;
+
+// local const
+use crate::HISTORY_WIDTH;
 
 ///
 #[derive(Clone, Copy)]
@@ -241,8 +244,8 @@ impl<'a> App<'a> {
         let main_chanks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(f.size().width - ::HISTORY_WIDTH),
-                    Constraint::Length(::HISTORY_WIDTH),
+                    Constraint::Max(f.size().width - HISTORY_WIDTH),
+                    Constraint::Length(HISTORY_WIDTH),
                 ]
                 .as_ref(),
             )

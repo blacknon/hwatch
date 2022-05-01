@@ -8,10 +8,31 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
+use std::time::Duration;
+use std::thread;
 
 // local module
-use common;
-use event::AppEvent;
+use crate::common;
+use crate::event::AppEvent;
+use crate::exec;
+
+async fn run_command(command: String, tx: Sender<AppEvent>,interval:f64){
+        let _ = thread::spawn(move || loop {
+            // Create cmd..
+            let mut exe = exec::ExecuteCommand::new(tx.clone());
+
+            // Set command
+            exe.command = command.clone();
+
+            // Exec command
+            exe.exec_command();
+
+            // sleep interval
+            async_std::task::sleep(Duration::from_secs_f64(interval));
+
+            // thread::sleep(Duration::from_secs_f64(interval));
+        });
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
@@ -63,6 +84,7 @@ impl ExecuteCommand {
             .spawn()
             .expect("failed to execute prog");
 
+        // TODO: windows対応ができ次第切り替える.
         // command parse
         // let parse_command: Vec<&str> = self.command.split(" ").collect();
         // let length = parse_command.len();

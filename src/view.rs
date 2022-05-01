@@ -18,8 +18,11 @@ use std::{
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
-use app::{App, DiffMode};
-use event::AppEvent;
+use crate::app::{App, DiffMode};
+use crate::event::AppEvent;
+
+// local const
+use crate::DEFAULT_INTERVAL;
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
@@ -35,7 +38,7 @@ pub struct View {
 impl View {
     pub fn new() -> Self {
         Self {
-            interval: ::DEFAULT_INTERVAL,
+            interval: DEFAULT_INTERVAL,
             color: false,
             line_number: false,
             watch_diff: false,
