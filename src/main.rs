@@ -30,6 +30,7 @@ extern crate async_std;
 extern crate chrono;
 extern crate crossterm;
 extern crate difference;
+extern crate futures;
 extern crate heapless;
 extern crate regex;
 extern crate serde;
@@ -46,6 +47,7 @@ extern crate serde_json;
 
 // modules
 use clap::{App, AppSettings, Arg};
+use futures::executor::block_on;
 use std::env::args;
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -225,9 +227,7 @@ fn main() {
             exe.exec_command();
 
             // sleep interval
-            async_std::task::sleep(Duration::from_secs_f64(interval));
-
-            // thread::sleep(Duration::from_secs_f64(interval));
+            block_on(common::async_sleep(Duration::from_secs_f64(interval)));
         });
     }
 

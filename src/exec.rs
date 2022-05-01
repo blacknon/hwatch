@@ -8,31 +8,10 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
-use std::time::Duration;
-use std::thread;
 
 // local module
 use crate::common;
 use crate::event::AppEvent;
-use crate::exec;
-
-async fn run_command(command: String, tx: Sender<AppEvent>,interval:f64){
-        let _ = thread::spawn(move || loop {
-            // Create cmd..
-            let mut exe = exec::ExecuteCommand::new(tx.clone());
-
-            // Set command
-            exe.command = command.clone();
-
-            // Exec command
-            exe.exec_command();
-
-            // sleep interval
-            async_std::task::sleep(Duration::from_secs_f64(interval));
-
-            // thread::sleep(Duration::from_secs_f64(interval));
-        });
-}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {

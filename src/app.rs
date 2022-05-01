@@ -11,10 +11,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Mutex,
-    },
+    sync::mpsc::{Receiver, Sender},
     time::Duration,
 };
 use tui::{
@@ -25,7 +22,7 @@ use tui::{
 };
 
 // local module
-use crate::common::{differences_result, logging_result};
+use crate::common::{async_sleep, differences_result, logging_result};
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::header::HeaderArea;
@@ -109,7 +106,7 @@ pub struct App<'a> {
     diff_mode: DiffMode,
 
     ///
-    results: Mutex<HashMap<usize, CommandResult>>,
+    results: HashMap<usize, CommandResult>,
 
     ///
     header_area: HeaderArea<'a>,
@@ -154,7 +151,7 @@ impl<'a> App<'a> {
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
 
-            results: Mutex::new(HashMap::new()),
+            results: HashMap::new(),
 
             header_area: HeaderArea::new(),
             history_area: HistoryArea::new(),
@@ -172,22 +169,31 @@ impl<'a> App<'a> {
     ///
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         self.history_area.next();
-
+        let mut update_draw = true;
         loop {
             if self.done {
                 return Ok(());
             }
 
             // Draw data
-            terminal.draw(|f| self.draw(f))?;
+            if update_draw {
+                terminal.draw(|f| self.draw(f))?;
+                update_draw = false
+            }
 
             // get event
             match self.rx.recv_timeout(Duration::from_secs(60)) {
                 // Get terminal event.
-                Ok(AppEvent::TerminalEvent(terminal_event)) => self.get_event(terminal_event),
+                Ok(AppEvent::TerminalEvent(terminal_event)) => {
+                    self.get_event(terminal_event);
+                    update_draw = true;
+                }
 
                 // Get command result.
-                Ok(AppEvent::OutputUpdate(exec_result)) => self.update_result(exec_result),
+                Ok(AppEvent::OutputUpdate(exec_result)) => {
+                    self.update_result(exec_result);
+                    update_draw = true;
+                }
 
                 // get exit event
                 Ok(AppEvent::Exit) => self.done = true,
@@ -270,11 +276,11 @@ impl<'a> App<'a> {
 
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
-        let results = self.results.lock().unwrap();
+        // let results = self.results;
 
         // check result size.
         //　If the size of result is not 0 or more, return and not process.
-        if results.len() == 0 {
+        if self.results.len() == 0 {
             return;
         }
 
@@ -288,7 +294,7 @@ impl<'a> App<'a> {
 
         // check results over target...
         if target_dst == 0 {
-            target_dst = results.len() - 1;
+            target_dst = self.results.len() - 1;
         }
 
         // set target number at old history.
@@ -296,17 +302,17 @@ impl<'a> App<'a> {
 
         // set new text(text_dst)
         match self.output_mode {
-            OutputMode::Output => text_dst = &results[&target_dst].output,
-            OutputMode::Stdout => text_dst = &results[&target_dst].stdout,
-            OutputMode::Stderr => text_dst = &results[&target_dst].stderr,
+            OutputMode::Output => text_dst = &self.results[&target_dst].output,
+            OutputMode::Stdout => text_dst = &self.results[&target_dst].stdout,
+            OutputMode::Stderr => text_dst = &self.results[&target_dst].stderr,
         }
 
         // set old text(text_src)
-        if results.len() > target_src {
+        if self.results.len() > target_src {
             match self.output_mode {
-                OutputMode::Output => text_src = &results[&target_src].output,
-                OutputMode::Stdout => text_src = &results[&target_src].stdout,
-                OutputMode::Stderr => text_src = &results[&target_src].stderr,
+                OutputMode::Output => text_src = &self.results[&target_src].output,
+                OutputMode::Stdout => text_src = &self.results[&target_src].stdout,
+                OutputMode::Stderr => text_src = &self.results[&target_src].stderr,
             }
         } else {
             text_src = "";
@@ -408,19 +414,19 @@ impl<'a> App<'a> {
     ///
     fn reset_history(&mut self, is_regex: bool) {
         // unlock self.results
-        let results = self.results.lock().unwrap();
-        let counter = results.len();
+        // let results = self.results;
+        let counter = self.results.len();
         let mut tmp_history = vec![];
 
         // append result.
         let latest_num = counter - 1;
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
-            status: results[&latest_num].status.clone(),
+            status: self.results[&latest_num].status.clone(),
             num: 0 as u16,
         });
 
-        for result in results.clone().into_iter() {
+        for result in self.results.clone().into_iter() {
             if result.0 == 0 {
                 continue;
             }
@@ -470,7 +476,7 @@ impl<'a> App<'a> {
     ///
     fn update_result(&mut self, _result: CommandResult) {
         // unlock self.results
-        let mut results = self.results.lock().unwrap();
+        // let mut results = self.results;
 
         // check results size.
         let mut latest_result: &CommandResult;
@@ -485,12 +491,12 @@ impl<'a> App<'a> {
 
         // set tmp result
         latest_result = &tmp_result;
-        if results.len() == 0 {
+        if self.results.len() == 0 {
             // diff output data.
-            results.insert(0, tmp_result.clone());
+            self.results.insert(0, tmp_result.clone());
         } else {
-            let latest_num = results.len() - 1;
-            latest_result = &results[&latest_num];
+            let latest_num = self.results.len() - 1;
+            latest_result = &self.results[&latest_num];
         }
 
         // update HeaderArea
@@ -504,19 +510,19 @@ impl<'a> App<'a> {
         }
 
         // append results
-        let result_index = results.len();
-        results.insert(result_index, _result.clone());
+        let result_index = self.results.len();
+        self.results.insert(result_index, _result.clone());
 
         // logging result.
         if self.logfile != "" {
-            let _ = logging_result(&self.logfile, &results[&result_index]);
+            let _ = logging_result(&self.logfile, &self.results[&result_index]);
         }
 
         // update HistoryArea
         let mut selected = self.history_area.get_state_select();
         let mut is_push = true;
         if self.is_filtered {
-            let result_text = &results[&result_index].output.clone();
+            let result_text = &self.results[&result_index].output.clone();
 
             match self.is_regex_filter {
                 true => {
@@ -535,8 +541,8 @@ impl<'a> App<'a> {
             }
         }
         if is_push {
-            let _timestamp = &results[&result_index].timestamp;
-            let _status = &results[&result_index].status;
+            let _timestamp = &self.results[&result_index].timestamp;
+            let _status = &self.results[&result_index].status;
             self.history_area
                 .update(_timestamp.to_string(), _status.clone(), result_index as u16);
 
@@ -546,9 +552,6 @@ impl<'a> App<'a> {
             }
         }
         selected = self.history_area.get_state_select();
-
-        // drop mutex
-        drop(results);
 
         // update WatchArea
         self.set_output_data(selected)
