@@ -9,7 +9,7 @@ use std::fs::OpenOptions;
 use std::io::prelude::*;
 
 // local module
-use exec::CommandResult;
+use crate::exec::CommandResult;
 
 pub fn now_str() -> String {
     let date = Local::now();

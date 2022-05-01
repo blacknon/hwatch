@@ -26,6 +26,7 @@
 // crate
 extern crate ansi4tui;
 extern crate ansi_parser;
+extern crate async_std;
 extern crate chrono;
 extern crate crossterm;
 extern crate difference;
@@ -224,7 +225,9 @@ fn main() {
             exe.exec_command();
 
             // sleep interval
-            thread::sleep(Duration::from_secs_f64(interval));
+            async_std::task::sleep(Duration::from_secs_f64(interval));
+
+            // thread::sleep(Duration::from_secs_f64(interval));
         });
     }
 
