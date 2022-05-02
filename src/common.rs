@@ -12,10 +12,6 @@ use std::time::Duration;
 // local module
 use crate::exec::CommandResult;
 
-pub async fn async_sleep(interval: Duration) {
-    async_std::task::sleep(interval).await;
-}
-
 pub fn now_str() -> String {
     let date = Local::now();
     return date.format("%Y-%m-%d %H:%M:%S%.3f").to_string();

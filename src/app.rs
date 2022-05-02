@@ -22,7 +22,7 @@ use tui::{
 };
 
 // local module
-use crate::common::{async_sleep, differences_result, logging_result};
+use crate::common::{differences_result, logging_result};
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::header::HeaderArea;
@@ -182,8 +182,7 @@ impl<'a> App<'a> {
             }
 
             // get event
-            // match self.rx.try_recv() {
-            match self.rx.recv_timeout(Duration::from_secs(60)) {
+            match self.rx.try_recv() {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
@@ -202,9 +201,9 @@ impl<'a> App<'a> {
                 _ => {}
             }
 
-            // if !update_draw {
-            //     std::thread::sleep(Duration::from_millis(100));
-            // }
+            if !update_draw {
+                std::thread::sleep(Duration::from_millis(300));
+            }
         }
     }
 
