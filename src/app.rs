@@ -183,7 +183,7 @@ impl<'a> App<'a> {
 
             // get event
             // match self.rx.try_recv() {
-            match self.rx.recv_timeout(Duration::from_millis(300)) {
+            match self.rx.recv_timeout(Duration::from_secs(60)) {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
