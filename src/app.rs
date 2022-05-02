@@ -182,7 +182,8 @@ impl<'a> App<'a> {
             }
 
             // get event
-            match self.rx.try_recv() {
+            // match self.rx.try_recv() {
+            match self.rx.recv_timeout(Duration::from_millis(300)) {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
@@ -199,10 +200,6 @@ impl<'a> App<'a> {
                 Ok(AppEvent::Exit) => self.done = true,
 
                 _ => {}
-            }
-
-            if !update_draw {
-                std::thread::sleep(Duration::from_millis(300));
             }
         }
     }
