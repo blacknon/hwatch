@@ -181,7 +181,7 @@ impl<'a> App<'a> {
             // match self.rx.try_recv() {
 
             if self.rx.is_empty() {
-                std::thread::sleep(Duration::from_millis(100));
+                std::thread::sleep(Duration::from_millis(2000));
                 continue;
             }
 
