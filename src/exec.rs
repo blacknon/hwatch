@@ -3,11 +3,11 @@
 // that can be found in the LICENSE file.
 
 // module
+use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
-use std::sync::mpsc::Sender;
 
 // local module
 use crate::common;

@@ -28,6 +28,7 @@ extern crate ansi4tui;
 extern crate ansi_parser;
 extern crate async_std;
 extern crate chrono;
+extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate difference;
 extern crate futures;
@@ -49,7 +50,8 @@ extern crate serde_json;
 use clap::{App, AppSettings, Arg};
 use std::env::args;
 use std::path::Path;
-use std::sync::mpsc::channel;
+// use std::sync::mpsc::channel;
+use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
 
@@ -209,7 +211,7 @@ fn main() {
     }
 
     // Create channel
-    let (tx, rx) = channel();
+    let (tx, rx) = unbounded();
 
     // Start Command Thread
     {

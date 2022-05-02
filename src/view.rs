@@ -2,6 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use crossbeam_channel::{Receiver, Sender};
 #[warn(unused_doc_comments)]
 // module
 use crossterm::{
@@ -9,12 +10,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{
-    error::Error,
-    io,
-    sync::mpsc::{Receiver, Sender},
-    time::Duration,
-};
+use std::{error::Error, io, time::Duration};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module

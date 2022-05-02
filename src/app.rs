@@ -2,18 +2,14 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use crossbeam_channel::{Receiver, Sender};
 #[warn(unused_doc_comments)]
 // module
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use regex::Regex;
-use std::{
-    collections::HashMap,
-    io,
-    sync::mpsc::{Receiver, Sender},
-    time::Duration,
-};
+use std::{collections::HashMap, io, time::Duration};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
