@@ -5,6 +5,7 @@ edition = "2021"
 keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
+opt-level = 3
 repository = "https://github.com/blacknon/hwatch"
 version = "0.3.4"
 
