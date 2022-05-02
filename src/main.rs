@@ -47,7 +47,6 @@ extern crate serde_json;
 
 // modules
 use clap::{App, AppSettings, Arg};
-use futures::executor::block_on;
 use std::env::args;
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -227,7 +226,7 @@ fn main() {
             exe.exec_command();
 
             // sleep interval
-            block_on(common::async_sleep(Duration::from_secs_f64(interval)));
+            std::thread::sleep(Duration::from_secs_f64(interval));
         });
     }
 
