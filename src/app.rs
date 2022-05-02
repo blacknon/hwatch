@@ -179,7 +179,13 @@ impl<'a> App<'a> {
 
             // get event
             // match self.rx.try_recv() {
-            match self.rx.recv_timeout(Duration::from_secs(60)) {
+
+            if self.rx.is_empty() {
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            }
+
+            match self.rx.recv() {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
