@@ -123,10 +123,7 @@ impl View {
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
-    let timeout = Duration::from_millis(5);
-    if crossterm::event::poll(timeout)? {
-        let event = crossterm::event::read().expect("failed to read crossterm event");
-        let _ = tx.clone().send(AppEvent::TerminalEvent(event));
-    }
+    let event = crossterm::event::read().expect("failed to read crossterm event");
+    let _ = tx.send(AppEvent::TerminalEvent(event));
     Ok(())
 }
