@@ -179,7 +179,7 @@ impl<'a> App<'a> {
             terminal.draw(|f| self.draw(f))?;
 
             // get event
-            match self.rx.recv_timeout(Duration::from_secs(60)) {
+            match self.rx.recv() {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => self.get_event(terminal_event),
 
