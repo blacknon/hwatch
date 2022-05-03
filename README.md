@@ -36,7 +36,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.3.2
+    hwatch 0.3.4
     blacknon <blacknon@orebibou.com>
     A modern alternative to the watch command, records the differences in execution results and can check this differences
     at after.
