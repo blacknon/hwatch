@@ -178,13 +178,6 @@ impl<'a> App<'a> {
             }
 
             // get event
-            // match self.rx.try_recv() {
-
-            if self.rx.is_empty() {
-                std::thread::sleep(Duration::from_millis(2000));
-                continue;
-            }
-
             match self.rx.recv() {
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
