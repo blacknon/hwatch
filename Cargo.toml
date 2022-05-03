@@ -1,21 +1,26 @@
 [package]
 authors = ["blacknon <blacknon@orebibou.com>"]
 description = "A modern alternative to the watch command, records the differences in execution results and can check this differences at after."
+edition = "2021"
 keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
+opt-level = 3
 repository = "https://github.com/blacknon/hwatch"
-version = "0.3.3"
+version = "0.3.4"
 
 [dependencies]
 ansi-parser = "0.8.0"
 # TODO: マージされたらバージョン置き換える
 # ansi4tui = {git = "https://github.com/blacknon/ansi4tui.git", branch = "master", version = "0.2.1"}
 ansi4tui = "0.2"
+async-std = {version = "1.11"}
 chrono = "0.4"
 clap = "2.20.3"
+crossbeam-channel = "0.5.4"
 crossterm = "0.22"
 difference = "2.0"
+futures = "0.3.21"
 heapless = "0.5.6"
 regex = "1.3.0"
 serde = "1.0.104"

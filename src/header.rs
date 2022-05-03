@@ -14,8 +14,11 @@ use tui::{
 };
 
 // local module
-use app::{ActiveArea, DiffMode, InputMode, OutputMode};
-use exec::CommandResult;
+use crate::app::{ActiveArea, DiffMode, InputMode, OutputMode};
+use crate::exec::CommandResult;
+
+// local const
+use crate::DEFAULT_INTERVAL;
 
 //const
 const POSITION_X_HELP_TEXT: usize = 56;
@@ -72,7 +75,7 @@ impl<'a> HeaderArea<'a> {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
-            interval: ::DEFAULT_INTERVAL,
+            interval: DEFAULT_INTERVAL,
 
             command: "".to_string(),
             timestamp: "".to_string(),

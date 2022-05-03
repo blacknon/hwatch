@@ -7,9 +7,10 @@ use chrono::Local;
 use serde_json;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+use std::time::Duration;
 
 // local module
-use exec::CommandResult;
+use crate::exec::CommandResult;
 
 pub fn now_str() -> String {
     let date = Local::now();

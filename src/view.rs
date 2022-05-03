@@ -2,6 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use crossbeam_channel::{Receiver, Sender};
 #[warn(unused_doc_comments)]
 // module
 use crossterm::{
@@ -9,19 +10,18 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{
-    error::Error,
-    io,
-    sync::mpsc::{Receiver, Sender},
-    time::Duration,
-};
+use std::{error::Error, io};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
-use app::{App, DiffMode};
-use event::AppEvent;
+use crate::app::{App, DiffMode};
+use crate::event::AppEvent;
+
+// local const
+use crate::DEFAULT_INTERVAL;
 
 /// Struct at run hwatch on tui
+#[derive(Clone)]
 pub struct View {
     interval: f64,
     color: bool,
@@ -34,7 +34,7 @@ pub struct View {
 impl View {
     pub fn new() -> Self {
         Self {
-            interval: ::DEFAULT_INTERVAL,
+            interval: DEFAULT_INTERVAL,
             color: false,
             line_number: false,
             watch_diff: false,
@@ -42,24 +42,29 @@ impl View {
         }
     }
 
-    pub fn set_interval(&mut self, interval: f64) {
+    pub fn set_interval(mut self, interval: f64) -> Self {
         self.interval = interval;
+        self
     }
 
-    pub fn set_color(&mut self, color: bool) {
+    pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
+        self
     }
 
-    pub fn set_line_number(&mut self, line_number: bool) {
+    pub fn set_line_number(mut self, line_number: bool) -> Self {
         self.line_number = line_number;
+        self
     }
 
-    pub fn set_watch_diff(&mut self, watch_diff: bool) {
+    pub fn set_watch_diff(mut self, watch_diff: bool) -> Self {
         self.watch_diff = watch_diff;
+        self
     }
 
-    pub fn set_logfile(&mut self, log_path: String) {
+    pub fn set_logfile(mut self, log_path: String) -> Self {
         self.log_path = log_path;
+        self
     }
 
     pub fn start(
@@ -123,10 +128,7 @@ impl View {
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
-    let timeout = Duration::from_millis(5);
-    if crossterm::event::poll(timeout)? {
-        let event = crossterm::event::read().expect("failed to read crossterm event");
-        let _ = tx.clone().send(AppEvent::TerminalEvent(event));
-    }
+    let event = crossterm::event::read().expect("failed to read crossterm event");
+    let _ = tx.send(AppEvent::TerminalEvent(event));
     Ok(())
 }

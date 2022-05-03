@@ -13,6 +13,9 @@ use tui::{
     text::{Span, Spans},
 };
 
+// local const
+use crate::LINE_ENDING;
+
 // plane output
 // ==========
 
@@ -364,7 +367,7 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
 ///
 pub fn get_line_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     // Create changeset
-    let Changeset { diffs, .. } = Changeset::new(old, new, ::LINE_ENDING);
+    let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
 
     // old and new text's line count.
     let old_len = &old.lines().collect::<Vec<&str>>().len();
@@ -511,7 +514,7 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -
 ///
 pub fn get_word_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
     // Create changeset
-    let Changeset { diffs, .. } = Changeset::new(old, new, ::LINE_ENDING);
+    let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
 
     // old and new text's line count.
     let old_len = &old.lines().collect::<Vec<&str>>().len();
