@@ -9,7 +9,7 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use regex::Regex;
-use std::{collections::HashMap, io, time::Duration};
+use std::{collections::HashMap, io};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
