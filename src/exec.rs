@@ -3,15 +3,15 @@
 // that can be found in the LICENSE file.
 
 // module
+use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
-use std::sync::mpsc::Sender;
 
 // local module
-use common;
-use event::AppEvent;
+use crate::common;
+use crate::event::AppEvent;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
@@ -63,6 +63,7 @@ impl ExecuteCommand {
             .spawn()
             .expect("failed to execute prog");
 
+        // TODO: windows対応ができ次第切り替える.
         // command parse
         // let parse_command: Vec<&str> = self.command.split(" ").collect();
         // let length = parse_command.len();
