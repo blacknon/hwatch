@@ -2,7 +2,13 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.4
+// v0.3.5
+// TODO(blakcnon): ansi4tuiのコードを移植(rs-tuiのアップデートのため)
+// TODO(blakcnon): rs-tuiのアップデート対応
+// TODO(blakcnon): Windows対応
+// TODO(blakcnon): Issue #48 の対応.
+
+// v0.3.6
 // TODO(blakcnon): batch modeの実装(v0.3.4).
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
@@ -11,7 +17,7 @@
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
-// v0.3.5
+// v0.3.7
 // TODO(blacknon): Windows対応(v0.3.5). 一応、あとはライブラリが対応すればイケる.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.3.5).
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.3.5).
@@ -251,7 +257,7 @@ fn main() {
             view = view.set_logfile(logfile.unwrap().to_string());
         }
 
-        // start app
+        // start app.
         let _res = view.start(tx.clone(), rx);
     } else {
         // is batch mode

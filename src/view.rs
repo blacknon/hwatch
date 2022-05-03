@@ -10,7 +10,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io, time::Duration};
+use std::{error::Error, io};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
