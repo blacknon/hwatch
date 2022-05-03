@@ -4,14 +4,12 @@
 
 // v0.3.4
 // TODO(blakcnon): batch modeの実装(v0.3.4).
-// TODO(blacknon): コマンドがエラーになった場合はそこで終了する機能の追加(v0.3.4)
-//                 watchコマンドにもある(-e, --errexit)
-// TODO(blacknon): 出力結果が変わった場合はそこで終了する機能の追加(v0.3.4)
-//                 watchコマンドにもある(-g, --chgexit)
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.4)
 //                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
+// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
+// TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // v0.3.5
 // TODO(blacknon): Windows対応(v0.3.5). 一応、あとはライブラリが対応すればイケる.
@@ -28,9 +26,12 @@
 // crate
 extern crate ansi4tui;
 extern crate ansi_parser;
+extern crate async_std;
 extern crate chrono;
+extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate difference;
+extern crate futures;
 extern crate heapless;
 extern crate regex;
 extern crate serde;
@@ -49,7 +50,8 @@ extern crate serde_json;
 use clap::{App, AppSettings, Arg};
 use std::env::args;
 use std::path::Path;
-use std::sync::mpsc::channel;
+// use std::sync::mpsc::channel;
+use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
 
@@ -109,6 +111,10 @@ fn build_app() -> clap::App<'static, 'static> {
         //         .short("b")
         //         .long("batch"),
         // )
+        // Beep option
+        //     [-b,--beep]
+        // Option to specify the command to be executed when the output fluctuates.
+        //     [-C,--changed-command]
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
@@ -172,21 +178,18 @@ fn build_app() -> clap::App<'static, 'static> {
 
 fn main() {
     // Get command args matches
-    let _matches = build_app().get_matches();
-
-    // matches clone
-    let _m = _matches.clone();
+    let matche = build_app().get_matches();
 
     // Get options flag
-    let batch = _m.is_present("batch");
-    let diff = _m.is_present("differences");
-    let color = _m.is_present("color");
-    let line_number = _m.is_present("line_number");
+    let batch = matche.is_present("batch");
+    let diff = matche.is_present("differences");
+    let color = matche.is_present("color");
+    let line_number = matche.is_present("line_number");
 
     // Get options value
-    let interval: f64 = value_t!(_matches, "interval", f64).unwrap_or_else(|e| e.exit());
-    // let exec = _m.value_of("exec");
-    let logfile = _m.value_of("logfile");
+    let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
+    // let exec = matche.value_of("exec");
+    let logfile = matche.value_of("logfile");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
@@ -208,23 +211,24 @@ fn main() {
     }
 
     // Create channel
-    let (tx, rx) = channel();
+    let (tx, rx) = unbounded();
 
     // Start Command Thread
     {
+        let m = matche.clone();
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
 
             // Set command
-            exe.command = _matches.values_of_lossy("command").unwrap().join(" ");
+            exe.command = m.values_of_lossy("command").unwrap().join(" ");
 
             // Exec command
             exe.exec_command();
 
             // sleep interval
-            thread::sleep(Duration::from_secs_f64(interval));
+            std::thread::sleep(Duration::from_secs_f64(interval));
         });
     }
 
@@ -232,23 +236,19 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new();
-
-        // Set interval on view.header
-        view.set_interval(interval);
-
-        // Set color in view
-        view.set_color(color);
-
-        // Set color in view
-        view.set_line_number(line_number);
-
-        // Set diff(watch diff) in view
-        view.set_watch_diff(diff);
+        let mut view = view::View::new()
+            // Set interval on view.header
+            .set_interval(interval)
+            // Set color in view
+            .set_color(color)
+            // Set line number in view
+            .set_line_number(line_number)
+            // Set diff(watch diff) in view
+            .set_watch_diff(diff);
 
         // Set logfile
         if logfile != None {
-            view.set_logfile(logfile.unwrap().to_string());
+            view = view.set_logfile(logfile.unwrap().to_string());
         }
 
         // start app
