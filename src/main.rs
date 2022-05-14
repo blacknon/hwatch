@@ -7,6 +7,8 @@
 // TODO(blakcnon): rs-tuiのアップデート対応
 // TODO(blakcnon): Windows対応
 // TODO(blakcnon): Issue #48 の対応.
+// TODO(blacknon): diffのライブラリをsimilarに切り替える？
+//                 - https://github.com/mitsuhiko/similar
 
 // v0.3.6
 // TODO(blakcnon): batch modeの実装(v0.3.4).
