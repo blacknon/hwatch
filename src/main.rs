@@ -3,10 +3,8 @@
 // that can be found in the LICENSE file.
 
 // v0.3.5
-// TODO(blakcnon): ansi4tuiのコードを移植(rs-tuiのアップデートのため)
-// TODO(blakcnon): rs-tuiのアップデート対応
 // TODO(blakcnon): Windows対応
-// TODO(blakcnon): Issue #48 の対応.
+// TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
 //                 - https://github.com/mitsuhiko/similar
 
@@ -32,7 +30,6 @@
 
 #[warn(unused_doc_comments)]
 // crate
-extern crate ansi4tui;
 extern crate ansi_parser;
 extern crate async_std;
 extern crate chrono;
@@ -64,6 +61,7 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
+mod ansi;
 mod app;
 mod common;
 mod event;
