@@ -4,9 +4,8 @@
 
 // v0.3.5
 // TODO(blakcnon): Windows対応
-// TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
-// TODO(blacknon): diffのライブラリをsimilarに切り替える？
-//                 - https://github.com/mitsuhiko/similar
+// TODO(blacknon): -xの実装
+// TODO(blacknon): 実行するシェルやオプションの指定(zshやらbashやら指定できるようにする.)
 
 // v0.3.6
 // TODO(blakcnon): batch modeの実装(v0.3.4).
@@ -16,9 +15,12 @@
 //                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
+// TODO(blacknon): diffのライブラリをsimilarに切り替える？
+//                 - https://github.com/mitsuhiko/similar
+// TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
+//                 …と思ったけど、コレもしかしてshell側の問題なのでは…？
 
 // v0.3.7
-// TODO(blacknon): Windows対応(v0.3.5). 一応、あとはライブラリが対応すればイケる.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.3.5).
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.3.5).
 //                 `OnlyLine`, `OnlyWord` mode.
@@ -40,6 +42,7 @@ extern crate futures;
 extern crate heapless;
 extern crate regex;
 extern crate serde;
+extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
 
@@ -145,6 +148,14 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("N")
                 .long("line-number"),
         )
+        // exec flag.
+        //
+        .arg(
+            Arg::with_name("exec")
+                .help("pass command to exec instead of 'sh -c'")
+                .short("x")
+                .long("exec"),
+        )
         // Logging option
         //   [--logfile,-l] /path/to/logfile
         // ex.)
@@ -158,18 +169,6 @@ fn build_app() -> clap::App<'static, 'static> {
                 .long("logfile")
                 .takes_value(true),
         )
-        // @TODO: v1.0.0
-        //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
-        //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
-        // exec
-        // .arg(
-        //     Arg::with_name("exec")
-        //         .help("pass command to exec instead of 'sh -c'")
-        //         .short("x")
-        //         .long("exec")
-        //         .takes_value(true)
-        //         .default_value("sh -c"),
-        // )
         // Interval option
         //   [--interval,-n] second(default:2)
         .arg(
@@ -190,6 +189,7 @@ fn main() {
     let batch = matche.is_present("batch");
     let diff = matche.is_present("differences");
     let color = matche.is_present("color");
+    let is_exec = matche.is_present("exec");
     let line_number = matche.is_present("line_number");
 
     // Get options value
@@ -219,6 +219,8 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
+    println!("{:?}", matche.values_of_lossy("command").unwrap());
+
     // Start Command Thread
     {
         let m = matche.clone();
@@ -228,7 +230,10 @@ fn main() {
             let mut exe = exec::ExecuteCommand::new(tx.clone());
 
             // Set command
-            exe.command = m.values_of_lossy("command").unwrap().join(" ");
+            exe.command = m.values_of_lossy("command").unwrap();
+
+            // Set is exec flag.
+            exe.is_exec = is_exec;
 
             // Exec command
             exe.exec_command();
