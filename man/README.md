@@ -1,7 +1,7 @@
 hwatch man page
 ===============
 
-Man page is created from markdown with pandoc. Edit man.md and generate hwatch.md with the following command.
+Man page is created from markdown with pandoc. Edit man.md and generate hwatch.1 with the following command.
 
 
 ```bash
