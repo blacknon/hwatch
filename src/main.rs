@@ -2,11 +2,9 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.5
-// TODO(blakcnon): Windows対応
-//                 - 文字コードを考慮に入れた設計にする
-
 // v0.3.6
+// TODO(blakcnon): Windows対応
+//                 - 文字コードを考慮に入れた設計にする(OSStringに書き換える)
 // TODO(blakcnon): batch modeの実装(v0.3.4).
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
