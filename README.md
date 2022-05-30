@@ -9,7 +9,8 @@ hwatch - alternative watch command.
 
 ## Description
 
-`hwatch` is a alternative **watch** command. That records the result of command execution and can display it history and diffs.
+`hwatch` is a alternative **watch** command.
+That records the result of command execution and can display it history and diffs.
 
 ### Features
 
@@ -36,7 +37,7 @@ hwatch - alternative watch command.
 
 ## Usage
 
-    hwatch 0.3.4
+    hwatch 0.3.5
     blacknon <blacknon@orebibou.com>
     A modern alternative to the watch command, records the differences in execution results and can check this differences
     at after.
@@ -48,16 +49,19 @@ hwatch - alternative watch command.
         -c, --color          interpret ANSI color and style sequences
         -d, --differences    highlight changes between updates
         -N, --line-number    show line number
+        -x, --exec           Run the command directly, not through the shell. Much like the `-x` option of the watch
+                             command.
         -h, --help           Prints help information
         -V, --version        Prints version information
 
     OPTIONS:
-        -l, --logfile <logfile>      logging file
-        -n, --interval <interval>    seconds to wait between updates [default: 2]
+        -l, --logfile <logfile>        logging file
+        -s, --shell <shell_command>    shell to use at runtime. can  also insert the command to the location specified by
+                                       {COMMAND}. [default: sh -c]
+        -n, --interval <interval>      seconds to wait between updates [default: 2]
 
     ARGS:
         <command>...
-
 
 watch window keybind
 
@@ -78,3 +82,30 @@ watch window keybind
 - <kbd>/</kbd>   ... filter history by string.
 - <kbd>*</kbd>   ... filter history by regex.
 - <kbd>Esc</kbd> ... unfiltering.
+
+
+## Example
+
+### interval 10 second
+
+```bash
+hwatch -n 10 command...
+```
+
+
+### logging output
+
+```bash
+hwatch -n 10 -l hwatch_log.json command...
+```
+
+### Use shell function
+
+```bash
+
+```
+
+### history filtering
+
+
+### diff view
