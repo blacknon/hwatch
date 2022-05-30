@@ -7,7 +7,7 @@ use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, Stdio};
 
 // local module
 use crate::common;
@@ -28,13 +28,6 @@ pub struct ExecuteCommand {
     pub command: Vec<String>,
     pub is_exec: bool,
     pub tx: Sender<AppEvent>,
-}
-
-struct CommandOutput {
-    pub status: bool,
-    pub vec_output: Vec<u8>,
-    pub vec_stdout: Vec<u8>,
-    pub vec_stderr: Vec<u8>,
 }
 
 impl ExecuteCommand {
@@ -135,8 +128,11 @@ impl ExecuteCommand {
             let exit_status = child.wait().expect("");
             status = exit_status.success();
         } else {
-            let mut stdout_text: Vec<u8> = "failed to execute process.".as_bytes().to_vec();
-            let mut stderr_text: Vec<u8> = "failed to execute process.".as_bytes().to_vec();
+            let err = child_result.unwrap_err();
+            let error_msg = err.to_string();
+
+            let mut stdout_text: Vec<u8> = error_msg.as_bytes().to_vec();
+            let mut stderr_text: Vec<u8> = error_msg.as_bytes().to_vec();
             vec_output.append(&mut stdout_text);
             vec_stderr.append(&mut stderr_text);
 
