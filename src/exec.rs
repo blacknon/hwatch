@@ -7,12 +7,14 @@ use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::option::Option;
 use std::process::{Child, Command, Stdio};
 
 // local module
 use crate::common;
 use crate::event::AppEvent;
+
+// const
+const SHELL_COMMAND_EXECCMD: &'static str = "{COMMAND}";
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
@@ -45,29 +47,47 @@ impl ExecuteCommand {
 
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
-    // TODO(blacknon): Windowsに対応していないのでどうにかする
     pub fn exec_command(&mut self) {
         // Declaration at child.
         let exec_cmd: String;
         let mut exec_cmd_args = vec![];
+        let mut is_shellcmd_template = false;
 
         // set string command.
         let command_str = shell_words::join(self.command.clone());
 
         // if `-e` option enable.
         if !self.is_exec {
+            // split self.shell_command
             let shell_commands =
                 shell_words::split(&self.shell_command).expect("shell command parse error.");
 
+            // set shell_command args, to exec_cmd_args.
             exec_cmd = shell_commands[0].to_string();
             if shell_commands.len() >= 2 {
                 let length = shell_commands.len();
-                let mut shell_command_args = shell_commands[1..length].to_vec();
-                exec_cmd_args.append(&mut shell_command_args);
+                let shell_command_args = shell_commands[1..length].to_vec();
+
+                // shell_command_args to exec_cmd_args
+                for shell_command_arg in shell_command_args {
+                    let exec_cmd_arg: String;
+                    if shell_command_arg.contains("{COMMAND}") {
+                        exec_cmd_arg =
+                            str::replace(&shell_command_arg, SHELL_COMMAND_EXECCMD, &command_str);
+                        is_shellcmd_template = true;
+                    } else {
+                        exec_cmd_arg = shell_command_arg;
+                    }
+
+                    // push exec_cmd_arg to exec_cmd_args
+                    exec_cmd_args.push(exec_cmd_arg);
+                }
             }
 
             // add exec command..
-            exec_cmd_args.push(command_str.clone());
+            if !is_shellcmd_template {
+                exec_cmd_args.push(command_str.clone());
+            }
         } else {
             // command parse
             let length = self.command.len();

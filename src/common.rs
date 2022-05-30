@@ -7,7 +7,6 @@ use chrono::Local;
 use serde_json;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
-use std::time::Duration;
 
 // local module
 use crate::exec::CommandResult;
