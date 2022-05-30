@@ -4,8 +4,6 @@
 
 // v0.3.5
 // TODO(blakcnon): Windows対応
-// TODO(blacknon): -xの実装
-// TODO(blacknon): 実行するシェルやオプションの指定(zshやらbashやら指定できるようにする.)
 
 // v0.3.6
 // TODO(blakcnon): batch modeの実装(v0.3.4).
