@@ -4,6 +4,7 @@
 
 // v0.3.5
 // TODO(blakcnon): Windows対応
+//                 - 文字コードを考慮に入れた設計にする
 
 // v0.3.6
 // TODO(blakcnon): batch modeの実装(v0.3.4).
