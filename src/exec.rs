@@ -7,6 +7,7 @@ use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::option::Option;
 use std::process::{Child, Command, Stdio};
 
 // local module
@@ -25,6 +26,7 @@ pub struct CommandResult {
 
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
+    pub shell_command: String,
     pub command: Vec<String>,
     pub is_exec: bool,
     pub tx: Sender<AppEvent>,
@@ -34,6 +36,7 @@ impl ExecuteCommand {
     // set default value
     pub fn new(tx: Sender<AppEvent>) -> Self {
         Self {
+            shell_command: "".to_string(),
             command: vec![],
             is_exec: false,
             tx: tx,
@@ -46,19 +49,21 @@ impl ExecuteCommand {
     pub fn exec_command(&mut self) {
         // Declaration at child.
         let exec_cmd: String;
-        let mut exec_cmd_args: Vec<String>;
+        let mut exec_cmd_args = vec![];
 
         // set string command.
         let command_str = shell_words::join(self.command.clone());
 
         // if `-e` option enable.
         if !self.is_exec {
-            if cfg!(windows) {
-                exec_cmd = "cmd".to_string();
-                exec_cmd_args = vec!["/C".to_string()];
-            } else {
-                exec_cmd = "sh".to_string();
-                exec_cmd_args = vec!["-c".to_string()];
+            let shell_commands =
+                shell_words::split(&self.shell_command).expect("shell command parse error.");
+
+            exec_cmd = shell_commands[0].to_string();
+            if shell_commands.len() >= 2 {
+                let length = shell_commands.len();
+                let mut shell_command_args = shell_commands[1..length].to_vec();
+                exec_cmd_args.append(&mut shell_command_args);
             }
 
             // add exec command..
@@ -136,6 +141,7 @@ impl ExecuteCommand {
             vec_output.append(&mut stdout_text);
             vec_stderr.append(&mut stderr_text);
 
+            // get command status
             status = false;
         }
 
