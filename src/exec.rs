@@ -13,9 +13,6 @@ use std::process::{Child, Command, Stdio};
 use crate::common;
 use crate::event::AppEvent;
 
-// const
-const SHELL_COMMAND_EXECCMD: &'static str = "{COMMAND}";
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
     pub timestamp: String,
@@ -72,8 +69,11 @@ impl ExecuteCommand {
                 for shell_command_arg in shell_command_args {
                     let exec_cmd_arg: String;
                     if shell_command_arg.contains("{COMMAND}") {
-                        exec_cmd_arg =
-                            str::replace(&shell_command_arg, SHELL_COMMAND_EXECCMD, &command_str);
+                        exec_cmd_arg = str::replace(
+                            &shell_command_arg,
+                            crate::SHELL_COMMAND_EXECCMD,
+                            &command_str,
+                        );
                         is_shellcmd_template = true;
                     } else {
                         exec_cmd_arg = shell_command_arg;
