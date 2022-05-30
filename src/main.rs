@@ -79,6 +79,7 @@ mod watch;
 // const
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
+pub const SHELL_COMMAND_EXECCMD: &'static str = "{COMMAND}";
 
 // const at Windows
 #[cfg(windows)]
@@ -158,7 +159,7 @@ fn build_app() -> clap::App<'static, 'static> {
         //
         .arg(
             Arg::with_name("exec")
-                .help("pass command to exec instead of 'sh -c'")
+                .help("Run the command directly, not through the shell. Much like the `-x` option of the watch command.")
                 .short("x")
                 .long("exec"),
         )
@@ -179,7 +180,7 @@ fn build_app() -> clap::App<'static, 'static> {
         // shell command
         .arg(
             Arg::with_name("shell_command")
-                .help("shell to use at runtime. ")
+                .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
                 .short("s")
                 .long("shell")
                 .takes_value(true)
