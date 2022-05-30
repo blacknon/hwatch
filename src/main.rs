@@ -80,11 +80,17 @@ mod watch;
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
 
+// const at Windows
 #[cfg(windows)]
 const LINE_ENDING: &'static str = "\r\n";
+#[cfg(windows)]
+const SHELL_COMMAND: &'static str = "cmd /C";
 
+// const at not Windows
 #[cfg(not(windows))]
 const LINE_ENDING: &'static str = "\n";
+#[cfg(not(windows))]
+const SHELL_COMMAND: &'static str = "sh -c";
 
 /// Parse args and options function.
 fn build_app() -> clap::App<'static, 'static> {
@@ -111,7 +117,7 @@ fn build_app() -> clap::App<'static, 'static> {
                 .multiple(true)
                 .required(true),
         )
-        // -- options --
+        // -- flags --
         // Enable batch mode option
         //     [-b,--batch]
         // .arg(
@@ -156,6 +162,7 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("x")
                 .long("exec"),
         )
+        // -- options --
         // Logging option
         //   [--logfile,-l] /path/to/logfile
         // ex.)
@@ -168,6 +175,15 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("l")
                 .long("logfile")
                 .takes_value(true),
+        )
+        // shell command
+        .arg(
+            Arg::with_name("shell_command")
+                .help("shell to use at runtime. ")
+                .short("s")
+                .long("shell")
+                .takes_value(true)
+                .default_value(SHELL_COMMAND),
         )
         // Interval option
         //   [--interval,-n] second(default:2)
@@ -219,8 +235,6 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
-    println!("{:?}", matche.values_of_lossy("command").unwrap());
-
     // Start Command Thread
     {
         let m = matche.clone();
@@ -228,6 +242,9 @@ fn main() {
         let _ = thread::spawn(move || loop {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
+
+            // Set shell command
+            exe.shell_command = m.value_of("shell_command").unwrap().to_string();
 
             // Set command
             exe.command = m.values_of_lossy("command").unwrap();
