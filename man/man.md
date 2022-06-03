@@ -1,4 +1,4 @@
-% hwatch(1) Version 0.3.1 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
+% hwatch(1) Version 0.3.5 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
 NAME
 ====

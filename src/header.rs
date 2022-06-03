@@ -147,13 +147,15 @@ impl<'a> HeaderArea<'a> {
 
         // Value for width calculation.
         let command_width: usize;
+        let timestamp_width: usize;
         if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
             command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
+            timestamp_width =
+                width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
         } else {
             command_width = 0;
+            timestamp_width = 0;
         }
-        let timestamp_width =
-            width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
 
         // filter keyword.
         let filter_keyword_width: usize;

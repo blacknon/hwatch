@@ -96,9 +96,6 @@ impl View {
         // set logfile path.
         app.set_logpath(self.log_path.clone());
 
-        // Run App
-        let res = app.run(&mut terminal);
-
         // set color
         app.set_ansi_color(self.color);
 
@@ -109,6 +106,9 @@ impl View {
         if self.watch_diff {
             app.set_diff_mode(DiffMode::Watch);
         }
+
+        // Run App
+        let res = app.run(&mut terminal);
 
         // Restore terminal
         disable_raw_mode()?;
