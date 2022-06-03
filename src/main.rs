@@ -4,7 +4,7 @@
 
 // v0.3.6
 // TODO(blakcnon): Windows対応
-//                 - 文字コードを考慮に入れた設計にする(OSStringに書き換える)
+//                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
