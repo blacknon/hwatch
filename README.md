@@ -155,19 +155,19 @@ hwatch -n 3 -d command...
 #### watch diff
 
 <p align="center">
-<img src="./img/watch_diff.gif" />
+<img src="./img/watch_diff.png" />
 </p>
 
 #### line diff
 
 <p align="center">
-<img src="./img/line_diff.gif" />
+<img src="./img/line_diff.png" />
 </p>
 
 #### word diff
 
 <p align="center">
-<img src="./img/word_diff.gif" />
+<img src="./img/word_diff.png" />
 </p>
 
 
