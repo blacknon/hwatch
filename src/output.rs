@@ -14,6 +14,7 @@ use tui::{
 };
 
 // local const
+use crate::ansi;
 use crate::LINE_ENDING;
 
 // plane output
@@ -167,7 +168,7 @@ pub fn get_plane_output<'a>(
             }
 
             if color {
-                let data = ansi4tui::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
+                let data = ansi::bytes_to_text(format!("{}\n", l).as_bytes().to_vec());
 
                 for d in data.lines {
                     line_span.extend(d.0);
@@ -298,7 +299,7 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
 fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     // If the contents are the same line.
     if old_line == new_line {
-        let new_spans = ansi4tui::bytes_to_text(format!("{}\n", new_line).as_bytes().to_vec());
+        let new_spans = ansi::bytes_to_text(format!("{}\n", new_line).as_bytes().to_vec());
         for spans in new_spans.lines {
             return spans;
         }
@@ -399,7 +400,7 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -
                         let mut colored_span = vec![];
                         colored_span.push(Span::from("   "));
                         let colored_data =
-                            ansi4tui::bytes_to_text(format!("{}\n", line).as_bytes().to_vec());
+                            ansi::bytes_to_text(format!("{}\n", line).as_bytes().to_vec());
                         for d in colored_data.lines {
                             for x in d.0 {
                                 colored_span.push(x);
@@ -546,7 +547,7 @@ pub fn get_word_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -
                         let mut colored_span = vec![];
                         colored_span.push(Span::from("   "));
                         let colored_data =
-                            ansi4tui::bytes_to_text(format!("{}\n", line).as_bytes().to_vec());
+                            ansi::bytes_to_text(format!("{}\n", line).as_bytes().to_vec());
                         for d in colored_data.lines {
                             for x in d.0 {
                                 colored_span.push(x);
@@ -980,7 +981,7 @@ fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
 
                     // parse ansi text to tui text.
                     let data =
-                        ansi4tui::bytes_to_text(format!("{}\n", append_text).as_bytes().to_vec());
+                        ansi::bytes_to_text(format!("{}\n", append_text).as_bytes().to_vec());
                     for d in data {
                         for x in d.0 {
                             processed_text.push(x);

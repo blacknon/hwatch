@@ -7,7 +7,7 @@ use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 
 // local module
 use crate::common;
@@ -25,7 +25,8 @@ pub struct CommandResult {
 
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
-    pub command: String,
+    pub shell_command: String,
+    pub command: Vec<String>,
     pub is_exec: bool,
     pub tx: Sender<AppEvent>,
 }
@@ -34,7 +35,8 @@ impl ExecuteCommand {
     // set default value
     pub fn new(tx: Sender<AppEvent>) -> Self {
         Self {
-            command: "".to_string(),
+            shell_command: "".to_string(),
+            command: vec![],
             is_exec: false,
             tx: tx,
         }
@@ -42,61 +44,75 @@ impl ExecuteCommand {
 
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
-    // TODO(blacknon): Windowsに対応していないのでどうにかする
     pub fn exec_command(&mut self) {
-        // TODO: evalでの処理追加時に利用.
+        // Declaration at child.
+        let exec_cmd: String;
+        let mut exec_cmd_args = vec![];
+        let mut is_shellcmd_template = false;
 
-        // generate exec command(not windows)
-        let mut exec_cmd = "sh";
-        let mut exec_cmd_arg = "-c";
+        // set string command.
+        let command_str = shell_words::join(self.command.clone());
 
-        if cfg!(windows) {
-            exec_cmd = "cmd";
-            exec_cmd_arg = "/C";
+        // if `-e` option enable.
+        if !self.is_exec {
+            // split self.shell_command
+            let shell_commands =
+                shell_words::split(&self.shell_command).expect("shell command parse error.");
+
+            // set shell_command args, to exec_cmd_args.
+            exec_cmd = shell_commands[0].to_string();
+            if shell_commands.len() >= 2 {
+                let length = shell_commands.len();
+                let shell_command_args = shell_commands[1..length].to_vec();
+
+                // shell_command_args to exec_cmd_args
+                for shell_command_arg in shell_command_args {
+                    let exec_cmd_arg: String;
+                    if shell_command_arg.contains("{COMMAND}") {
+                        exec_cmd_arg = str::replace(
+                            &shell_command_arg,
+                            crate::SHELL_COMMAND_EXECCMD,
+                            &command_str,
+                        );
+                        is_shellcmd_template = true;
+                    } else {
+                        exec_cmd_arg = shell_command_arg;
+                    }
+
+                    // push exec_cmd_arg to exec_cmd_args
+                    exec_cmd_args.push(exec_cmd_arg);
+                }
+            }
+
+            // add exec command..
+            if !is_shellcmd_template {
+                exec_cmd_args.push(command_str.clone());
+            }
+        } else {
+            // command parse
+            let length = self.command.len();
+            exec_cmd = self.command[0].clone();
+            exec_cmd_args = self.command[1..length].to_vec();
         }
 
-        let mut child = Command::new(exec_cmd)
-            .arg(exec_cmd_arg)
-            .arg(&self.command)
+        // exec command...
+        let child_result = Command::new(exec_cmd)
+            .args(exec_cmd_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn()
-            .expect("failed to execute prog");
+            .spawn();
 
-        // TODO: windows対応ができ次第切り替える.
-        // command parse
-        // let parse_command: Vec<&str> = self.command.split(" ").collect();
-        // let length = parse_command.len();
-        // let command_name = &parse_command[0];
-        // let command_args = &parse_command[1..length];
-
-        // generate exec command(windows)
-        // let mut child = Command::new(command_name)
-        //     .args(command_args)
-        //     // .arg("-c")
-        //     // .arg(&self.command)
-        //     .stdout(Stdio::piped())
-        //     .stderr(Stdio::piped())
-        //     .spawn()
-        //     .expect("failed to execute prog");
-
-        // TODO(blacknon): 何かしらの方法で、シェルの環境変数や関数、エイリアスの継承を行わせてコマンドを実行させる
-
-        // TODO(blacknon):
-        // is_execが有効な場合、self.commandを一度parseしてからchildを生成するよう変更する
-        //   ex.)
-        //     "dig -x hogehoge @8.8.8.8"
-        //     => "dig" "-x" "hogehoge" "@8.8.8.8"
-        //
-        // if self.is_exec {
-
-        // }
+        let mut child: Child;
+        let status: bool;
 
         // merge stdout and stderr
         let mut vec_output = Vec::new();
         let mut vec_stdout = Vec::new();
         let mut vec_stderr = Vec::new();
-        {
+
+        if child_result.is_ok() {
+            child = child_result.expect("failed to execute process.");
+
             let child_stdout = child.stdout.as_mut().expect("");
             let child_stderr = child.stderr.as_mut().expect("");
 
@@ -132,16 +148,28 @@ impl ExecuteCommand {
             // Memory release.
             drop(stdout);
             drop(stderr);
-        }
 
-        // get command status
-        let status = child.wait().expect("");
+            // get command status
+            let exit_status = child.wait().expect("");
+            status = exit_status.success();
+        } else {
+            let err = child_result.unwrap_err();
+            let error_msg = err.to_string();
+
+            let mut stdout_text: Vec<u8> = error_msg.as_bytes().to_vec();
+            let mut stderr_text: Vec<u8> = error_msg.as_bytes().to_vec();
+            vec_output.append(&mut stdout_text);
+            vec_stderr.append(&mut stderr_text);
+
+            // get command status
+            status = false;
+        }
 
         // Set result
         let result = CommandResult {
             timestamp: common::now_str(),
-            command: self.command.clone(),
-            status: status.success(),
+            command: command_str,
+            status: status,
             output: String::from_utf8_lossy(&vec_output).to_string(),
             stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
             stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
@@ -149,10 +177,5 @@ impl ExecuteCommand {
 
         // Send result
         let _ = self.tx.send(AppEvent::OutputUpdate(result));
-
-        // Memory release.
-        drop(vec_output);
-        drop(vec_stdout);
-        drop(vec_stderr);
     }
 }

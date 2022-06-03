@@ -78,7 +78,8 @@ pub struct App<'a> {
     window: ActiveWindow,
 
     ///
-    ansi_color: bool,
+    /// debug
+    pub ansi_color: bool,
 
     ///
     line_number: bool,

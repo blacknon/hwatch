@@ -2,35 +2,35 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.5
-// TODO(blakcnon): ansi4tuiのコードを移植(rs-tuiのアップデートのため)
-// TODO(blakcnon): rs-tuiのアップデート対応
-// TODO(blakcnon): Windows対応
-// TODO(blakcnon): Issue #48 の対応.
-
 // v0.3.6
-// TODO(blakcnon): batch modeの実装(v0.3.4).
-// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加(v0.3.4)
+// TODO(blakcnon): Windows対応
+//                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
+// TODO(blakcnon): batch modeの実装.
+// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加. (v0.3.4)
-//                 その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
+// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
+//                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
+//                 - また、実行時にはシェルも指定して呼び出せるようにする？
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
+// TODO(blacknon): diffのライブラリをsimilarに切り替える？
+//                 - https://github.com/mitsuhiko/similar
+// TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
+//                 …と思ったけど、コレもしかしてshell側の問題なのでは…？
 
 // v0.3.7
-// TODO(blacknon): Windows対応(v0.3.5). 一応、あとはライブラリが対応すればイケる.
-// TODO(blacknon): 任意時点間のdiffが行えるようにする(v0.3.5).
-// TODO(blacknon): diffのある箇所だけを表示するモードの作成(v0.3.5).
+// TODO(blacknon): 任意時点間のdiffが行えるようにする.
+// TODO(blacknon): diffのある箇所だけを表示するモードの作成.
 //                 `OnlyLine`, `OnlyWord` mode.
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する(v0.3.5)
+// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく(v0.3.5)
-// TODO(blacknon): マニュアル(manのデータ)を自動作成させる (v0.3.5)
+// TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
+// TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
 
 #[warn(unused_doc_comments)]
 // crate
-extern crate ansi4tui;
 extern crate ansi_parser;
 extern crate async_std;
 extern crate chrono;
@@ -41,6 +41,7 @@ extern crate futures;
 extern crate heapless;
 extern crate regex;
 extern crate serde;
+extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
 
@@ -62,6 +63,7 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
+mod ansi;
 mod app;
 mod common;
 mod event;
@@ -76,12 +78,19 @@ mod watch;
 // const
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
+pub const SHELL_COMMAND_EXECCMD: &'static str = "{COMMAND}";
 
+// const at Windows
 #[cfg(windows)]
 const LINE_ENDING: &'static str = "\r\n";
+#[cfg(windows)]
+const SHELL_COMMAND: &'static str = "cmd /C";
 
+// const at not Windows
 #[cfg(not(windows))]
 const LINE_ENDING: &'static str = "\n";
+#[cfg(not(windows))]
+const SHELL_COMMAND: &'static str = "sh -c";
 
 /// Parse args and options function.
 fn build_app() -> clap::App<'static, 'static> {
@@ -108,7 +117,7 @@ fn build_app() -> clap::App<'static, 'static> {
                 .multiple(true)
                 .required(true),
         )
-        // -- options --
+        // -- flags --
         // Enable batch mode option
         //     [-b,--batch]
         // .arg(
@@ -145,6 +154,15 @@ fn build_app() -> clap::App<'static, 'static> {
                 .short("N")
                 .long("line-number"),
         )
+        // exec flag.
+        //
+        .arg(
+            Arg::with_name("exec")
+                .help("Run the command directly, not through the shell. Much like the `-x` option of the watch command.")
+                .short("x")
+                .long("exec"),
+        )
+        // -- options --
         // Logging option
         //   [--logfile,-l] /path/to/logfile
         // ex.)
@@ -158,18 +176,15 @@ fn build_app() -> clap::App<'static, 'static> {
                 .long("logfile")
                 .takes_value(true),
         )
-        // @TODO: v1.0.0
-        //        通常のwatchでも、-xはフラグとして扱われている可能性が高い。
-        //        なので、こちらでも引数を取るような方式ではなく、フラグとして扱ったほうがいいだろう。
-        // exec
-        // .arg(
-        //     Arg::with_name("exec")
-        //         .help("pass command to exec instead of 'sh -c'")
-        //         .short("x")
-        //         .long("exec")
-        //         .takes_value(true)
-        //         .default_value("sh -c"),
-        // )
+        // shell command
+        .arg(
+            Arg::with_name("shell_command")
+                .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
+                .short("s")
+                .long("shell")
+                .takes_value(true)
+                .default_value(SHELL_COMMAND),
+        )
         // Interval option
         //   [--interval,-n] second(default:2)
         .arg(
@@ -190,6 +205,7 @@ fn main() {
     let batch = matche.is_present("batch");
     let diff = matche.is_present("differences");
     let color = matche.is_present("color");
+    let is_exec = matche.is_present("exec");
     let line_number = matche.is_present("line_number");
 
     // Get options value
@@ -227,8 +243,14 @@ fn main() {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
 
+            // Set shell command
+            exe.shell_command = m.value_of("shell_command").unwrap().to_string();
+
             // Set command
-            exe.command = m.values_of_lossy("command").unwrap().join(" ");
+            exe.command = m.values_of_lossy("command").unwrap();
+
+            // Set is exec flag.
+            exe.is_exec = is_exec;
 
             // Exec command
             exe.exec_command();
