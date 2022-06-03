@@ -94,6 +94,10 @@ Use the -n option to specify the command execution interval.
 hwatch -n 3 command...
 ```
 
+<p align="center">
+<img src="./img/interval.gif" />
+</p>
+
 ### logging output
 
 The command execution result can be output as a log in json format.
@@ -116,6 +120,11 @@ hwatch -n 3 -s 'bash -c "source ~/.bashrc"; {COMMAND}' command...
 hwatch -n 3 -s 'zsh -c "source ~/.zshrc"; {COMMAND}' command...
 ```
 
+<p align="center">
+<img src="./img/shell_function.gif" />
+</p>
+
+
 ### ANSI Color code
 
 If you want to see output colored with ANSI color code, enable color mode.
@@ -127,6 +136,11 @@ Alternatively, you can enable / disable the color mode with the <kbd>C</kbd> key
 hwatch -n 3 -c command...
 ```
 
+<p align="center">
+<img src="./img/ansi_color.gif" />
+</p>
+
+
 ### diff view
 
 To enable color mode, run hwatch with the `-d` option.
@@ -137,6 +151,25 @@ Switching can be done with the <kbd>D</kbd> key.
 ```bash
 hwatch -n 3 -d command...
 ```
+
+#### watch diff
+
+<p align="center">
+<img src="./img/watch_diff.gif" />
+</p>
+
+#### line diff
+
+<p align="center">
+<img src="./img/line_diff.gif" />
+</p>
+
+#### word diff
+
+<p align="center">
+<img src="./img/word_diff.gif" />
+</p>
+
 
 ### history filtering
 
