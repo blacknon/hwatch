@@ -88,24 +88,56 @@ watch window keybind
 
 ### interval 10 second
 
-```bash
-hwatch -n 10 command...
-```
+Use the -n option to specify the command execution interval.
 
+```bash
+hwatch -n 3 command...
+```
 
 ### logging output
 
+The command execution result can be output as a log in json format.
+
 ```bash
-hwatch -n 10 -l hwatch_log.json command...
+hwatch -n 3 -l hwatch_log.json command...
 ```
+
+When you check the json log, you can easily check it by using [this script](https://gist.github.com/blacknon/551e52dce1651d2510162def5a0da1f0).
 
 ### Use shell function
 
-```bash
+If you want the shell function to be executed periodically, you can specify the shell command to be executed with -s as follows.
 
+```bash
+# bash
+hwatch -n 3 -s 'bash -c "source ~/.bashrc"; {COMMAND}' command...
+
+# zsh
+hwatch -n 3 -s 'zsh -c "source ~/.zshrc"; {COMMAND}' command...
+```
+
+### ANSI Color code
+
+If you want to see output colored with ANSI color code, enable color mode.
+
+To enable color mode, run hwatch with the `-c` option.
+Alternatively, you can enable / disable the color mode with the <kbd>C</kbd> key during execution.
+
+```bash
+hwatch -n 3 -c command...
+```
+
+### diff view
+
+To enable color mode, run hwatch with the `-d` option.
+
+There are several "diff modes" available.
+Switching can be done with the <kbd>D</kbd> key.
+
+```bash
+hwatch -n 3 -d command...
 ```
 
 ### history filtering
 
-
-### diff view
+You can filter history as a string with <kbd>/</kbd> key and as a regular expression with <kbd>*</kbd> key.
