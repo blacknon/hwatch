@@ -7,7 +7,7 @@ license-file = "LICENSE"
 name = "hwatch"
 opt-level = 3
 repository = "https://github.com/blacknon/hwatch"
-version = "0.3.5"
+version = "0.3.6"
 
 [dependencies]
 ansi-parser = "0.8.0"
