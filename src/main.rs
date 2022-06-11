@@ -115,8 +115,10 @@ fn build_app() -> clap::Command<'static> {
         .arg(
             Arg::new("command")
                 // .allow_hyphen_values(true)
+                .takes_value(true)
                 .allow_invalid_utf8(true)
                 .multiple_values(true)
+
                 .required(true),
 
         )
@@ -214,9 +216,6 @@ fn main() {
     // Get options value
     // let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
     let interval: f64 = matche.value_of_t_or_exit("interval");
-
-    println!("{}", interval);
-    println!("{}", color);
 
     // let exec = matche.value_of("exec");
     let logfile = matche.value_of("logfile");
