@@ -13,7 +13,7 @@ version = "0.3.6"
 ansi-parser = "0.8.0"
 async-std = {version = "1.11"}
 chrono = "0.4"
-clap = "2.20.3"
+clap = {version = "3.1.18", features = ["cargo"]}
 crossbeam-channel = "0.5.4"
 crossterm = "0.22"
 difference = "2.0"
