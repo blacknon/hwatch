@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.6
+// v0.3.7
 // TODO(blakcnon): Windows対応
 //                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blakcnon): batch modeの実装.
@@ -18,7 +18,7 @@
 // TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
 //                 …と思ったけど、コレもしかしてshell側の問題なのでは…？
 
-// v0.3.7
+// v0.3.8
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成.
 //                 `OnlyLine`, `OnlyWord` mode.
@@ -248,6 +248,7 @@ fn main() {
 
             // Set command
             exe.command = m.values_of_lossy("command").unwrap();
+            println!("{:?}", exe.command);
 
             // Set is exec flag.
             exe.is_exec = is_exec;
