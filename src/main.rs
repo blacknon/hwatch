@@ -108,6 +108,7 @@ fn build_app() -> clap::Command<'static> {
         .about(crate_description!())
         .allow_hyphen_values(true)
         .version(crate_version!())
+        .trailing_var_arg(true)
         .author(crate_authors!())
         .setting(AppSettings::DeriveDisplayOrder)
 
@@ -118,7 +119,6 @@ fn build_app() -> clap::Command<'static> {
                 .takes_value(true)
                 .allow_invalid_utf8(true)
                 .multiple_values(true)
-
                 .required(true),
 
         )
