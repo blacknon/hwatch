@@ -51,10 +51,16 @@ impl ExecuteCommand {
         let mut is_shellcmd_template = false;
 
         // set string command.
-        let command_str = shell_words::join(self.command.clone());
+        let command_str = self.command.clone().join(" ");
 
-        // if `-e` option enable.
-        if !self.is_exec {
+        if self.is_exec {
+            // is -x option enable
+            // command parse
+            let length = self.command.len();
+            exec_cmd = self.command[0].clone();
+            exec_cmd_args = self.command[1..length].to_vec();
+        } else {
+            // if `-e` option disable. (default)
             // split self.shell_command
             let shell_commands =
                 shell_words::split(&self.shell_command).expect("shell command parse error.");
@@ -88,11 +94,6 @@ impl ExecuteCommand {
             if !is_shellcmd_template {
                 exec_cmd_args.push(command_str.clone());
             }
-        } else {
-            // command parse
-            let length = self.command.len();
-            exec_cmd = self.command[0].clone();
-            exec_cmd_args = self.command[1..length].to_vec();
         }
 
         // exec command...
