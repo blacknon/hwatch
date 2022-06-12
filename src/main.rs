@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.6
+// v0.3.7
 // TODO(blakcnon): Windows対応
 //                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blakcnon): batch modeの実装.
@@ -18,7 +18,7 @@
 // TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
 //                 …と思ったけど、コレもしかしてshell側の問題なのでは…？
 
-// v0.3.7
+// v0.3.8
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成.
 //                 `OnlyLine`, `OnlyWord` mode.
@@ -54,7 +54,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{App, AppSettings, Arg};
+use clap::{AppSettings, Arg, Command};
 use std::env::args;
 use std::path::Path;
 // use std::sync::mpsc::channel;
@@ -93,7 +93,7 @@ const LINE_ENDING: &'static str = "\n";
 const SHELL_COMMAND: &'static str = "sh -c";
 
 /// Parse args and options function.
-fn build_app() -> clap::App<'static, 'static> {
+fn build_app() -> clap::Command<'static> {
     // get own name
     let _program = args()
         .nth(0)
@@ -104,18 +104,23 @@ fn build_app() -> clap::App<'static, 'static> {
         })
         .unwrap();
 
-    App::new(crate_name!())
+    Command::new(crate_name!())
         .about(crate_description!())
+        .allow_hyphen_values(true)
         .version(crate_version!())
+        .trailing_var_arg(true)
         .author(crate_authors!())
         .setting(AppSettings::DeriveDisplayOrder)
-        .setting(AppSettings::AllowLeadingHyphen)
+
         // -- command --
         .arg(
-            Arg::with_name("command")
-                .allow_hyphen_values(true)
-                .multiple(true)
+            Arg::new("command")
+                // .allow_hyphen_values(true)
+                .takes_value(true)
+                .allow_invalid_utf8(true)
+                .multiple_values(true)
                 .required(true),
+
         )
         // -- flags --
         // Enable batch mode option
@@ -123,7 +128,7 @@ fn build_app() -> clap::App<'static, 'static> {
         // .arg(
         //     Arg::with_name("batch")
         //         .help("output exection results to stdout")
-        //         .short("b")
+        //         .short('b')
         //         .long("batch"),
         // )
         // Beep option
@@ -133,33 +138,33 @@ fn build_app() -> clap::App<'static, 'static> {
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
-            Arg::with_name("color")
+            Arg::new("color")
                 .help("interpret ANSI color and style sequences")
-                .short("c")
+                .short('c')
                 .long("color"),
         )
         // Enable diff mode option
         //   [--differences,-d]
         .arg(
-            Arg::with_name("differences")
+            Arg::new("differences")
                 .help("highlight changes between updates")
-                .short("d")
-                .long("differences"),
+                .long("differences")
+                .short('d'),
         )
         // Enable line number mode option
         //   [--line-number,-N]
         .arg(
-            Arg::with_name("line_number")
+            Arg::new("line_number")
                 .help("show line number")
-                .short("N")
+                .short('N')
                 .long("line-number"),
         )
         // exec flag.
         //
         .arg(
-            Arg::with_name("exec")
+            Arg::new("exec")
                 .help("Run the command directly, not through the shell. Much like the `-x` option of the watch command.")
-                .short("x")
+                .short('x')
                 .long("exec"),
         )
         // -- options --
@@ -170,17 +175,17 @@ fn build_app() -> clap::App<'static, 'static> {
         //      {timestamp: "...", command: "....", output: ".....", ...}
         //      {timestamp: "...", command: "....", output: ".....", ...}
         .arg(
-            Arg::with_name("logfile")
+            Arg::new("logfile")
                 .help("logging file")
-                .short("l")
+                .short('l')
                 .long("logfile")
                 .takes_value(true),
         )
         // shell command
         .arg(
-            Arg::with_name("shell_command")
+            Arg::new("shell_command")
                 .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
-                .short("s")
+                .short('s')
                 .long("shell")
                 .takes_value(true)
                 .default_value(SHELL_COMMAND),
@@ -188,9 +193,9 @@ fn build_app() -> clap::App<'static, 'static> {
         // Interval option
         //   [--interval,-n] second(default:2)
         .arg(
-            Arg::with_name("interval")
+            Arg::new("interval")
                 .help("seconds to wait between updates")
-                .short("n")
+                .short('n')
                 .long("interval")
                 .takes_value(true)
                 .default_value("2"),
@@ -202,14 +207,16 @@ fn main() {
     let matche = build_app().get_matches();
 
     // Get options flag
-    let batch = matche.is_present("batch");
+    // let batch = matche.is_present("batch");
     let diff = matche.is_present("differences");
     let color = matche.is_present("color");
     let is_exec = matche.is_present("exec");
     let line_number = matche.is_present("line_number");
 
     // Get options value
-    let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
+    // let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
+    let interval: f64 = matche.value_of_t_or_exit("interval");
+
     // let exec = matche.value_of("exec");
     let logfile = matche.value_of("logfile");
 
@@ -261,28 +268,28 @@ fn main() {
     }
 
     // check batch mode
-    if !batch {
-        // is watch mode
-        // Create view
-        let mut view = view::View::new()
-            // Set interval on view.header
-            .set_interval(interval)
-            // Set color in view
-            .set_color(color)
-            // Set line number in view
-            .set_line_number(line_number)
-            // Set diff(watch diff) in view
-            .set_watch_diff(diff);
+    // if !batch {
+    // is watch mode
+    // Create view
+    let mut view = view::View::new()
+        // Set interval on view.header
+        .set_interval(interval)
+        // Set color in view
+        .set_color(color)
+        // Set line number in view
+        .set_line_number(line_number)
+        // Set diff(watch diff) in view
+        .set_watch_diff(diff);
 
-        // Set logfile
-        if logfile != None {
-            view = view.set_logfile(logfile.unwrap().to_string());
-        }
-
-        // start app.
-        let _res = view.start(tx.clone(), rx);
-    } else {
-        // is batch mode
-        println!("is batch (developing now)");
+    // Set logfile
+    if logfile != None {
+        view = view.set_logfile(logfile.unwrap().to_string());
     }
+
+    // start app.
+    let _res = view.start(tx.clone(), rx);
+    // } else {
+    //     // is batch mode
+    //     println!("is batch (developing now)");
+    // }
 }
