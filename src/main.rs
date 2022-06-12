@@ -3,6 +3,7 @@
 // that can be found in the LICENSE file.
 
 // v0.3.7
+// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blakcnon): Windows対応
 //                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blakcnon): batch modeの実装.

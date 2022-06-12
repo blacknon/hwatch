@@ -17,7 +17,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcb2392079bf27198570d6af79ecbd9ec7d8f16d3ec6b60933922fdb66287127"
 dependencies = [
- "heapless",
+ "heapless 0.5.6",
  "nom 4.2.3",
 ]
 
@@ -629,6 +629,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "heapless"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "634bd4d29cbf24424d0a4bfcbf80c6960129dc24424752a7d1d1390607023422"
+dependencies = [
+ "as-slice",
+ "generic-array 0.14.5",
+ "hash32",
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -655,7 +667,7 @@ dependencies = [
  "crossterm 0.22.1",
  "difference",
  "futures",
- "heapless",
+ "heapless 0.6.1",
  "regex",
  "serde",
  "serde_derive",
