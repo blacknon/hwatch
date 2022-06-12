@@ -8,7 +8,7 @@ hwatch.sublime-project
 .vscode*
 
 # Rust files
-Cargo.lock
+#Cargo.lock
 tmp*
 /target/
 .rustc_info.json
