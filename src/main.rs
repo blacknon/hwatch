@@ -29,7 +29,6 @@
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
 
-#[warn(unused_doc_comments)]
 // crate
 extern crate ansi_parser;
 extern crate async_std;
@@ -78,25 +77,25 @@ mod watch;
 // const
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
-pub const SHELL_COMMAND_EXECCMD: &'static str = "{COMMAND}";
+pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 
 // const at Windows
 #[cfg(windows)]
-const LINE_ENDING: &'static str = "\r\n";
+const LINE_ENDING: &str = "\r\n";
 #[cfg(windows)]
-const SHELL_COMMAND: &'static str = "cmd /C";
+const SHELL_COMMAND: &str = "cmd /C";
 
 // const at not Windows
 #[cfg(not(windows))]
-const LINE_ENDING: &'static str = "\n";
+const LINE_ENDING: &str = "\n";
 #[cfg(not(windows))]
-const SHELL_COMMAND: &'static str = "sh -c";
+const SHELL_COMMAND: &str = "sh -c";
 
 /// Parse args and options function.
 fn build_app() -> clap::Command<'static> {
     // get own name
     let _program = args()
-        .nth(0)
+        .next()
         .and_then(|s| {
             std::path::PathBuf::from(s)
                 .file_stem()
@@ -223,7 +222,7 @@ fn main() {
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
     if logfile != None {
-        let _log_path = Path::new(logfile.clone().unwrap());
+        let _log_path = Path::new(logfile.unwrap());
         let _log_dir = _log_path.parent().unwrap();
 
         // check _log_path exist
