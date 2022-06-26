@@ -37,31 +37,30 @@ That records the result of command execution and can display it history and diff
 
 ## Usage
 
-    hwatch 0.3.5
+    hwatch 0.3.6
     blacknon <blacknon@orebibou.com>
-    A modern alternative to the watch command, records the differences in execution results and can check this differences
-    at after.
+    A modern alternative to the watch command, records the differences in execution results and can
+    check this differences at after.
 
     USAGE:
-        hwatch [FLAGS] [OPTIONS] <command>...
-
-    FLAGS:
-        -c, --color          interpret ANSI color and style sequences
-        -d, --differences    highlight changes between updates
-        -N, --line-number    show line number
-        -x, --exec           Run the command directly, not through the shell. Much like the `-x` option of the watch
-                             command.
-        -h, --help           Prints help information
-        -V, --version        Prints version information
-
-    OPTIONS:
-        -l, --logfile <logfile>        logging file
-        -s, --shell <shell_command>    shell to use at runtime. can  also insert the command to the location specified by
-                                       {COMMAND}. [default: sh -c]
-        -n, --interval <interval>      seconds to wait between updates [default: 2]
+        hwatch [OPTIONS] <command>...
 
     ARGS:
         <command>...
+
+    OPTIONS:
+        -c, --color                    interpret ANSI color and style sequences
+        -d, --differences              highlight changes between updates
+        -N, --line-number              show line number
+        -x, --exec                     Run the command directly, not through the shell. Much like the
+                                       `-x` option of the watch command.
+        -l, --logfile <logfile>        logging file
+        -s, --shell <shell_command>    shell to use at runtime. can  also insert the command to the
+                                       location specified by {COMMAND}. [default: "sh -c"]
+        -n, --interval <interval>      seconds to wait between updates [default: 2]
+        -h, --help                     Print help information
+        -V, --version                  Print version information
+
 
 watch window keybind
 

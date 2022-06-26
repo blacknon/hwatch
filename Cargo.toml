@@ -11,6 +11,8 @@ version = "0.3.7"
 
 [dependencies]
 ansi-parser = "0.8.0"
+# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
+# ansi-parser = {version = "0.9.0", path = "../ansi-parser"}
 async-std = {version = "1.11"}
 chrono = "0.4"
 clap = {version = "3.1.18", features = ["cargo"]}
@@ -19,8 +21,9 @@ crossterm = "0.22"
 difference = "2.0"
 futures = "0.3.21"
 # TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
-heapless = "0.6.1"
-# heapless = "0.5.6"
+# heapless = "0.7.13"
+# heapless = "0.6.1"
+heapless = "0.5.6"
 regex = "1.3.0"
 serde = "1.0.104"
 serde_derive = "1.0.104"
