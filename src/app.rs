@@ -3,17 +3,13 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::{Receiver, Sender};
-#[warn(unused_doc_comments)]
 // module
-use crossterm::event::{
-    Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use regex::Regex;
 use std::{collections::HashMap, io};
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    text::Spans,
+    layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
 
@@ -158,8 +154,8 @@ impl<'a> App<'a> {
 
             done: false,
             logfile: "".to_string(),
-            tx: tx,
-            rx: rx,
+            tx,
+            rx,
         }
     }
 
@@ -214,12 +210,9 @@ impl<'a> App<'a> {
         self.history_area.draw(f);
 
         // match help mode
-        match self.window {
-            ActiveWindow::Help => {
-                self.help_window.draw(f);
-                return;
-            }
-            _ => {}
+        if let ActiveWindow::Help = self.window {
+            self.help_window.draw(f);
+            return;
         }
 
         // match input_mode
@@ -277,14 +270,12 @@ impl<'a> App<'a> {
 
         // check result size.
         //　If the size of result is not 0 or more, return and not process.
-        if self.results.len() == 0 {
+        if self.results.is_empty() {
             return;
         }
 
         // text_src ... old text.
-        // text_dst ... new text.
         let text_src: &str;
-        let text_dst: &str;
 
         // set target number at new history.
         let mut target_dst: usize = num;
@@ -298,11 +289,11 @@ impl<'a> App<'a> {
         let target_src = target_dst - 1;
 
         // set new text(text_dst)
-        match self.output_mode {
-            OutputMode::Output => text_dst = &self.results[&target_dst].output,
-            OutputMode::Stdout => text_dst = &self.results[&target_dst].stdout,
-            OutputMode::Stderr => text_dst = &self.results[&target_dst].stderr,
-        }
+        let text_dst = match self.output_mode {
+            OutputMode::Output => &self.results[&target_dst].output,
+            OutputMode::Stdout => &self.results[&target_dst].stdout,
+            OutputMode::Stderr => &self.results[&target_dst].stderr,
+        };
 
         // set old text(text_src)
         if self.results.len() > target_src {
@@ -315,34 +306,28 @@ impl<'a> App<'a> {
             text_src = "";
         }
 
-        let output_data: Vec<Spans>;
-        match self.diff_mode {
-            DiffMode::Disable => {
-                output_data = output::get_plane_output(
-                    self.ansi_color,
-                    self.line_number,
-                    &text_dst,
-                    self.is_filtered,
-                    self.is_regex_filter,
-                    &self.filtered_text,
-                );
-            }
+        let output_data = match self.diff_mode {
+            DiffMode::Disable => output::get_plane_output(
+                self.ansi_color,
+                self.line_number,
+                text_dst,
+                self.is_filtered,
+                self.is_regex_filter,
+                &self.filtered_text,
+            ),
 
             DiffMode::Watch => {
-                output_data =
-                    output::get_watch_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
+                output::get_watch_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
 
             DiffMode::Line => {
-                output_data =
-                    output::get_line_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
+                output::get_line_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
 
             DiffMode::Word => {
-                output_data =
-                    output::get_word_diff(self.ansi_color, self.line_number, &text_src, &text_dst);
+                output::get_word_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
-        }
+        };
 
         self.watch_area.update_output(output_data);
     }
@@ -404,7 +389,7 @@ impl<'a> App<'a> {
     fn set_input_mode(&mut self, input_mode: InputMode) {
         self.input_mode = input_mode;
 
-        self.header_area.set_input_mode(self.input_mode.clone());
+        self.header_area.set_input_mode(self.input_mode);
         self.header_area.update();
     }
 
@@ -419,8 +404,8 @@ impl<'a> App<'a> {
         let latest_num = counter - 1;
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
-            status: self.results[&latest_num].status.clone(),
-            num: 0 as u16,
+            status: self.results[&latest_num].status,
+            num: 0,
         });
 
         for result in self.results.clone().into_iter() {
@@ -438,17 +423,15 @@ impl<'a> App<'a> {
                     if !regex_match {
                         is_push = false;
                     }
-                } else {
-                    if !result_text.contains(&self.filtered_text) {
-                        is_push = false;
-                    }
+                } else if !result_text.contains(&self.filtered_text) {
+                    is_push = false;
                 }
             }
 
             if is_push {
                 tmp_history.push(History {
                     timestamp: result.1.timestamp.clone(),
-                    status: result.1.status.clone(),
+                    status: result.1.status,
                     num: result.0 as u16,
                 });
             }
@@ -476,8 +459,7 @@ impl<'a> App<'a> {
         // let mut results = self.results;
 
         // check results size.
-        let mut latest_result: &CommandResult;
-        let tmp_result = CommandResult {
+        let mut latest_result = CommandResult {
             timestamp: "".to_string(),
             command: "".to_string(),
             status: true,
@@ -486,14 +468,12 @@ impl<'a> App<'a> {
             stderr: "".to_string(),
         };
 
-        // set tmp result
-        latest_result = &tmp_result;
-        if self.results.len() == 0 {
+        if self.results.is_empty() {
             // diff output data.
-            self.results.insert(0, tmp_result.clone());
+            self.results.insert(0, latest_result.clone());
         } else {
             let latest_num = self.results.len() - 1;
-            latest_result = &self.results[&latest_num];
+            latest_result = self.results[&latest_num].clone();
         }
 
         // update HeaderArea
@@ -501,17 +481,17 @@ impl<'a> App<'a> {
         self.header_area.update();
 
         // check result diff
-        let check_result_diff = differences_result(latest_result, &_result);
+        let check_result_diff = differences_result(&latest_result, &_result);
         if check_result_diff {
             return;
         }
 
         // append results
         let result_index = self.results.len();
-        self.results.insert(result_index, _result.clone());
+        self.results.insert(result_index, _result);
 
         // logging result.
-        if self.logfile != "" {
+        if !self.logfile.is_empty() {
             let _ = logging_result(&self.logfile, &self.results[&result_index]);
         }
 
@@ -541,7 +521,7 @@ impl<'a> App<'a> {
             let _timestamp = &self.results[&result_index].timestamp;
             let _status = &self.results[&result_index].status;
             self.history_area
-                .update(_timestamp.to_string(), _status.clone(), result_index as u16);
+                .update(_timestamp.to_string(), *_status, result_index as u16);
 
             // update selected
             if selected != 0 {
@@ -766,8 +746,8 @@ impl<'a> App<'a> {
 
     ///
     fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
-        match terminal_event {
-            Event::Key(key) => match key.code {
+        if let Event::Key(key) = terminal_event {
+            match key.code {
                 KeyCode::Char(c) => {
                     // add header input_text;
                     self.header_area.input_text.push(c);
@@ -816,40 +796,30 @@ impl<'a> App<'a> {
                 }
 
                 _ => {}
-            },
-
-            _ => {}
+            }
         }
     }
 
     // Not currently used.
     ///
-    fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
-        let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
-        match mouse_event_tupple {
-            // Click Mouse Left.
-            (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) => {
-                self.mouse_click_left(mouse_event.column, mouse_event.row);
-            }
-
-            _ => {}
-        }
-    }
+    //fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
+    //    let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
+    //    if let (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) = mouse_event_tupple {
+    //        self.mouse_click_left(mouse_event.column, mouse_event.row);
+    //    }
+    //}
 
     ///
     fn toggle_area(&mut self) {
-        match self.window {
-            ActiveWindow::Normal => {
-                match self.area {
-                    ActiveArea::Watch => self.area = ActiveArea::History,
-                    ActiveArea::History => self.area = ActiveArea::Watch,
-                }
-
-                // set active window to header.
-                self.header_area.set_active_area(self.area.clone());
-                self.header_area.update();
+        if let ActiveWindow::Normal = self.window {
+            match self.area {
+                ActiveArea::Watch => self.area = ActiveArea::History,
+                ActiveArea::History => self.area = ActiveArea::Watch,
             }
-            _ => {}
+
+            // set active window to header.
+            self.header_area.set_active_area(self.area);
+            self.header_area.update();
         }
     }
 
@@ -931,40 +901,34 @@ impl<'a> App<'a> {
     // It will not be supported until the following issues are resolved.
     //     - https://github.com/fdehau/tui-rs/issues/495
     ///
-    fn input_key_pgup(&mut self) {}
+    //fn input_key_pgup(&mut self) {}
 
     // NOTE: TODO:
     // Not currently used.
     // It will not be supported until the following issues are resolved.
     //     - https://github.com/fdehau/tui-rs/issues/495
     ///
-    fn input_key_pgdn(&mut self) {}
+    //fn input_key_pgdn(&mut self) {}
 
     ///
     fn input_key_left(&mut self) {
-        match self.window {
-            ActiveWindow::Normal => {
-                self.area = ActiveArea::Watch;
+        if let ActiveWindow::Normal = self.window {
+            self.area = ActiveArea::Watch;
 
-                // set active window to header.
-                self.header_area.set_active_area(self.area.clone());
-                self.header_area.update();
-            }
-            _ => {}
+            // set active window to header.
+            self.header_area.set_active_area(self.area);
+            self.header_area.update();
         }
     }
 
     ///
     fn input_key_right(&mut self) {
-        match self.window {
-            ActiveWindow::Normal => {
-                self.area = ActiveArea::History;
+        if let ActiveWindow::Normal = self.window {
+            self.area = ActiveArea::History;
 
-                // set active window to header.
-                self.header_area.set_active_area(self.area.clone());
-                self.header_area.update();
-            }
-            _ => {}
+            // set active window to header.
+            self.header_area.set_active_area(self.area);
+            self.header_area.update();
         }
     }
 
@@ -972,48 +936,44 @@ impl<'a> App<'a> {
     // Not currently used.
     // It will not be supported until the following issues are resolved.
     //     - https://github.com/fdehau/tui-rs/issues/495
-    ///
-    fn mouse_click_left(&mut self, column: u16, row: u16) {
-        // check in hisotry area
-        let is_history_area = check_in_area(self.history_area.area, column, row);
-        if is_history_area {
-            let headline_count = self.history_area.area.y;
-            // self.history_area.click_row(row - headline_count);
+    //fn mouse_click_left(&mut self, column: u16, row: u16) {
+    //    // check in hisotry area
+    //    let is_history_area = check_in_area(self.history_area.area, column, row);
+    //    if is_history_area {
+    //        // let headline_count = self.history_area.area.y;
+    //        // self.history_area.click_row(row - headline_count);
 
-            // self.history_area.previous();
+    //        // self.history_area.previous();
 
-            let selected = self.history_area.get_state_select();
-            self.set_output_data(selected);
-        }
-    }
+    //        let selected = self.history_area.get_state_select();
+    //        self.set_output_data(selected);
+    //    }
+    //}
 
-    ///
-    fn mouse_scroll_up(&mut self, column: u16, row: u16) {}
+    //fn mouse_scroll_up(&mut self, _column: u16, _row: u16) {}
 
-    ///
-    fn mouse_scroll_down(&mut self, column: u16, row: u16) {}
+    //fn mouse_scroll_down(&mut self, _column: u16, _row: u16) {}
 }
 
-///
-fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
-    let mut result = true;
-
-    // get area range's
-    let area_top = area.top();
-    let area_bottom = area.bottom();
-    let area_left = area.left();
-    let area_right = area.right();
-
-    let area_row_range = area_top..area_bottom;
-    let area_column_range = area_left..area_right;
-
-    if !area_row_range.contains(&row) {
-        result = false;
-    }
-
-    if !area_column_range.contains(&column) {
-        result = false;
-    }
-
-    return result;
-}
+//fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
+//    let mut result = true;
+//
+//    // get area range's
+//    let area_top = area.top();
+//    let area_bottom = area.bottom();
+//    let area_left = area.left();
+//    let area_right = area.right();
+//
+//    let area_row_range = area_top..area_bottom;
+//    let area_column_range = area_left..area_right;
+//
+//    if !area_row_range.contains(&row) {
+//        result = false;
+//    }
+//
+//    if !area_column_range.contains(&column) {
+//        result = false;
+//    }
+//
+//    result
+//}

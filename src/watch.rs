@@ -58,7 +58,7 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn scroll_up(&mut self, num: i16) {
         if 0 <= self.position - num {
-            self.position = self.position - num
+            self.position -= num
         }
     }
 
@@ -69,7 +69,7 @@ impl<'a> WatchArea<'a> {
         let data_size = self.data.len() as i16;
 
         if data_size > self.position + num {
-            self.position = self.position + num
+            self.position += num
         }
     }
 }
