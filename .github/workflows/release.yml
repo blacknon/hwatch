@@ -13,8 +13,8 @@ on:
   push:
     branches:
       - master
-    paths:
-      - '!README.md'
+    paths-ignore:
+      - '**/README.md'
 
 jobs:
   # build rust binary
