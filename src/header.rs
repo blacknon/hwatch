@@ -158,16 +158,15 @@ impl<'a> HeaderArea<'a> {
         }
 
         // filter keyword.
-        let filter_keyword_width: usize;
-        if width > (POSITION_X_HELP_TEXT + 2 + 14) {
-            filter_keyword_width = width - POSITION_X_HELP_TEXT - 2 - 14;
+        let filter_keyword_width = if width > (POSITION_X_HELP_TEXT + 2 + 14) {
+            width - POSITION_X_HELP_TEXT - 2 - 14
         } else {
-            filter_keyword_width = 0;
-        }
+            0
+        };
         let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
         let filter_keyword_style: Style;
 
-        if self.input_text.len() == 0 {
+        if self.input_text.is_empty() {
             match self.input_mode {
                 InputMode::Filter => self.input_prompt = "/".to_string(),
                 InputMode::RegexFilter => self.input_prompt = "*".to_string(),
@@ -186,45 +185,39 @@ impl<'a> HeaderArea<'a> {
         let interval = format!("{:.3}", self.interval);
 
         // Set output type value
-        let value_output: String;
-        match self.output_mode {
-            OutputMode::Output => value_output = "Output".to_string(),
-            OutputMode::Stdout => value_output = "Stdout".to_string(),
-            OutputMode::Stderr => value_output = "Stderr".to_string(),
-        }
+        let value_output = match self.output_mode {
+            OutputMode::Output => "Output".to_string(),
+            OutputMode::Stdout => "Stdout".to_string(),
+            OutputMode::Stderr => "Stderr".to_string(),
+        };
 
         // Set Active Area value
-        let value_active: String;
-        match self.active_area {
-            ActiveArea::History => value_active = "history".to_string(),
-            ActiveArea::Watch => value_active = "watch".to_string(),
-        }
+        let value_active = match self.active_area {
+            ActiveArea::History => "history".to_string(),
+            ActiveArea::Watch => "watch".to_string(),
+        };
 
         // Set Diff mode value
-        let value_diff: String;
-        match self.diff_mode {
-            DiffMode::Disable => value_diff = "None".to_string(),
-            DiffMode::Watch => value_diff = "Watch".to_string(),
-            DiffMode::Line => value_diff = "Line".to_string(),
-            DiffMode::Word => value_diff = "Word".to_string(),
-        }
+        let value_diff = match self.diff_mode {
+            DiffMode::Disable => "None".to_string(),
+            DiffMode::Watch => "Watch".to_string(),
+            DiffMode::Line => "Line".to_string(),
+            DiffMode::Word => "Word".to_string(),
+        };
 
         // Set Color
-        let command_color: Color;
-        let is_color_enable_color: Color;
-        let is_line_number_enable_color: Color;
-        match self.exec_status {
-            true => command_color = Color::Green,
-            false => command_color = Color::Red,
-        }
-        match self.ansi_color {
-            true => is_color_enable_color = Color::Green,
-            false => is_color_enable_color = Color::Reset,
-        }
-        match self.line_number {
-            true => is_line_number_enable_color = Color::Green,
-            false => is_line_number_enable_color = Color::Reset,
-        }
+        let command_color = match self.exec_status {
+            true => Color::Green,
+            false => Color::Red,
+        };
+        let is_color_enable_color = match self.ansi_color {
+            true => Color::Green,
+            false => Color::Reset,
+        };
+        let is_line_number_enable_color = match self.line_number {
+            true => Color::Green,
+            false => Color::Reset,
+        };
 
         // Create 1st line.
         self.data.push(Spans::from(vec![
@@ -239,7 +232,7 @@ impl<'a> HeaderArea<'a> {
                 Style::default().fg(command_color),
             ),
             Span::styled(
-                format!("Display help with h key!"),
+                "Display help with h key!".to_string(),
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
             Span::styled(

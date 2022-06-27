@@ -24,7 +24,6 @@ That records the result of command execution and can display it history and diff
 
 ### macOS (brew)
 
-    brew tap blacknon/hwatch
     brew install hwatch
 
 ### macOS (MacPorts)
