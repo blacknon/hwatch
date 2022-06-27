@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::{Receiver, Sender};
-#[warn(unused_doc_comments)]
 // module
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
