@@ -59,9 +59,9 @@ impl HistoryArea {
         self.data.insert(
             1,
             vec![History {
-                timestamp: timestamp,
-                status: status,
-                num: num,
+                timestamp,
+                status,
+                num,
             }],
         );
     }
@@ -92,11 +92,10 @@ impl HistoryArea {
                 + 1;
             // set cell data
             let cells = item.iter().map(|c| {
-                let cell_style: Style;
-                match c.status {
-                    true => cell_style = Style::default().fg(Color::Green),
-                    false => cell_style = Style::default().fg(Color::Red),
-                }
+                let cell_style = match c.status {
+                    true => Style::default().fg(Color::Green),
+                    false => Style::default().fg(Color::Red),
+                };
                 Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
             });
 
@@ -118,8 +117,7 @@ impl HistoryArea {
             None => self.data.len() - 1,
         };
 
-        let result = self.data[i][0].num as usize;
-        return result;
+        self.data[i][0].num as usize
     }
 
     pub fn next(&mut self) {

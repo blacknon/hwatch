@@ -35,7 +35,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
             }
             Action::Control(ControlCode::LineFeed) => {
                 // finish the current span
-                current_line.push(Span::styled(span_text, span_style.into()));
+                current_line.push(Span::styled(span_text, span_style));
                 span_text = String::new();
 
                 // finish the current line
@@ -49,7 +49,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                 }
 
                 // finish the current span
-                current_line.push(Span::styled(span_text, span_style.into()));
+                current_line.push(Span::styled(span_text, span_style));
                 span_text = String::new();
 
                 match sgr {
@@ -132,7 +132,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
     // push any remaining data
     if !span_text.is_empty() {
         // finish the current span
-        current_line.push(Span::styled(span_text, span_style.into()));
+        current_line.push(Span::styled(span_text, span_style));
         // finish the current line
         spans.push(Spans::from(current_line));
     }
