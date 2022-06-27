@@ -78,6 +78,13 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
       - name: Build binary
         uses: actions-rs/cargo@v1
         with:

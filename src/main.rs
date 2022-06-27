@@ -16,8 +16,6 @@
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
 //                 - https://github.com/mitsuhiko/similar
-// TODO(blakcnon): Issue #48 の対応(https://github.com/blacknon/hwatch/issues/48).
-//                 …と思ったけど、コレもしかしてshell側の問題なのでは…？
 
 // v0.3.9
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
