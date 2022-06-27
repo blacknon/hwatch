@@ -24,10 +24,7 @@ impl<'a> HelpWindow<'a> {
     pub fn new() -> Self {
         let data = gen_help_text();
 
-        Self {
-            data: data,
-            position: 0,
-        }
+        Self { data, position: 0 }
     }
 
     ///
@@ -55,7 +52,7 @@ impl<'a> HelpWindow<'a> {
     ///
     pub fn scroll_up(&mut self, num: i16) {
         if 0 <= self.position - num {
-            self.position = self.position - num
+            self.position -= num
         }
     }
 
@@ -65,7 +62,7 @@ impl<'a> HelpWindow<'a> {
         let data_size = self.data.len() as i16;
 
         if data_size > self.position + num {
-            self.position = self.position + num
+            self.position += num
         }
     }
 }
@@ -73,46 +70,31 @@ impl<'a> HelpWindow<'a> {
 ///
 fn gen_help_text<'a>() -> Vec<Spans<'a>> {
     // set help messages.
-    let mut text = vec![];
-    text.push(Spans::from(" - [h] key   ... show this help message."));
+    let text = vec![
+        Spans::from(" - [h] key   ... show this help message."),
+        // toggle
+        Spans::from(" - [c] key   ... toggle color mode."),
+        Spans::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
+        // exit hwatch
+        Spans::from(" - [q] key   ... exit hwatch."),
+        // change diff
+        Spans::from(" - [0] key   ... disable diff."),
+        Spans::from(" - [1] key   ... switch Watch type diff."),
+        Spans::from(" - [2] key   ... switch Line type diff."),
+        Spans::from(" - [3] key   ... switch Word type diff."),
+        // change output
+        Spans::from(" - [F1] key  ... change output mode as stdout."),
+        Spans::from(" - [F2] key  ... change output mode as stderr."),
+        Spans::from(" - [F3] key  ... change output mode as output(stdout/stderr set.)"),
+        // change use area
+        Spans::from(" - [Tab] key ... toggle current area at history or watch."),
+        // filter text inpu
+        Spans::from(" - [/] key ... filter history by string."),
+        Spans::from(" - [*] key ... filter history by regex."),
+        Spans::from(" - [ESC] key ... unfiltering."),
+    ];
 
-    // toggle
-    text.push(Spans::from(" - [c] key   ... toggle color mode."));
-    text.push(Spans::from(
-        " - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. ",
-    ));
-
-    // exit hwatch
-    text.push(Spans::from(" - [q] key   ... exit hwatch."));
-
-    // change diff
-    text.push(Spans::from(" - [0] key   ... disable diff."));
-    text.push(Spans::from(" - [1] key   ... switch Watch type diff."));
-    text.push(Spans::from(" - [2] key   ... switch Line type diff."));
-    text.push(Spans::from(" - [3] key   ... switch Word type diff."));
-
-    // change output
-    text.push(Spans::from(
-        " - [F1] key  ... change output mode as stdout.",
-    ));
-    text.push(Spans::from(
-        " - [F2] key  ... change output mode as stderr.",
-    ));
-    text.push(Spans::from(
-        " - [F3] key  ... change output mode as output(stdout/stderr set.)",
-    ));
-
-    // change use area
-    text.push(Spans::from(
-        " - [Tab] key ... toggle current area at history or watch.",
-    ));
-
-    // filter text inpu
-    text.push(Spans::from(" - [/] key ... filter history by string."));
-    text.push(Spans::from(" - [*] key ... filter history by regex."));
-    text.push(Spans::from(" - [ESC] key ... unfiltering."));
-
-    return text;
+    text
 }
 
 ///
