@@ -1,9 +1,10 @@
-// Copyright (c) 2021 Blacknon. All rights reserved.
+// Copyright (c) 2022 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
 // v0.3.8
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
+// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加.
 // TODO(blakcnon): Windows対応
 //                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blakcnon): batch modeの実装.
