@@ -5,8 +5,6 @@
 // v0.3.8
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加.
-// TODO(blakcnon): Windows対応
-//                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
@@ -22,12 +20,15 @@
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成.
 //                 `OnlyLine`, `OnlyWord` mode.
+// TODO(blakcnon): Windows対応
+//                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
+// TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
 
 // crate
 extern crate ansi_parser;
