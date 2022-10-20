@@ -91,6 +91,9 @@ pub struct App<'a> {
     is_regex_filter: bool,
 
     ///
+    show_history: bool,
+
+    ///
     filtered_text: String,
 
     ///
@@ -142,6 +145,7 @@ impl<'a> App<'a> {
 
             ansi_color: false,
             line_number: false,
+            show_history: true,
 
             is_beep: false,
             is_filtered: false,
@@ -185,6 +189,8 @@ impl<'a> App<'a> {
 
             // get event
             match self.rx.recv() {
+                Ok(AppEvent::Redraw) => update_draw = true,
+
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
@@ -206,7 +212,7 @@ impl<'a> App<'a> {
                 // get exit event
                 Ok(AppEvent::Exit) => self.done = true,
 
-                _ => {}
+                Err(_) => {}
             }
         }
     }
@@ -221,8 +227,10 @@ impl<'a> App<'a> {
         // Draw watch area.
         self.watch_area.draw(f);
 
-        // Draw history area
-        self.history_area.draw(f);
+        if self.show_history {
+            // Draw history area
+            self.history_area.draw(f);
+        }
 
         // match help mode
         if let ActiveWindow::Help = self.window {
@@ -250,11 +258,17 @@ impl<'a> App<'a> {
         let top_chunks = Layout::default()
             .constraints([Constraint::Length(2), Constraint::Max(0)].as_ref())
             .split(total_area);
+
+        let history_width: u16 = match self.show_history {
+            true => HISTORY_WIDTH,
+            false => 0,
+        };
+
         let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(total_area.width - HISTORY_WIDTH),
-                    Constraint::Length(HISTORY_WIDTH),
+                    Constraint::Max(total_area.width - history_width),
+                    Constraint::Length(history_width),
                 ]
                 .as_ref(),
             )
@@ -703,6 +717,13 @@ impl<'a> App<'a> {
                     }
 
                     // Common input key
+                    // Backspace ... toggle history panel.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Backspace,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.toggle_history(),
+
+                    // Common input key
                     // h ... toggel help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
@@ -881,6 +902,12 @@ impl<'a> App<'a> {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
         }
+    }
+
+    ///
+    fn toggle_history(&mut self) {
+        self.show_history = !self.show_history;
+        let _ = self.tx.send(AppEvent::Redraw);
     }
 
     ///
