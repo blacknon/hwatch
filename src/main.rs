@@ -180,6 +180,12 @@ fn build_app() -> clap::Command<'static> {
                 .short('N')
                 .long("line-number"),
         )
+        .arg(
+            Arg::new("no_help_banner")
+            .help("hide the \"Display help with h key\" message")
+            .long("no-help-banner")
+        )
+
         // exec flag.
         //
         .arg(
@@ -233,6 +239,7 @@ fn main() {
     let beep = matche.is_present("beep");
     let color = matche.is_present("color");
     let hide_ui = matche.is_present("no_title");
+    let hide_help_banner = matche.is_present("no_help_banner");
     let is_exec = matche.is_present("exec");
     let line_number = matche.is_present("line_number");
 
@@ -313,7 +320,8 @@ fn main() {
         .set_line_number(line_number)
         // Set diff(watch diff) in view
         .set_watch_diff(diff)
-        .set_show_ui(!hide_ui);
+        .set_show_ui(!hide_ui)
+        .set_show_help_banner(!hide_help_banner);
 
     // Set logfile
     if let Some(logfile) = logfile {
