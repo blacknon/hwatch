@@ -75,6 +75,7 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         // toggle
         Spans::from(" - [c] key   ... toggle color mode."),
         Spans::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
+        Spans::from(" - [t] key   ... toggle ui (history pane & header both on/off). "),
         Spans::from(" - [Bkspace] ... toggle history pane. "),
         // exit hwatch
         Spans::from(" - [q] key   ... exit hwatch."),
