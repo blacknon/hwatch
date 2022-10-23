@@ -731,14 +731,14 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Backspace,
                         modifiers: KeyModifiers::NONE,
-                    }) => self.toggle_history(),
+                    }) => self.show_history(!self.show_history),
 
                     // Common input key
                     // t ... toggle ui
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('t'),
                         modifiers: KeyModifiers::NONE,
-                    }) => self.toggle_ui(),
+                    }) => self.show_ui(!self.show_header),
 
                     // Common input key
                     // h ... toggle help window.
@@ -880,17 +880,20 @@ impl<'a> App<'a> {
     //    }
     //}
 
+    fn set_area(&mut self, target: ActiveArea) {
+        self.area = target;
+        // set active window to header.
+        self.header_area.set_active_area(self.area);
+        self.header_area.update();
+    }
+
     ///
     fn toggle_area(&mut self) {
         if let ActiveWindow::Normal = self.window {
             match self.area {
-                ActiveArea::Watch => self.area = ActiveArea::History,
-                ActiveArea::History => self.area = ActiveArea::Watch,
+                ActiveArea::Watch => self.set_area(ActiveArea::History),
+                ActiveArea::History => self.set_area(ActiveArea::Watch),
             }
-
-            // set active window to header.
-            self.header_area.set_active_area(self.area);
-            self.header_area.update();
         }
     }
 
@@ -922,15 +925,18 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn toggle_history(&mut self) {
-        self.show_history = !self.show_history;
+    pub fn show_history(&mut self, visible: bool) {
+        self.show_history = visible;
+        if !visible {
+            self.set_area(ActiveArea::Watch);
+        }
         let _ = self.tx.send(AppEvent::Redraw);
     }
 
     ///
-    fn toggle_ui(&mut self) {
-        self.show_header = !self.show_header;
-        self.show_history = self.show_header;
+    pub fn show_ui(&mut self, visible: bool) {
+        self.show_header = visible;
+        self.show_history = visible;
         let _ = self.tx.send(AppEvent::Redraw);
     }
 
