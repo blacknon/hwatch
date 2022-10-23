@@ -220,8 +220,8 @@ fn main() {
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
-    if logfile != None {
-        let _log_path = Path::new(logfile.unwrap());
+    if let Some(logfile) = logfile {
+        let _log_path = Path::new(logfile);
         let _log_dir = _log_path.parent().unwrap();
 
         // check _log_path exist
@@ -280,12 +280,12 @@ fn main() {
         .set_watch_diff(diff);
 
     // Set logfile
-    if logfile != None {
-        view = view.set_logfile(logfile.unwrap().to_string());
+    if let Some(logfile) = logfile {
+        view = view.set_logfile(logfile.to_string());
     }
 
     // start app.
-    let _res = view.start(tx.clone(), rx);
+    let _res = view.start(tx, rx);
     // } else {
     //     // is batch mode
     //     println!("is batch (developing now)");
