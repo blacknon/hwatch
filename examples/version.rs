@@ -3,5 +3,5 @@
 // that can be found in the LICENSE file.
 
 fn main() {
-  println!("{}", env!("CARGO_PKG_VERSION"));
+    println!("{}", env!("CARGO_PKG_VERSION"));
 }
