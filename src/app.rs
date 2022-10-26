@@ -233,11 +233,9 @@ impl<'a> App<'a> {
         // Draw watch area.
         self.watch_area.draw(f);
 
-        if self.show_history {
-            self.history_area
-                .set_active(self.area == ActiveArea::History);
-            self.history_area.draw(f);
-        }
+        self.history_area
+            .set_active(self.area == ActiveArea::History);
+        self.history_area.draw(f);
 
         // match help mode
         if let ActiveWindow::Help = self.window {
@@ -264,7 +262,12 @@ impl<'a> App<'a> {
     fn define_subareas(&mut self, total_area: tui::layout::Rect) {
         let history_width: u16 = match self.show_history {
             true => HISTORY_WIDTH,
-            false => 0,
+            false => match self.area == ActiveArea::History
+                || self.history_area.get_state_select() != 0
+            {
+                true => 2,
+                false => 0,
+            },
         };
         let header_height: u16 = match self.show_header {
             true => 2,

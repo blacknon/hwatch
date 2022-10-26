@@ -84,9 +84,10 @@ impl HistoryArea {
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         // insert latest timestamp
+        const LATEST_COLOR: Color = Color::Blue;
         let draw_data = &self.data;
 
-        let rows = draw_data.iter().map(|item| {
+        let rows = draw_data.iter().enumerate().map(|(ix, item)| {
             // set table height
             let height = item
                 .iter()
@@ -96,10 +97,13 @@ impl HistoryArea {
                 + 1;
             // set cell data
             let cells = item.iter().map(|c| {
-                let cell_style = match c.status {
-                    true => Style::default().fg(Color::Green),
-                    false => Style::default().fg(Color::Red),
-                };
+                let cell_style = Style::default().fg(match ix {
+                    0 => LATEST_COLOR,
+                    _ => match c.status {
+                        true => Color::Green,
+                        false => Color::Red,
+                    },
+                });
                 Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
             });
 
@@ -108,7 +112,10 @@ impl HistoryArea {
 
         let base_selected_style = Style::default().add_modifier(Modifier::REVERSED);
         let selected_style = match self.active {
-            true => base_selected_style,
+            true => match self.get_state_select() == 0 {
+                true => base_selected_style.fg(LATEST_COLOR), // Necessary to make >> blue
+                false => base_selected_style,
+            },
             false => base_selected_style.fg(Color::DarkGray),
         };
         let table = Table::new(rows)
@@ -120,7 +127,7 @@ impl HistoryArea {
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 
-    pub fn get_state_select(&mut self) -> usize {
+    pub fn get_state_select(&self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
             None => self.data.len() - 1,
