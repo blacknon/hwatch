@@ -22,6 +22,8 @@ pub struct HistoryArea {
     ///
     pub area: tui::layout::Rect,
 
+    pub active: bool,
+
     ///
     data: Vec<Vec<History>>,
 
@@ -35,6 +37,7 @@ impl HistoryArea {
         //! new Self
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
+            active: false,
             data: vec![vec![History {
                 timestamp: "latest                 ".to_string(),
                 status: true,
@@ -46,6 +49,10 @@ impl HistoryArea {
 
     pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
+    }
+
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
     }
 
     pub fn set_latest_status(&mut self, latest_status: bool) {
@@ -79,9 +86,6 @@ impl HistoryArea {
         // insert latest timestamp
         let draw_data = &self.data;
 
-        // style
-        let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-
         let rows = draw_data.iter().map(|item| {
             // set table height
             let height = item
@@ -102,6 +106,11 @@ impl HistoryArea {
             Row::new(cells).height(height as u16)
         });
 
+        let base_selected_style = Style::default().add_modifier(Modifier::REVERSED);
+        let selected_style = match self.active {
+            true => base_selected_style,
+            false => base_selected_style.fg(Color::DarkGray),
+        };
         let table = Table::new(rows)
             .block(Block::default())
             .highlight_style(selected_style)
