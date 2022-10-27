@@ -198,7 +198,7 @@ impl<'a> App<'a> {
 
     ///
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.get_area(f);
+        self.define_subareas(f.size());
 
         // Draw header area.
         self.header_area.draw(f);
@@ -231,16 +231,14 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_area<B: Backend>(&mut self, f: &mut Frame<B>) {
-        // get Area's chunks
+    fn define_subareas(&mut self, total_area: tui::layout::Rect) {
         let top_chunks = Layout::default()
             .constraints([Constraint::Length(2), Constraint::Max(0)].as_ref())
-            .split(f.size());
-
-        let main_chanks = Layout::default()
+            .split(total_area);
+        let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(f.size().width - HISTORY_WIDTH),
+                    Constraint::Max(total_area.width - HISTORY_WIDTH),
                     Constraint::Length(HISTORY_WIDTH),
                 ]
                 .as_ref(),
@@ -248,11 +246,9 @@ impl<'a> App<'a> {
             .direction(Direction::Horizontal)
             .split(top_chunks[1]);
 
-        let areas = [top_chunks[0], main_chanks[0], main_chanks[1]];
-
-        self.header_area.set_area(areas[0]);
-        self.watch_area.set_area(areas[1]);
-        self.history_area.set_area(areas[2]);
+        self.header_area.set_area(top_chunks[0]);
+        self.watch_area.set_area(main_chunks[0]);
+        self.history_area.set_area(main_chunks[1]);
     }
 
     ///
