@@ -23,6 +23,53 @@ pub struct CommandResult {
     pub stderr: String,
 }
 
+impl Default for CommandResult {
+    fn default() -> Self {
+        CommandResult {
+            timestamp: String::default(),
+            command: String::default(),
+            status: true,
+            output: String::default(),
+            stdout: String::default(),
+            stderr: String::default(),
+        }
+    }
+}
+
+impl PartialEq for CommandResult {
+    fn eq(&self, other: &Self) -> bool {
+    // result
+    let mut result = true;
+
+    // command
+    if self.command != other.command {
+        result = false;
+    }
+
+    // status
+    if self.status != other.status {
+        result = false;
+    }
+
+    // output
+    if self.output != other.output {
+        result = false;
+    }
+
+    // stdout
+    if self.stdout != other.stdout {
+        result = false;
+    }
+
+    // stderr
+    if self.stderr != other.stderr {
+        result = false;
+    }
+
+    result
+    }
+}
+
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
     pub shell_command: String,
@@ -176,5 +223,70 @@ impl ExecuteCommand {
 
         // Send result
         let _ = self.tx.send(AppEvent::OutputUpdate(result));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_command_result_default() {
+        let command_result = CommandResult::default();
+        assert_eq!(command_result.command, "".to_string());
+    }
+
+    #[test]
+    fn test_command_result_clone() {
+        let command_result = CommandResult::default();
+        let command_result2 = command_result.clone();
+        assert!(command_result == command_result2);
+    }
+
+    #[test]
+    fn test_command_result_equality() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult::default();
+        assert!(command_result1 == command_result2);
+    }
+
+    #[test]
+    fn test_command_result_command_diff() {
+        let command_result1 = CommandResult::default();
+        let mut command_result2 = CommandResult::default();
+        command_result2.command = "different".to_string();
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_status_diff() {
+        let command_result1 = CommandResult::default();
+        let mut command_result2 = CommandResult::default();
+        command_result2.status = false;
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_output_diff() {
+        let command_result1 = CommandResult::default();
+        let mut command_result2 = CommandResult::default();
+        command_result2.output = "different".to_string();
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_stdout_diff() {
+        let command_result1 = CommandResult::default();
+        let mut command_result2 = CommandResult::default();
+        command_result2.stdout = "different".to_string();
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_stderr_diff() {
+        let command_result1 = CommandResult::default();
+        let mut command_result2 = CommandResult::default();
+        command_result2.stderr = "different".to_string();
+        assert!(command_result1 != command_result2);
     }
 }
