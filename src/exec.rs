@@ -13,7 +13,7 @@ use std::process::{Command, Stdio};
 use crate::common;
 use crate::event::AppEvent;
 
-#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
     pub timestamp: String,
     pub command: String,
@@ -33,6 +33,40 @@ impl Default for CommandResult {
             stdout: String::default(),
             stderr: String::default(),
         }
+    }
+}
+
+impl PartialEq for CommandResult {
+    fn eq(&self, other: &Self) -> bool {
+    // result
+    let mut result = true;
+
+    // command
+    if self.command != other.command {
+        result = false;
+    }
+
+    // status
+    if self.status != other.status {
+        result = false;
+    }
+
+    // output
+    if self.output != other.output {
+        result = false;
+    }
+
+    // stdout
+    if self.stdout != other.stdout {
+        result = false;
+    }
+
+    // stderr
+    if self.stderr != other.stderr {
+        result = false;
+    }
+
+    result
     }
 }
 
