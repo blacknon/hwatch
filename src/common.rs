@@ -6,6 +6,7 @@
 use chrono::Local;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+use std::error::Error;
 
 // local module
 use crate::exec::CommandResult;
@@ -16,14 +17,15 @@ pub fn now_str() -> String {
 }
 
 /// logging result data to log file(_logpath).
-pub fn logging_result(_logpath: &str, _result: &CommandResult) -> serde_json::Result<()> {
-    // Open logfile
-    let mut logfile = OpenOptions::new()
-        .write(true)
+pub fn logging_result(_logpath: &str, _result: &CommandResult) ->  Result<(), Box<dyn Error>> {
+    // try open logfile
+    let mut logfile = match OpenOptions::new().write(true)
         .create(true)
         .append(true)
-        .open(_logpath)
-        .unwrap();
+        .open(_logpath) {
+        Err(why) => {return Err(Box::new(why))},
+        Ok(file) => file,
+    };
 
     // create logline
     let logdata = serde_json::to_string(&_result)?;
