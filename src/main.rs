@@ -228,16 +228,19 @@ fn main() {
     if logfile != None {
         let _log_path = Path::new(logfile.unwrap());
         let _log_dir = _log_path.parent().unwrap();
+        let _cur_dir = std::env::current_dir().expect("cannot get current directory");
+        let _abs_log_path = _cur_dir.join(_log_path);
+        let _abs_log_dir = _cur_dir.join(_log_dir);
 
         // check _log_path exist
-        if Path::new(_log_path).exists() {
-            println!("file {:?} is exists.", _log_path);
+        if _abs_log_path.exists() {
+            println!("file {:?} is exists.", _abs_log_path);
             std::process::exit(1);
         }
 
         // check _log_dir exist
-        if !Path::new(_log_dir).exists() {
-            println!("directory {:?} is not exists.", _log_dir);
+        if !_abs_log_dir.exists() {
+            println!("directory {:?} is not exists.", _abs_log_dir);
             std::process::exit(1);
         }
     }
