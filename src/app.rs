@@ -14,7 +14,7 @@ use tui::{
 };
 
 // local module
-use crate::common::{differences_result, logging_result};
+use crate::common::logging_result;
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::header::HeaderArea;
@@ -459,14 +459,7 @@ impl<'a> App<'a> {
         // let mut results = self.results;
 
         // check results size.
-        let mut latest_result = CommandResult {
-            timestamp: "".to_string(),
-            command: "".to_string(),
-            status: true,
-            output: "".to_string(),
-            stdout: "".to_string(),
-            stderr: "".to_string(),
-        };
+        let mut latest_result = CommandResult::default();
 
         if self.results.is_empty() {
             // diff output data.
@@ -481,8 +474,7 @@ impl<'a> App<'a> {
         self.header_area.update();
 
         // check result diff
-        let check_result_diff = differences_result(&latest_result, &_result);
-        if check_result_diff {
+        if latest_result == _result {
             return;
         }
 
