@@ -242,9 +242,7 @@ fn main() {
                 .show_defaults()
                 .confirm();
 
-            if answer == Answer::YES {
-                println!("Onward then!");
-            } else {
+            if answer != Answer::YES {
                 std::process::exit(1);
             }
         }
