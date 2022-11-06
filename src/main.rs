@@ -3,20 +3,19 @@
 // that can be found in the LICENSE file.
 
 // v0.3.8
-// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
-// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加.
+// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加(なんかもうコードあるっぽい？？).
+//                 - https://github.com/blacknon/hwatch/issues/63
+// TODO: - https://github.com/blacknon/hwatch/issues/64
+//
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加
 //                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
 //                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 //                 - また、実行時にはシェルも指定して呼び出せるようにする？
-// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
-// TODO(blacknon): エラーなどのメッセージ表示領域の作成
-// TODO(blacknon): diffのライブラリをsimilarに切り替える？
-//                 - https://github.com/mitsuhiko/similar
 
 // v0.3.9
+// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成.
 //                 `OnlyLine`, `OnlyWord` mode.
@@ -29,6 +28,10 @@
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
 // TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
+// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
+// TODO(blacknon): エラーなどのメッセージ表示領域の作成
+// TODO(blacknon): diffのライブラリをsimilarに切り替える？
+//                 - https://github.com/mitsuhiko/similar
 
 // crate
 extern crate ansi_parser;
