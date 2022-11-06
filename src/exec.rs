@@ -13,7 +13,7 @@ use std::process::{Command, Stdio};
 use crate::common;
 use crate::event::AppEvent;
 
-#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
     pub timestamp: String,
     pub command: String,
@@ -33,6 +33,15 @@ impl Default for CommandResult {
             stdout: String::default(),
             stderr: String::default(),
         }
+    }
+}
+impl PartialEq for CommandResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.command == other.command
+            && self.status == other.status
+            && self.output == other.output
+            && self.stdout == other.stdout
+            && self.stderr == other.stderr
     }
 }
 
@@ -195,6 +204,15 @@ impl ExecuteCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_command_result_comparison() {
+        let command_result = CommandResult::default();
+        let mut command_result_2 = CommandResult::default();
+        //Timestamp is not part of the comparison. Let's ensure it's different to prove.
+        command_result_2.timestamp = "SomeOtherTime".to_string();
+        assert!(command_result == command_result_2);
+    }
 
     #[test]
     fn test_command_result_default() {
