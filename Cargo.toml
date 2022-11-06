@@ -10,9 +10,9 @@ repository = "https://github.com/blacknon/hwatch"
 version = "0.3.8"
 
 [dependencies]
-ansi-parser = "0.8.0"
-# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
+# TODO: [ansi-parser](https://crates.io/crates/ansi-parser)のバージョンアップ対応が必要になるので、その対応待ち. PRはmargeされたのでいい加減アップデートされてもいいと思うのだが….
 # ansi-parser = {version = "0.9.0", path = "../ansi-parser"}
+ansi-parser = "0.8.0"
 async-std = {version = "1.11"}
 chrono = "0.4.19"
 clap = {version = "3.1.18", features = ["cargo"]}

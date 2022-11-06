@@ -65,7 +65,7 @@ watch window keybind
 
 - <kbd>↑</kbd>, <kbd>↓</kbd>  ... move selected screen(history/watch).
 - <kbd>←</kbd>   ... select watch screen.
-- <kbd>→</kbd>   ... select watch screend.
+- <kbd>→</kbd>   ... select history screen.
 - <kbd>H</kbd>   ... show help window.
 - <kbd>C</kbd>   ... toggle color.
 - <kbd>D</kbd>   ... switch diff mode.
