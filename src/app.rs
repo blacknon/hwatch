@@ -12,6 +12,8 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
+use beep::beep;
+
 
 // local module
 use crate::common::logging_result;
@@ -186,6 +188,7 @@ impl<'a> App<'a> {
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
                     self.update_result(exec_result);
                     update_draw = true;
+                    let _ = beep(880);
                 }
 
                 // get exit event

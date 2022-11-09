@@ -13,14 +13,14 @@
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
 //                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 //                 - また、実行時にはシェルも指定して呼び出せるようにする？
+// TODO(blacknon): Number, Color, Beepなどの表示を工夫する(true時は太字で色付き、false時は色を薄くする、みたいな感じで…)
 
 // v0.3.9
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成.
-//                 `OnlyLine`, `OnlyWord` mode.
-// TODO(blakcnon): Windows対応
-//                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
+//                 `Line(Only)`, `Word(Only)` mode.
+//                 フラグにして、Line/Word diff時のみ有効にするような変更とする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
@@ -48,6 +48,7 @@ extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
 extern crate question;
+extern crate beep;
 
 // macro crate
 #[macro_use]
