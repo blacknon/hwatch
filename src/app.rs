@@ -12,7 +12,6 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
-use beep::beep;
 
 
 // local module
@@ -186,9 +185,11 @@ impl<'a> App<'a> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
+                    // TODO: update_resultのreturnで、更新対象だったかを識別させる(returnはあとで追加)
+                    //       得られた内容を元に、trueだった場合(updateが必要だった場合)にはbellを鳴らす(`printf(\a)`相当？？)
+                    // NOTE: printfで一瞬だけ出力をするのもありなのかも？？？(表示上の乱れはそう長くないと予測)
                     self.update_result(exec_result);
                     update_draw = true;
-                    let _ = beep(880);
                 }
 
                 // get exit event
@@ -458,9 +459,6 @@ impl<'a> App<'a> {
 
     ///
     fn update_result(&mut self, _result: CommandResult) {
-        // unlock self.results
-        // let mut results = self.results;
-
         // check results size.
         let mut latest_result = CommandResult::default();
 

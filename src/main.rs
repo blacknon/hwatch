@@ -48,7 +48,6 @@ extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
 extern crate question;
-extern crate beep;
 
 // macro crate
 #[macro_use]
