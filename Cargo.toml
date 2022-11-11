@@ -14,7 +14,6 @@ version = "0.3.8"
 # ansi-parser = {version = "0.9.0", path = "../ansi-parser"}
 ansi-parser = "0.8.0"
 async-std = {version = "1.11"}
-beep = "0.3.0"
 chrono = "0.4.19"
 clap = {version = "3.1.18", features = ["cargo"]}
 crossbeam-channel = "0.5.4"
