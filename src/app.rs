@@ -103,6 +103,9 @@ pub struct App<'a> {
     diff_mode: DiffMode,
 
     ///
+    is_only_diffline: bool,
+
+    ///
     results: HashMap<usize, CommandResult>,
 
     ///
@@ -148,6 +151,7 @@ impl<'a> App<'a> {
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
+            is_only_diffline: false,
 
             results: HashMap::new(),
 
@@ -328,11 +332,11 @@ impl<'a> App<'a> {
             }
 
             DiffMode::Line => {
-                output::get_line_diff(self.ansi_color, self.line_number, text_src, text_dst)
+                output::get_line_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
             }
 
             DiffMode::Word => {
-                output::get_word_diff(self.ansi_color, self.line_number, text_src, text_dst)
+                output::get_word_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
             }
         };
 
@@ -386,6 +390,16 @@ impl<'a> App<'a> {
         self.diff_mode = diff_mode;
 
         self.header_area.set_diff_mode(diff_mode);
+        self.header_area.update();
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
+        self.is_only_diffline = is_only_diffline;
+
         self.header_area.update();
 
         let selected = self.history_area.get_state_select();
@@ -594,11 +608,17 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.set_line_number(!self.line_number),
 
-                    // o
+                    // o(lower o)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('o'),
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_output(),
+
+                    // O(upper o). shift + o
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('O'),
+                        modifiers: KeyModifiers::SHIFT,
+                    }) => self.set_is_only_diffline(!self.is_only_diffline),
 
                     // 0 (DiffMode::Disable)
                     Event::Key(KeyEvent {
