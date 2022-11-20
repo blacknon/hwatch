@@ -140,7 +140,7 @@ impl<'a> HeaderArea<'a> {
         self.data = vec![];
 
         // help message
-        let help_message = "Display help with h key!";
+        const HELP_MESSAGE: &str = "Display help with h key!";
 
         // HeaderArea Width
         let width = self.area.width as usize;
@@ -151,7 +151,7 @@ impl<'a> HeaderArea<'a> {
         if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
             command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
             timestamp_width =
-                width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
+                width - (WIDTH_TEXT_INTERVAL + command_width + HELP_MESSAGE.len()) + 1;
         } else {
             command_width = 0;
             timestamp_width = 0;
@@ -232,7 +232,7 @@ impl<'a> HeaderArea<'a> {
                 Style::default().fg(command_color),
             ),
             Span::styled(
-                "Display help with h key!".to_string(),
+                HELP_MESSAGE.to_string(),
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
             Span::styled(
