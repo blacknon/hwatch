@@ -400,6 +400,7 @@ impl<'a> App<'a> {
     fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
         self.is_only_diffline = is_only_diffline;
 
+        self.header_area.set_is_only_diffline(is_only_diffline);
         self.header_area.update();
 
         let selected = self.history_area.get_state_select();
