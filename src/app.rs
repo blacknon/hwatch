@@ -13,6 +13,7 @@ use tui::{
     Frame, Terminal,
 };
 
+
 // local module
 use crate::common::logging_result;
 use crate::event::AppEvent;
@@ -81,6 +82,9 @@ pub struct App<'a> {
     line_number: bool,
 
     ///
+    is_beep: bool,
+
+    ///
     is_filtered: bool,
 
     ///
@@ -136,6 +140,7 @@ impl<'a> App<'a> {
             ansi_color: false,
             line_number: false,
 
+            is_beep: false,
             is_filtered: false,
             is_regex_filter: false,
             filtered_text: "".to_string(),
@@ -184,7 +189,13 @@ impl<'a> App<'a> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    self.update_result(exec_result);
+                    let _exec_return = self.update_result(exec_result);
+
+                    // beep
+                    if _exec_return && self.is_beep {
+                        println!("\x07")
+                    }
+
                     update_draw = true;
                 }
 
@@ -354,6 +365,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_beep(&mut self, beep: bool) {
+        self.is_beep = beep;
+    }
+
+    ///
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
 
@@ -454,10 +470,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn update_result(&mut self, _result: CommandResult) {
-        // unlock self.results
-        // let mut results = self.results;
-
+    fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
         let mut latest_result = CommandResult::default();
 
@@ -475,7 +488,7 @@ impl<'a> App<'a> {
 
         // check result diff
         if latest_result == _result {
-            return;
+            return false;
         }
 
         // append results
@@ -523,7 +536,9 @@ impl<'a> App<'a> {
         selected = self.history_area.get_state_select();
 
         // update WatchArea
-        self.set_output_data(selected)
+        self.set_output_data(selected);
+
+        return true;
     }
 
     ///
