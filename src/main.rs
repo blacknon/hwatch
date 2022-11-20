@@ -2,19 +2,21 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.9
-// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加(なんかもうコードあるっぽい？？).
-//                 - https://github.com/blacknon/hwatch/issues/63
-// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
-// TODO(blakcnon): batch modeの実装.
-// TODO(blacknon): 任意時点間のdiffが行えるようにする.
+// v0.3.8
+// TODO(blacknon): Number, Color, Beepなどの表示を工夫する(true時は太字で色付き、false時は色を薄くする、みたいな感じで…)
 // TODO(blacknon): diffのある箇所だけを表示するモードの作成.
 //                 `Line(Only)`, `Word(Only)` mode.
 //                 フラグにして、Line/Word diff時のみ有効にするような変更とする.
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
 //                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 //                 - また、実行時にはシェルも指定して呼び出せるようにする？
-// TODO(blacknon): Number, Color, Beepなどの表示を工夫する(true時は太字で色付き、false時は色を薄くする、みたいな感じで…)
+
+// v0.3.9
+// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加(なんかもうコードあるっぽい？？).
+//                 - https://github.com/blacknon/hwatch/issues/63
+// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
+// TODO(blakcnon): batch modeの実装.
+// TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
