@@ -23,6 +23,7 @@ use crate::DEFAULT_INTERVAL;
 #[derive(Clone)]
 pub struct View {
     interval: f64,
+    beep: bool,
     color: bool,
     line_number: bool,
     watch_diff: bool,
@@ -34,6 +35,7 @@ impl View {
     pub fn new() -> Self {
         Self {
             interval: DEFAULT_INTERVAL,
+            beep: false,
             color: false,
             line_number: false,
             watch_diff: false,
@@ -45,6 +47,12 @@ impl View {
         self.interval = interval;
         self
     }
+
+    pub fn set_beep(mut self, beep: bool) -> Self {
+        self.beep = beep;
+        self
+    }
+
 
     pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
@@ -91,6 +99,9 @@ impl View {
 
         // set interval
         app.set_interval(self.interval);
+
+        // set beep
+        app.set_beep(self.beep);
 
         // set logfile path.
         app.set_logpath(self.log_path.clone());

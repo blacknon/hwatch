@@ -137,7 +137,13 @@ fn build_app() -> clap::Command<'static> {
         //         .long("batch"),
         // )
         // Beep option
-        //     [-b,--beep]
+        //     [-B,--beep]
+        .arg(
+            Arg::new("beep")
+                .help("beep if command has a change result")
+                .short('B')
+                .long("beep"),
+        )
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
         // Enable ANSI color option
@@ -214,6 +220,7 @@ fn main() {
     // Get options flag
     // let batch = matche.is_present("batch");
     let diff = matche.is_present("differences");
+    let beep = matche.is_present("beep");
     let color = matche.is_present("color");
     let is_exec = matche.is_present("exec");
     let line_number = matche.is_present("line_number");
@@ -289,6 +296,7 @@ fn main() {
     let mut view = view::View::new()
         // Set interval on view.header
         .set_interval(interval)
+        .set_beep(beep)
         // Set color in view
         .set_color(color)
         // Set line number in view
