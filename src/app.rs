@@ -417,7 +417,13 @@ impl<'a> App<'a> {
         let mut tmp_history = vec![];
 
         // append result.
-        let latest_num = counter - 1;
+        let latest_num:usize;
+        if counter > 1 {
+            latest_num = counter - 1;
+        } else {
+            latest_num = 0;
+        }
+
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
             status: self.results[&latest_num].status,
