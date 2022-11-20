@@ -4,6 +4,7 @@
 
 // TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える(v0.3.0)
 // TODO: input内容の表示
+// TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
 use tui::{
     backend::Backend,
@@ -21,7 +22,7 @@ use crate::exec::CommandResult;
 use crate::DEFAULT_INTERVAL;
 
 //const
-const POSITION_X_HELP_TEXT: usize = 56;
+const POSITION_X_HELP_TEXT: usize = 53;
 const WIDTH_TEXT_INTERVAL: usize = 19;
 
 #[derive(Clone)]
@@ -57,6 +58,10 @@ pub struct HeaderArea<'a> {
     diff_mode: DiffMode,
 
     ///
+    is_only_diffline: bool,
+
+
+    ///
     output_mode: OutputMode,
 
     ///
@@ -88,6 +93,7 @@ impl<'a> HeaderArea<'a> {
             active_area: ActiveArea::History,
 
             diff_mode: DiffMode::Disable,
+            is_only_diffline: false,
 
             output_mode: OutputMode::Output,
 
@@ -131,6 +137,10 @@ impl<'a> HeaderArea<'a> {
         self.diff_mode = diff_mode;
     }
 
+    pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
+        self.is_only_diffline = is_only_diffline
+    }
+
     pub fn set_input_mode(&mut self, input_mode: InputMode) {
         self.input_mode = input_mode;
     }
@@ -159,7 +169,7 @@ impl<'a> HeaderArea<'a> {
 
         // filter keyword.
         let filter_keyword_width = if width > (POSITION_X_HELP_TEXT + 2 + 14) {
-            width - POSITION_X_HELP_TEXT - 2 - 14
+            width - POSITION_X_HELP_TEXT - 2 - 20
         } else {
             0
         };
@@ -197,12 +207,20 @@ impl<'a> HeaderArea<'a> {
             ActiveArea::Watch => "watch".to_string(),
         };
 
+        // Set IsOnlyDiffline value
+        let value_only_diffline: &str;
+        if self.is_only_diffline {
+            value_only_diffline = "(Only)";
+        } else {
+            value_only_diffline = "";
+        }
+
         // Set Diff mode value
         let value_diff = match self.diff_mode {
             DiffMode::Disable => "None".to_string(),
             DiffMode::Watch => "Watch".to_string(),
-            DiffMode::Line => "Line".to_string(),
-            DiffMode::Word => "Word".to_string(),
+            DiffMode::Line => ("Line".to_string() + value_only_diffline).to_string(),
+            DiffMode::Word => ("Word".to_string() + value_only_diffline).to_string(),
         };
 
         // Set Color
@@ -277,7 +295,7 @@ impl<'a> HeaderArea<'a> {
             // Diff Type
             Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
-                format!("{:wid$}", value_diff, wid = 5),
+                format!("{:wid$}", value_diff, wid = 10),
                 Style::default().fg(Color::Magenta),
             ),
         ]));
