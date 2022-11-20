@@ -2,15 +2,9 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.8
+// v0.3.9
 // TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加(なんかもうコードあるっぽい？？).
 //                 - https://github.com/blacknon/hwatch/issues/63
-// TODO: - https://github.com/blacknon/hwatch/issues/64
-//
-// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加
-//                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
-
-// v0.3.9
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.

@@ -35,6 +35,7 @@ impl Default for CommandResult {
         }
     }
 }
+
 impl PartialEq for CommandResult {
     fn eq(&self, other: &Self) -> bool {
         self.command == other.command
@@ -42,40 +43,6 @@ impl PartialEq for CommandResult {
             && self.output == other.output
             && self.stdout == other.stdout
             && self.stderr == other.stderr
-    }
-}
-
-impl PartialEq for CommandResult {
-    fn eq(&self, other: &Self) -> bool {
-    // result
-    let mut result = true;
-
-    // command
-    if self.command != other.command {
-        result = false;
-    }
-
-    // status
-    if self.status != other.status {
-        result = false;
-    }
-
-    // output
-    if self.output != other.output {
-        result = false;
-    }
-
-    // stdout
-    if self.stdout != other.stdout {
-        result = false;
-    }
-
-    // stderr
-    if self.stderr != other.stderr {
-        result = false;
-    }
-
-    result
     }
 }
 
