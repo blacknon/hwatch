@@ -28,6 +28,8 @@
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
 //                 - https://github.com/mitsuhiko/similar
+//                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
+//                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
 
 // crate
 extern crate ansi_parser;
