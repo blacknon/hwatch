@@ -30,6 +30,9 @@
 //                 - https://github.com/mitsuhiko/similar
 //                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
 //                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
+// TODO(blacknon): diffのとき、stdout/stderrでの比較時におけるdiffでhistoryも変化させる？
+//                 - データの扱いが変わってきそう？
+//                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
 
 // crate
 extern crate ansi_parser;
