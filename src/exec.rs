@@ -202,6 +202,9 @@ impl ExecuteCommand {
     }
 }
 
+
+// pub fn exec_after_comamnd(){}
+
 #[cfg(test)]
 mod tests {
     use super::*;

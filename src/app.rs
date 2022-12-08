@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: batch modeを処理するのはmain.rsではなく、こっち側でやらせるのが良さそう?
+
 use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
@@ -75,8 +77,7 @@ pub struct App<'a> {
     window: ActiveWindow,
 
     ///
-    /// debug
-    pub ansi_color: bool,
+    ansi_color: bool,
 
     ///
     line_number: bool,
