@@ -169,7 +169,7 @@ impl<'a> HeaderArea<'a> {
 
         // filter keyword.
         let filter_keyword_width = if width > (POSITION_X_HELP_TEXT + 2 + 14) {
-            width - POSITION_X_HELP_TEXT - 2 - 20
+            width - POSITION_X_HELP_TEXT - 2 - 14
         } else {
             0
         };
@@ -193,6 +193,30 @@ impl<'a> HeaderArea<'a> {
 
         // Get the data to display at header.
         let interval = format!("{:.3}", self.interval);
+
+        // Set number flag value
+        let value_number: Span = match self.line_number {
+            true => Span::styled(
+                format!("Number"),
+                Style::default().fg(Color::Green).add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD),
+            ),
+            false => Span::styled(
+                format!("Number"),
+                Style::default().fg(Color::Reset),
+            ),
+        };
+
+        // Set Color flag value
+        let value_color: Span = match self.ansi_color {
+            true => Span::styled(
+                format!("Color"),
+                Style::default().fg(Color::Green).add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD),
+            ),
+            false => Span::styled(
+                format!("Color"),
+                Style::default().fg(Color::Reset),
+            ),
+        };
 
         // Set output type value
         let value_output = match self.output_mode {
@@ -228,14 +252,6 @@ impl<'a> HeaderArea<'a> {
             true => Color::Green,
             false => Color::Red,
         };
-        let is_color_enable_color = match self.ansi_color {
-            true => Color::Green,
-            false => Color::Reset,
-        };
-        let is_line_number_enable_color = match self.line_number {
-            true => Color::Green,
-            false => Color::Reset,
-        };
 
         // Create 1st line.
         self.data.push(Spans::from(vec![
@@ -265,39 +281,41 @@ impl<'a> HeaderArea<'a> {
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
             // Line number flag
-            Span::styled("Number: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(
-                format!("{:wid$}", self.line_number, wid = 5),
-                Style::default().fg(is_line_number_enable_color),
-            ),
+            Span::raw("["),
+            value_number,
+            Span::raw("]"),
             Span::raw(" "),
             // Color flag
-            Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(
-                format!("{:wid$}", self.ansi_color, wid = 5),
-                Style::default().fg(is_color_enable_color),
-            ),
+            Span::raw("["),
+            value_color,
+            Span::raw("]"),
             Span::raw(" "),
             // Output Type
-            Span::styled("Output: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("["),
+            Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_output, wid = 6),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED),
             ),
+            Span::raw("]"),
             Span::raw(" "),
             // Active Area
+            Span::raw("["),
             Span::styled("Active: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_active, wid = 7),
-                Style::default().fg(Color::Cyan),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::REVERSED),
             ),
+            Span::raw("]"),
             Span::raw(" "),
             // Diff Type
+            Span::raw("["),
             Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_diff, wid = 10),
-                Style::default().fg(Color::Magenta),
+                Style::default().fg(Color::Magenta).add_modifier(Modifier::REVERSED),
             ),
+            Span::raw("]"),
         ]));
     }
 

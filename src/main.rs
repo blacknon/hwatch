@@ -3,10 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.8
-// TODO(blacknon): Number, Color, Beepなどの表示を工夫する(true時は太字で色付き、false時は色を薄くする、みたいな感じで…)
-// TODO(blacknon): diffのある箇所だけを表示するモードの作成.
-//                 `Line(Only)`, `Word(Only)` mode.
-//                 フラグにして、Line/Word diff時のみ有効にするような変更とする.
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
 //                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 //                 - また、実行時にはシェルも指定して呼び出せるようにする？
@@ -147,6 +143,13 @@ fn build_app() -> clap::Command<'static> {
         )
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
+        .arg(
+            Arg::new("after_change_command")
+                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_JSON}.")
+                .short('A')
+                .long("aftercommand")
+                .takes_value(true)
+        )
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
@@ -227,7 +230,6 @@ fn main() {
     let line_number = matche.is_present("line_number");
 
     // Get options value
-    // let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
     let interval: f64 = matche.value_of_t_or_exit("interval");
 
     // let exec = matche.value_of("exec");
