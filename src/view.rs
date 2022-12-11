@@ -5,7 +5,7 @@
 use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::{
-    // event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -24,6 +24,7 @@ use crate::DEFAULT_INTERVAL;
 pub struct View {
     interval: f64,
     beep: bool,
+    mouse_events: bool,
     color: bool,
     show_ui: bool,
     show_help_banner: bool,
@@ -38,6 +39,7 @@ impl View {
         Self {
             interval: DEFAULT_INTERVAL,
             beep: false,
+            mouse_events: false,
             color: false,
             show_ui: true,
             show_help_banner: true,
@@ -54,6 +56,11 @@ impl View {
 
     pub fn set_beep(mut self, beep: bool) -> Self {
         self.beep = beep;
+        self
+    }
+
+    pub fn set_mouse_events(mut self, mouse_events: bool) -> Self {
+        self.mouse_events = mouse_events;
         self
     }
 
@@ -95,11 +102,10 @@ impl View {
         // Setup Terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            // EnableMouseCapture,
-        )?;
+        execute!(stdout, EnterAlternateScreen)?;
+        if self.mouse_events {
+            execute!(stdout, EnableMouseCapture)?;
+        }
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         let _ = terminal.clear();
@@ -146,7 +152,7 @@ impl View {
         execute!(
             terminal.backend_mut(),
             LeaveAlternateScreen,
-            // DisableMouseCapture
+            DisableMouseCapture
         )?;
         terminal.show_cursor()?;
 

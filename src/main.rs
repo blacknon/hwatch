@@ -141,6 +141,13 @@ fn build_app() -> clap::Command<'static> {
                 .short('B')
                 .long("beep"),
         )
+        // Beep option
+        //     [-B,--beep]
+        .arg(
+            Arg::new("mouse")
+                .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
+                .long("mouse"),
+        )
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
         .arg(
@@ -254,6 +261,7 @@ fn main() {
     // let batch = matcher.is_present("batch");
     let diff = matcher.is_present("differences");
     let beep = matcher.is_present("beep");
+    let mouse_events = matcher.is_present("mouse");
     let color = matcher.is_present("color");
     let hide_ui = matcher.is_present("no_title");
     let hide_help_banner = matcher.is_present("no_help_banner");
@@ -331,6 +339,7 @@ fn main() {
         // Set interval on view.header
         .set_interval(interval)
         .set_beep(beep)
+        .set_mouse_events(mouse_events)
         // Set color in view
         .set_color(color)
         // Set line number in view
