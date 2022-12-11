@@ -133,7 +133,7 @@ impl View {
         terminal.show_cursor()?;
 
         if let Err(err) = res {
-            println!("{:?}", err)
+            println!("{err:?}")
         }
 
         Ok(())
