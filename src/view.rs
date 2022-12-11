@@ -53,7 +53,6 @@ impl View {
         self
     }
 
-
     pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
         self

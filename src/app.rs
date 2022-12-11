@@ -15,7 +15,6 @@ use tui::{
     Frame, Terminal,
 };
 
-
 // local module
 use crate::common::logging_result;
 use crate::event::AppEvent;
@@ -332,13 +331,21 @@ impl<'a> App<'a> {
                 output::get_watch_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
 
-            DiffMode::Line => {
-                output::get_line_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
-            }
+            DiffMode::Line => output::get_line_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
 
-            DiffMode::Word => {
-                output::get_word_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
-            }
+            DiffMode::Word => output::get_word_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
         };
 
         self.watch_area.update_output(output_data);
@@ -429,7 +436,7 @@ impl<'a> App<'a> {
         let mut tmp_history = vec![];
 
         // append result.
-        let latest_num:usize;
+        let latest_num: usize;
         if counter > 1 {
             latest_num = counter - 1;
         } else {

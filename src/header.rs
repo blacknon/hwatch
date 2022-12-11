@@ -60,7 +60,6 @@ pub struct HeaderArea<'a> {
     ///
     is_only_diffline: bool,
 
-
     ///
     output_mode: OutputMode,
 
@@ -198,24 +197,24 @@ impl<'a> HeaderArea<'a> {
         let value_number: Span = match self.line_number {
             true => Span::styled(
                 format!("Number"),
-                Style::default().fg(Color::Green).add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
             ),
-            false => Span::styled(
-                format!("Number"),
-                Style::default().fg(Color::Reset),
-            ),
+            false => Span::styled(format!("Number"), Style::default().fg(Color::Reset)),
         };
 
         // Set Color flag value
         let value_color: Span = match self.ansi_color {
             true => Span::styled(
                 format!("Color"),
-                Style::default().fg(Color::Green).add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
             ),
-            false => Span::styled(
-                format!("Color"),
-                Style::default().fg(Color::Reset),
-            ),
+            false => Span::styled(format!("Color"), Style::default().fg(Color::Reset)),
         };
 
         // Set output type value
@@ -295,7 +294,9 @@ impl<'a> HeaderArea<'a> {
             Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_output, wid = 6),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::REVERSED),
             ),
             Span::raw("]"),
             Span::raw(" "),
@@ -304,7 +305,9 @@ impl<'a> HeaderArea<'a> {
             Span::styled("Active: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_active, wid = 7),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::REVERSED),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::REVERSED),
             ),
             Span::raw("]"),
             Span::raw(" "),
@@ -313,7 +316,9 @@ impl<'a> HeaderArea<'a> {
             Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_diff, wid = 10),
-                Style::default().fg(Color::Magenta).add_modifier(Modifier::REVERSED),
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::REVERSED),
             ),
             Span::raw("]"),
         ]));

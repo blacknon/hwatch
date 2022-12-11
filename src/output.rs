@@ -344,7 +344,13 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
 // ==========
 
 ///
-pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_line_diff<'a>(
+    color: bool,
+    line_number: bool,
+    is_only_diffline: bool,
+    old: &str,
+    new: &str,
+) -> Vec<Spans<'a>> {
     // Create changeset
     let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
 
@@ -481,7 +487,13 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
 // ==========
 
 ///
-pub fn get_word_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_word_diff<'a>(
+    color: bool,
+    line_number: bool,
+    is_only_diffline: bool,
+    old: &str,
+    new: &str,
+) -> Vec<Spans<'a>> {
     // Create changeset
     let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
 
