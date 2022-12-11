@@ -259,21 +259,8 @@ fn main() {
 
     // Get options flag
     // let batch = matcher.is_present("batch");
-    let diff = matcher.is_present("differences");
-    let beep = matcher.is_present("beep");
-    let mouse_events = matcher.is_present("mouse");
-    let color = matcher.is_present("color");
-    let hide_ui = matcher.is_present("no_title");
-    let hide_help_banner = matcher.is_present("no_help_banner");
-    let is_exec = matcher.is_present("exec");
-    let line_number = matcher.is_present("line_number");
 
-    // Get options value
-    let interval: f64 = matcher.value_of_t_or_exit("interval");
-
-    // let exec = matche.value_of("exec");
     let logfile = matcher.value_of("logfile");
-
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
     if let Some(logfile) = logfile {
@@ -306,6 +293,7 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
+    let interval: f64 = matcher.value_of_t_or_exit("interval");
     // Start Command Thread
     {
         let m = matcher.clone();
@@ -321,7 +309,7 @@ fn main() {
             exe.command = m.values_of_lossy("command").unwrap();
 
             // Set is exec flag.
-            exe.is_exec = is_exec;
+            exe.is_exec = m.is_present("exec");
 
             // Exec command
             exe.exec_command();
@@ -338,16 +326,16 @@ fn main() {
     let mut view = view::View::new()
         // Set interval on view.header
         .set_interval(interval)
-        .set_beep(beep)
-        .set_mouse_events(mouse_events)
+        .set_beep(matcher.is_present("beep"))
+        .set_mouse_events(matcher.is_present("mouse"))
         // Set color in view
-        .set_color(color)
+        .set_color(matcher.is_present("color"))
         // Set line number in view
-        .set_line_number(line_number)
+        .set_line_number(matcher.is_present("line_number"))
         // Set diff(watch diff) in view
-        .set_watch_diff(diff)
-        .set_show_ui(!hide_ui)
-        .set_show_help_banner(!hide_help_banner);
+        .set_watch_diff(matcher.is_present("differences"))
+        .set_show_ui(!matcher.is_present("no_title"))
+        .set_show_help_banner(!matcher.is_present("no_help_banner"));
 
     // Set logfile
     if let Some(logfile) = logfile {
