@@ -229,25 +229,42 @@ fn build_app() -> clap::Command<'static> {
         )
 }
 
+fn get_clap_matcher() -> clap::ArgMatches {
+    let env_config = std::env::var("HWATCH").unwrap_or_default();
+    let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
+    let mut os_args = std::env::args_os();
+    let mut args: Vec<std::ffi::OsString> = vec![];
+    // First argument is the program name
+    args.push(os_args.next().unwrap());
+    // Environment variables go next so that they can be overridded
+    // TODO: Currently, the opposites of command-line options are not
+    // yet implemented. E.g., there is no `--no-color` to override
+    // `--color` in the HWATCH environment variable.
+    args.extend(env_args.iter().map(std::ffi::OsString::from));
+    args.extend(os_args);
+
+    build_app().get_matches_from(args)
+}
+
 fn main() {
     // Get command args matches
-    let matche = build_app().get_matches();
+    let matcher = get_clap_matcher();
 
     // Get options flag
-    // let batch = matche.is_present("batch");
-    let diff = matche.is_present("differences");
-    let beep = matche.is_present("beep");
-    let color = matche.is_present("color");
-    let hide_ui = matche.is_present("no_title");
-    let hide_help_banner = matche.is_present("no_help_banner");
-    let is_exec = matche.is_present("exec");
-    let line_number = matche.is_present("line_number");
+    // let batch = matcher.is_present("batch");
+    let diff = matcher.is_present("differences");
+    let beep = matcher.is_present("beep");
+    let color = matcher.is_present("color");
+    let hide_ui = matcher.is_present("no_title");
+    let hide_help_banner = matcher.is_present("no_help_banner");
+    let is_exec = matcher.is_present("exec");
+    let line_number = matcher.is_present("line_number");
 
     // Get options value
-    let interval: f64 = matche.value_of_t_or_exit("interval");
+    let interval: f64 = matcher.value_of_t_or_exit("interval");
 
     // let exec = matche.value_of("exec");
-    let logfile = matche.value_of("logfile");
+    let logfile = matcher.value_of("logfile");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
@@ -283,7 +300,7 @@ fn main() {
 
     // Start Command Thread
     {
-        let m = matche.clone();
+        let m = matcher.clone();
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
