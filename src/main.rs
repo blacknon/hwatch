@@ -39,12 +39,12 @@ extern crate crossterm;
 extern crate difference;
 extern crate futures;
 extern crate heapless;
+extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
-extern crate question;
 
 // macro crate
 #[macro_use]
