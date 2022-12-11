@@ -196,25 +196,25 @@ impl<'a> HeaderArea<'a> {
         // Set number flag value
         let value_number: Span = match self.line_number {
             true => Span::styled(
-                format!("Number"),
+                "Number".to_string(),
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::REVERSED)
                     .add_modifier(Modifier::BOLD),
             ),
-            false => Span::styled(format!("Number"), Style::default().fg(Color::Reset)),
+            false => Span::styled("Number".to_string(), Style::default().fg(Color::Reset)),
         };
 
         // Set Color flag value
         let value_color: Span = match self.ansi_color {
             true => Span::styled(
-                format!("Color"),
+                "Color".to_string(),
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::REVERSED)
                     .add_modifier(Modifier::BOLD),
             ),
-            false => Span::styled(format!("Color"), Style::default().fg(Color::Reset)),
+            false => Span::styled("Color".to_string(), Style::default().fg(Color::Reset)),
         };
 
         // Set output type value
@@ -231,19 +231,14 @@ impl<'a> HeaderArea<'a> {
         };
 
         // Set IsOnlyDiffline value
-        let value_only_diffline: &str;
-        if self.is_only_diffline {
-            value_only_diffline = "(Only)";
-        } else {
-            value_only_diffline = "";
-        }
+        let value_only_diffline = if self.is_only_diffline { "(Only)" } else { "" };
 
         // Set Diff mode value
         let value_diff = match self.diff_mode {
             DiffMode::Disable => "None".to_string(),
             DiffMode::Watch => "Watch".to_string(),
-            DiffMode::Line => ("Line".to_string() + value_only_diffline).to_string(),
-            DiffMode::Word => ("Word".to_string() + value_only_diffline).to_string(),
+            DiffMode::Line => "Line".to_string() + value_only_diffline,
+            DiffMode::Word => "Word".to_string() + value_only_diffline,
         };
 
         // Set Color

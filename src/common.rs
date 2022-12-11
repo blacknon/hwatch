@@ -34,7 +34,7 @@ pub fn logging_result(_logpath: &str, _result: &CommandResult) -> Result<(), Box
 
     // write log
     // TODO(blacknon): warning出てるので対応
-    _ = writeln!(logfile, "{}", logdata);
+    _ = writeln!(logfile, "{logdata}");
 
     Ok(())
 }

@@ -246,7 +246,7 @@ fn main() {
 
         // check _log_path exist
         if _abs_log_path.exists() {
-            println!("file {:?} is exists.", _abs_log_path);
+            println!("file {_abs_log_path:?} is exists.");
             let answer = Question::new("Log to the same file?")
                 .default(Answer::YES)
                 .show_defaults()
@@ -259,7 +259,7 @@ fn main() {
 
         // check _log_dir exist
         if !_abs_log_dir.exists() {
-            println!("directory {:?} is not exists.", _abs_log_dir);
+            println!("directory {_abs_log_dir:?} is not exists.");
             std::process::exit(1);
         }
     }
