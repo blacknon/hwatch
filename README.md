@@ -50,6 +50,8 @@ That records the result of command execution and can display it history and diff
     OPTIONS:
         -B, --beep                     beep if command has a change result
         -c, --color                    interpret ANSI color and style sequences
+            --mouse                    enable mouse wheel support. With this option, copying text
+                                       with your terminal may be harder. Try holding the Shift key.
         -d, --differences              highlight changes between updates
         -t, --no-title                 hide the UI on start. Use `t` to toggle it.
         -N, --line-number              show line number

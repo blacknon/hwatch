@@ -6,7 +6,7 @@
 
 use crossbeam_channel::{Receiver, Sender};
 // module
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use regex::Regex;
 use std::{collections::HashMap, io};
 use tui::{
@@ -606,6 +606,31 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
 
+                    // mouse wheel up
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::ScrollUp,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => self.mouse_scroll_up(),
+
+                    // mouse wheel down
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::ScrollDown,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => self.mouse_scroll_down(),
+
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                        column,
+                        row,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => {
+                        // Currently a no-op
+                        self.mouse_click_left(column, row);
+                    }
+
                     // pgup
 
                     // pgdn
@@ -769,8 +794,6 @@ impl<'a> App<'a> {
                         .send(AppEvent::Exit)
                         .expect("send error hwatch exit."),
 
-                    // mouse event.
-                    // Event::Mouse(ref mouse_event) => self.get_input_mouse_event(mouse_event),
                     _ => {}
                 }
             }
@@ -874,15 +897,6 @@ impl<'a> App<'a> {
             }
         }
     }
-
-    // Not currently used.
-    ///
-    //fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
-    //    let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
-    //    if let (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) = mouse_event_tupple {
-    //        self.mouse_click_left(mouse_event.column, mouse_event.row);
-    //    }
-    //}
 
     fn set_area(&mut self, target: ActiveArea) {
         self.area = target;
@@ -1003,6 +1017,15 @@ impl<'a> App<'a> {
         }
     }
 
+    // Mouse wheel always scrolls the main area
+    fn mouse_scroll_up(&mut self) {
+        self.watch_area.scroll_up(2);
+    }
+
+    fn mouse_scroll_down(&mut self) {
+        self.watch_area.scroll_down(2);
+    }
+
     // NOTE: TODO:
     // Not currently used.
     // It will not be supported until the following issues are resolved.
@@ -1039,27 +1062,22 @@ impl<'a> App<'a> {
         }
     }
 
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
+    // NOTE: TODO: Currently does not do anything
+    // Mouse clicks will not be supported until the following issues are resolved.
     //     - https://github.com/fdehau/tui-rs/issues/495
-    //fn mouse_click_left(&mut self, column: u16, row: u16) {
-    //    // check in hisotry area
-    //    let is_history_area = check_in_area(self.history_area.area, column, row);
-    //    if is_history_area {
-    //        // let headline_count = self.history_area.area.y;
-    //        // self.history_area.click_row(row - headline_count);
+    fn mouse_click_left(&mut self, _column: u16, _row: u16) {
+        //    // check in hisotry area
+        //    let is_history_area = check_in_area(self.history_area.area, column, row);
+        //    if is_history_area {
+        //        // let headline_count = self.history_area.area.y;
+        //        // self.history_area.click_row(row - headline_count);
 
-    //        // self.history_area.previous();
+        //        // self.history_area.previous();
 
-    //        let selected = self.history_area.get_state_select();
-    //        self.set_output_data(selected);
-    //    }
-    //}
-
-    //fn mouse_scroll_up(&mut self, _column: u16, _row: u16) {}
-
-    //fn mouse_scroll_down(&mut self, _column: u16, _row: u16) {}
+        //        let selected = self.history_area.get_state_select();
+        //        self.set_output_data(selected);
+        //    }
+    }
 }
 
 //fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
