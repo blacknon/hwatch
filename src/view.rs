@@ -100,6 +100,12 @@ impl View {
         rx: Receiver<AppEvent>,
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
+        ctrlc::set_handler(|| {
+            // Runs on SIGINT, SIGTERM (kill), SIGHUP
+            restore_terminal();
+            // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
+            std::process::exit(128 + 15)
+        })?;
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
@@ -146,15 +152,7 @@ impl View {
 
         // Run App
         let res = app.run(&mut terminal);
-
-        // Restore terminal
-        disable_raw_mode()?;
-        execute!(
-            terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )?;
-        terminal.show_cursor()?;
+        restore_terminal();
 
         if let Err(err) = res {
             println!("{err:?}")
@@ -162,6 +160,21 @@ impl View {
 
         Ok(())
     }
+}
+
+fn restore_terminal() {
+    let _ = disable_raw_mode();
+    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal = match Terminal::new(backend) {
+        Ok(t) => t,
+        _ => return,
+    };
+    let _ = execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    );
+    let _ = terminal.show_cursor();
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
