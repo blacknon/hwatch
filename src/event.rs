@@ -7,5 +7,6 @@ use crate::exec::CommandResult;
 pub enum AppEvent {
     OutputUpdate(CommandResult),
     TerminalEvent(crossterm::event::Event),
+    Redraw,
     Exit,
 }

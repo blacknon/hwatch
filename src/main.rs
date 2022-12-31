@@ -39,12 +39,12 @@ extern crate crossterm;
 extern crate difference;
 extern crate futures;
 extern crate heapless;
+extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
-extern crate question;
 
 // macro crate
 #[macro_use]
@@ -166,6 +166,12 @@ fn build_app() -> clap::Command<'static> {
                 .long("differences")
                 .short('d'),
         )
+        .arg(
+            Arg::new("no_title")
+            .help("hide the UI on start. Use `t` to toggle it.")
+            .long("no-title")
+            .short('t'),
+        )
         // Enable line number mode option
         //   [--line-number,-N]
         .arg(
@@ -226,6 +232,7 @@ fn main() {
     let diff = matche.is_present("differences");
     let beep = matche.is_present("beep");
     let color = matche.is_present("color");
+    let hide_ui = matche.is_present("no_title");
     let is_exec = matche.is_present("exec");
     let line_number = matche.is_present("line_number");
 
@@ -246,7 +253,7 @@ fn main() {
 
         // check _log_path exist
         if _abs_log_path.exists() {
-            println!("file {:?} is exists.", _abs_log_path);
+            println!("file {_abs_log_path:?} is exists.");
             let answer = Question::new("Log to the same file?")
                 .default(Answer::YES)
                 .show_defaults()
@@ -259,7 +266,7 @@ fn main() {
 
         // check _log_dir exist
         if !_abs_log_dir.exists() {
-            println!("directory {:?} is not exists.", _abs_log_dir);
+            println!("directory {_abs_log_dir:?} is not exists.");
             std::process::exit(1);
         }
     }
@@ -305,7 +312,8 @@ fn main() {
         // Set line number in view
         .set_line_number(line_number)
         // Set diff(watch diff) in view
-        .set_watch_diff(diff);
+        .set_watch_diff(diff)
+        .set_show_ui(!hide_ui);
 
     // Set logfile
     if let Some(logfile) = logfile {
