@@ -203,7 +203,25 @@ impl ExecuteCommand {
 }
 
 
-// pub fn exec_after_comamnd(){}
+// TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
+pub struct ExecuteAfterCommand {
+    pub before_result: CommandResult,
+    pub after_result: CommandResult,
+}
+
+// TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
+impl ExecuteAfterCommand {
+    pub fn new(before_result: CommandResult, after_result: CommandResult) -> Self {
+        Self {
+            before_result: before_result,
+            after_result: after_result,
+        }
+    }
+
+    pub fn run(command: String) {
+
+    }
+}
 
 #[cfg(test)]
 mod tests {

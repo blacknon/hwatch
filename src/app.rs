@@ -77,6 +77,9 @@ pub struct App<'a> {
     window: ActiveWindow,
 
     ///
+    after_command: String,
+
+    ///
     ansi_color: bool,
 
     ///
@@ -141,6 +144,7 @@ impl<'a> App<'a> {
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
 
+            after_command: "".to_string(),
             ansi_color: false,
             line_number: false,
 
@@ -345,6 +349,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_after_command(&mut self, command: String){
+        self.after_command = command;
+    }
+
+    ///
     pub fn set_output_mode(&mut self, mode: OutputMode) {
         self.output_mode = mode;
         self.header_area.set_output_mode(mode);
@@ -507,6 +516,17 @@ impl<'a> App<'a> {
         // check result diff
         if latest_result == _result {
             return false;
+        }
+
+        // TODO: after_commandの実行(thread別)を追加
+        // TODO: after_commandの実行に利用するHWATCH_JSONのデータを作成させる
+        if self.after_command != "".to_string() {
+            let hwatch_json_data = {
+                before_result: latest_result,
+            };
+
+
+
         }
 
         // append results
