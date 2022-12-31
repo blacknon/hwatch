@@ -8,18 +8,20 @@ use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use regex::Regex;
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, result};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
 
+use std::process::Command;
+use std::thread;
 
 // local module
 use crate::common::logging_result;
 use crate::event::AppEvent;
-use crate::exec::CommandResult;
+use crate::exec::{CommandResult,ExecuteAfterResultData};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
@@ -521,12 +523,33 @@ impl<'a> App<'a> {
         // TODO: after_commandの実行(thread別)を追加
         // TODO: after_commandの実行に利用するHWATCH_JSONのデータを作成させる
         if self.after_command != "".to_string() {
-            let hwatch_json_data = {
-                before_result: latest_result,
-            };
+            let results = self.results.clone();
+            let after_command = self.after_command.clone();
+            let latest_result = _result.clone();
 
+            {
+                thread::spawn(move|| {
+                let latest_num = results.len() - 1;
+                let mut result_data = ExecuteAfterResultData {
+                    before_result: results[&latest_num].clone(),
+                    after_result: latest_result.clone(),
+                };
 
+                // create json_data
+                let json_data: String = serde_json::to_string(&result_data).unwrap();
 
+                // execute command
+                let mut exec_cmd_args = vec![];
+                exec_cmd_args.push("-c");
+                exec_cmd_args.push(&after_command);
+                // exec_cmd_args.push("echo test >> ./abcd.txt");
+
+                let _ = Command::new("sh")
+                    .args(exec_cmd_args)
+                    .env("HWATCH_JSON", json_data)
+                    .spawn();
+                });
+            }
         }
 
         // append results
