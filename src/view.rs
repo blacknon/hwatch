@@ -25,6 +25,7 @@ pub struct View {
     interval: f64,
     beep: bool,
     color: bool,
+    show_ui: bool,
     line_number: bool,
     watch_diff: bool,
     log_path: String,
@@ -37,6 +38,7 @@ impl View {
             interval: DEFAULT_INTERVAL,
             beep: false,
             color: false,
+            show_ui: true,
             line_number: false,
             watch_diff: false,
             log_path: "".to_string(),
@@ -53,9 +55,13 @@ impl View {
         self
     }
 
-
     pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
+        self
+    }
+
+    pub fn set_show_ui(mut self, show_ui: bool) -> Self {
+        self.show_ui = show_ui;
         self
     }
 
@@ -113,6 +119,9 @@ impl View {
         // set color
         app.set_ansi_color(self.color);
 
+        app.show_history(self.show_ui);
+        app.show_ui(self.show_ui);
+
         // set line_number
         app.set_line_number(self.line_number);
 
@@ -134,7 +143,7 @@ impl View {
         terminal.show_cursor()?;
 
         if let Err(err) = res {
-            println!("{:?}", err)
+            println!("{err:?}")
         }
 
         Ok(())

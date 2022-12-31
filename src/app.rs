@@ -15,7 +15,6 @@ use tui::{
     Frame, Terminal,
 };
 
-
 // local module
 use crate::common::logging_result;
 use crate::event::AppEvent;
@@ -30,21 +29,21 @@ use crate::watch::WatchArea;
 use crate::HISTORY_WIDTH;
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveArea {
     Watch,
     History,
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveWindow {
     Normal,
     Help,
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DiffMode {
     Disable,
     Watch,
@@ -53,7 +52,7 @@ pub enum DiffMode {
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OutputMode {
     Output,
     Stdout,
@@ -61,7 +60,7 @@ pub enum OutputMode {
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InputMode {
     None,
     Filter,
@@ -90,6 +89,12 @@ pub struct App<'a> {
 
     ///
     is_regex_filter: bool,
+
+    ///
+    show_history: bool,
+
+    ///
+    show_header: bool,
 
     ///
     filtered_text: String,
@@ -143,6 +148,8 @@ impl<'a> App<'a> {
 
             ansi_color: false,
             line_number: false,
+            show_history: true,
+            show_header: true,
 
             is_beep: false,
             is_filtered: false,
@@ -186,6 +193,8 @@ impl<'a> App<'a> {
 
             // get event
             match self.rx.recv() {
+                Ok(AppEvent::Redraw) => update_draw = true,
+
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
@@ -207,7 +216,7 @@ impl<'a> App<'a> {
                 // get exit event
                 Ok(AppEvent::Exit) => self.done = true,
 
-                _ => {}
+                Err(_) => {}
             }
         }
     }
@@ -216,13 +225,16 @@ impl<'a> App<'a> {
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.define_subareas(f.size());
 
-        // Draw header area.
-        self.header_area.draw(f);
+        if self.show_header {
+            // Draw header area.
+            self.header_area.draw(f);
+        }
 
         // Draw watch area.
         self.watch_area.draw(f);
 
-        // Draw history area
+        self.history_area
+            .set_active(self.area == ActiveArea::History);
         self.history_area.draw(f);
 
         // match help mode
@@ -248,14 +260,29 @@ impl<'a> App<'a> {
 
     ///
     fn define_subareas(&mut self, total_area: tui::layout::Rect) {
+        let history_width: u16 = match self.show_history {
+            true => HISTORY_WIDTH,
+            false => match self.area == ActiveArea::History
+                || self.history_area.get_state_select() != 0
+            {
+                true => 2,
+                false => 0,
+            },
+        };
+        let header_height: u16 = match self.show_header {
+            true => 2,
+            false => 0,
+        };
+
+        // get Area's chunks
         let top_chunks = Layout::default()
-            .constraints([Constraint::Length(2), Constraint::Max(0)].as_ref())
+            .constraints([Constraint::Length(header_height), Constraint::Max(0)].as_ref())
             .split(total_area);
         let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(total_area.width - HISTORY_WIDTH),
-                    Constraint::Length(HISTORY_WIDTH),
+                    Constraint::Max(total_area.width - history_width),
+                    Constraint::Length(history_width),
                 ]
                 .as_ref(),
             )
@@ -332,13 +359,21 @@ impl<'a> App<'a> {
                 output::get_watch_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
 
-            DiffMode::Line => {
-                output::get_line_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
-            }
+            DiffMode::Line => output::get_line_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
 
-            DiffMode::Word => {
-                output::get_word_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
-            }
+            DiffMode::Word => output::get_word_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
         };
 
         self.watch_area.update_output(output_data);
@@ -429,12 +464,7 @@ impl<'a> App<'a> {
         let mut tmp_history = vec![];
 
         // append result.
-        let latest_num:usize;
-        if counter > 1 {
-            latest_num = counter - 1;
-        } else {
-            latest_num = 0;
-        }
+        let latest_num: usize = if counter > 1 { counter - 1 } else { 0 };
 
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
@@ -556,7 +586,7 @@ impl<'a> App<'a> {
         // update WatchArea
         self.set_output_data(selected);
 
-        return true;
+        true
     }
 
     ///
@@ -701,7 +731,21 @@ impl<'a> App<'a> {
                     }
 
                     // Common input key
-                    // h ... toggel help window.
+                    // Backspace ... toggle history panel.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Backspace,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.show_history(!self.show_history),
+
+                    // Common input key
+                    // t ... toggle ui
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('t'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.show_ui(!self.show_header),
+
+                    // Common input key
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -745,7 +789,7 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
 
-                    // h ... toggel help window.
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -840,17 +884,20 @@ impl<'a> App<'a> {
     //    }
     //}
 
+    fn set_area(&mut self, target: ActiveArea) {
+        self.area = target;
+        // set active window to header.
+        self.header_area.set_active_area(self.area);
+        self.header_area.update();
+    }
+
     ///
     fn toggle_area(&mut self) {
         if let ActiveWindow::Normal = self.window {
             match self.area {
-                ActiveArea::Watch => self.area = ActiveArea::History,
-                ActiveArea::History => self.area = ActiveArea::Watch,
+                ActiveArea::Watch => self.set_area(ActiveArea::History),
+                ActiveArea::History => self.set_area(ActiveArea::Watch),
             }
-
-            // set active window to header.
-            self.header_area.set_active_area(self.area);
-            self.header_area.update();
         }
     }
 
@@ -879,6 +926,22 @@ impl<'a> App<'a> {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
         }
+    }
+
+    ///
+    pub fn show_history(&mut self, visible: bool) {
+        self.show_history = visible;
+        if !visible {
+            self.set_area(ActiveArea::Watch);
+        }
+        let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    ///
+    pub fn show_ui(&mut self, visible: bool) {
+        self.show_header = visible;
+        self.show_history = visible;
+        let _ = self.tx.send(AppEvent::Redraw);
     }
 
     ///
