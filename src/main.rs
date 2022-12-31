@@ -36,6 +36,7 @@ extern crate async_std;
 extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
+extern crate ctrlc;
 extern crate difference;
 extern crate futures;
 extern crate heapless;
