@@ -144,7 +144,7 @@ fn build_app() -> clap::Command<'static> {
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
         .arg(
-            Arg::new("after_change_command")
+            Arg::new("after_command")
                 .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_JSON}.")
                 .short('A')
                 .long("aftercommand")
@@ -232,6 +232,9 @@ fn main() {
     // Get options value
     let interval: f64 = matche.value_of_t_or_exit("interval");
 
+    // Get options value
+    let after_command = matche.value_of("after_command");
+
     // let exec = matche.value_of("exec");
     let logfile = matche.value_of("logfile");
 
@@ -310,6 +313,11 @@ fn main() {
     // Set logfile
     if let Some(logfile) = logfile {
         view = view.set_logfile(logfile.to_string());
+    }
+
+    // Set after_command
+    if let Some(after_command) = after_command {
+        view = view.set_after_command(after_command.to_string());
     }
 
     // start app.

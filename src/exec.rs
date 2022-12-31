@@ -202,26 +202,19 @@ impl ExecuteCommand {
     }
 }
 
-
 // TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
-pub struct ExecuteAfterCommand {
+#[derive(Serialize, Deserialize)]
+pub struct ExecuteAfterResultData {
     pub before_result: CommandResult,
     pub after_result: CommandResult,
 }
 
-// TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
-impl ExecuteAfterCommand {
-    pub fn new(before_result: CommandResult, after_result: CommandResult) -> Self {
-        Self {
-            before_result: before_result,
-            after_result: after_result,
-        }
-    }
+pub struct ExecAfterCommand {
+    result_data: String,
 
-    pub fn run(command: String) {
-
-    }
 }
+
+
 
 #[cfg(test)]
 mod tests {
