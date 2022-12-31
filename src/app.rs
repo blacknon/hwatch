@@ -945,6 +945,19 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn show_help_banner(&mut self, visible: bool) {
+        self.header_area.set_banner(
+            if visible {
+                "Display help with h key!"
+            } else {
+                ""
+            }
+            .to_string(),
+        );
+        let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    ///
     fn input_key_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {

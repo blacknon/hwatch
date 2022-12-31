@@ -61,6 +61,9 @@ pub struct HeaderArea<'a> {
     is_only_diffline: bool,
 
     ///
+    banner: String,
+
+    ///
     output_mode: OutputMode,
 
     ///
@@ -88,6 +91,7 @@ impl<'a> HeaderArea<'a> {
             data: vec![Spans::from("")],
             ansi_color: false,
             line_number: false,
+            banner: "".to_string(),
 
             active_area: ActiveArea::History,
 
@@ -116,6 +120,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
+    }
+
+    pub fn set_banner(&mut self, banner: String) {
+        self.banner = banner;
     }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
@@ -148,9 +156,6 @@ impl<'a> HeaderArea<'a> {
         // init data
         self.data = vec![];
 
-        // help message
-        const HELP_MESSAGE: &str = "Display help with h key!";
-
         // HeaderArea Width
         let width = self.area.width as usize;
 
@@ -159,8 +164,7 @@ impl<'a> HeaderArea<'a> {
         let timestamp_width: usize;
         if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
             command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
-            timestamp_width =
-                width - (WIDTH_TEXT_INTERVAL + command_width + HELP_MESSAGE.len()) + 1;
+            timestamp_width = width - (WIDTH_TEXT_INTERVAL + command_width + self.banner.len()) + 1;
         } else {
             command_width = 0;
             timestamp_width = 0;
@@ -260,7 +264,7 @@ impl<'a> HeaderArea<'a> {
                 Style::default().fg(command_color),
             ),
             Span::styled(
-                HELP_MESSAGE.to_string(),
+                self.banner.clone(),
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
             Span::styled(
