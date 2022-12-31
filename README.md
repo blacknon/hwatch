@@ -36,7 +36,7 @@ That records the result of command execution and can display it history and diff
 
 ## Usage
 
-    hwatch 0.3.7
+    hwatch 0.3.8
     blacknon <blacknon@orebibou.com>
     A modern alternative to the watch command, records the differences in execution results and can
     check this differences at after.
@@ -45,12 +45,15 @@ That records the result of command execution and can display it history and diff
         hwatch [OPTIONS] <command>...
 
     ARGS:
-        <command>...
+        <command>...    
 
     OPTIONS:
+        -B, --beep                     beep if command has a change result
         -c, --color                    interpret ANSI color and style sequences
         -d, --differences              highlight changes between updates
+        -t, --no-title                 hide the UI on start. Use `t` to toggle it.
         -N, --line-number              show line number
+            --no-help-banner           hide the "Display help with h key" message
         -x, --exec                     Run the command directly, not through the shell. Much like the
                                        `-x` option of the watch command.
         -l, --logfile <logfile>        logging file
@@ -59,7 +62,6 @@ That records the result of command execution and can display it history and diff
         -n, --interval <interval>      seconds to wait between updates [default: 2]
         -h, --help                     Print help information
         -V, --version                  Print version information
-
 
 watch window keybind
 
@@ -87,6 +89,16 @@ watch window keybind
 | <kbd>*</kbd>   | filter history by regex.
 | <kbd>Esc</kbd> | unfiltering.
 
+
+## Configuration
+
+If you always want to use some command-line options, you can set them in the
+`HWATCH` environment variable. For example, if you use `bash`, you can add
+the following to your `.bashrc`:
+
+```bash
+export HWATCH="--no-title --color --no-help-banner"
+```
 
 ## Example
 

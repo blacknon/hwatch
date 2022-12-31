@@ -26,6 +26,7 @@ pub struct View {
     beep: bool,
     color: bool,
     show_ui: bool,
+    show_help_banner: bool,
     line_number: bool,
     watch_diff: bool,
     log_path: String,
@@ -39,6 +40,7 @@ impl View {
             beep: false,
             color: false,
             show_ui: true,
+            show_help_banner: true,
             line_number: false,
             watch_diff: false,
             log_path: "".to_string(),
@@ -62,6 +64,11 @@ impl View {
 
     pub fn set_show_ui(mut self, show_ui: bool) -> Self {
         self.show_ui = show_ui;
+        self
+    }
+
+    pub fn set_show_help_banner(mut self, show_help_banner: bool) -> Self {
+        self.show_help_banner = show_help_banner;
         self
     }
 
@@ -121,6 +128,7 @@ impl View {
 
         app.show_history(self.show_ui);
         app.show_ui(self.show_ui);
+        app.show_help_banner(self.show_help_banner);
 
         // set line_number
         app.set_line_number(self.line_number);
