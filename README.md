@@ -30,6 +30,10 @@ That records the result of command execution and can display it history and diff
 
     sudo port install hwatch
 
+### Arch Linux (AUR)
+
+    paru -S hwatch
+
 ### Cargo Install
 
     cargo install hwatch
