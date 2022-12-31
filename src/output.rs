@@ -677,7 +677,7 @@ fn get_word_diff_addline<'a>(
     match before_diffs {
         // Change Line.
         &Difference::Rem(ref before_diff_data) => {
-            // Craete Changeset at `Addlind` and `Before Diff Data`.
+            // Create Changeset at `Addlind` and `Before Diff Data`.
             let Changeset { diffs, .. } = Changeset::new(before_diff_data, &diff_data, " ");
 
             //
@@ -777,7 +777,7 @@ fn get_word_diff_remline<'a>(
     match after_diffs {
         // Change Line.
         &Difference::Add(ref after_diffs_data) => {
-            // Craete Changeset at `Addlind` and `Before Diff Data`.
+            // Create Changeset at `Addlind` and `Before Diff Data`.
             let Changeset { diffs, .. } = Changeset::new(&diff_data, after_diffs_data, " ");
 
             //

@@ -88,7 +88,7 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         Spans::from(" - [F3] key  ... change output mode as output(stdout/stderr set.)"),
         // change use area
         Spans::from(" - [Tab] key ... toggle current area at history or watch."),
-        // filter text inpu
+        // filter text input
         Spans::from(" - [/] key ... filter history by string."),
         Spans::from(" - [*] key ... filter history by regex."),
         Spans::from(" - [ESC] key ... unfiltering."),

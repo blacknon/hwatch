@@ -670,7 +670,7 @@ impl<'a> App<'a> {
                     }
 
                     // Common input key
-                    // h ... toggel help window.
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -714,7 +714,7 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
 
-                    // h ... toggel help window.
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -803,8 +803,8 @@ impl<'a> App<'a> {
     // Not currently used.
     ///
     //fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
-    //    let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
-    //    if let (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) = mouse_event_tupple {
+    //    let mouse_event_tuple = (mouse_event.kind, mouse_event.modifiers);
+    //    if let (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) = mouse_event_tuple {
     //        self.mouse_click_left(mouse_event.column, mouse_event.row);
     //    }
     //}
