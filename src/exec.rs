@@ -69,59 +69,61 @@ impl ExecuteCommand {
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
     pub fn exec_command(&mut self) {
         // Declaration at child.
-        let exec_cmd: String;
-        let mut exec_cmd_args = vec![];
-        let mut is_shellcmd_template = false;
+        // let exec_cmd: String;
+        // let mut exec_cmd_args = vec![];
+        // let mut is_shellcmd_template = false;
 
         // set string command.
         let command_str = self.command.clone().join(" ");
 
-        if self.is_exec {
-            // is -x option enable
-            // command parse
-            let length = self.command.len();
-            exec_cmd = self.command[0].clone();
-            exec_cmd_args = self.command[1..length].to_vec();
-        } else {
-            // if `-e` option disable. (default)
-            // split self.shell_command
-            let shell_commands =
-                shell_words::split(&self.shell_command).expect("shell command parse error.");
+        let exec_commands = create_exec_cmd_args(self.is_exec,self.shell_command.clone(),command_str.clone());
+        // if self.is_exec {
+        //     // is -x option enable
+        //     // command parse
+        //     let length = self.command.len();
+        //     exec_cmd = self.command[0].clone();
+        //     exec_cmd_args = self.command[1..length].to_vec();
+        // } else {
+        //     // if `-e` option disable. (default)
+        //     // split self.shell_command
+        //     let shell_commands =
+        //         shell_words::split(&self.shell_command).expect("shell command parse error.");
 
-            // set shell_command args, to exec_cmd_args.
-            exec_cmd = shell_commands[0].to_string();
-            if shell_commands.len() >= 2 {
-                let length = shell_commands.len();
-                let shell_command_args = shell_commands[1..length].to_vec();
+        //     // set shell_command args, to exec_cmd_args.
+        //     exec_cmd = shell_commands[0].to_string();
+        //     if shell_commands.len() >= 2 {
+        //         let length = shell_commands.len();
+        //         let shell_command_args = shell_commands[1..length].to_vec();
 
-                // shell_command_args to exec_cmd_args
-                for shell_command_arg in shell_command_args {
-                    let exec_cmd_arg: String;
-                    if shell_command_arg.contains("{COMMAND}") {
-                        exec_cmd_arg = str::replace(
-                            &shell_command_arg,
-                            crate::SHELL_COMMAND_EXECCMD,
-                            &command_str,
-                        );
-                        is_shellcmd_template = true;
-                    } else {
-                        exec_cmd_arg = shell_command_arg;
-                    }
+        //         // shell_command_args to exec_cmd_args
+        //         for shell_command_arg in shell_command_args {
+        //             let exec_cmd_arg: String;
+        //             if shell_command_arg.contains("{COMMAND}") {
+        //                 exec_cmd_arg = str::replace(
+        //                     &shell_command_arg,
+        //                     crate::SHELL_COMMAND_EXECCMD,
+        //                     &command_str,
+        //                 );
+        //                 is_shellcmd_template = true;
+        //             } else {
+        //                 exec_cmd_arg = shell_command_arg;
+        //             }
 
-                    // push exec_cmd_arg to exec_cmd_args
-                    exec_cmd_args.push(exec_cmd_arg);
-                }
-            }
+        //             // push exec_cmd_arg to exec_cmd_args
+        //             exec_cmd_args.push(exec_cmd_arg);
+        //         }
+        //     }
 
-            // add exec command..
-            if !is_shellcmd_template {
-                exec_cmd_args.push(command_str.clone());
-            }
-        }
+        //     // add exec command..
+        //     if !is_shellcmd_template {
+        //         exec_cmd_args.push(command_str.clone());
+        //     }
+        // }
 
         // exec command...
-        let child_result = Command::new(exec_cmd)
-            .args(exec_cmd_args)
+        let length = exec_commands.len();
+        let child_result = Command::new(&exec_commands[0])
+            .args(&exec_commands[1..length])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn();
@@ -203,14 +205,84 @@ impl ExecuteCommand {
 }
 
 // TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct ExecuteAfterResultData {
     pub before_result: CommandResult,
     pub after_result: CommandResult,
 }
 
-pub struct ExecAfterCommand {
-    result_data: String,
+pub fn exec_after_command(shell_command: String, after_command: String, before_result: CommandResult, after_result: CommandResult) {
+    let mut result_data = ExecuteAfterResultData {
+        before_result: before_result,
+        after_result: after_result,
+    };
+
+    // create json_data
+    let json_data: String = serde_json::to_string(&result_data).unwrap();
+
+    // execute command
+
+    let mut exec_cmd_args = vec![];
+    exec_cmd_args.push("-c");
+    exec_cmd_args.push(&after_command);
+    // exec_cmd_args.push("echo test >> ./abcd.txt");
+
+    let _ = Command::new("sh")
+        .args(exec_cmd_args)
+        .env("HWATCH_JSON", json_data)
+        .spawn();
+}
+
+
+//
+fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -> Vec<String> {
+    // Declaration at child.
+    let mut exec_commands = vec![];
+    let mut is_shellcmd_template = false;
+
+    if is_exec {
+        // is -x option enable
+        exec_commands = shell_words::split(&command).expect("shell command parse error.");
+    } else {
+        // if `-e` option disable. (default)
+        // split self.shell_command
+        let shell_commands =
+            shell_words::split(&shell_command).expect("shell command parse error.");
+
+        // set shell_command args, to exec_cmd_args.
+        exec_commands.push(shell_commands[0].to_string());
+
+        if shell_commands.len() >= 2 {
+            // set string command.
+            let length = shell_commands.len();
+            let shell_command_args = shell_commands[1..length].to_vec();
+
+            // shell_command_args to exec_cmd_args
+            for shell_command_arg in shell_command_args {
+                let exec_cmd_arg: String;
+                if shell_command_arg.contains("{COMMAND}") {
+                    exec_cmd_arg = str::replace(
+                        &shell_command_arg,
+                        crate::SHELL_COMMAND_EXECCMD,
+                        &command,
+                    );
+                    is_shellcmd_template = true;
+                } else {
+                    exec_cmd_arg = shell_command_arg;
+                }
+
+                // push exec_cmd_arg to exec_cmd_args
+                exec_commands.push(exec_cmd_arg);
+            }
+        }
+
+        // add exec command..
+        if !is_shellcmd_template {
+            exec_commands.push(command);
+        }
+    }
+
+    return exec_commands;
 
 }
 
