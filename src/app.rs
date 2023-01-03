@@ -546,7 +546,7 @@ impl<'a> App<'a> {
 
                 let _ = Command::new("sh")
                     .args(exec_cmd_args)
-                    .env("HWATCH_JSON", json_data)
+                    .env("HWATCH_DATA", json_data)
                     .spawn();
                 });
             }

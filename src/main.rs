@@ -145,7 +145,7 @@ fn build_app() -> clap::Command<'static> {
         //     [-C,--changed-command]
         .arg(
             Arg::new("after_command")
-                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_JSON}.")
+                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
                 .short('A')
                 .long("aftercommand")
                 .takes_value(true)
