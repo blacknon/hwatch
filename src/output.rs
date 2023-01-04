@@ -74,7 +74,7 @@ pub fn get_plane_output<'a>(
 
                 if line_number && line_span.is_empty() {
                     line_span.push(Span::styled(
-                        format!("{:>wid$} | ", counter, wid = header_width),
+                        format!("{counter:>header_width$} | "),
                         Style::default().fg(Color::DarkGray),
                     ));
                 }
@@ -88,7 +88,7 @@ pub fn get_plane_output<'a>(
                 if range_count > 0 {
                     if line_number && line_span.is_empty() {
                         line_span.push(Span::styled(
-                            format!("{:>wid$} | ", counter, wid = header_width),
+                            format!("{counter:>header_width$} | "),
                             Style::default().fg(Color::DarkGray),
                         ));
                     }
@@ -121,7 +121,7 @@ pub fn get_plane_output<'a>(
 
             if line_number && last_str_line_span.is_empty() {
                 last_str_line_span.push(Span::styled(
-                    format!("{:>wid$} | ", counter, wid = header_width),
+                    format!("{counter:>header_width$} | "),
                     Style::default().fg(Color::DarkGray),
                 ));
             }
@@ -142,13 +142,13 @@ pub fn get_plane_output<'a>(
 
             if line_number {
                 line_span.push(Span::styled(
-                    format!("{:>wid$} | ", counter, wid = header_width),
+                    format!("{counter:>header_width$} | "),
                     Style::default().fg(Color::DarkGray),
                 ));
             }
 
             if color {
-                let data = ansi::bytes_to_text(format!("{}\n", l).as_bytes());
+                let data = ansi::bytes_to_text(format!("{l}\n").as_bytes());
 
                 for d in data.lines {
                     line_span.extend(d.0);
@@ -201,7 +201,7 @@ pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) 
             line_data.0.insert(
                 0,
                 Span::styled(
-                    format!("{:>wid$} | ", counter, wid = header_width),
+                    format!("{counter:>header_width$} | "),
                     Style::default().fg(Color::DarkGray),
                 ),
             );
@@ -277,7 +277,7 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
 fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     // If the contents are the same line.
     if old_line == new_line {
-        let new_spans = ansi::bytes_to_text(format!("{}\n", new_line).as_bytes());
+        let new_spans = ansi::bytes_to_text(format!("{new_line}\n").as_bytes());
         if let Some(spans) = new_spans.into_iter().next() {
             return spans;
         }
@@ -344,7 +344,13 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
 // ==========
 
 ///
-pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_line_diff<'a>(
+    color: bool,
+    line_number: bool,
+    is_only_diffline: bool,
+    old: &str,
+    new: &str,
+) -> Vec<Spans<'a>> {
     // Create changeset
     let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
 
@@ -370,7 +376,7 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                     let mut data = if color {
                         // ansi color code => rs-tui colored span.
                         let mut colored_span = vec![Span::from("   ")];
-                        let colored_data = ansi::bytes_to_text(format!("{}\n", line).as_bytes());
+                        let colored_data = ansi::bytes_to_text(format!("{line}\n").as_bytes());
                         for d in colored_data.lines {
                             for x in d.0 {
                                 colored_span.push(x);
@@ -379,14 +385,14 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         Spans::from(colored_span)
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(format!("   {}\n", line))
+                        Spans::from(format!("   {line}\n"))
                     };
 
                     if line_number {
                         data.0.insert(
                             0,
                             Span::styled(
-                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                format!("{new_counter:>header_width$} | "),
                                 Style::default().fg(Color::DarkGray),
                             ),
                         );
@@ -409,13 +415,13 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
                         Spans::from(Span::styled(
-                            format!("+  {}\n", strip_str),
+                            format!("+  {strip_str}\n"),
                             Style::default().fg(Color::Green),
                         ))
                     } else {
                         // to string => rs-tui span.
                         Spans::from(Span::styled(
-                            format!("+  {}\n", line),
+                            format!("+  {line}\n"),
                             Style::default().fg(Color::Green),
                         ))
                     };
@@ -424,7 +430,7 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         data.0.insert(
                             0,
                             Span::styled(
-                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                format!("{new_counter:>header_width$} | "),
                                 Style::default().fg(Color::Rgb(56, 119, 120)),
                             ),
                         );
@@ -444,13 +450,13 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(line);
                         Spans::from(Span::styled(
-                            format!("-  {}\n", strip_str),
+                            format!("-  {strip_str}\n"),
                             Style::default().fg(Color::Red),
                         ))
                     } else {
                         // to string => rs-tui span.
                         Spans::from(Span::styled(
-                            format!("-  {}\n", line),
+                            format!("-  {line}\n"),
                             Style::default().fg(Color::Red),
                         ))
                     };
@@ -459,7 +465,7 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         data.0.insert(
                             0,
                             Span::styled(
-                                format!("{:>wid$} | ", old_counter, wid = header_width),
+                                format!("{old_counter:>header_width$} | "),
                                 Style::default().fg(Color::Rgb(118, 0, 0)),
                             ),
                         );
@@ -481,7 +487,13 @@ pub fn get_line_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
 // ==========
 
 ///
-pub fn get_word_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_word_diff<'a>(
+    color: bool,
+    line_number: bool,
+    is_only_diffline: bool,
+    old: &str,
+    new: &str,
+) -> Vec<Spans<'a>> {
     // Create changeset
     let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
 
@@ -507,7 +519,7 @@ pub fn get_word_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                     let mut data = if color {
                         // ansi color code => rs-tui colored span.
                         let mut colored_span = vec![Span::from("   ")];
-                        let colored_data = ansi::bytes_to_text(format!("{}\n", line).as_bytes());
+                        let colored_data = ansi::bytes_to_text(format!("{line}\n").as_bytes());
                         for d in colored_data.lines {
                             for x in d.0 {
                                 colored_span.push(x);
@@ -516,14 +528,14 @@ pub fn get_word_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         Spans::from(colored_span)
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(format!("   {}\n", line))
+                        Spans::from(format!("   {line}\n"))
                     };
 
                     if line_number {
                         data.0.insert(
                             0,
                             Span::styled(
-                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                format!("{new_counter:>header_width$} | "),
                                 Style::default().fg(Color::DarkGray),
                             ),
                         );
@@ -582,7 +594,7 @@ pub fn get_word_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         data.insert(
                             0,
                             Span::styled(
-                                format!("{:>wid$} | ", new_counter, wid = header_width),
+                                format!("{new_counter:>header_width$} | "),
                                 Style::default().fg(Color::Rgb(56, 119, 120)),
                             ),
                         );
@@ -638,7 +650,7 @@ pub fn get_word_diff<'a>(color: bool, line_number: bool, is_only_diffline: bool,
                         data.insert(
                             0,
                             Span::styled(
-                                format!("{:>wid$} | ", old_counter, wid = header_width),
+                                format!("{old_counter:>header_width$} | "),
                                 Style::default().fg(Color::Rgb(118, 0, 0)),
                             ),
                         );
@@ -680,7 +692,7 @@ fn get_word_diff_addline<'a>(
 
     match before_diffs {
         // Change Line.
-        &Difference::Rem(ref before_diff_data) => {
+        Difference::Rem(before_diff_data) => {
             // Craete Changeset at `Addlind` and `Before Diff Data`.
             let Changeset { diffs, .. } = Changeset::new(before_diff_data, &diff_data, " ");
 
@@ -780,7 +792,7 @@ fn get_word_diff_remline<'a>(
 
     match after_diffs {
         // Change Line.
-        &Difference::Add(ref after_diffs_data) => {
+        Difference::Add(after_diffs_data) => {
             // Craete Changeset at `Addlind` and `Before Diff Data`.
             let Changeset { diffs, .. } = Changeset::new(&diff_data, after_diffs_data, " ");
 
@@ -890,7 +902,7 @@ fn get_word_diff_line_to_spans<'a>(
 // ==========
 
 /// Apply ANSI color code character by character.
-fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
+fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
     // set Result
     let mut result = vec![];
 
@@ -913,13 +925,13 @@ fn gen_ansi_all_set_str<'a, 'b>(text: &'a str) -> Vec<Vec<Span<'b>>> {
             Output::TextBlock(text) => {
                 for char in text.chars() {
                     let append_text = if !sequence_str.is_empty() {
-                        format!("{}{}{}", sequence_str, char, ansi_reset_seq_str)
+                        format!("{sequence_str}{char}{ansi_reset_seq_str}")
                     } else {
-                        format!("{}", char)
+                        format!("{char}")
                     };
 
                     // parse ansi text to tui text.
-                    let data = ansi::bytes_to_text(format!("{}\n", append_text).as_bytes());
+                    let data = ansi::bytes_to_text(format!("{append_text}\n").as_bytes());
                     if let Some(d) = data.into_iter().next() {
                         for x in d.0 {
                             processed_text.push(x);

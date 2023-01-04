@@ -22,6 +22,8 @@ pub struct HistoryArea {
     ///
     pub area: tui::layout::Rect,
 
+    pub active: bool,
+
     ///
     data: Vec<Vec<History>>,
 
@@ -35,6 +37,7 @@ impl HistoryArea {
         //! new Self
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
+            active: false,
             data: vec![vec![History {
                 timestamp: "latest                 ".to_string(),
                 status: true,
@@ -46,6 +49,10 @@ impl HistoryArea {
 
     pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
+    }
+
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
     }
 
     pub fn set_latest_status(&mut self, latest_status: bool) {
@@ -77,12 +84,10 @@ impl HistoryArea {
 
     pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
         // insert latest timestamp
+        const LATEST_COLOR: Color = Color::Blue;
         let draw_data = &self.data;
 
-        // style
-        let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-
-        let rows = draw_data.iter().map(|item| {
+        let rows = draw_data.iter().enumerate().map(|(ix, item)| {
             // set table height
             let height = item
                 .iter()
@@ -92,16 +97,27 @@ impl HistoryArea {
                 + 1;
             // set cell data
             let cells = item.iter().map(|c| {
-                let cell_style = match c.status {
-                    true => Style::default().fg(Color::Green),
-                    false => Style::default().fg(Color::Red),
-                };
+                let cell_style = Style::default().fg(match ix {
+                    0 => LATEST_COLOR,
+                    _ => match c.status {
+                        true => Color::Green,
+                        false => Color::Red,
+                    },
+                });
                 Cell::from(Span::styled(c.timestamp.as_str(), cell_style))
             });
 
             Row::new(cells).height(height as u16)
         });
 
+        let base_selected_style = Style::default().add_modifier(Modifier::REVERSED);
+        let selected_style = match self.active {
+            true => match self.get_state_select() == 0 {
+                true => base_selected_style.fg(LATEST_COLOR), // Necessary to make >> blue
+                false => base_selected_style,
+            },
+            false => base_selected_style.fg(Color::DarkGray),
+        };
         let table = Table::new(rows)
             .block(Block::default())
             .highlight_style(selected_style)
@@ -111,7 +127,7 @@ impl HistoryArea {
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 
-    pub fn get_state_select(&mut self) -> usize {
+    pub fn get_state_select(&self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
             None => self.data.len() - 1,

@@ -30,13 +30,17 @@ That records the result of command execution and can display it history and diff
 
     sudo port install hwatch
 
+### Arch Linux (AUR)
+
+    paru -S hwatch
+
 ### Cargo Install
 
     cargo install hwatch
 
 ## Usage
 
-    hwatch 0.3.7
+    hwatch 0.3.8
     blacknon <blacknon@orebibou.com>
     A modern alternative to the watch command, records the differences in execution results and can
     check this differences at after.
@@ -45,12 +49,17 @@ That records the result of command execution and can display it history and diff
         hwatch [OPTIONS] <command>...
 
     ARGS:
-        <command>...
+        <command>...    
 
     OPTIONS:
+        -B, --beep                     beep if command has a change result
         -c, --color                    interpret ANSI color and style sequences
+            --mouse                    enable mouse wheel support. With this option, copying text
+                                       with your terminal may be harder. Try holding the Shift key.
         -d, --differences              highlight changes between updates
+        -t, --no-title                 hide the UI on start. Use `t` to toggle it.
         -N, --line-number              show line number
+            --no-help-banner           hide the "Display help with h key" message
         -x, --exec                     Run the command directly, not through the shell. Much like the
                                        `-x` option of the watch command.
         -l, --logfile <logfile>        logging file
@@ -60,29 +69,42 @@ That records the result of command execution and can display it history and diff
         -h, --help                     Print help information
         -V, --version                  Print version information
 
-
 watch window keybind
 
-- <kbd>↑</kbd>, <kbd>↓</kbd>  ... move selected screen(history/watch).
-- <kbd>←</kbd>   ... select watch screen.
-- <kbd>→</kbd>   ... select history screen.
-- <kbd>H</kbd>   ... show help window.
-- <kbd>C</kbd>   ... toggle color.
-- <kbd>D</kbd>   ... switch diff mode.
-- <kbd>N</kbd>   ... switch line number display.
-- <kbd>Q</kbd>   ... exit hwatch.
-- <kbd>0</kbd>   ... disable diff.
-- <kbd>1</kbd>   ... switch watch type diff.
-- <kbd>2</kbd>   ... switch line type diff.
-- <kbd>3</kbd>   ... switch word type diff.
-- <kbd>F1</kbd>  ... only stdout print.
-- <kbd>F2</kbd>  ... only stderr print.
-- <kbd>F3</kbd>  ... print output.
-- <kbd>Tab</kbd> ... toggle select screen(history/watch).
-- <kbd>/</kbd>   ... filter history by string.
-- <kbd>*</kbd>   ... filter history by regex.
-- <kbd>Esc</kbd> ... unfiltering.
+| Key            | Action
+|----------------|-------------------------
+| <kbd>↑</kbd>, <kbd>↓</kbd>  | move selected screen(history/watch).
+| <kbd>←</kbd>   | select watch screen.
+| <kbd>→</kbd>   | select history screen.
+| <kbd>H</kbd>   | show help window.
+| <kbd>C</kbd>   | toggle color.
+| <kbd>D</kbd>   | switch diff mode.
+| <kbd>N</kbd>   | switch line number display.
+| <kbd>T</kbd>   | toggle the UI (history pane and header).
+| <kbd>Backspace</kbd>   | toggle the history pane.
+| <kbd>Q</kbd>   | exit hwatch.
+| <kbd>0</kbd>   | disable diff.
+| <kbd>1</kbd>   | switch watch type diff.
+| <kbd>2</kbd>   | switch line type diff.
+| <kbd>3</kbd>   | switch word type diff.
+| <kbd>F1</kbd>  | only stdout print.
+| <kbd>F2</kbd>  | only stderr print.
+| <kbd>F3</kbd>  | print output.
+| <kbd>Tab</kbd> | toggle select screen(history/watch).
+| <kbd>/</kbd>   | filter history by string.
+| <kbd>*</kbd>   | filter history by regex.
+| <kbd>Esc</kbd> | unfiltering.
 
+
+## Configuration
+
+If you always want to use some command-line options, you can set them in the
+`HWATCH` environment variable. For example, if you use `bash`, you can add
+the following to your `.bashrc`:
+
+```bash
+export HWATCH="--no-title --color --no-help-banner"
+```
 
 ## Example
 

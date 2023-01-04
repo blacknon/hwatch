@@ -60,6 +60,8 @@ pub struct HeaderArea<'a> {
     ///
     is_only_diffline: bool,
 
+    ///
+    banner: String,
 
     ///
     output_mode: OutputMode,
@@ -89,6 +91,7 @@ impl<'a> HeaderArea<'a> {
             data: vec![Spans::from("")],
             ansi_color: false,
             line_number: false,
+            banner: "".to_string(),
 
             active_area: ActiveArea::History,
 
@@ -117,6 +120,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
+    }
+
+    pub fn set_banner(&mut self, banner: String) {
+        self.banner = banner;
     }
 
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
@@ -149,9 +156,6 @@ impl<'a> HeaderArea<'a> {
         // init data
         self.data = vec![];
 
-        // help message
-        const HELP_MESSAGE: &str = "Display help with h key!";
-
         // HeaderArea Width
         let width = self.area.width as usize;
 
@@ -160,8 +164,7 @@ impl<'a> HeaderArea<'a> {
         let timestamp_width: usize;
         if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
             command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
-            timestamp_width =
-                width - (WIDTH_TEXT_INTERVAL + command_width + HELP_MESSAGE.len()) + 1;
+            timestamp_width = width - (WIDTH_TEXT_INTERVAL + command_width + self.banner.len()) + 1;
         } else {
             command_width = 0;
             timestamp_width = 0;
@@ -197,25 +200,25 @@ impl<'a> HeaderArea<'a> {
         // Set number flag value
         let value_number: Span = match self.line_number {
             true => Span::styled(
-                format!("Number"),
-                Style::default().fg(Color::Green).add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD),
+                "Number".to_string(),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
             ),
-            false => Span::styled(
-                format!("Number"),
-                Style::default().fg(Color::Reset),
-            ),
+            false => Span::styled("Number".to_string(), Style::default().fg(Color::Reset)),
         };
 
         // Set Color flag value
         let value_color: Span = match self.ansi_color {
             true => Span::styled(
-                format!("Color"),
-                Style::default().fg(Color::Green).add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD),
+                "Color".to_string(),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
             ),
-            false => Span::styled(
-                format!("Color"),
-                Style::default().fg(Color::Reset),
-            ),
+            false => Span::styled("Color".to_string(), Style::default().fg(Color::Reset)),
         };
 
         // Set output type value
@@ -232,19 +235,14 @@ impl<'a> HeaderArea<'a> {
         };
 
         // Set IsOnlyDiffline value
-        let value_only_diffline: &str;
-        if self.is_only_diffline {
-            value_only_diffline = "(Only)";
-        } else {
-            value_only_diffline = "";
-        }
+        let value_only_diffline = if self.is_only_diffline { "(Only)" } else { "" };
 
         // Set Diff mode value
         let value_diff = match self.diff_mode {
             DiffMode::Disable => "None".to_string(),
             DiffMode::Watch => "Watch".to_string(),
-            DiffMode::Line => ("Line".to_string() + value_only_diffline).to_string(),
-            DiffMode::Word => ("Word".to_string() + value_only_diffline).to_string(),
+            DiffMode::Line => "Line".to_string() + value_only_diffline,
+            DiffMode::Word => "Word".to_string() + value_only_diffline,
         };
 
         // Set Color
@@ -266,7 +264,7 @@ impl<'a> HeaderArea<'a> {
                 Style::default().fg(command_color),
             ),
             Span::styled(
-                HELP_MESSAGE.to_string(),
+                self.banner.clone(),
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
             Span::styled(
@@ -295,7 +293,9 @@ impl<'a> HeaderArea<'a> {
             Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_output, wid = 6),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::REVERSED),
             ),
             Span::raw("]"),
             Span::raw(" "),
@@ -304,7 +304,9 @@ impl<'a> HeaderArea<'a> {
             Span::styled("Active: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_active, wid = 7),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::REVERSED),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::REVERSED),
             ),
             Span::raw("]"),
             Span::raw(" "),
@@ -313,7 +315,9 @@ impl<'a> HeaderArea<'a> {
             Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_diff, wid = 10),
-                Style::default().fg(Color::Magenta).add_modifier(Modifier::REVERSED),
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::REVERSED),
             ),
             Span::raw("]"),
         ]));

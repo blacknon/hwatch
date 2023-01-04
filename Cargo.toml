@@ -17,6 +17,7 @@ chrono = "0.4.19"
 clap = {version = "3.1.18", features = ["cargo"]}
 crossbeam-channel = "0.5.4"
 crossterm = "0.22"
+ctrlc = { version = "3.0", features = ["termination"] }
 difference = "2.0"
 futures = "0.3.21"
 question = "0.2.2"

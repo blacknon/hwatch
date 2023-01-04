@@ -57,9 +57,7 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn scroll_up(&mut self, num: i16) {
-        if 0 <= self.position - num {
-            self.position -= num
-        }
+        self.position = std::cmp::max(0, self.position - num);
     }
 
     // TODO: 折返しによって発生する行数差分の計算方法が思いつかないため、思いついたら対応を追加する。(うまく取得が出来ない)
@@ -67,9 +65,6 @@ impl<'a> WatchArea<'a> {
     pub fn scroll_down(&mut self, num: i16) {
         // get area data size
         let data_size = self.data.len() as i16;
-
-        if data_size > self.position + num {
-            self.position += num
-        }
+        self.position = std::cmp::min(self.position + num, data_size - 1);
     }
 }
