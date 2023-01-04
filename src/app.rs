@@ -21,7 +21,7 @@ use std::thread;
 // local module
 use crate::common::logging_result;
 use crate::event::AppEvent;
-use crate::exec::{CommandResult,ExecuteAfterResultData};
+use crate::exec::{exec_after_command,CommandResult,ExecuteAfterResultData};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
@@ -523,32 +523,39 @@ impl<'a> App<'a> {
         // TODO: after_commandの実行(thread別)を追加
         // TODO: after_commandの実行に利用するHWATCH_JSONのデータを作成させる
         if self.after_command != "".to_string() {
-            let results = self.results.clone();
             let after_command = self.after_command.clone();
-            let latest_result = _result.clone();
+
+            let results = self.results.clone();
+            let latest_num = results.len() - 1;
+
+            let before_result = results[&latest_num].clone();
+            let after_result = _result.clone();
 
             {
                 thread::spawn(move|| {
-                let latest_num = results.len() - 1;
-                let mut result_data = ExecuteAfterResultData {
-                    before_result: results[&latest_num].clone(),
-                    after_result: latest_result.clone(),
-                };
+                // let latest_num = results.len() - 1;
+                // let mut result_data = ExecuteAfterResultData {
+                //     before_result: results[&latest_num].clone(),
+                //     after_result: latest_result.clone(),
+                // };
 
-                // create json_data
-                let json_data: String = serde_json::to_string(&result_data).unwrap();
+                // // create json_data
+                // let json_data: String = serde_json::to_string(&result_data).unwrap();
 
-                // execute command
-                let mut exec_cmd_args = vec![];
-                exec_cmd_args.push("-c");
-                exec_cmd_args.push(&after_command);
-                // exec_cmd_args.push("echo test >> ./abcd.txt");
+                // // execute command
+                // let mut exec_cmd_args = vec![];
+                // exec_cmd_args.push("-c");
+                // exec_cmd_args.push(&after_command);
+                // // exec_cmd_args.push("echo test >> ./abcd.txt");
 
-                let _ = Command::new("sh")
-                    .args(exec_cmd_args)
-                    .env("HWATCH_DATA", json_data)
-                    .spawn();
-                });
+                // let _ = Command::new("sh")
+                //     .args(exec_cmd_args)
+                //     .env("HWATCH_DATA", json_data)
+                //     .spawn();
+                // });
+
+                    let _ = exec_after_command("sh -c".to_string(),after_command.clone(),before_result,after_result);
+            });
             }
         }
 
