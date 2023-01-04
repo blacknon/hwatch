@@ -36,15 +36,16 @@ extern crate async_std;
 extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
+extern crate ctrlc;
 extern crate difference;
 extern crate futures;
 extern crate heapless;
+extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate termwiz;
 extern crate tui;
-extern crate question;
 
 // macro crate
 #[macro_use]
@@ -141,6 +142,13 @@ fn build_app() -> clap::Command<'static> {
                 .short('B')
                 .long("beep"),
         )
+        // Beep option
+        //     [-B,--beep]
+        .arg(
+            Arg::new("mouse")
+                .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
+                .long("mouse"),
+        )
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
         .arg(
@@ -166,6 +174,12 @@ fn build_app() -> clap::Command<'static> {
                 .long("differences")
                 .short('d'),
         )
+        .arg(
+            Arg::new("no_title")
+            .help("hide the UI on start. Use `t` to toggle it.")
+            .long("no-title")
+            .short('t'),
+        )
         // Enable line number mode option
         //   [--line-number,-N]
         .arg(
@@ -174,6 +188,12 @@ fn build_app() -> clap::Command<'static> {
                 .short('N')
                 .long("line-number"),
         )
+        .arg(
+            Arg::new("no_help_banner")
+            .help("hide the \"Display help with h key\" message")
+            .long("no-help-banner")
+        )
+
         // exec flag.
         //
         .arg(
@@ -217,27 +237,31 @@ fn build_app() -> clap::Command<'static> {
         )
 }
 
+fn get_clap_matcher() -> clap::ArgMatches {
+    let env_config = std::env::var("HWATCH").unwrap_or_default();
+    let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
+    let mut os_args = std::env::args_os();
+    let mut args: Vec<std::ffi::OsString> = vec![];
+    // First argument is the program name
+    args.push(os_args.next().unwrap());
+    // Environment variables go next so that they can be overridded
+    // TODO: Currently, the opposites of command-line options are not
+    // yet implemented. E.g., there is no `--no-color` to override
+    // `--color` in the HWATCH environment variable.
+    args.extend(env_args.iter().map(std::ffi::OsString::from));
+    args.extend(os_args);
+
+    build_app().get_matches_from(args)
+}
+
 fn main() {
     // Get command args matches
-    let matche = build_app().get_matches();
+    let matcher = get_clap_matcher();
 
     // Get options flag
-    // let batch = matche.is_present("batch");
-    let diff = matche.is_present("differences");
-    let beep = matche.is_present("beep");
-    let color = matche.is_present("color");
-    let is_exec = matche.is_present("exec");
-    let line_number = matche.is_present("line_number");
-
-    // Get options value
-    let interval: f64 = matche.value_of_t_or_exit("interval");
-
-    // Get options value
-    let after_command = matche.value_of("after_command");
-
-    // let exec = matche.value_of("exec");
-    let logfile = matche.value_of("logfile");
-
+    // let batch = matcher.is_present("batch");
+    let after_command = matcher.value_of("after_command");
+    let logfile = matcher.value_of("logfile");
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
     if let Some(logfile) = logfile {
@@ -249,7 +273,7 @@ fn main() {
 
         // check _log_path exist
         if _abs_log_path.exists() {
-            println!("file {:?} is exists.", _abs_log_path);
+            println!("file {_abs_log_path:?} is exists.");
             let answer = Question::new("Log to the same file?")
                 .default(Answer::YES)
                 .show_defaults()
@@ -262,7 +286,7 @@ fn main() {
 
         // check _log_dir exist
         if !_abs_log_dir.exists() {
-            println!("directory {:?} is not exists.", _abs_log_dir);
+            println!("directory {_abs_log_dir:?} is not exists.");
             std::process::exit(1);
         }
     }
@@ -270,9 +294,10 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
+    let interval: f64 = matcher.value_of_t_or_exit("interval");
     // Start Command Thread
     {
-        let m = matche.clone();
+        let m = matcher.clone();
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
@@ -285,7 +310,7 @@ fn main() {
             exe.command = m.values_of_lossy("command").unwrap();
 
             // Set is exec flag.
-            exe.is_exec = is_exec;
+            exe.is_exec = m.is_present("exec");
 
             // Exec command
             exe.exec_command();
@@ -302,13 +327,16 @@ fn main() {
     let mut view = view::View::new()
         // Set interval on view.header
         .set_interval(interval)
-        .set_beep(beep)
+        .set_beep(matcher.is_present("beep"))
+        .set_mouse_events(matcher.is_present("mouse"))
         // Set color in view
-        .set_color(color)
+        .set_color(matcher.is_present("color"))
         // Set line number in view
-        .set_line_number(line_number)
+        .set_line_number(matcher.is_present("line_number"))
         // Set diff(watch diff) in view
-        .set_watch_diff(diff);
+        .set_watch_diff(matcher.is_present("differences"))
+        .set_show_ui(!matcher.is_present("no_title"))
+        .set_show_help_banner(!matcher.is_present("no_help_banner"));
 
     // Set logfile
     if let Some(logfile) = logfile {

@@ -5,7 +5,7 @@
 use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::{
-    // event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -25,7 +25,10 @@ pub struct View {
     after_command: String,
     interval: f64,
     beep: bool,
+    mouse_events: bool,
     color: bool,
+    show_ui: bool,
+    show_help_banner: bool,
     line_number: bool,
     watch_diff: bool,
     log_path: String,
@@ -38,7 +41,10 @@ impl View {
             after_command: "".to_string(),
             interval: DEFAULT_INTERVAL,
             beep: false,
+            mouse_events: false,
             color: false,
+            show_ui: true,
+            show_help_banner: true,
             line_number: false,
             watch_diff: false,
             log_path: "".to_string(),
@@ -60,8 +66,23 @@ impl View {
         self
     }
 
+    pub fn set_mouse_events(mut self, mouse_events: bool) -> Self {
+        self.mouse_events = mouse_events;
+        self
+    }
+
     pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
+        self
+    }
+
+    pub fn set_show_ui(mut self, show_ui: bool) -> Self {
+        self.show_ui = show_ui;
+        self
+    }
+
+    pub fn set_show_help_banner(mut self, show_help_banner: bool) -> Self {
+        self.show_help_banner = show_help_banner;
         self
     }
 
@@ -86,13 +107,18 @@ impl View {
         rx: Receiver<AppEvent>,
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
+        ctrlc::set_handler(|| {
+            // Runs on SIGINT, SIGTERM (kill), SIGHUP
+            restore_terminal();
+            // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
+            std::process::exit(128 + 15)
+        })?;
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            // EnableMouseCapture,
-        )?;
+        execute!(stdout, EnterAlternateScreen)?;
+        if self.mouse_events {
+            execute!(stdout, EnableMouseCapture)?;
+        }
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         let _ = terminal.clear();
@@ -122,6 +148,10 @@ impl View {
         // set color
         app.set_ansi_color(self.color);
 
+        app.show_history(self.show_ui);
+        app.show_ui(self.show_ui);
+        app.show_help_banner(self.show_help_banner);
+
         // set line_number
         app.set_line_number(self.line_number);
 
@@ -132,22 +162,29 @@ impl View {
 
         // Run App
         let res = app.run(&mut terminal);
-
-        // Restore terminal
-        disable_raw_mode()?;
-        execute!(
-            terminal.backend_mut(),
-            LeaveAlternateScreen,
-            // DisableMouseCapture
-        )?;
-        terminal.show_cursor()?;
+        restore_terminal();
 
         if let Err(err) = res {
-            println!("{:?}", err)
+            println!("{err:?}")
         }
 
         Ok(())
     }
+}
+
+fn restore_terminal() {
+    let _ = disable_raw_mode();
+    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal = match Terminal::new(backend) {
+        Ok(t) => t,
+        _ => return,
+    };
+    let _ = execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    );
+    let _ = terminal.show_cursor();
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {

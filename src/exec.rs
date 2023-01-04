@@ -111,7 +111,7 @@ impl ExecuteCommand {
 
                             (stdout.len(), stderr.len())
                         }
-                        other => panic!("Some better error handling here, {:?}", other),
+                        other => panic!("Some better error handling here, {other:?}"),
                     };
 
                     if stdout_bytes == 0 && stderr_bytes == 0 {
@@ -245,9 +245,11 @@ mod tests {
     #[test]
     fn test_command_result_comparison() {
         let command_result = CommandResult::default();
-        let mut command_result_2 = CommandResult::default();
+        let command_result_2 = CommandResult {
+            timestamp: "SomeOtherTime".to_string(),
+            ..Default::default()
+        };
         //Timestamp is not part of the comparison. Let's ensure it's different to prove.
-        command_result_2.timestamp = "SomeOtherTime".to_string();
         assert!(command_result == command_result_2);
     }
 
@@ -274,40 +276,50 @@ mod tests {
     #[test]
     fn test_command_result_command_diff() {
         let command_result1 = CommandResult::default();
-        let mut command_result2 = CommandResult::default();
-        command_result2.command = "different".to_string();
+        let command_result2 = CommandResult {
+            command: "different".to_string(),
+            ..Default::default()
+        };
         assert!(command_result1 != command_result2);
     }
 
     #[test]
     fn test_command_result_status_diff() {
         let command_result1 = CommandResult::default();
-        let mut command_result2 = CommandResult::default();
-        command_result2.status = false;
+        let command_result2 = CommandResult {
+            status: false,
+            ..Default::default()
+        };
         assert!(command_result1 != command_result2);
     }
 
     #[test]
     fn test_command_result_output_diff() {
         let command_result1 = CommandResult::default();
-        let mut command_result2 = CommandResult::default();
-        command_result2.output = "different".to_string();
+        let command_result2 = CommandResult {
+            output: "different".to_string(),
+            ..Default::default()
+        };
         assert!(command_result1 != command_result2);
     }
 
     #[test]
     fn test_command_result_stdout_diff() {
         let command_result1 = CommandResult::default();
-        let mut command_result2 = CommandResult::default();
-        command_result2.stdout = "different".to_string();
+        let command_result2 = CommandResult {
+            stdout: "different".to_string(),
+            ..Default::default()
+        };
         assert!(command_result1 != command_result2);
     }
 
     #[test]
     fn test_command_result_stderr_diff() {
         let command_result1 = CommandResult::default();
-        let mut command_result2 = CommandResult::default();
-        command_result2.stderr = "different".to_string();
+        let command_result2 = CommandResult {
+            stderr: "different".to_string(),
+            ..Default::default()
+        };
         assert!(command_result1 != command_result2);
     }
 }

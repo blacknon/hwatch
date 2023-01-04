@@ -6,7 +6,7 @@
 
 use crossbeam_channel::{Receiver, Sender};
 // module
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use regex::Regex;
 use std::{collections::HashMap, io, result};
 use tui::{
@@ -32,21 +32,21 @@ use crate::watch::WatchArea;
 use crate::HISTORY_WIDTH;
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveArea {
     Watch,
     History,
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveWindow {
     Normal,
     Help,
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DiffMode {
     Disable,
     Watch,
@@ -55,7 +55,7 @@ pub enum DiffMode {
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OutputMode {
     Output,
     Stdout,
@@ -63,7 +63,7 @@ pub enum OutputMode {
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InputMode {
     None,
     Filter,
@@ -95,6 +95,12 @@ pub struct App<'a> {
 
     ///
     is_regex_filter: bool,
+
+    ///
+    show_history: bool,
+
+    ///
+    show_header: bool,
 
     ///
     filtered_text: String,
@@ -149,6 +155,8 @@ impl<'a> App<'a> {
             after_command: "".to_string(),
             ansi_color: false,
             line_number: false,
+            show_history: true,
+            show_header: true,
 
             is_beep: false,
             is_filtered: false,
@@ -192,6 +200,8 @@ impl<'a> App<'a> {
 
             // get event
             match self.rx.recv() {
+                Ok(AppEvent::Redraw) => update_draw = true,
+
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
@@ -213,7 +223,7 @@ impl<'a> App<'a> {
                 // get exit event
                 Ok(AppEvent::Exit) => self.done = true,
 
-                _ => {}
+                Err(_) => {}
             }
         }
     }
@@ -222,13 +232,16 @@ impl<'a> App<'a> {
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.define_subareas(f.size());
 
-        // Draw header area.
-        self.header_area.draw(f);
+        if self.show_header {
+            // Draw header area.
+            self.header_area.draw(f);
+        }
 
         // Draw watch area.
         self.watch_area.draw(f);
 
-        // Draw history area
+        self.history_area
+            .set_active(self.area == ActiveArea::History);
         self.history_area.draw(f);
 
         // match help mode
@@ -254,14 +267,29 @@ impl<'a> App<'a> {
 
     ///
     fn define_subareas(&mut self, total_area: tui::layout::Rect) {
+        let history_width: u16 = match self.show_history {
+            true => HISTORY_WIDTH,
+            false => match self.area == ActiveArea::History
+                || self.history_area.get_state_select() != 0
+            {
+                true => 2,
+                false => 0,
+            },
+        };
+        let header_height: u16 = match self.show_header {
+            true => 2,
+            false => 0,
+        };
+
+        // get Area's chunks
         let top_chunks = Layout::default()
-            .constraints([Constraint::Length(2), Constraint::Max(0)].as_ref())
+            .constraints([Constraint::Length(header_height), Constraint::Max(0)].as_ref())
             .split(total_area);
         let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(total_area.width - HISTORY_WIDTH),
-                    Constraint::Length(HISTORY_WIDTH),
+                    Constraint::Max(total_area.width - history_width),
+                    Constraint::Length(history_width),
                 ]
                 .as_ref(),
             )
@@ -338,13 +366,21 @@ impl<'a> App<'a> {
                 output::get_watch_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
 
-            DiffMode::Line => {
-                output::get_line_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
-            }
+            DiffMode::Line => output::get_line_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
 
-            DiffMode::Word => {
-                output::get_word_diff(self.ansi_color, self.line_number, self.is_only_diffline, text_src, text_dst)
-            }
+            DiffMode::Word => output::get_word_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
         };
 
         self.watch_area.update_output(output_data);
@@ -440,12 +476,7 @@ impl<'a> App<'a> {
         let mut tmp_history = vec![];
 
         // append result.
-        let latest_num:usize;
-        if counter > 1 {
-            latest_num = counter - 1;
-        } else {
-            latest_num = 0;
-        }
+        let latest_num: usize = if counter > 1 { counter - 1 } else { 0 };
 
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
@@ -583,7 +614,7 @@ impl<'a> App<'a> {
         // update WatchArea
         self.set_output_data(selected);
 
-        return true;
+        true
     }
 
     ///
@@ -602,6 +633,31 @@ impl<'a> App<'a> {
                         code: KeyCode::Down,
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
+
+                    // mouse wheel up
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::ScrollUp,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => self.mouse_scroll_up(),
+
+                    // mouse wheel down
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::ScrollDown,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => self.mouse_scroll_down(),
+
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                        column,
+                        row,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => {
+                        // Currently a no-op
+                        self.mouse_click_left(column, row);
+                    }
 
                     // pgup
 
@@ -728,7 +784,21 @@ impl<'a> App<'a> {
                     }
 
                     // Common input key
-                    // h ... toggel help window.
+                    // Backspace ... toggle history panel.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Backspace,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.show_history(!self.show_history),
+
+                    // Common input key
+                    // t ... toggle ui
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('t'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.show_ui(!self.show_header),
+
+                    // Common input key
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -752,8 +822,6 @@ impl<'a> App<'a> {
                         .send(AppEvent::Exit)
                         .expect("send error hwatch exit."),
 
-                    // mouse event.
-                    // Event::Mouse(ref mouse_event) => self.get_input_mouse_event(mouse_event),
                     _ => {}
                 }
             }
@@ -772,7 +840,7 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
 
-                    // h ... toggel help window.
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -858,26 +926,20 @@ impl<'a> App<'a> {
         }
     }
 
-    // Not currently used.
-    ///
-    //fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
-    //    let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
-    //    if let (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) = mouse_event_tupple {
-    //        self.mouse_click_left(mouse_event.column, mouse_event.row);
-    //    }
-    //}
+    fn set_area(&mut self, target: ActiveArea) {
+        self.area = target;
+        // set active window to header.
+        self.header_area.set_active_area(self.area);
+        self.header_area.update();
+    }
 
     ///
     fn toggle_area(&mut self) {
         if let ActiveWindow::Normal = self.window {
             match self.area {
-                ActiveArea::Watch => self.area = ActiveArea::History,
-                ActiveArea::History => self.area = ActiveArea::Watch,
+                ActiveArea::Watch => self.set_area(ActiveArea::History),
+                ActiveArea::History => self.set_area(ActiveArea::Watch),
             }
-
-            // set active window to header.
-            self.header_area.set_active_area(self.area);
-            self.header_area.update();
         }
     }
 
@@ -906,6 +968,35 @@ impl<'a> App<'a> {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
         }
+    }
+
+    ///
+    pub fn show_history(&mut self, visible: bool) {
+        self.show_history = visible;
+        if !visible {
+            self.set_area(ActiveArea::Watch);
+        }
+        let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    ///
+    pub fn show_ui(&mut self, visible: bool) {
+        self.show_header = visible;
+        self.show_history = visible;
+        let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    ///
+    pub fn show_help_banner(&mut self, visible: bool) {
+        self.header_area.set_banner(
+            if visible {
+                "Display help with h key!"
+            } else {
+                ""
+            }
+            .to_string(),
+        );
+        let _ = self.tx.send(AppEvent::Redraw);
     }
 
     ///
@@ -954,6 +1045,15 @@ impl<'a> App<'a> {
         }
     }
 
+    // Mouse wheel always scrolls the main area
+    fn mouse_scroll_up(&mut self) {
+        self.watch_area.scroll_up(2);
+    }
+
+    fn mouse_scroll_down(&mut self) {
+        self.watch_area.scroll_down(2);
+    }
+
     // NOTE: TODO:
     // Not currently used.
     // It will not be supported until the following issues are resolved.
@@ -990,27 +1090,22 @@ impl<'a> App<'a> {
         }
     }
 
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
+    // NOTE: TODO: Currently does not do anything
+    // Mouse clicks will not be supported until the following issues are resolved.
     //     - https://github.com/fdehau/tui-rs/issues/495
-    //fn mouse_click_left(&mut self, column: u16, row: u16) {
-    //    // check in hisotry area
-    //    let is_history_area = check_in_area(self.history_area.area, column, row);
-    //    if is_history_area {
-    //        // let headline_count = self.history_area.area.y;
-    //        // self.history_area.click_row(row - headline_count);
+    fn mouse_click_left(&mut self, _column: u16, _row: u16) {
+        //    // check in hisotry area
+        //    let is_history_area = check_in_area(self.history_area.area, column, row);
+        //    if is_history_area {
+        //        // let headline_count = self.history_area.area.y;
+        //        // self.history_area.click_row(row - headline_count);
 
-    //        // self.history_area.previous();
+        //        // self.history_area.previous();
 
-    //        let selected = self.history_area.get_state_select();
-    //        self.set_output_data(selected);
-    //    }
-    //}
-
-    //fn mouse_scroll_up(&mut self, _column: u16, _row: u16) {}
-
-    //fn mouse_scroll_down(&mut self, _column: u16, _row: u16) {}
+        //        let selected = self.history_area.get_state_select();
+        //        self.set_output_data(selected);
+        //    }
+    }
 }
 
 //fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
