@@ -8,14 +8,14 @@ use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use regex::Regex;
-use std::{collections::HashMap, io, result};
+use std::{collections::HashMap, io};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
 
-use std::process::Command;
+// use std::process::Command;
 use std::thread;
 
 // local module
