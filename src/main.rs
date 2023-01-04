@@ -2,14 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.8
-// TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
-//                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
-//                 - また、実行時にはシェルも指定して呼び出せるようにする？
-
-// v0.3.9
-// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加(なんかもうコードあるっぽい？？).
-//                 - https://github.com/blacknon/hwatch/issues/63
+// v0.3.10
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
