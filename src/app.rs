@@ -1,10 +1,12 @@
-// Copyright (c) 2021 Blacknon. All rights reserved.
+// Copyright (c) 2022 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: batch modeを処理するのはmain.rsではなく、こっち側でやらせるのが良さそう?
+
 use crossbeam_channel::{Receiver, Sender};
 // module
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use regex::Regex;
 use std::{collections::HashMap, io};
 use tui::{
@@ -13,10 +15,13 @@ use tui::{
     Frame, Terminal,
 };
 
+// use std::process::Command;
+use std::thread;
+
 // local module
-use crate::common::{differences_result, logging_result};
+use crate::common::logging_result;
 use crate::event::AppEvent;
-use crate::exec::CommandResult;
+use crate::exec::{exec_after_command,CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
@@ -27,21 +32,21 @@ use crate::watch::WatchArea;
 use crate::HISTORY_WIDTH;
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveArea {
     Watch,
     History,
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveWindow {
     Normal,
     Help,
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DiffMode {
     Disable,
     Watch,
@@ -50,7 +55,7 @@ pub enum DiffMode {
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OutputMode {
     Output,
     Stdout,
@@ -58,7 +63,7 @@ pub enum OutputMode {
 }
 
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InputMode {
     None,
     Filter,
@@ -74,17 +79,28 @@ pub struct App<'a> {
     window: ActiveWindow,
 
     ///
-    /// debug
-    pub ansi_color: bool,
+    after_command: String,
+
+    ///
+    ansi_color: bool,
 
     ///
     line_number: bool,
+
+    ///
+    is_beep: bool,
 
     ///
     is_filtered: bool,
 
     ///
     is_regex_filter: bool,
+
+    ///
+    show_history: bool,
+
+    ///
+    show_header: bool,
 
     ///
     filtered_text: String,
@@ -97,6 +113,9 @@ pub struct App<'a> {
 
     ///
     diff_mode: DiffMode,
+
+    ///
+    is_only_diffline: bool,
 
     ///
     results: HashMap<usize, CommandResult>,
@@ -133,9 +152,13 @@ impl<'a> App<'a> {
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
 
+            after_command: "".to_string(),
             ansi_color: false,
             line_number: false,
+            show_history: true,
+            show_header: true,
 
+            is_beep: false,
             is_filtered: false,
             is_regex_filter: false,
             filtered_text: "".to_string(),
@@ -143,6 +166,7 @@ impl<'a> App<'a> {
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
+            is_only_diffline: false,
 
             results: HashMap::new(),
 
@@ -176,6 +200,8 @@ impl<'a> App<'a> {
 
             // get event
             match self.rx.recv() {
+                Ok(AppEvent::Redraw) => update_draw = true,
+
                 // Get terminal event.
                 Ok(AppEvent::TerminalEvent(terminal_event)) => {
                     self.get_event(terminal_event);
@@ -184,29 +210,38 @@ impl<'a> App<'a> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    self.update_result(exec_result);
+                    let _exec_return = self.update_result(exec_result);
+
+                    // beep
+                    if _exec_return && self.is_beep {
+                        println!("\x07")
+                    }
+
                     update_draw = true;
                 }
 
                 // get exit event
                 Ok(AppEvent::Exit) => self.done = true,
 
-                _ => {}
+                Err(_) => {}
             }
         }
     }
 
     ///
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.get_area(f);
+        self.define_subareas(f.size());
 
-        // Draw header area.
-        self.header_area.draw(f);
+        if self.show_header {
+            // Draw header area.
+            self.header_area.draw(f);
+        }
 
         // Draw watch area.
         self.watch_area.draw(f);
 
-        // Draw history area
+        self.history_area
+            .set_active(self.area == ActiveArea::History);
         self.history_area.draw(f);
 
         // match help mode
@@ -231,28 +266,39 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_area<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn define_subareas(&mut self, total_area: tui::layout::Rect) {
+        let history_width: u16 = match self.show_history {
+            true => HISTORY_WIDTH,
+            false => match self.area == ActiveArea::History
+                || self.history_area.get_state_select() != 0
+            {
+                true => 2,
+                false => 0,
+            },
+        };
+        let header_height: u16 = match self.show_header {
+            true => 2,
+            false => 0,
+        };
+
         // get Area's chunks
         let top_chunks = Layout::default()
-            .constraints([Constraint::Length(2), Constraint::Max(0)].as_ref())
-            .split(f.size());
-
-        let main_chanks = Layout::default()
+            .constraints([Constraint::Length(header_height), Constraint::Max(0)].as_ref())
+            .split(total_area);
+        let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(f.size().width - HISTORY_WIDTH),
-                    Constraint::Length(HISTORY_WIDTH),
+                    Constraint::Max(total_area.width - history_width),
+                    Constraint::Length(history_width),
                 ]
                 .as_ref(),
             )
             .direction(Direction::Horizontal)
             .split(top_chunks[1]);
 
-        let areas = [top_chunks[0], main_chanks[0], main_chanks[1]];
-
-        self.header_area.set_area(areas[0]);
-        self.watch_area.set_area(areas[1]);
-        self.history_area.set_area(areas[2]);
+        self.header_area.set_area(top_chunks[0]);
+        self.watch_area.set_area(main_chunks[0]);
+        self.history_area.set_area(main_chunks[1]);
     }
 
     ///
@@ -320,16 +366,29 @@ impl<'a> App<'a> {
                 output::get_watch_diff(self.ansi_color, self.line_number, text_src, text_dst)
             }
 
-            DiffMode::Line => {
-                output::get_line_diff(self.ansi_color, self.line_number, text_src, text_dst)
-            }
+            DiffMode::Line => output::get_line_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
 
-            DiffMode::Word => {
-                output::get_word_diff(self.ansi_color, self.line_number, text_src, text_dst)
-            }
+            DiffMode::Word => output::get_word_diff(
+                self.ansi_color,
+                self.line_number,
+                self.is_only_diffline,
+                text_src,
+                text_dst,
+            ),
         };
 
         self.watch_area.update_output(output_data);
+    }
+
+    ///
+    pub fn set_after_command(&mut self, command: String){
+        self.after_command = command;
     }
 
     ///
@@ -351,6 +410,11 @@ impl<'a> App<'a> {
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
+    }
+
+    ///
+    pub fn set_beep(&mut self, beep: bool) {
+        self.is_beep = beep;
     }
 
     ///
@@ -381,6 +445,17 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
+        self.is_only_diffline = is_only_diffline;
+
+        self.header_area.set_is_only_diffline(is_only_diffline);
+        self.header_area.update();
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
     pub fn set_logpath(&mut self, logpath: String) {
         self.logfile = logpath;
     }
@@ -401,7 +476,8 @@ impl<'a> App<'a> {
         let mut tmp_history = vec![];
 
         // append result.
-        let latest_num = counter - 1;
+        let latest_num: usize = if counter > 1 { counter - 1 } else { 0 };
+
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
             status: self.results[&latest_num].status,
@@ -454,19 +530,9 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn update_result(&mut self, _result: CommandResult) {
-        // unlock self.results
-        // let mut results = self.results;
-
+    fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
-        let mut latest_result = CommandResult {
-            timestamp: "".to_string(),
-            command: "".to_string(),
-            status: true,
-            output: "".to_string(),
-            stdout: "".to_string(),
-            stderr: "".to_string(),
-        };
+        let mut latest_result = CommandResult::default();
 
         if self.results.is_empty() {
             // diff output data.
@@ -481,9 +547,24 @@ impl<'a> App<'a> {
         self.header_area.update();
 
         // check result diff
-        let check_result_diff = differences_result(&latest_result, &_result);
-        if check_result_diff {
-            return;
+        if latest_result == _result {
+            return false;
+        }
+
+        if self.after_command != "".to_string() {
+            let after_command = self.after_command.clone();
+
+            let results = self.results.clone();
+            let latest_num = results.len() - 1;
+
+            let before_result = results[&latest_num].clone();
+            let after_result = _result.clone();
+
+            {
+                thread::spawn(move|| {
+                    let _ = exec_after_command("sh -c".to_string(),after_command.clone(),before_result,after_result);
+            });
+            }
         }
 
         // append results
@@ -531,7 +612,9 @@ impl<'a> App<'a> {
         selected = self.history_area.get_state_select();
 
         // update WatchArea
-        self.set_output_data(selected)
+        self.set_output_data(selected);
+
+        true
     }
 
     ///
@@ -550,6 +633,31 @@ impl<'a> App<'a> {
                         code: KeyCode::Down,
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
+
+                    // mouse wheel up
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::ScrollUp,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => self.mouse_scroll_up(),
+
+                    // mouse wheel down
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::ScrollDown,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => self.mouse_scroll_down(),
+
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                        column,
+                        row,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    }) => {
+                        // Currently a no-op
+                        self.mouse_click_left(column, row);
+                    }
 
                     // pgup
 
@@ -585,11 +693,17 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.set_line_number(!self.line_number),
 
-                    // o
+                    // o(lower o)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('o'),
                         modifiers: KeyModifiers::NONE,
                     }) => self.toggle_output(),
+
+                    // O(upper o). shift + o
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('O'),
+                        modifiers: KeyModifiers::SHIFT,
+                    }) => self.set_is_only_diffline(!self.is_only_diffline),
 
                     // 0 (DiffMode::Disable)
                     Event::Key(KeyEvent {
@@ -670,7 +784,21 @@ impl<'a> App<'a> {
                     }
 
                     // Common input key
-                    // h ... toggel help window.
+                    // Backspace ... toggle history panel.
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Backspace,
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.show_history(!self.show_history),
+
+                    // Common input key
+                    // t ... toggle ui
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('t'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.show_ui(!self.show_header),
+
+                    // Common input key
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -694,8 +822,6 @@ impl<'a> App<'a> {
                         .send(AppEvent::Exit)
                         .expect("send error hwatch exit."),
 
-                    // mouse event.
-                    // Event::Mouse(ref mouse_event) => self.get_input_mouse_event(mouse_event),
                     _ => {}
                 }
             }
@@ -714,7 +840,7 @@ impl<'a> App<'a> {
                         modifiers: KeyModifiers::NONE,
                     }) => self.input_key_down(),
 
-                    // h ... toggel help window.
+                    // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
@@ -800,26 +926,20 @@ impl<'a> App<'a> {
         }
     }
 
-    // Not currently used.
-    ///
-    //fn get_input_mouse_event(&mut self, mouse_event: &MouseEvent) {
-    //    let mouse_event_tupple = (mouse_event.kind, mouse_event.modifiers);
-    //    if let (MouseEventKind::Down(MouseButton::Left), KeyModifiers::NONE) = mouse_event_tupple {
-    //        self.mouse_click_left(mouse_event.column, mouse_event.row);
-    //    }
-    //}
+    fn set_area(&mut self, target: ActiveArea) {
+        self.area = target;
+        // set active window to header.
+        self.header_area.set_active_area(self.area);
+        self.header_area.update();
+    }
 
     ///
     fn toggle_area(&mut self) {
         if let ActiveWindow::Normal = self.window {
             match self.area {
-                ActiveArea::Watch => self.area = ActiveArea::History,
-                ActiveArea::History => self.area = ActiveArea::Watch,
+                ActiveArea::Watch => self.set_area(ActiveArea::History),
+                ActiveArea::History => self.set_area(ActiveArea::Watch),
             }
-
-            // set active window to header.
-            self.header_area.set_active_area(self.area);
-            self.header_area.update();
         }
     }
 
@@ -848,6 +968,35 @@ impl<'a> App<'a> {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
         }
+    }
+
+    ///
+    pub fn show_history(&mut self, visible: bool) {
+        self.show_history = visible;
+        if !visible {
+            self.set_area(ActiveArea::Watch);
+        }
+        let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    ///
+    pub fn show_ui(&mut self, visible: bool) {
+        self.show_header = visible;
+        self.show_history = visible;
+        let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    ///
+    pub fn show_help_banner(&mut self, visible: bool) {
+        self.header_area.set_banner(
+            if visible {
+                "Display help with h key!"
+            } else {
+                ""
+            }
+            .to_string(),
+        );
+        let _ = self.tx.send(AppEvent::Redraw);
     }
 
     ///
@@ -896,6 +1045,15 @@ impl<'a> App<'a> {
         }
     }
 
+    // Mouse wheel always scrolls the main area
+    fn mouse_scroll_up(&mut self) {
+        self.watch_area.scroll_up(2);
+    }
+
+    fn mouse_scroll_down(&mut self) {
+        self.watch_area.scroll_down(2);
+    }
+
     // NOTE: TODO:
     // Not currently used.
     // It will not be supported until the following issues are resolved.
@@ -932,27 +1090,22 @@ impl<'a> App<'a> {
         }
     }
 
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
+    // NOTE: TODO: Currently does not do anything
+    // Mouse clicks will not be supported until the following issues are resolved.
     //     - https://github.com/fdehau/tui-rs/issues/495
-    //fn mouse_click_left(&mut self, column: u16, row: u16) {
-    //    // check in hisotry area
-    //    let is_history_area = check_in_area(self.history_area.area, column, row);
-    //    if is_history_area {
-    //        // let headline_count = self.history_area.area.y;
-    //        // self.history_area.click_row(row - headline_count);
+    fn mouse_click_left(&mut self, _column: u16, _row: u16) {
+        //    // check in hisotry area
+        //    let is_history_area = check_in_area(self.history_area.area, column, row);
+        //    if is_history_area {
+        //        // let headline_count = self.history_area.area.y;
+        //        // self.history_area.click_row(row - headline_count);
 
-    //        // self.history_area.previous();
+        //        // self.history_area.previous();
 
-    //        let selected = self.history_area.get_state_select();
-    //        self.set_output_data(selected);
-    //    }
-    //}
-
-    //fn mouse_scroll_up(&mut self, _column: u16, _row: u16) {}
-
-    //fn mouse_scroll_down(&mut self, _column: u16, _row: u16) {}
+        //        let selected = self.history_area.get_state_select();
+        //        self.set_output_data(selected);
+        //    }
+    }
 }
 
 //fn check_in_area(area: Rect, column: u16, row: u16) -> bool {

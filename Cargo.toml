@@ -5,25 +5,22 @@ edition = "2021"
 keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
-opt-level = 3
 repository = "https://github.com/blacknon/hwatch"
-version = "0.3.7"
+version = "0.3.8"
 
 [dependencies]
-ansi-parser = "0.8.0"
-# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
+# TODO: [ansi-parser](https://crates.io/crates/ansi-parser)のバージョンアップ対応が必要になるので、その対応待ち. PRはmargeされたのでいい加減アップデートされてもいいと思うのだが….
 # ansi-parser = {version = "0.9.0", path = "../ansi-parser"}
+ansi-parser = "0.8.0"
 async-std = {version = "1.11"}
-chrono = "0.4"
+chrono = "0.4.19"
 clap = {version = "3.1.18", features = ["cargo"]}
 crossbeam-channel = "0.5.4"
 crossterm = "0.22"
+ctrlc = { version = "3.0", features = ["termination"] }
 difference = "2.0"
 futures = "0.3.21"
-# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
-# heapless = "0.7.13"
-# heapless = "0.6.1"
-heapless = "0.5.6"
+question = "0.2.2"
 regex = "1.3.0"
 serde = "1.0.104"
 serde_derive = "1.0.104"
@@ -31,3 +28,7 @@ serde_json = "1.0.44"
 shell-words = "1.1.0"
 termwiz = "0.15.0"
 tui = {version = "0.18.0", default-features = false, features = ['crossterm']}
+# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
+# heapless = "0.7.13"
+# heapless = "0.6.1"
+heapless = "0.5.6"

@@ -1,9 +1,10 @@
-// Copyright (c) 2021 Blacknon. All rights reserved.
+// Copyright (c) 2022 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える(v0.3.0)
+// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える(v0.3.9)
 // TODO: input内容の表示
+// TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
 use tui::{
     backend::Backend,
@@ -21,7 +22,7 @@ use crate::exec::CommandResult;
 use crate::DEFAULT_INTERVAL;
 
 //const
-const POSITION_X_HELP_TEXT: usize = 56;
+const POSITION_X_HELP_TEXT: usize = 53;
 const WIDTH_TEXT_INTERVAL: usize = 19;
 
 #[derive(Clone)]
@@ -57,6 +58,12 @@ pub struct HeaderArea<'a> {
     diff_mode: DiffMode,
 
     ///
+    is_only_diffline: bool,
+
+    ///
+    banner: String,
+
+    ///
     output_mode: OutputMode,
 
     ///
@@ -84,10 +91,12 @@ impl<'a> HeaderArea<'a> {
             data: vec![Spans::from("")],
             ansi_color: false,
             line_number: false,
+            banner: "".to_string(),
 
             active_area: ActiveArea::History,
 
             diff_mode: DiffMode::Disable,
+            is_only_diffline: false,
 
             output_mode: OutputMode::Output,
 
@@ -113,6 +122,10 @@ impl<'a> HeaderArea<'a> {
         self.line_number = line_number;
     }
 
+    pub fn set_banner(&mut self, banner: String) {
+        self.banner = banner;
+    }
+
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
     }
@@ -131,6 +144,10 @@ impl<'a> HeaderArea<'a> {
         self.diff_mode = diff_mode;
     }
 
+    pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
+        self.is_only_diffline = is_only_diffline
+    }
+
     pub fn set_input_mode(&mut self, input_mode: InputMode) {
         self.input_mode = input_mode;
     }
@@ -138,9 +155,6 @@ impl<'a> HeaderArea<'a> {
     pub fn update(&mut self) {
         // init data
         self.data = vec![];
-
-        // help message
-        let help_message = "Display help with h key!";
 
         // HeaderArea Width
         let width = self.area.width as usize;
@@ -150,8 +164,7 @@ impl<'a> HeaderArea<'a> {
         let timestamp_width: usize;
         if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
             command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
-            timestamp_width =
-                width - (WIDTH_TEXT_INTERVAL + command_width + help_message.len()) + 1;
+            timestamp_width = width - (WIDTH_TEXT_INTERVAL + command_width + self.banner.len()) + 1;
         } else {
             command_width = 0;
             timestamp_width = 0;
@@ -184,6 +197,30 @@ impl<'a> HeaderArea<'a> {
         // Get the data to display at header.
         let interval = format!("{:.3}", self.interval);
 
+        // Set number flag value
+        let value_number: Span = match self.line_number {
+            true => Span::styled(
+                "Number".to_string(),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            false => Span::styled("Number".to_string(), Style::default().fg(Color::Reset)),
+        };
+
+        // Set Color flag value
+        let value_color: Span = match self.ansi_color {
+            true => Span::styled(
+                "Color".to_string(),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            false => Span::styled("Color".to_string(), Style::default().fg(Color::Reset)),
+        };
+
         // Set output type value
         let value_output = match self.output_mode {
             OutputMode::Output => "Output".to_string(),
@@ -197,26 +234,21 @@ impl<'a> HeaderArea<'a> {
             ActiveArea::Watch => "watch".to_string(),
         };
 
+        // Set IsOnlyDiffline value
+        let value_only_diffline = if self.is_only_diffline { "(Only)" } else { "" };
+
         // Set Diff mode value
         let value_diff = match self.diff_mode {
             DiffMode::Disable => "None".to_string(),
             DiffMode::Watch => "Watch".to_string(),
-            DiffMode::Line => "Line".to_string(),
-            DiffMode::Word => "Word".to_string(),
+            DiffMode::Line => "Line".to_string() + value_only_diffline,
+            DiffMode::Word => "Word".to_string() + value_only_diffline,
         };
 
         // Set Color
         let command_color = match self.exec_status {
             true => Color::Green,
             false => Color::Red,
-        };
-        let is_color_enable_color = match self.ansi_color {
-            true => Color::Green,
-            false => Color::Reset,
-        };
-        let is_line_number_enable_color = match self.line_number {
-            true => Color::Green,
-            false => Color::Reset,
         };
 
         // Create 1st line.
@@ -232,7 +264,7 @@ impl<'a> HeaderArea<'a> {
                 Style::default().fg(command_color),
             ),
             Span::styled(
-                "Display help with h key!".to_string(),
+                self.banner.clone(),
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
             Span::styled(
@@ -247,39 +279,47 @@ impl<'a> HeaderArea<'a> {
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
             // Line number flag
-            Span::styled("Number: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(
-                format!("{:wid$}", self.line_number, wid = 5),
-                Style::default().fg(is_line_number_enable_color),
-            ),
+            Span::raw("["),
+            value_number,
+            Span::raw("]"),
             Span::raw(" "),
             // Color flag
-            Span::styled("Color: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(
-                format!("{:wid$}", self.ansi_color, wid = 5),
-                Style::default().fg(is_color_enable_color),
-            ),
+            Span::raw("["),
+            value_color,
+            Span::raw("]"),
             Span::raw(" "),
             // Output Type
-            Span::styled("Output: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("["),
+            Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_output, wid = 6),
-                Style::default().fg(Color::Yellow),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::REVERSED),
             ),
+            Span::raw("]"),
             Span::raw(" "),
             // Active Area
+            Span::raw("["),
             Span::styled("Active: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_active, wid = 7),
-                Style::default().fg(Color::Cyan),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::REVERSED),
             ),
+            Span::raw("]"),
             Span::raw(" "),
             // Diff Type
+            Span::raw("["),
             Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
-                format!("{:wid$}", value_diff, wid = 5),
-                Style::default().fg(Color::Magenta),
+                format!("{:wid$}", value_diff, wid = 10),
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::REVERSED),
             ),
+            Span::raw("]"),
         ]));
     }
 
