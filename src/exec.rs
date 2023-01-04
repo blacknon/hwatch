@@ -180,7 +180,7 @@ pub fn exec_after_command(shell_command: String, after_command: String, before_r
 
     let _ = Command::new(&exec_commands[0])
         .args(&exec_commands[1..length])
-        .env("HWATCH_JSON", json_data)
+        .env("HWATCH_DATA", json_data)
         .spawn();
 }
 
