@@ -40,7 +40,7 @@ That records the result of command execution and can display it history and diff
 
 ## Usage
 
-    hwatch 0.3.8
+    hwatch 0.3.9
     blacknon <blacknon@orebibou.com>
     A modern alternative to the watch command, records the differences in execution results and can
     check this differences at after.
