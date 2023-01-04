@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える(v0.3.0)
+// TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える(v0.3.9)
 // TODO: input内容の表示
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
