@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Blacknon. All rights reserved.
+// Copyright (c) 2022 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -75,6 +75,8 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         // toggle
         Spans::from(" - [c] key   ... toggle color mode."),
         Spans::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
+        Spans::from(" - [t] key   ... toggle ui (history pane & header both on/off). "),
+        Spans::from(" - [Bkspace] ... toggle history pane. "),
         // exit hwatch
         Spans::from(" - [q] key   ... exit hwatch."),
         // change diff
@@ -89,8 +91,8 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         // change use area
         Spans::from(" - [Tab] key ... toggle current area at history or watch."),
         // filter text inpu
-        Spans::from(" - [/] key ... filter history by string."),
-        Spans::from(" - [*] key ... filter history by regex."),
+        Spans::from(" - [/] key   ... filter history by string."),
+        Spans::from(" - [*] key   ... filter history by regex."),
         Spans::from(" - [ESC] key ... unfiltering."),
     ];
 

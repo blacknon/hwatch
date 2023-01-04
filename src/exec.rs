@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Blacknon. All rights reserved.
+// Copyright (c) 2022 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -23,6 +23,29 @@ pub struct CommandResult {
     pub stderr: String,
 }
 
+impl Default for CommandResult {
+    fn default() -> Self {
+        CommandResult {
+            timestamp: String::default(),
+            command: String::default(),
+            status: true,
+            output: String::default(),
+            stdout: String::default(),
+            stderr: String::default(),
+        }
+    }
+}
+
+impl PartialEq for CommandResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.command == other.command
+            && self.status == other.status
+            && self.output == other.output
+            && self.stdout == other.stdout
+            && self.stderr == other.stderr
+    }
+}
+
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
     pub shell_command: String,
@@ -45,60 +68,16 @@ impl ExecuteCommand {
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
     pub fn exec_command(&mut self) {
-        // Declaration at child.
-        let exec_cmd: String;
-        let mut exec_cmd_args = vec![];
-        let mut is_shellcmd_template = false;
-
         // set string command.
         let command_str = self.command.clone().join(" ");
 
-        if self.is_exec {
-            // is -x option enable
-            // command parse
-            let length = self.command.len();
-            exec_cmd = self.command[0].clone();
-            exec_cmd_args = self.command[1..length].to_vec();
-        } else {
-            // if `-e` option disable. (default)
-            // split self.shell_command
-            let shell_commands =
-                shell_words::split(&self.shell_command).expect("shell command parse error.");
-
-            // set shell_command args, to exec_cmd_args.
-            exec_cmd = shell_commands[0].to_string();
-            if shell_commands.len() >= 2 {
-                let length = shell_commands.len();
-                let shell_command_args = shell_commands[1..length].to_vec();
-
-                // shell_command_args to exec_cmd_args
-                for shell_command_arg in shell_command_args {
-                    let exec_cmd_arg: String;
-                    if shell_command_arg.contains("{COMMAND}") {
-                        exec_cmd_arg = str::replace(
-                            &shell_command_arg,
-                            crate::SHELL_COMMAND_EXECCMD,
-                            &command_str,
-                        );
-                        is_shellcmd_template = true;
-                    } else {
-                        exec_cmd_arg = shell_command_arg;
-                    }
-
-                    // push exec_cmd_arg to exec_cmd_args
-                    exec_cmd_args.push(exec_cmd_arg);
-                }
-            }
-
-            // add exec command..
-            if !is_shellcmd_template {
-                exec_cmd_args.push(command_str.clone());
-            }
-        }
+        // create exec_commands...
+        let exec_commands = create_exec_cmd_args(self.is_exec,self.shell_command.clone(),command_str.clone());
 
         // exec command...
-        let child_result = Command::new(exec_cmd)
-            .args(exec_cmd_args)
+        let length = exec_commands.len();
+        let child_result = Command::new(&exec_commands[0])
+            .args(&exec_commands[1..length])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn();
@@ -132,7 +111,7 @@ impl ExecuteCommand {
 
                             (stdout.len(), stderr.len())
                         }
-                        other => panic!("Some better error handling here, {:?}", other),
+                        other => panic!("Some better error handling here, {other:?}"),
                     };
 
                     if stdout_bytes == 0 && stderr_bytes == 0 {
@@ -176,5 +155,171 @@ impl ExecuteCommand {
 
         // Send result
         let _ = self.tx.send(AppEvent::OutputUpdate(result));
+    }
+}
+
+// TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
+#[derive(Serialize)]
+pub struct ExecuteAfterResultData {
+    pub before_result: CommandResult,
+    pub after_result: CommandResult,
+}
+
+pub fn exec_after_command(shell_command: String, after_command: String, before_result: CommandResult, after_result: CommandResult) {
+    let result_data = ExecuteAfterResultData {
+        before_result: before_result,
+        after_result: after_result,
+    };
+
+    // create json_data
+    let json_data: String = serde_json::to_string(&result_data).unwrap();
+
+    // execute command
+    let exec_commands = create_exec_cmd_args(false, shell_command, after_command);
+    let length = exec_commands.len();
+
+    let _ = Command::new(&exec_commands[0])
+        .args(&exec_commands[1..length])
+        .env("HWATCH_JSON", json_data)
+        .spawn();
+}
+
+//
+fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -> Vec<String> {
+    // Declaration at child.
+    let mut exec_commands = vec![];
+    let mut is_shellcmd_template = false;
+
+    if is_exec {
+        // is -x option enable
+        exec_commands = shell_words::split(&command).expect("shell command parse error.");
+    } else {
+        // if `-e` option disable. (default)
+        // split self.shell_command
+        let shell_commands =
+            shell_words::split(&shell_command).expect("shell command parse error.");
+
+        // set shell_command args, to exec_cmd_args.
+        exec_commands.push(shell_commands[0].to_string());
+
+        if shell_commands.len() >= 2 {
+            // set string command.
+            let length = shell_commands.len();
+            let shell_command_args = shell_commands[1..length].to_vec();
+
+            // shell_command_args to exec_cmd_args
+            for shell_command_arg in shell_command_args {
+                let exec_cmd_arg: String;
+                if shell_command_arg.contains("{COMMAND}") {
+                    exec_cmd_arg = str::replace(
+                        &shell_command_arg,
+                        crate::SHELL_COMMAND_EXECCMD,
+                        &command,
+                    );
+                    is_shellcmd_template = true;
+                } else {
+                    exec_cmd_arg = shell_command_arg;
+                }
+
+                // push exec_cmd_arg to exec_cmd_args
+                exec_commands.push(exec_cmd_arg);
+            }
+        }
+
+        // add exec command..
+        if !is_shellcmd_template {
+            exec_commands.push(command);
+        }
+    }
+
+    return exec_commands;
+
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_command_result_comparison() {
+        let command_result = CommandResult::default();
+        let command_result_2 = CommandResult {
+            timestamp: "SomeOtherTime".to_string(),
+            ..Default::default()
+        };
+        //Timestamp is not part of the comparison. Let's ensure it's different to prove.
+        assert!(command_result == command_result_2);
+    }
+
+    #[test]
+    fn test_command_result_default() {
+        let command_result = CommandResult::default();
+        assert_eq!(command_result.command, "".to_string());
+    }
+
+    #[test]
+    fn test_command_result_clone() {
+        let command_result = CommandResult::default();
+        let command_result2 = command_result.clone();
+        assert!(command_result == command_result2);
+    }
+
+    #[test]
+    fn test_command_result_equality() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult::default();
+        assert!(command_result1 == command_result2);
+    }
+
+    #[test]
+    fn test_command_result_command_diff() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult {
+            command: "different".to_string(),
+            ..Default::default()
+        };
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_status_diff() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult {
+            status: false,
+            ..Default::default()
+        };
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_output_diff() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult {
+            output: "different".to_string(),
+            ..Default::default()
+        };
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_stdout_diff() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult {
+            stdout: "different".to_string(),
+            ..Default::default()
+        };
+        assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_command_result_stderr_diff() {
+        let command_result1 = CommandResult::default();
+        let command_result2 = CommandResult {
+            stderr: "different".to_string(),
+            ..Default::default()
+        };
+        assert!(command_result1 != command_result2);
     }
 }

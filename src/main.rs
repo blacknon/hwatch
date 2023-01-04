@@ -1,32 +1,34 @@
-// Copyright (c) 2021 Blacknon. All rights reserved.
+// Copyright (c) 2022 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
 // v0.3.8
-// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
-// TODO(blakcnon): Windows対応
-//                 - 文字コードを考慮に入れた設計にする(OSString/文字コードに書き換える)
-// TODO(blakcnon): batch modeの実装.
-// TODO(blacknon): 出力結果が変わった場合はbeepを鳴らす機能の追加
-//                 watchコマンドにもある(-b, --beep)。微妙に機能としては違うものかも…？
 // TODO(blacknon): 出力結果が変わった場合やコマンドの実行に失敗・成功した場合に、オプションで指定したコマンドをキックする機能を追加.
 //                 - その際、環境変数をキックするコマンドに渡して実行結果や差分をキック先コマンドで扱えるようにする。
 //                 - また、実行時にはシェルも指定して呼び出せるようにする？
-// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
-// TODO(blacknon): エラーなどのメッセージ表示領域の作成
-// TODO(blacknon): diffのライブラリをsimilarに切り替える？
-//                 - https://github.com/mitsuhiko/similar
 
 // v0.3.9
+// TODO(blacknon): コマンド実行結果のみを表示するオプション(keybind)の追加(なんかもうコードあるっぽい？？).
+//                 - https://github.com/blacknon/hwatch/issues/63
+// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
+// TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
-// TODO(blacknon): diffのある箇所だけを表示するモードの作成.
-//                 `OnlyLine`, `OnlyWord` mode.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
+// TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
+// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
+// TODO(blacknon): エラーなどのメッセージ表示領域の作成
+// TODO(blacknon): diffのライブラリをsimilarに切り替える？
+//                 - https://github.com/mitsuhiko/similar
+//                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
+//                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
+// TODO(blacknon): diffのとき、stdout/stderrでの比較時におけるdiffでhistoryも変化させる？
+//                 - データの扱いが変わってきそう？
+//                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
 
 // crate
 extern crate ansi_parser;
@@ -34,9 +36,11 @@ extern crate async_std;
 extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
+extern crate ctrlc;
 extern crate difference;
 extern crate futures;
 extern crate heapless;
+extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
@@ -53,6 +57,7 @@ extern crate serde_json;
 
 // modules
 use clap::{AppSettings, Arg, Command};
+use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
 // use std::sync::mpsc::channel;
@@ -130,9 +135,29 @@ fn build_app() -> clap::Command<'static> {
         //         .long("batch"),
         // )
         // Beep option
-        //     [-b,--beep]
+        //     [-B,--beep]
+        .arg(
+            Arg::new("beep")
+                .help("beep if command has a change result")
+                .short('B')
+                .long("beep"),
+        )
+        // Beep option
+        //     [-B,--beep]
+        .arg(
+            Arg::new("mouse")
+                .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
+                .long("mouse"),
+        )
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
+        .arg(
+            Arg::new("after_command")
+                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
+                .short('A')
+                .long("aftercommand")
+                .takes_value(true)
+        )
         // Enable ANSI color option
         //     [-c,--color]
         .arg(
@@ -149,6 +174,12 @@ fn build_app() -> clap::Command<'static> {
                 .long("differences")
                 .short('d'),
         )
+        .arg(
+            Arg::new("no_title")
+            .help("hide the UI on start. Use `t` to toggle it.")
+            .long("no-title")
+            .short('t'),
+        )
         // Enable line number mode option
         //   [--line-number,-N]
         .arg(
@@ -157,6 +188,12 @@ fn build_app() -> clap::Command<'static> {
                 .short('N')
                 .long("line-number"),
         )
+        .arg(
+            Arg::new("no_help_banner")
+            .help("hide the \"Display help with h key\" message")
+            .long("no-help-banner")
+        )
+
         // exec flag.
         //
         .arg(
@@ -200,39 +237,56 @@ fn build_app() -> clap::Command<'static> {
         )
 }
 
+fn get_clap_matcher() -> clap::ArgMatches {
+    let env_config = std::env::var("HWATCH").unwrap_or_default();
+    let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
+    let mut os_args = std::env::args_os();
+    let mut args: Vec<std::ffi::OsString> = vec![];
+    // First argument is the program name
+    args.push(os_args.next().unwrap());
+    // Environment variables go next so that they can be overridded
+    // TODO: Currently, the opposites of command-line options are not
+    // yet implemented. E.g., there is no `--no-color` to override
+    // `--color` in the HWATCH environment variable.
+    args.extend(env_args.iter().map(std::ffi::OsString::from));
+    args.extend(os_args);
+
+    build_app().get_matches_from(args)
+}
+
 fn main() {
     // Get command args matches
-    let matche = build_app().get_matches();
+    let matcher = get_clap_matcher();
 
     // Get options flag
-    // let batch = matche.is_present("batch");
-    let diff = matche.is_present("differences");
-    let color = matche.is_present("color");
-    let is_exec = matche.is_present("exec");
-    let line_number = matche.is_present("line_number");
-
-    // Get options value
-    // let interval: f64 = value_t!(matche, "interval", f64).unwrap_or_else(|e| e.exit());
-    let interval: f64 = matche.value_of_t_or_exit("interval");
-
-    // let exec = matche.value_of("exec");
-    let logfile = matche.value_of("logfile");
-
+    // let batch = matcher.is_present("batch");
+    let after_command = matcher.value_of("after_command");
+    let logfile = matcher.value_of("logfile");
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
-    if logfile != None {
-        let _log_path = Path::new(logfile.unwrap());
+    if let Some(logfile) = logfile {
+        let _log_path = Path::new(logfile);
         let _log_dir = _log_path.parent().unwrap();
+        let _cur_dir = std::env::current_dir().expect("cannot get current directory");
+        let _abs_log_path = _cur_dir.join(_log_path);
+        let _abs_log_dir = _cur_dir.join(_log_dir);
 
         // check _log_path exist
-        if Path::new(_log_path).exists() {
-            println!("file {:?} is exists.", _log_path);
-            std::process::exit(1);
+        if _abs_log_path.exists() {
+            println!("file {_abs_log_path:?} is exists.");
+            let answer = Question::new("Log to the same file?")
+                .default(Answer::YES)
+                .show_defaults()
+                .confirm();
+
+            if answer != Answer::YES {
+                std::process::exit(1);
+            }
         }
 
         // check _log_dir exist
-        if !Path::new(_log_dir).exists() {
-            println!("directory {:?} is not exists.", _log_dir);
+        if !_abs_log_dir.exists() {
+            println!("directory {_abs_log_dir:?} is not exists.");
             std::process::exit(1);
         }
     }
@@ -240,9 +294,10 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
+    let interval: f64 = matcher.value_of_t_or_exit("interval");
     // Start Command Thread
     {
-        let m = matche.clone();
+        let m = matcher.clone();
         let tx = tx.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
@@ -255,7 +310,7 @@ fn main() {
             exe.command = m.values_of_lossy("command").unwrap();
 
             // Set is exec flag.
-            exe.is_exec = is_exec;
+            exe.is_exec = m.is_present("exec");
 
             // Exec command
             exe.exec_command();
@@ -272,20 +327,29 @@ fn main() {
     let mut view = view::View::new()
         // Set interval on view.header
         .set_interval(interval)
+        .set_beep(matcher.is_present("beep"))
+        .set_mouse_events(matcher.is_present("mouse"))
         // Set color in view
-        .set_color(color)
+        .set_color(matcher.is_present("color"))
         // Set line number in view
-        .set_line_number(line_number)
+        .set_line_number(matcher.is_present("line_number"))
         // Set diff(watch diff) in view
-        .set_watch_diff(diff);
+        .set_watch_diff(matcher.is_present("differences"))
+        .set_show_ui(!matcher.is_present("no_title"))
+        .set_show_help_banner(!matcher.is_present("no_help_banner"));
 
     // Set logfile
-    if logfile != None {
-        view = view.set_logfile(logfile.unwrap().to_string());
+    if let Some(logfile) = logfile {
+        view = view.set_logfile(logfile.to_string());
+    }
+
+    // Set after_command
+    if let Some(after_command) = after_command {
+        view = view.set_after_command(after_command.to_string());
     }
 
     // start app.
-    let _res = view.start(tx.clone(), rx);
+    let _res = view.start(tx, rx);
     // } else {
     //     // is batch mode
     //     println!("is batch (developing now)");
