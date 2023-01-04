@@ -49,25 +49,55 @@ That records the result of command execution and can display it history and diff
         hwatch [OPTIONS] <command>...
 
     ARGS:
-        <command>...    
+        <command>...
 
     OPTIONS:
-        -B, --beep                     beep if command has a change result
-        -c, --color                    interpret ANSI color and style sequences
-            --mouse                    enable mouse wheel support. With this option, copying text
-                                       with your terminal may be harder. Try holding the Shift key.
-        -d, --differences              highlight changes between updates
-        -t, --no-title                 hide the UI on start. Use `t` to toggle it.
-        -N, --line-number              show line number
-            --no-help-banner           hide the "Display help with h key" message
-        -x, --exec                     Run the command directly, not through the shell. Much like the
-                                       `-x` option of the watch command.
-        -l, --logfile <logfile>        logging file
-        -s, --shell <shell_command>    shell to use at runtime. can  also insert the command to the
-                                       location specified by {COMMAND}. [default: "sh -c"]
-        -n, --interval <interval>      seconds to wait between updates [default: 2]
-        -h, --help                     Print help information
-        -V, --version                  Print version information
+        -B, --beep
+                beep if command has a change result
+
+            --mouse
+                enable mouse wheel support. With this option, copying text with your terminal may be
+                harder. Try holding the Shift key.
+
+        -A, --aftercommand <after_command>
+                Executes the specified command if the output changes. Information about changes is
+                stored in json format in environment variable ${HWATCH_DATA}.
+
+        -c, --color
+                interpret ANSI color and style sequences
+
+        -d, --differences
+                highlight changes between updates
+
+        -t, --no-title
+                hide the UI on start. Use `t` to toggle it.
+
+        -N, --line-number
+                show line number
+
+            --no-help-banner
+                hide the "Display help with h key" message
+
+        -x, --exec
+                Run the command directly, not through the shell. Much like the `-x` option of the watch
+                command.
+
+        -l, --logfile <logfile>
+                logging file
+
+        -s, --shell <shell_command>
+                shell to use at runtime. can  also insert the command to the location specified by
+                {COMMAND}. [default: "sh -c"]
+
+        -n, --interval <interval>
+                seconds to wait between updates [default: 2]
+
+        -h, --help
+                Print help information
+
+        -V, --version
+                Print version information
+
 
 watch window keybind
 
@@ -87,6 +117,8 @@ watch window keybind
 | <kbd>1</kbd>   | switch watch type diff.
 | <kbd>2</kbd>   | switch line type diff.
 | <kbd>3</kbd>   | switch word type diff.
+| <kbd>O</kbd>   | switch output mode(output->stdout->stderr).
+| <kbd>Shift</kbd>+<kbd>O</kbd>   | show only lines with differences(line/word diff mode only).
 | <kbd>F1</kbd>  | only stdout print.
 | <kbd>F2</kbd>  | only stderr print.
 | <kbd>F3</kbd>  | print output.
