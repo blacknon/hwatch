@@ -166,7 +166,7 @@ pub struct ExecuteAfterResultData {
 }
 
 pub fn exec_after_command(shell_command: String, after_command: String, before_result: CommandResult, after_result: CommandResult) {
-    let mut result_data = ExecuteAfterResultData {
+    let result_data = ExecuteAfterResultData {
         before_result: before_result,
         after_result: after_result,
     };
