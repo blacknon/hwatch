@@ -8,17 +8,20 @@ use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use regex::Regex;
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, result};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
 
+use std::process::Command;
+use std::thread;
+
 // local module
 use crate::common::logging_result;
 use crate::event::AppEvent;
-use crate::exec::CommandResult;
+use crate::exec::{exec_after_command,CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
@@ -74,6 +77,9 @@ pub struct App<'a> {
 
     ///
     window: ActiveWindow,
+
+    ///
+    after_command: String,
 
     ///
     ansi_color: bool,
@@ -146,6 +152,7 @@ impl<'a> App<'a> {
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
 
+            after_command: "".to_string(),
             ansi_color: false,
             line_number: false,
             show_history: true,
@@ -380,6 +387,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_after_command(&mut self, command: String){
+        self.after_command = command;
+    }
+
+    ///
     pub fn set_output_mode(&mut self, mode: OutputMode) {
         self.output_mode = mode;
         self.header_area.set_output_mode(mode);
@@ -537,6 +549,22 @@ impl<'a> App<'a> {
         // check result diff
         if latest_result == _result {
             return false;
+        }
+
+        if self.after_command != "".to_string() {
+            let after_command = self.after_command.clone();
+
+            let results = self.results.clone();
+            let latest_num = results.len() - 1;
+
+            let before_result = results[&latest_num].clone();
+            let after_result = _result.clone();
+
+            {
+                thread::spawn(move|| {
+                    let _ = exec_after_command("sh -c".to_string(),after_command.clone(),before_result,after_result);
+            });
+            }
         }
 
         // append results

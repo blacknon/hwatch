@@ -22,6 +22,7 @@ use crate::DEFAULT_INTERVAL;
 /// Struct at run hwatch on tui
 #[derive(Clone)]
 pub struct View {
+    after_command: String,
     interval: f64,
     beep: bool,
     mouse_events: bool,
@@ -37,6 +38,7 @@ pub struct View {
 impl View {
     pub fn new() -> Self {
         Self {
+            after_command: "".to_string(),
             interval: DEFAULT_INTERVAL,
             beep: false,
             mouse_events: false,
@@ -47,6 +49,11 @@ impl View {
             watch_diff: false,
             log_path: "".to_string(),
         }
+    }
+
+    pub fn set_after_command(mut self, command: String) -> Self {
+        self.after_command = command;
+        self
     }
 
     pub fn set_interval(mut self, interval: f64) -> Self {
@@ -125,6 +132,9 @@ impl View {
 
         // Create App
         let mut app = App::new(tx, rx);
+
+        // set after command
+        app.set_after_command(self.after_command.clone());
 
         // set interval
         app.set_interval(self.interval);

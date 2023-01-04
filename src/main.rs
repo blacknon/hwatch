@@ -152,8 +152,8 @@ fn build_app() -> clap::Command<'static> {
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
         .arg(
-            Arg::new("after_change_command")
-                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_JSON}.")
+            Arg::new("after_command")
+                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
                 .short('A')
                 .long("aftercommand")
                 .takes_value(true)
@@ -260,7 +260,7 @@ fn main() {
 
     // Get options flag
     // let batch = matcher.is_present("batch");
-
+    let after_command = matcher.value_of("after_command");
     let logfile = matcher.value_of("logfile");
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
@@ -341,6 +341,11 @@ fn main() {
     // Set logfile
     if let Some(logfile) = logfile {
         view = view.set_logfile(logfile.to_string());
+    }
+
+    // Set after_command
+    if let Some(after_command) = after_command {
+        view = view.set_after_command(after_command.to_string());
     }
 
     // start app.
