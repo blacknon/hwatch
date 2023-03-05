@@ -90,8 +90,8 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         Spans::from(" - [F2] key  ... change output mode as stderr."),
         Spans::from(" - [F3] key  ... change output mode as output(stdout/stderr set.)"),
         // change interval
-        Spans::from(" - [+] key ... Increase interval by 1 second."),
-        Spans::from(" - [-] key ... Decrease interval by 1 second."),
+        Spans::from(" - [+] key ... Increase interval by .5 seconds."),
+        Spans::from(" - [-] key ... Decrease interval by .5 seconds."),
         // change use area
         Spans::from(" - [Tab] key ... toggle current area at history or watch."),
         // filter text inpu
