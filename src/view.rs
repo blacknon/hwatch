@@ -9,7 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{error::Error, io, sync::{Arc, RwLock}};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
@@ -17,13 +17,13 @@ use crate::app::{App, DiffMode};
 use crate::event::AppEvent;
 
 // local const
-use crate::DEFAULT_INTERVAL;
+use crate::Interval;
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
 pub struct View {
     after_command: String,
-    interval: f64,
+    interval: Interval,
     beep: bool,
     mouse_events: bool,
     color: bool,
@@ -36,10 +36,10 @@ pub struct View {
 
 ///
 impl View {
-    pub fn new() -> Self {
+    pub fn new(interval: Interval) -> Self {
         Self {
             after_command: "".to_string(),
-            interval: DEFAULT_INTERVAL,
+            interval,
             beep: false,
             mouse_events: false,
             color: false,
@@ -56,7 +56,7 @@ impl View {
         self
     }
 
-    pub fn set_interval(mut self, interval: f64) -> Self {
+    pub fn set_interval(mut self, interval: Arc<RwLock<f64>>) -> Self {
         self.interval = interval;
         self
     }
@@ -131,13 +131,10 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx);
+        let mut app = App::new(tx, rx, self.interval.clone());
 
         // set after command
         app.set_after_command(self.after_command.clone());
-
-        // set interval
-        app.set_interval(self.interval);
 
         // set beep
         app.set_beep(self.beep);

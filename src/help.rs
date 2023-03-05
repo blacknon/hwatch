@@ -74,6 +74,7 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         Spans::from(" - [h] key   ... show this help message."),
         // toggle
         Spans::from(" - [c] key   ... toggle color mode."),
+        Spans::from(" - [n] key   ... toggle line number."),
         Spans::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
         Spans::from(" - [t] key   ... toggle ui (history pane & header both on/off). "),
         Spans::from(" - [Bkspace] ... toggle history pane. "),
@@ -88,6 +89,9 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         Spans::from(" - [F1] key  ... change output mode as stdout."),
         Spans::from(" - [F2] key  ... change output mode as stderr."),
         Spans::from(" - [F3] key  ... change output mode as output(stdout/stderr set.)"),
+        // change interval
+        Spans::from(" - [+] key ... Increase interval by 1 second."),
+        Spans::from(" - [-] key ... Decrease interval by 1 second."),
         // change use area
         Spans::from(" - [Tab] key ... toggle current area at history or watch."),
         // filter text inpu

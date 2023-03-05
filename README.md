@@ -122,6 +122,8 @@ watch window keybind
 | <kbd>F1</kbd>  | only stdout print.
 | <kbd>F2</kbd>  | only stderr print.
 | <kbd>F3</kbd>  | print output.
+| <kbd>+</kbd>   | increase interval.
+| <kbd>-</kbd>   | decrease interval.
 | <kbd>Tab</kbd> | toggle select screen(history/watch).
 | <kbd>/</kbd>   | filter history by string.
 | <kbd>*</kbd>   | filter history by regex.
