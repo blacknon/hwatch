@@ -289,9 +289,8 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
-    // interval = matcher.value_of_t_or_exit("interval");
     let override_interval = matcher.value_of_t("interval").unwrap_or(DEFAULT_INTERVAL);
-    let interval = Interval::new(RwLock::new(override_interval));
+    let interval = Interval::new(override_interval.into());
 
     // Start Command Thread
     {
@@ -317,7 +316,7 @@ fn main() {
             // Exec command
             exe.exec_command();
 
-            let sleep_interval = interval.read().unwrap().clone();
+            let sleep_interval = *interval.read().unwrap();
             std::thread::sleep(Duration::from_secs_f64(sleep_interval));
         });
     }

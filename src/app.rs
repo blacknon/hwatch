@@ -19,14 +19,14 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::{common::logging_result, Interval};
 use crate::event::AppEvent;
-use crate::exec::{exec_after_command,CommandResult};
+use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
 use crate::output;
 use crate::watch::WatchArea;
+use crate::{common::logging_result, Interval};
 
 // local const
 use crate::HISTORY_WIDTH;
@@ -174,7 +174,7 @@ impl<'a> App<'a> {
             results: HashMap::new(),
             interval: interval.clone(),
 
-            header_area: HeaderArea::new(interval.read().unwrap().clone()),
+            header_area: HeaderArea::new(*interval.read().unwrap()),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -391,7 +391,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn set_after_command(&mut self, command: String){
+    pub fn set_after_command(&mut self, command: String) {
         self.after_command = command;
     }
 
@@ -582,9 +582,14 @@ impl<'a> App<'a> {
             let after_result = _result.clone();
 
             {
-                thread::spawn(move|| {
-                    let _ = exec_after_command("sh -c".to_string(),after_command.clone(),before_result,after_result);
-            });
+                thread::spawn(move || {
+                    exec_after_command(
+                        "sh -c".to_string(),
+                        after_command.clone(),
+                        before_result,
+                        after_result,
+                    );
+                });
             }
         }
 
