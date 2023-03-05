@@ -19,7 +19,7 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::common::logging_result;
+use crate::{common::logging_result, Interval};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command,CommandResult};
 use crate::header::HeaderArea;
@@ -121,6 +121,9 @@ pub struct App<'a> {
     results: HashMap<usize, CommandResult>,
 
     ///
+    interval: Interval,
+
+    ///
     header_area: HeaderArea<'a>,
 
     ///
@@ -146,7 +149,7 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl<'a> App<'a> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
+    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: Interval) -> Self {
         // method at create new view trail.
         Self {
             area: ActiveArea::History,
@@ -169,8 +172,9 @@ impl<'a> App<'a> {
             is_only_diffline: false,
 
             results: HashMap::new(),
+            interval: interval.clone(),
 
-            header_area: HeaderArea::new(),
+            header_area: HeaderArea::new(interval.read().unwrap().clone()),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -430,7 +434,24 @@ impl<'a> App<'a> {
 
     ///
     pub fn set_interval(&mut self, interval: f64) {
-        self.header_area.set_interval(interval);
+        let mut cur_interval = self.interval.write().unwrap();
+        *cur_interval = interval;
+        self.header_area.set_interval(*cur_interval);
+        self.header_area.update();
+    }
+
+    ///
+    fn increase_interval(&mut self) {
+        let cur_interval = *self.interval.read().unwrap();
+        self.set_interval(cur_interval + 0.5);
+    }
+
+    ///
+    fn decrease_interval(&mut self) {
+        let cur_interval = *self.interval.read().unwrap();
+        if cur_interval > 0.5 {
+            self.set_interval(cur_interval - 0.5);
+        }
     }
 
     ///
@@ -746,6 +767,18 @@ impl<'a> App<'a> {
                         code: KeyCode::F(3),
                         modifiers: KeyModifiers::NONE,
                     }) => self.set_output_mode(OutputMode::Output),
+
+                    // + Increase interval
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('+'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.increase_interval(),
+
+                    // - Decrease interval
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('-'),
+                        modifiers: KeyModifiers::NONE,
+                    }) => self.decrease_interval(),
 
                     // Tab ... Toggle Area(Watch or History).
                     Event::Key(KeyEvent {
