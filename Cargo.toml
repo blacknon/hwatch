@@ -30,6 +30,4 @@ termwiz = "0.15.0"
 # TODO(blacknon): tui-rsが対応するまで待ってるのもアレなので、forkしたリポジトリに取り込んでcrateパッケージとして登録→必要な対応を実装する. v0.3.10
 tui = {version = "0.19.0", default-features = false, features = ['crossterm']}
 # TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
-# heapless = "0.7.13"
-# heapless = "0.6.1"
 heapless = "0.5.6"
