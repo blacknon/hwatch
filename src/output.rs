@@ -8,7 +8,7 @@ use difference::{Changeset, Difference};
 use heapless::consts::*;
 use regex::Regex;
 use std::cmp;
-use ratatui::{
+use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
 };

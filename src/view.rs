@@ -10,7 +10,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{error::Error, io, sync::{Arc, RwLock}};
-use ratatui::{backend::CrosstermBackend, Terminal};
+use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
 use crate::app::{App, DiffMode};

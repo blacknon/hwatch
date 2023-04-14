@@ -38,7 +38,7 @@ extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate termwiz;
-extern crate ratatui;
+extern crate tui;
 
 // macro crate
 #[macro_use]
