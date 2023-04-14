@@ -9,7 +9,7 @@ use crossbeam_channel::{Receiver, Sender};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use regex::Regex;
 use std::{collections::HashMap, io};
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
@@ -270,7 +270,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn define_subareas(&mut self, total_area: tui::layout::Rect) {
+    fn define_subareas(&mut self, total_area: ratatui::layout::Rect) {
         let history_width: u16 = match self.show_history {
             true => HISTORY_WIDTH,
             false => match self.area == ActiveArea::History
@@ -1095,14 +1095,14 @@ impl<'a> App<'a> {
     // NOTE: TODO:
     // Not currently used.
     // It will not be supported until the following issues are resolved.
-    //     - https://github.com/fdehau/tui-rs/issues/495
+    //     - https://github.com/tui-rs-revival/ratatui/pull/12
     ///
     //fn input_key_pgup(&mut self) {}
 
     // NOTE: TODO:
     // Not currently used.
     // It will not be supported until the following issues are resolved.
-    //     - https://github.com/fdehau/tui-rs/issues/495
+    //     - https://github.com/tui-rs-revival/ratatui/pull/12
     ///
     //fn input_key_pgdn(&mut self) {}
 
@@ -1130,7 +1130,7 @@ impl<'a> App<'a> {
 
     // NOTE: TODO: Currently does not do anything
     // Mouse clicks will not be supported until the following issues are resolved.
-    //     - https://github.com/fdehau/tui-rs/issues/495
+    //     - https://github.com/tui-rs-revival/ratatui/pull/12
     fn mouse_click_left(&mut self, _column: u16, _row: u16) {
         //    // check in hisotry area
         //    let is_history_area = check_in_area(self.history_area.area, column, row);
@@ -1146,6 +1146,9 @@ impl<'a> App<'a> {
     }
 }
 
+// NOTE: TODO:
+// Not currently used.
+//     - https://github.com/tui-rs-revival/ratatui/pull/12
 //fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
 //    let mut result = true;
 //
