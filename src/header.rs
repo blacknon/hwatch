@@ -6,7 +6,7 @@
 // TODO: input内容の表示
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
-use ratatui::{
+use tui::{
     backend::Backend,
     style::{Color, Modifier, Style},
     text::{Span, Spans},
@@ -25,7 +25,7 @@ const WIDTH_TEXT_INTERVAL: usize = 19;
 #[derive(Clone)]
 pub struct HeaderArea<'a> {
     ///
-    pub area: ratatui::layout::Rect,
+    pub area: tui::layout::Rect,
 
     ///
     interval: f64,
@@ -77,7 +77,7 @@ pub struct HeaderArea<'a> {
 impl<'a> HeaderArea<'a> {
     pub fn new(interval: f64) -> Self {
         Self {
-            area: ratatui::layout::Rect::new(0, 0, 0, 0),
+            area: tui::layout::Rect::new(0, 0, 0, 0),
 
             interval,
 
@@ -103,7 +103,7 @@ impl<'a> HeaderArea<'a> {
         }
     }
 
-    pub fn set_area(&mut self, area: ratatui::layout::Rect) {
+    pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
     }
 

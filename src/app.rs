@@ -6,10 +6,10 @@
 
 use crossbeam_channel::{Receiver, Sender};
 // module
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind, KeyEventState};
 use regex::Regex;
 use std::{collections::HashMap, io};
-use ratatui::{
+use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     Frame, Terminal,
@@ -270,7 +270,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn define_subareas(&mut self, total_area: ratatui::layout::Rect) {
+    fn define_subareas(&mut self, total_area: tui::layout::Rect) {
         let history_width: u16 = match self.show_history {
             true => HISTORY_WIDTH,
             false => match self.area == ActiveArea::History
@@ -652,12 +652,16 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Up,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.input_key_up(),
 
                     // down
                     Event::Key(KeyEvent {
                         code: KeyCode::Down,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.input_key_down(),
 
                     // mouse wheel up
@@ -693,120 +697,160 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Left,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.input_key_left(),
 
                     // right
                     Event::Key(KeyEvent {
                         code: KeyCode::Right,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.input_key_right(),
 
                     // c
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_ansi_color(!self.ansi_color),
 
                     // d
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('d'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.toggle_diff_mode(),
 
                     // n
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('n'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_line_number(!self.line_number),
 
                     // o(lower o)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('o'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.toggle_output(),
 
                     // O(upper o). shift + o
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('O'),
                         modifiers: KeyModifiers::SHIFT,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_is_only_diffline(!self.is_only_diffline),
 
                     // 0 (DiffMode::Disable)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('0'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_diff_mode(DiffMode::Disable),
 
                     // 1 (DiffMode::Watch)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('1'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_diff_mode(DiffMode::Watch),
 
                     // 2 (DiffMode::Line)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('2'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_diff_mode(DiffMode::Line),
 
                     // 3 (DiffMode::Word)
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('3'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_diff_mode(DiffMode::Word),
 
                     // F1 (OutputMode::Stdout)
                     Event::Key(KeyEvent {
                         code: KeyCode::F(1),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_output_mode(OutputMode::Stdout),
 
                     // F2 (OutputMode::Stderr)
                     Event::Key(KeyEvent {
                         code: KeyCode::F(2),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_output_mode(OutputMode::Stderr),
 
                     // F3 (OutputMode::Output)
                     Event::Key(KeyEvent {
                         code: KeyCode::F(3),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_output_mode(OutputMode::Output),
 
                     // + Increase interval
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('+'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.increase_interval(),
 
                     // - Decrease interval
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('-'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.decrease_interval(),
 
                     // Tab ... Toggle Area(Watch or History).
                     Event::Key(KeyEvent {
                         code: KeyCode::Tab,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.toggle_area(),
 
                     // / ... Change Filter Mode(plane text).
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('/'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_input_mode(InputMode::Filter),
 
                     // / ... Change Filter Mode(regex text).
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('*'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.set_input_mode(InputMode::RegexFilter),
 
                     // ESC ... Reset.
                     Event::Key(KeyEvent {
                         code: KeyCode::Esc,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => {
                         self.is_filtered = false;
                         self.is_regex_filter = false;
@@ -826,6 +870,8 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Backspace,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.show_history(!self.show_history),
 
                     // Common input key
@@ -833,6 +879,8 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('t'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.show_ui(!self.show_header),
 
                     // Common input key
@@ -840,12 +888,16 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.toggle_window(),
 
                     // q ... exit hwatch.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('q'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self
                         .tx
                         .send(AppEvent::Exit)
@@ -855,6 +907,8 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::CONTROL,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self
                         .tx
                         .send(AppEvent::Exit)
@@ -870,24 +924,32 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Up,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.input_key_up(),
 
                     // down
                     Event::Key(KeyEvent {
                         code: KeyCode::Down,
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.input_key_down(),
 
                     // h ... toggle help window.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('h'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self.toggle_window(),
 
                     // q ... exit hwatch.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('q'),
                         modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self
                         .tx
                         .send(AppEvent::Exit)
@@ -897,6 +959,8 @@ impl<'a> App<'a> {
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::CONTROL,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
                     }) => self
                         .tx
                         .send(AppEvent::Exit)
