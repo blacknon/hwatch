@@ -167,8 +167,8 @@ pub struct ExecuteAfterResultData {
 
 pub fn exec_after_command(shell_command: String, after_command: String, before_result: CommandResult, after_result: CommandResult) {
     let result_data = ExecuteAfterResultData {
-        before_result: before_result,
-        after_result: after_result,
+        before_result,
+        after_result,
     };
 
     // create json_data
@@ -232,7 +232,7 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
         }
     }
 
-    return exec_commands;
+    exec_commands
 
 }
 

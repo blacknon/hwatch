@@ -53,6 +53,7 @@ use clap::{AppSettings, Arg, Command};
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
 // use std::sync::mpsc::channel;
 use crossbeam_channel::unbounded;
 use std::thread;
@@ -75,6 +76,7 @@ mod watch;
 pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
+type Interval = Arc<RwLock<f64>>;
 
 // const at Windows
 #[cfg(windows)]
@@ -287,29 +289,35 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
-    let interval: f64 = matcher.value_of_t_or_exit("interval");
+    let override_interval = matcher.value_of_t("interval").unwrap_or(DEFAULT_INTERVAL);
+    let interval = Interval::new(override_interval.into());
+
     // Start Command Thread
     {
         let m = matcher.clone();
         let tx = tx.clone();
+        let shell_command = m.value_of("shell_command").unwrap().to_string();
+        let command = m.values_of_lossy("command").unwrap();
+        let is_exec = m.is_present("exec");
+        let interval = interval.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
 
             // Set shell command
-            exe.shell_command = m.value_of("shell_command").unwrap().to_string();
+            exe.shell_command = shell_command.clone();
 
             // Set command
-            exe.command = m.values_of_lossy("command").unwrap();
+            exe.command = command.clone();
 
             // Set is exec flag.
-            exe.is_exec = m.is_present("exec");
+            exe.is_exec = is_exec;
 
             // Exec command
             exe.exec_command();
 
-            // sleep interval
-            std::thread::sleep(Duration::from_secs_f64(interval));
+            let sleep_interval = *interval.read().unwrap();
+            std::thread::sleep(Duration::from_secs_f64(sleep_interval));
         });
     }
 
@@ -317,7 +325,7 @@ fn main() {
     // if !batch {
     // is watch mode
     // Create view
-    let mut view = view::View::new()
+    let mut view = view::View::new(interval.clone())
         // Set interval on view.header
         .set_interval(interval)
         .set_beep(matcher.is_present("beep"))
