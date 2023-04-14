@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use tui::{
+use ratatui::{
     backend::Backend,
     style::Style,
     text::Spans,
@@ -13,7 +13,7 @@ use tui::{
 #[derive(Clone)]
 pub struct WatchArea<'a> {
     ///
-    area: tui::layout::Rect,
+    area: ratatui::layout::Rect,
 
     ///
     pub data: Vec<Spans<'a>>,
@@ -28,7 +28,7 @@ impl<'a> WatchArea<'a> {
     pub fn new() -> Self {
         //! new Self
         Self {
-            area: tui::layout::Rect::new(0, 0, 0, 0),
+            area: ratatui::layout::Rect::new(0, 0, 0, 0),
 
             data: vec![Spans::from("")],
 
@@ -37,7 +37,7 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
-    pub fn set_area(&mut self, area: tui::layout::Rect) {
+    pub fn set_area(&mut self, area: ratatui::layout::Rect) {
         self.area = area;
     }
 

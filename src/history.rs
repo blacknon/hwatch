@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::Constraint,
     style::{Color, Modifier, Style},
@@ -20,7 +20,7 @@ pub struct History {
 
 pub struct HistoryArea {
     ///
-    pub area: tui::layout::Rect,
+    pub area: ratatui::layout::Rect,
 
     pub active: bool,
 
@@ -36,7 +36,7 @@ impl HistoryArea {
     pub fn new() -> Self {
         //! new Self
         Self {
-            area: tui::layout::Rect::new(0, 0, 0, 0),
+            area: ratatui::layout::Rect::new(0, 0, 0, 0),
             active: false,
             data: vec![vec![History {
                 timestamp: "latest                 ".to_string(),
@@ -47,7 +47,7 @@ impl HistoryArea {
         }
     }
 
-    pub fn set_area(&mut self, area: tui::layout::Rect) {
+    pub fn set_area(&mut self, area: ratatui::layout::Rect) {
         self.area = area;
     }
 

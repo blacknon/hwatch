@@ -40,7 +40,7 @@ That records the result of command execution and can display it history and diff
 
 ## Usage
 
-    hwatch 0.3.9
+    hwatch 0.3.10
     blacknon <blacknon@orebibou.com>
     A modern alternative to the watch command, records the differences in execution results and can
     check this differences at after.
@@ -101,33 +101,33 @@ That records the result of command execution and can display it history and diff
 
 watch window keybind
 
-| Key            | Action
-|----------------|-------------------------
-| <kbd>↑</kbd>, <kbd>↓</kbd>  | move selected screen(history/watch).
-| <kbd>←</kbd>   | select watch screen.
-| <kbd>→</kbd>   | select history screen.
-| <kbd>H</kbd>   | show help window.
-| <kbd>C</kbd>   | toggle color.
-| <kbd>D</kbd>   | switch diff mode.
-| <kbd>N</kbd>   | switch line number display.
-| <kbd>T</kbd>   | toggle the UI (history pane and header).
-| <kbd>Backspace</kbd>   | toggle the history pane.
-| <kbd>Q</kbd>   | exit hwatch.
-| <kbd>0</kbd>   | disable diff.
-| <kbd>1</kbd>   | switch watch type diff.
-| <kbd>2</kbd>   | switch line type diff.
-| <kbd>3</kbd>   | switch word type diff.
-| <kbd>O</kbd>   | switch output mode(output->stdout->stderr).
-| <kbd>Shift</kbd>+<kbd>O</kbd>   | show only lines with differences(line/word diff mode only).
-| <kbd>F1</kbd>  | only stdout print.
-| <kbd>F2</kbd>  | only stderr print.
-| <kbd>F3</kbd>  | print output.
-| <kbd>+</kbd>   | increase interval.
-| <kbd>-</kbd>   | decrease interval.
-| <kbd>Tab</kbd> | toggle select screen(history/watch).
-| <kbd>/</kbd>   | filter history by string.
-| <kbd>*</kbd>   | filter history by regex.
-| <kbd>Esc</kbd> | unfiltering.
+| Key                           | Action                                                      |
+|-------------------------------|-------------------------------------------------------------|
+| <kbd>↑</kbd>, <kbd>↓</kbd>    | move selected screen(history/watch).                        |
+| <kbd>←</kbd>                  | select watch screen.                                        |
+| <kbd>→</kbd>                  | select history screen.                                      |
+| <kbd>H</kbd>                  | show help window.                                           |
+| <kbd>C</kbd>                  | toggle color.                                               |
+| <kbd>D</kbd>                  | switch diff mode.                                           |
+| <kbd>N</kbd>                  | switch line number display.                                 |
+| <kbd>T</kbd>                  | toggle the UI (history pane and header).                    |
+| <kbd>Backspace</kbd>          | toggle the history pane.                                    |
+| <kbd>Q</kbd>                  | exit hwatch.                                                |
+| <kbd>0</kbd>                  | disable diff.                                               |
+| <kbd>1</kbd>                  | switch watch type diff.                                     |
+| <kbd>2</kbd>                  | switch line type diff.                                      |
+| <kbd>3</kbd>                  | switch word type diff.                                      |
+| <kbd>O</kbd>                  | switch output mode(output->stdout->stderr).                 |
+| <kbd>Shift</kbd>+<kbd>O</kbd> | show only lines with differences(line/word diff mode only). |
+| <kbd>F1</kbd>                 | only stdout print.                                          |
+| <kbd>F2</kbd>                 | only stderr print.                                          |
+| <kbd>F3</kbd>                 | print output.                                               |
+| <kbd>+</kbd>                  | increase interval.                                          |
+| <kbd>-</kbd>                  | decrease interval.                                          |
+| <kbd>Tab</kbd>                | toggle select screen(history/watch).                        |
+| <kbd>/</kbd>                  | filter history by string.                                   |
+| <kbd>*</kbd>                  | filter history by regex.                                    |
+| <kbd>Esc</kbd>                | unfiltering.                                                |
 
 
 ## Configuration

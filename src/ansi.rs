@@ -8,8 +8,8 @@ use termwiz::escape::{
     parser::Parser,
     Action, ControlCode,
 };
-use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans, Text};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Span, Spans, Text};
 
 /// Converts ANSI-escaped strings to tui-rs compatible text
 pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
