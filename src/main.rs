@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.10
+// v0.3.11
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
