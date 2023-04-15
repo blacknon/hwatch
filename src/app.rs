@@ -372,11 +372,16 @@ impl<'a> App<'a> {
                 self.is_filtered,
                 self.is_regex_filter,
                 &self.filtered_text,
+                4
             ),
 
-            DiffMode::Watch => {
-                output::get_watch_diff(self.ansi_color, self.line_number, text_src, text_dst)
-            }
+            DiffMode::Watch => output::get_watch_diff(
+                self.ansi_color,
+                self.line_number,
+                text_src,
+                text_dst,
+                4
+            ),
 
             DiffMode::Line => output::get_line_diff(
                 self.ansi_color,
@@ -384,6 +389,7 @@ impl<'a> App<'a> {
                 self.is_only_diffline,
                 text_src,
                 text_dst,
+                4
             ),
 
             DiffMode::Word => output::get_word_diff(
@@ -392,8 +398,11 @@ impl<'a> App<'a> {
                 self.is_only_diffline,
                 text_src,
                 text_dst,
+                4
             ),
         };
+
+        // TODO: output_dataのtabをスペース展開する処理を追加
 
         self.watch_area.update_output(output_data);
     }
