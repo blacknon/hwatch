@@ -280,6 +280,7 @@ impl<'a> App<'a> {
                 false => 0,
             },
         };
+
         let header_height: u16 = match self.show_header {
             true => 2,
             false => 0,
@@ -287,8 +288,16 @@ impl<'a> App<'a> {
 
         // get Area's chunks
         let top_chunks = Layout::default()
-            .constraints([Constraint::Length(header_height), Constraint::Max(0)].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(header_height),
+                    Constraint::Max(total_area.height - header_height),
+                ]
+                .as_ref(),
+            )
             .split(total_area);
+        self.header_area.set_area(top_chunks[0]);
+
         let main_chunks = Layout::default()
             .constraints(
                 [
@@ -300,7 +309,6 @@ impl<'a> App<'a> {
             .direction(Direction::Horizontal)
             .split(top_chunks[1]);
 
-        self.header_area.set_area(top_chunks[0]);
         self.watch_area.set_area(main_chunks[0]);
         self.history_area.set_area(main_chunks[1]);
     }
