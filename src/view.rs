@@ -13,11 +13,12 @@ use std::{error::Error, io, sync::{Arc, RwLock}};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
-use crate::{app::{App, DiffMode}, DEFAULT_TAB_SIZE};
+use crate::app::{App, DiffMode};
 use crate::event::AppEvent;
 
 // local const
 use crate::Interval;
+use crate::DEFAULT_TAB_SIZE;
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
