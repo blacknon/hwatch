@@ -74,6 +74,7 @@ mod watch;
 
 // const
 pub const DEFAULT_INTERVAL: f64 = 2.0;
+pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 type Interval = Arc<RwLock<f64>>;
@@ -137,12 +138,19 @@ fn build_app() -> clap::Command<'static> {
                 .short('B')
                 .long("beep"),
         )
-        // Beep option
-        //     [-B,--beep]
+        // mouse option
+        //     [--mouse]
         .arg(
             Arg::new("mouse")
                 .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
                 .long("mouse"),
+        )
+        .arg(
+            Arg::new("tab_size")
+                .help("Specifying tab display size")
+                .long("tab_size")
+                .takes_value(true)
+                .default_value("4"),
         )
         // Option to specify the command to be executed when the output fluctuates.
         //     [-C,--changed-command]
@@ -292,6 +300,8 @@ fn main() {
     let override_interval = matcher.value_of_t("interval").unwrap_or(DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
 
+    let tab_size = matcher.value_of_t("tab_size").unwrap_or(DEFAULT_TAB_SIZE);
+
     // Start Command Thread
     {
         let m = matcher.clone();
@@ -328,6 +338,7 @@ fn main() {
     let mut view = view::View::new(interval.clone())
         // Set interval on view.header
         .set_interval(interval)
+        .set_tab_size(tab_size)
         .set_beep(matcher.is_present("beep"))
         .set_mouse_events(matcher.is_present("mouse"))
         // Set color in view

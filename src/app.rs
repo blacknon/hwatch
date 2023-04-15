@@ -19,14 +19,15 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::event::AppEvent;
+use crate::{event::AppEvent, DEFAULT_TAB_SIZE};
 use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
 use crate::output;
 use crate::watch::WatchArea;
-use crate::{common::logging_result, Interval};
+use crate::common::logging_result;
+use crate::Interval;
 
 // local const
 use crate::HISTORY_WIDTH;
@@ -124,6 +125,9 @@ pub struct App<'a> {
     interval: Interval,
 
     ///
+    tab_size: u16,
+
+    ///
     header_area: HeaderArea<'a>,
 
     ///
@@ -173,6 +177,7 @@ impl<'a> App<'a> {
 
             results: HashMap::new(),
             interval: interval.clone(),
+            tab_size: DEFAULT_TAB_SIZE,
 
             header_area: HeaderArea::new(*interval.read().unwrap()),
             history_area: HistoryArea::new(),
@@ -372,7 +377,7 @@ impl<'a> App<'a> {
                 self.is_filtered,
                 self.is_regex_filter,
                 &self.filtered_text,
-                4
+                self.tab_size
             ),
 
             DiffMode::Watch => output::get_watch_diff(
@@ -380,7 +385,7 @@ impl<'a> App<'a> {
                 self.line_number,
                 text_src,
                 text_dst,
-                4
+                self.tab_size
             ),
 
             DiffMode::Line => output::get_line_diff(
@@ -389,7 +394,7 @@ impl<'a> App<'a> {
                 self.is_only_diffline,
                 text_src,
                 text_dst,
-                4
+                self.tab_size
             ),
 
             DiffMode::Word => output::get_word_diff(
@@ -398,7 +403,7 @@ impl<'a> App<'a> {
                 self.is_only_diffline,
                 text_src,
                 text_dst,
-                4
+                self.tab_size
             ),
         };
 
@@ -447,6 +452,10 @@ impl<'a> App<'a> {
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
+    }
+
+    pub fn set_tab_size(&mut self, tab_size: u16) {
+        self.tab_size = tab_size;
     }
 
     ///
