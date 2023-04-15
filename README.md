@@ -40,63 +40,67 @@ That records the result of command execution and can display it history and diff
 
 ## Usage
 
-    hwatch 0.3.10
-    blacknon <blacknon@orebibou.com>
-    A modern alternative to the watch command, records the differences in execution results and can
-    check this differences at after.
+        hwatch 0.3.10
+        blacknon <blacknon@orebibou.com>
+        A modern alternative to the watch command, records the differences in execution results and can
+        check this differences at after.
 
-    USAGE:
-        hwatch [OPTIONS] <command>...
+        USAGE:
+            hwatch [OPTIONS] <command>...
 
-    ARGS:
-        <command>...
+        ARGS:
+            <command>...
 
-    OPTIONS:
-        -B, --beep
-                beep if command has a change result
+        OPTIONS:
+            -B, --beep
+                    beep if command has a change result
 
-            --mouse
-                enable mouse wheel support. With this option, copying text with your terminal may be
-                harder. Try holding the Shift key.
+                --mouse
+                    enable mouse wheel support. With this option, copying text with your terminal may be
+                    harder. Try holding the Shift key.
 
-        -A, --aftercommand <after_command>
-                Executes the specified command if the output changes. Information about changes is
-                stored in json format in environment variable ${HWATCH_DATA}.
+                --tab_size <tab_size>
+                    Specifying tab display size [default: 4]
 
-        -c, --color
-                interpret ANSI color and style sequences
+            -A, --aftercommand <after_command>
+                    Executes the specified command if the output changes. Information about changes is
+                    stored in json format in environment variable ${HWATCH_DATA}.
 
-        -d, --differences
-                highlight changes between updates
+            -c, --color
+                    interpret ANSI color and style sequences
 
-        -t, --no-title
-                hide the UI on start. Use `t` to toggle it.
+            -d, --differences
+                    highlight changes between updates
 
-        -N, --line-number
-                show line number
+            -t, --no-title
+                    hide the UI on start. Use `t` to toggle it.
 
-            --no-help-banner
-                hide the "Display help with h key" message
+            -N, --line-number
+                    show line number
 
-        -x, --exec
-                Run the command directly, not through the shell. Much like the `-x` option of the watch
-                command.
+                --no-help-banner
+                    hide the "Display help with h key" message
 
-        -l, --logfile <logfile>
-                logging file
+            -x, --exec
+                    Run the command directly, not through the shell. Much like the `-x` option of the watch
+                    command.
 
-        -s, --shell <shell_command>
-                shell to use at runtime. can  also insert the command to the location specified by
-                {COMMAND}. [default: "sh -c"]
+            -l, --logfile <logfile>
+                    logging file
 
-        -n, --interval <interval>
-                seconds to wait between updates [default: 2]
+            -s, --shell <shell_command>
+                    shell to use at runtime. can  also insert the command to the location specified by
+                    {COMMAND}. [default: "sh -c"]
 
-        -h, --help
-                Print help information
+            -n, --interval <interval>
+                    seconds to wait between updates [default: 2]
 
-        -V, --version
-                Print version information
+            -h, --help
+                    Print help information
+
+            -V, --version
+                    Print version information
+
 
 
 watch window keybind
