@@ -9,7 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{error::Error, io, sync::{Arc, RwLock}};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
@@ -17,13 +17,15 @@ use crate::app::{App, DiffMode};
 use crate::event::AppEvent;
 
 // local const
-use crate::DEFAULT_INTERVAL;
+use crate::Interval;
+use crate::DEFAULT_TAB_SIZE;
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
 pub struct View {
     after_command: String,
-    interval: f64,
+    interval: Interval,
+    tab_size: u16,
     beep: bool,
     mouse_events: bool,
     color: bool,
@@ -36,10 +38,11 @@ pub struct View {
 
 ///
 impl View {
-    pub fn new() -> Self {
+    pub fn new(interval: Interval) -> Self {
         Self {
             after_command: "".to_string(),
-            interval: DEFAULT_INTERVAL,
+            interval,
+            tab_size: DEFAULT_TAB_SIZE,
             beep: false,
             mouse_events: false,
             color: false,
@@ -56,8 +59,13 @@ impl View {
         self
     }
 
-    pub fn set_interval(mut self, interval: f64) -> Self {
+    pub fn set_interval(mut self, interval: Arc<RwLock<f64>>) -> Self {
         self.interval = interval;
+        self
+    }
+
+    pub fn set_tab_size(mut self, tab_size: u16) -> Self {
+        self.tab_size = tab_size;
         self
     }
 
@@ -131,13 +139,10 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx);
+        let mut app = App::new(tx, rx, self.interval.clone());
 
         // set after command
         app.set_after_command(self.after_command.clone());
-
-        // set interval
-        app.set_interval(self.interval);
 
         // set beep
         app.set_beep(self.beep);
@@ -151,6 +156,8 @@ impl View {
         app.show_history(self.show_ui);
         app.show_ui(self.show_ui);
         app.show_help_banner(self.show_help_banner);
+
+        app.set_tab_size(self.tab_size);
 
         // set line_number
         app.set_line_number(self.line_number);

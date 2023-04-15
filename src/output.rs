@@ -12,23 +12,83 @@ use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
 };
+use std::borrow::Cow;
+use std::fmt::Write;
+
 
 // local const
 use crate::ansi;
 use crate::LINE_ENDING;
 
+pub trait StringExt {
+    fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
+}
+
+impl<T> StringExt for T
+where
+    T: AsRef<str>,
+{
+    fn expand_tabs(&self, tab_size: u16) -> Cow<str> {
+        let s = self.as_ref();
+        let tab = '\t';
+
+        if s.contains(tab) {
+            let mut res = String::new();
+            let mut last_pos = 0;
+
+            while let Some(pos) = &s[last_pos..].find(tab) {
+                res.push_str(&s[last_pos..*pos + last_pos]);
+
+                let spaces_to_add = if tab_size != 0 {
+                    tab_size - (*pos as u16 % tab_size)
+                } else {
+                    0
+                };
+
+                if spaces_to_add != 0 {
+                    let _ = write!(res, "{:width$}", "", width = spaces_to_add as usize);
+                }
+
+                last_pos += *pos + 1;
+            }
+
+            res.push_str(&s[last_pos..]);
+
+            Cow::from(res)
+        } else {
+            Cow::from(s)
+        }
+    }
+}
+
+///
+fn expand_line_tab(data: &str, tab_size: u16) -> String {
+    let mut result_vec: Vec<String> = vec![];
+    for d in data.lines() {
+        let l = d.expand_tabs(tab_size).to_string();
+        result_vec.push(l);
+    }
+
+    let rslt = result_vec.join("\n");
+
+    return rslt
+
+}
+
 // plane output
 // ==========
-
 ///
 pub fn get_plane_output<'a>(
     color: bool,
     line_number: bool,
-    text: &str,
+    base_text: &str,
     is_filter: bool,
     is_regex_filter: bool,
     filtered_text: &str,
+    tab_size: u16,
 ) -> Vec<Spans<'a>> {
+    let text = &expand_line_tab(base_text, tab_size);
+
     // set result `output_data`.
     let mut output_data = vec![];
 
@@ -169,12 +229,16 @@ pub fn get_plane_output<'a>(
 // ==========
 
 ///
-pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) -> Vec<Spans<'a>> {
+pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str, tab_size: u16) -> Vec<Spans<'a>> {
+    //
+    let old_text = &expand_line_tab(old, tab_size);
+    let new_text = &expand_line_tab(new, tab_size);
+
     let mut result = vec![];
 
     // output to vector
-    let mut old_vec: Vec<&str> = old.lines().collect();
-    let mut new_vec: Vec<&str> = new.lines().collect();
+    let mut old_vec: Vec<&str> = old_text.lines().collect();
+    let mut new_vec: Vec<&str> = new_text.lines().collect();
 
     // get max line
     let max_line = cmp::max(old_vec.len(), new_vec.len());
@@ -192,9 +256,13 @@ pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str) 
             new_vec.push("");
         }
 
+        let old_line = old_vec[i];
+        let new_line = new_vec[i];
+
+
         let mut line_data = match color {
-            false => get_watch_diff_line(old_vec[i], new_vec[i]),
-            true => get_watch_diff_line_with_ansi(old_vec[i], new_vec[i]),
+            false => get_watch_diff_line(&old_line, &new_line),
+            true => get_watch_diff_line_with_ansi(&old_line, &new_line),
         };
 
         if line_number {
@@ -226,9 +294,9 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     let mut old_line_chars: Vec<char> = old_line.chars().collect();
     let mut new_line_chars: Vec<char> = new_line.chars().collect();
 
-    // 007f ... delete char.
-    // NOTE: Use hidden characters to branch processing because tui-rs skips space characters.
-    let space: char = '\u{007f}';
+    // 00a0 ... non-breaking space.
+    // NOTE: Used because tui-rs skips regular space characters.
+    let space: char = '\u{00a0}';
     let max_char = cmp::max(old_line_chars.len(), new_line_chars.len());
 
     let mut _result = vec![];
@@ -267,7 +335,7 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     }
 
     // last char
-    // NOTE: Added hidden characters as tui-rs forces trimming of end-of-line spaces.
+    // NOTE: NBSP used as tui-rs trims regular spaces.
     _result.push(Span::styled(space.to_string(), Style::default()));
 
     Spans::from(_result)
@@ -296,9 +364,9 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
         // break;
     }
 
-    // 007f ... delete char.
-    // NOTE: Use hidden characters to branch processing because tui-rs skips space characters.
-    let space = '\u{007f}'.to_string();
+    // 00a0 ... non-breaking space.
+    // NOTE: Used because tui-rs skips regular space characters.
+    let space = '\u{00a0}'.to_string();
     let max_span = cmp::max(old_spans.len(), new_spans.len());
     //
     let mut _result = vec![];
@@ -350,13 +418,17 @@ pub fn get_line_diff<'a>(
     is_only_diffline: bool,
     old: &str,
     new: &str,
+    tab_size: u16
 ) -> Vec<Spans<'a>> {
+    let old_text = &expand_line_tab(old, tab_size);
+    let new_text = &expand_line_tab(new, tab_size);
+
     // Create changeset
-    let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
+    let Changeset { diffs, .. } = Changeset::new(&old_text, &new_text, LINE_ENDING);
 
     // old and new text's line count.
-    let old_len = &old.lines().count();
-    let new_len = &new.lines().count();
+    let old_len = &old_text.lines().count();
+    let new_len = &new_text.lines().count();
 
     // get line_number width
     let header_width = cmp::max(old_len, new_len).to_string().chars().count();
@@ -372,7 +444,8 @@ pub fn get_line_diff<'a>(
         match diffs[i] {
             // Same line.
             Difference::Same(ref diff_data) => {
-                for line in diff_data.lines() {
+                for l in diff_data.lines() {
+                    let line = l.expand_tabs(tab_size);
                     let mut data = if color {
                         // ansi color code => rs-tui colored span.
                         let mut colored_span = vec![Span::from("   ")];
@@ -410,10 +483,11 @@ pub fn get_line_diff<'a>(
 
             // Add line.
             Difference::Add(ref diff_data) => {
-                for line in diff_data.lines() {
+                for l in diff_data.lines() {
+                    let line = l.expand_tabs(tab_size);
                     let mut data = if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
-                        let strip_str = get_ansi_strip_str(line);
+                        let strip_str = get_ansi_strip_str(&line);
                         Spans::from(Span::styled(
                             format!("+  {strip_str}\n"),
                             Style::default().fg(Color::Green),
@@ -445,10 +519,11 @@ pub fn get_line_diff<'a>(
 
             // Remove line.
             Difference::Rem(ref diff_data) => {
-                for line in diff_data.lines() {
+                for l in diff_data.lines() {
+                    let line = l.expand_tabs(tab_size);
                     let mut data = if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
-                        let strip_str = get_ansi_strip_str(line);
+                        let strip_str = get_ansi_strip_str(&line);
                         Spans::from(Span::styled(
                             format!("-  {strip_str}\n"),
                             Style::default().fg(Color::Red),
@@ -493,13 +568,17 @@ pub fn get_word_diff<'a>(
     is_only_diffline: bool,
     old: &str,
     new: &str,
+    tab_size: u16
 ) -> Vec<Spans<'a>> {
+    let old_text = &expand_line_tab(old, tab_size);
+    let new_text = &expand_line_tab(new, tab_size);
+
     // Create changeset
-    let Changeset { diffs, .. } = Changeset::new(old, new, LINE_ENDING);
+    let Changeset { diffs, .. } = Changeset::new(&old_text, &new_text, LINE_ENDING);
 
     // old and new text's line count.
-    let old_len = &old.lines().count();
-    let new_len = &new.lines().count();
+    let old_len = &old_text.lines().count();
+    let new_len = &new_text.lines().count();
 
     // get line_number width
     let header_width = cmp::max(old_len, new_len).to_string().chars().count();
@@ -515,7 +594,8 @@ pub fn get_word_diff<'a>(
         match diffs[i] {
             // Same line.
             Difference::Same(ref diff_data) => {
-                for line in diff_data.lines() {
+                for l in diff_data.lines() {
+                    let line = l.expand_tabs(tab_size);
                     let mut data = if color {
                         // ansi color code => rs-tui colored span.
                         let mut colored_span = vec![Span::from("   ")];
@@ -571,9 +651,10 @@ pub fn get_word_diff<'a>(
 
                     lines_data = get_word_diff_addline(color, before_diffs, diff_data.to_string())
                 } else {
-                    for line in diff_data.lines() {
+                    for l in diff_data.lines() {
+                        let line = l.expand_tabs(tab_size);
                         let data = if color {
-                            get_ansi_strip_str(line)
+                            get_ansi_strip_str(&line)
                         } else {
                             line.to_string()
                         };

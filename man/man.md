@@ -130,6 +130,13 @@ F3
 
 :   Display *Stdout* and *Stderr*.
 
++
+
+:   Increase interval by .5 seconds.
+
+-
+
+:   Decrease interval by .5 seconds (As long as it's positive).
 
 Tab
 
