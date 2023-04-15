@@ -19,7 +19,7 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::{event::AppEvent, DEFAULT_TAB_SIZE};
+use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
@@ -28,6 +28,7 @@ use crate::output;
 use crate::watch::WatchArea;
 use crate::common::logging_result;
 use crate::Interval;
+use crate::DEFAULT_TAB_SIZE;
 
 // local const
 use crate::HISTORY_WIDTH;
