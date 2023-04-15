@@ -11,6 +11,7 @@ use std::io::prelude::*;
 // local module
 use crate::exec::CommandResult;
 
+///
 pub fn now_str() -> String {
     let date = Local::now();
     return date.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
