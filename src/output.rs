@@ -7,14 +7,13 @@ use ansi_parser::{AnsiParser, AnsiSequence, Output};
 use difference::{Changeset, Difference};
 use heapless::consts::*;
 use regex::Regex;
+use std::borrow::Cow;
 use std::cmp;
+use std::fmt::Write;
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
 };
-use std::borrow::Cow;
-use std::fmt::Write;
-
 
 // local const
 use crate::ansi;
@@ -69,10 +68,7 @@ fn expand_line_tab(data: &str, tab_size: u16) -> String {
         result_vec.push(l);
     }
 
-    let rslt = result_vec.join("\n");
-
-    return rslt
-
+    result_vec.join("\n")
 }
 
 // plane output
@@ -229,7 +225,13 @@ pub fn get_plane_output<'a>(
 // ==========
 
 ///
-pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str, tab_size: u16) -> Vec<Spans<'a>> {
+pub fn get_watch_diff<'a>(
+    color: bool,
+    line_number: bool,
+    old: &str,
+    new: &str,
+    tab_size: u16,
+) -> Vec<Spans<'a>> {
     //
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
@@ -258,7 +260,6 @@ pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str, 
 
         let old_line = old_vec[i];
         let new_line = new_vec[i];
-
 
         let mut line_data = match color {
             false => get_watch_diff_line(&old_line, &new_line),
@@ -418,7 +419,7 @@ pub fn get_line_diff<'a>(
     is_only_diffline: bool,
     old: &str,
     new: &str,
-    tab_size: u16
+    tab_size: u16,
 ) -> Vec<Spans<'a>> {
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
@@ -568,7 +569,7 @@ pub fn get_word_diff<'a>(
     is_only_diffline: bool,
     old: &str,
     new: &str,
-    tab_size: u16
+    tab_size: u16,
 ) -> Vec<Spans<'a>> {
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
