@@ -9,7 +9,11 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io, sync::{Arc, RwLock}};
+use std::{
+    error::Error,
+    io,
+    sync::{Arc, RwLock},
+};
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
@@ -139,7 +143,7 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone());
+        let mut app = App::new(tx, rx, self.interval.clone(), self.mouse_events);
 
         // set after command
         app.set_after_command(self.after_command.clone());

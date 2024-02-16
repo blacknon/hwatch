@@ -6,9 +6,18 @@
 
 use crossbeam_channel::{Receiver, Sender};
 // module
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind, KeyEventState};
+use crossterm::{
+    event::{
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+        KeyEventState, KeyModifiers, MouseEvent, MouseEventKind,
+    },
+    execute,
+};
 use regex::Regex;
-use std::{collections::HashMap, io};
+use std::{
+    collections::HashMap,
+    io::{self, Write},
+};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
@@ -19,6 +28,7 @@ use tui::{
 use std::thread;
 
 // local module
+use crate::common::logging_result;
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
@@ -26,7 +36,6 @@ use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
 use crate::output;
 use crate::watch::WatchArea;
-use crate::common::logging_result;
 use crate::Interval;
 use crate::DEFAULT_TAB_SIZE;
 
@@ -140,6 +149,9 @@ pub struct App<'a> {
     ///
     help_window: HelpWindow<'a>,
 
+    /// Enable mouse wheel support.
+    mouse_events: bool,
+
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
     pub done: bool,
@@ -154,7 +166,12 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl<'a> App<'a> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: Interval) -> Self {
+    pub fn new(
+        tx: Sender<AppEvent>,
+        rx: Receiver<AppEvent>,
+        interval: Interval,
+        mouse_events: bool,
+    ) -> Self {
         // method at create new view trail.
         Self {
             area: ActiveArea::History,
@@ -186,6 +203,8 @@ impl<'a> App<'a> {
 
             help_window: HelpWindow::new(),
 
+            mouse_events,
+
             done: false,
             logfile: "".to_string(),
             tx,
@@ -194,7 +213,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+    pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         self.history_area.next();
         let mut update_draw = true;
         loop {
@@ -228,6 +247,16 @@ impl<'a> App<'a> {
                     }
 
                     update_draw = true;
+                }
+
+                Ok(AppEvent::ToggleMouseEvents) => {
+                    if self.mouse_events {
+                        execute!(terminal.backend_mut(), DisableMouseCapture)?;
+                    } else {
+                        execute!(terminal.backend_mut(), EnableMouseCapture)?;
+                    }
+
+                    self.mouse_events = !self.mouse_events;
                 }
 
                 // get exit event
@@ -378,7 +407,7 @@ impl<'a> App<'a> {
                 self.is_filtered,
                 self.is_regex_filter,
                 &self.filtered_text,
-                self.tab_size
+                self.tab_size,
             ),
 
             DiffMode::Watch => output::get_watch_diff(
@@ -386,7 +415,7 @@ impl<'a> App<'a> {
                 self.line_number,
                 text_src,
                 text_dst,
-                self.tab_size
+                self.tab_size,
             ),
 
             DiffMode::Line => output::get_line_diff(
@@ -395,7 +424,7 @@ impl<'a> App<'a> {
                 self.is_only_diffline,
                 text_src,
                 text_dst,
-                self.tab_size
+                self.tab_size,
             ),
 
             DiffMode::Word => output::get_word_diff(
@@ -404,7 +433,7 @@ impl<'a> App<'a> {
                 self.is_only_diffline,
                 text_src,
                 text_dst,
-                self.tab_size
+                self.tab_size,
             ),
         };
 
@@ -599,7 +628,7 @@ impl<'a> App<'a> {
             return false;
         }
 
-        if self.after_command != "".to_string() {
+        if !self.after_command.is_empty() {
             let after_command = self.after_command.clone();
 
             let results = self.results.clone();
@@ -919,6 +948,13 @@ impl<'a> App<'a> {
                         state: KeyEventState::NONE,
                     }) => self.toggle_window(),
 
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('m'),
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.toggle_mouse_events(),
+
                     // q ... exit hwatch.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('q'),
@@ -1106,6 +1142,10 @@ impl<'a> App<'a> {
             self.set_area(ActiveArea::Watch);
         }
         let _ = self.tx.send(AppEvent::Redraw);
+    }
+
+    pub fn toggle_mouse_events(&mut self) {
+        let _ = self.tx.send(AppEvent::ToggleMouseEvents);
     }
 
     ///
