@@ -78,7 +78,7 @@ fn gen_help_text<'a>() -> Vec<Spans<'a>> {
         Spans::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
         Spans::from(" - [t] key   ... toggle ui (history pane & header both on/off). "),
         Spans::from(" - [Bkspace] ... toggle history pane. "),
-        Spans::from(" - [m] key   ... toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key"),
+        Spans::from(" - [m] key   ... toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key."),
         // exit hwatch
         Spans::from(" - [q] key   ... exit hwatch."),
         // change diff
