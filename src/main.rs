@@ -1,9 +1,13 @@
-// Copyright (c) 2022 Blacknon. All rights reserved.
+// Copyright (c) 2024 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.11
-// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
+// v0.3.12
+// TODO(blacknon): pagedown/pageupスクロールの実装
+// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する
+// TODO(blacknon): issueの中で簡単に実装できそうなやつ
+
+// v0.3.13
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
@@ -13,6 +17,7 @@
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
 // TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
+//                 => outputごとに分離して比較できる仕組みにする方式で対処？
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
@@ -24,7 +29,8 @@
 //                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
 
 // crate
-extern crate ansi_parser;
+// extern crate ansi_parser;
+extern crate hwatch_ansi_parser as ansi_parser;
 extern crate async_std;
 extern crate chrono;
 extern crate crossbeam_channel;
@@ -119,8 +125,8 @@ fn build_app() -> clap::Command<'static> {
                 .allow_invalid_utf8(true)
                 .multiple_values(true)
                 .required(true),
-
         )
+
         // -- flags --
         // Enable batch mode option
         //     [-b,--batch]
