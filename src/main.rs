@@ -3,9 +3,9 @@
 // that can be found in the LICENSE file.
 
 // v0.3.11
+// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 
 // v0.3.12
-// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
@@ -15,6 +15,7 @@
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
 // TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
+//                 => outputごとに分離して比較できる仕組みにする方式で対処？
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
