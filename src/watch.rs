@@ -5,7 +5,7 @@
 use tui::{
     backend::Backend,
     style::Style,
-    text::Spans,
+    prelude::Line,
     widgets::{Paragraph, Wrap},
     Frame,
 };
@@ -16,7 +16,7 @@ pub struct WatchArea<'a> {
     area: tui::layout::Rect,
 
     ///
-    pub data: Vec<Spans<'a>>,
+    pub data: Vec<Line<'a>>,
 
     ///
     position: i16,
@@ -30,7 +30,7 @@ impl<'a> WatchArea<'a> {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
-            data: vec![Spans::from("")],
+            data: vec![Line::from("")],
 
             position: 0,
         }
@@ -42,12 +42,12 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
-    pub fn update_output(&mut self, data: Vec<Spans<'a>>) {
+    pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         self.data = data;
     }
 
     ///
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
+    pub fn draw<B: Backend>(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone())
             .style(Style::default())
             .wrap(Wrap { trim: false })

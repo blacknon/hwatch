@@ -9,7 +9,8 @@ use termwiz::escape::{
     Action, ControlCode,
 };
 use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans, Text};
+use tui::text::{Span,Text};
+use tui::prelude::Line;
 
 /// Converts ANSI-escaped strings to tui-rs compatible text
 pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
@@ -17,7 +18,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
     let parsed = parser.parse_as_vec(bytes.as_ref());
 
     // each span will be a line
-    let mut spans = Vec::<Spans>::new();
+    let mut spans = Vec::<Line>::new();
 
     // create span buffer
     let mut span_style = Style::default();
@@ -39,7 +40,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                 span_text = String::new();
 
                 // finish the current line
-                spans.push(Spans::from(current_line));
+                spans.push(Line::from(current_line));
                 current_line = Vec::new();
             }
             Action::CSI(CSI::Sgr(sgr)) => {
@@ -134,7 +135,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
         // finish the current span
         current_line.push(Span::styled(span_text, span_style));
         // finish the current line
-        spans.push(Spans::from(current_line));
+        spans.push(Line::from(current_line));
     }
 
     spans.into()

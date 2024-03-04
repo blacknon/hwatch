@@ -82,7 +82,7 @@ impl HistoryArea {
         self.state.select(Some(0));
     }
 
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
+    pub fn draw<B: Backend>(&mut self, frame: &mut Frame) {
         // insert latest timestamp
         const LATEST_COLOR: Color = Color::Blue;
         let draw_data = &self.data;
