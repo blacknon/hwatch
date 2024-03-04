@@ -32,7 +32,8 @@
 //                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
 
 // crate
-extern crate ansi_parser;
+// extern crate ansi_parser;
+extern crate hwatch_ansi_parser as ansi_parser;
 extern crate async_std;
 extern crate chrono;
 extern crate crossbeam_channel;
