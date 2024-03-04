@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Blacknon.
+// Copyright (c) 2024 Blacknon.
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
 use termwiz::cell::{Blink, Intensity, Underline};
