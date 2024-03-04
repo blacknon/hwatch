@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Blacknon. All rights reserved.
+// Copyright (c) 2024 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -7,14 +7,14 @@ use ansi_parser::{AnsiParser, AnsiSequence, Output};
 use difference::{Changeset, Difference};
 use heapless::consts::*;
 use regex::Regex;
+use std::borrow::Cow;
 use std::cmp;
+use std::fmt::Write;
 use tui::{
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::Span,
+    prelude::Line,
 };
-use std::borrow::Cow;
-use std::fmt::Write;
-
 
 // local const
 use crate::ansi;
@@ -69,10 +69,7 @@ fn expand_line_tab(data: &str, tab_size: u16) -> String {
         result_vec.push(l);
     }
 
-    let rslt = result_vec.join("\n");
-
-    return rslt
-
+    result_vec.join("\n")
 }
 
 // plane output
@@ -86,7 +83,7 @@ pub fn get_plane_output<'a>(
     is_regex_filter: bool,
     filtered_text: &str,
     tab_size: u16,
-) -> Vec<Spans<'a>> {
+) -> Vec<Line<'a>> {
     let text = &expand_line_tab(base_text, tab_size);
 
     // set result `output_data`.
@@ -127,7 +124,7 @@ pub fn get_plane_output<'a>(
             {
                 if before_range_count > 0 {
                     let line_data = line_span.clone();
-                    output_data.push(Spans::from(line_data));
+                    output_data.push(Line::from(line_data));
                     line_span = vec![];
                     counter += 1;
                 }
@@ -154,7 +151,7 @@ pub fn get_plane_output<'a>(
                     }
 
                     let line_data = line_span.clone();
-                    output_data.push(Spans::from(line_data));
+                    output_data.push(Line::from(line_data));
                     line_span = vec![];
                     counter += 1;
                 }
@@ -187,7 +184,7 @@ pub fn get_plane_output<'a>(
             }
             last_str_line_span.push(Span::from(String::from(last_str_line)));
 
-            output_data.push(Spans::from(last_str_line_span));
+            output_data.push(Line::from(last_str_line_span));
 
             counter += 1;
         }
@@ -211,13 +208,13 @@ pub fn get_plane_output<'a>(
                 let data = ansi::bytes_to_text(format!("{l}\n").as_bytes());
 
                 for d in data.lines {
-                    line_span.extend(d.0);
+                    line_span.extend(d.spans);
                 }
             } else {
                 line_span.push(Span::from(String::from(l)));
             }
 
-            output_data.push(Spans::from(line_span));
+            output_data.push(Line::from(line_span));
             counter += 1;
         }
     }
@@ -229,7 +226,13 @@ pub fn get_plane_output<'a>(
 // ==========
 
 ///
-pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str, tab_size: u16) -> Vec<Spans<'a>> {
+pub fn get_watch_diff<'a>(
+    color: bool,
+    line_number: bool,
+    old: &str,
+    new: &str,
+    tab_size: u16,
+) -> Vec<Line<'a>> {
     //
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
@@ -259,14 +262,13 @@ pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str, 
         let old_line = old_vec[i];
         let new_line = new_vec[i];
 
-
         let mut line_data = match color {
             false => get_watch_diff_line(&old_line, &new_line),
             true => get_watch_diff_line_with_ansi(&old_line, &new_line),
         };
 
         if line_number {
-            line_data.0.insert(
+            line_data.spans.insert(
                 0,
                 Span::styled(
                     format!("{counter:>header_width$} | "),
@@ -284,10 +286,10 @@ pub fn get_watch_diff<'a>(color: bool, line_number: bool, old: &str, new: &str, 
 }
 
 ///
-fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
+fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Line<'a> {
     // If the contents are the same line.
     if old_line == new_line {
-        return Spans::from(String::from(new_line));
+        return Line::from(String::from(new_line));
     }
 
     // Decompose lines by character.
@@ -338,11 +340,11 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     // NOTE: NBSP used as tui-rs trims regular spaces.
     _result.push(Span::styled(space.to_string(), Style::default()));
 
-    Spans::from(_result)
+    Line::from(_result)
 }
 
 ///
-fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
+fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Line<'a> {
     // If the contents are the same line.
     if old_line == new_line {
         let new_spans = ansi::bytes_to_text(format!("{new_line}\n").as_bytes());
@@ -405,7 +407,7 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
     _result.push(Span::styled(space, Style::default()));
 
     //
-    Spans::from(_result)
+    Line::from(_result)
 }
 
 // line diff
@@ -418,8 +420,8 @@ pub fn get_line_diff<'a>(
     is_only_diffline: bool,
     old: &str,
     new: &str,
-    tab_size: u16
-) -> Vec<Spans<'a>> {
+    tab_size: u16,
+) -> Vec<Line<'a>> {
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
 
@@ -451,18 +453,18 @@ pub fn get_line_diff<'a>(
                         let mut colored_span = vec![Span::from("   ")];
                         let colored_data = ansi::bytes_to_text(format!("{line}\n").as_bytes());
                         for d in colored_data.lines {
-                            for x in d.0 {
+                            for x in d.spans {
                                 colored_span.push(x);
                             }
                         }
-                        Spans::from(colored_span)
+                        Line::from(colored_span)
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(format!("   {line}\n"))
+                        Line::from(format!("   {line}\n"))
                     };
 
                     if line_number {
-                        data.0.insert(
+                        data.spans.insert(
                             0,
                             Span::styled(
                                 format!("{new_counter:>header_width$} | "),
@@ -488,20 +490,20 @@ pub fn get_line_diff<'a>(
                     let mut data = if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(&line);
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("+  {strip_str}\n"),
                             Style::default().fg(Color::Green),
                         ))
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("+  {line}\n"),
                             Style::default().fg(Color::Green),
                         ))
                     };
 
                     if line_number {
-                        data.0.insert(
+                        data.spans.insert(
                             0,
                             Span::styled(
                                 format!("{new_counter:>header_width$} | "),
@@ -524,20 +526,20 @@ pub fn get_line_diff<'a>(
                     let mut data = if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(&line);
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("-  {strip_str}\n"),
                             Style::default().fg(Color::Red),
                         ))
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("-  {line}\n"),
                             Style::default().fg(Color::Red),
                         ))
                     };
 
                     if line_number {
-                        data.0.insert(
+                        data.spans.insert(
                             0,
                             Span::styled(
                                 format!("{old_counter:>header_width$} | "),
@@ -568,8 +570,8 @@ pub fn get_word_diff<'a>(
     is_only_diffline: bool,
     old: &str,
     new: &str,
-    tab_size: u16
-) -> Vec<Spans<'a>> {
+    tab_size: u16,
+) -> Vec<Line<'a>> {
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
 
@@ -601,18 +603,18 @@ pub fn get_word_diff<'a>(
                         let mut colored_span = vec![Span::from("   ")];
                         let colored_data = ansi::bytes_to_text(format!("{line}\n").as_bytes());
                         for d in colored_data.lines {
-                            for x in d.0 {
+                            for x in d.spans {
                                 colored_span.push(x);
                             }
                         }
-                        Spans::from(colored_span)
+                        Line::from(colored_span)
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(format!("   {line}\n"))
+                        Line::from(format!("   {line}\n"))
                     };
 
                     if line_number {
-                        data.0.insert(
+                        data.spans.insert(
                             0,
                             Span::styled(
                                 format!("{new_counter:>header_width$} | "),
@@ -681,7 +683,7 @@ pub fn get_word_diff<'a>(
                         );
                     }
 
-                    result.push(Spans::from(data.clone()));
+                    result.push(Line::from(data.clone()));
 
                     // add new_counter
                     new_counter += 1;
@@ -703,8 +705,8 @@ pub fn get_word_diff<'a>(
                 let mut lines_data = vec![];
 
                 // check lines.
-                if i > 0 {
-                    let after_diffs = &diffs[i + 1];
+                if diffs.len() > i + 1 {
+                    let after_diffs: &Difference = &diffs[i + 1];
 
                     lines_data = get_word_diff_remline(color, after_diffs, diff_data.to_string())
                 } else {
@@ -737,7 +739,7 @@ pub fn get_word_diff<'a>(
                         );
                     }
 
-                    result.push(Spans::from(data.clone()));
+                    result.push(Line::from(data.clone()));
 
                     // add old_counter
                     old_counter += 1;
@@ -1014,7 +1016,7 @@ fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
                     // parse ansi text to tui text.
                     let data = ansi::bytes_to_text(format!("{append_text}\n").as_bytes());
                     if let Some(d) = data.into_iter().next() {
-                        for x in d.0 {
+                        for x in d.spans {
                             processed_text.push(x);
                         }
                     }

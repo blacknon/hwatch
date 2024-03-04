@@ -1,11 +1,10 @@
-// Copyright (c) 2022 Blacknon. All rights reserved.
+// Copyright (c) 2024 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
 use tui::{
-    backend::Backend,
     style::Style,
-    text::Spans,
+    prelude::Line,
     widgets::{Paragraph, Wrap},
     Frame,
 };
@@ -16,10 +15,13 @@ pub struct WatchArea<'a> {
     area: tui::layout::Rect,
 
     ///
-    pub data: Vec<Spans<'a>>,
+    pub data: Vec<Line<'a>>,
 
     ///
     position: i16,
+
+    ///
+    lines: i16,
 }
 
 /// Watch Area Object Trait
@@ -30,9 +32,11 @@ impl<'a> WatchArea<'a> {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
-            data: vec![Spans::from("")],
+            data: vec![Line::from("")],
 
             position: 0,
+
+            lines: 0,
         }
     }
 
@@ -42,16 +46,17 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
-    pub fn update_output(&mut self, data: Vec<Spans<'a>>) {
+    pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         self.data = data;
     }
 
     ///
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
+    pub fn draw(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone())
             .style(Style::default())
             .wrap(Wrap { trim: false })
             .scroll((self.position as u16, 0));
+        self.lines = block.line_count(self.area.width) as i16;
         frame.render_widget(block, self.area);
     }
 
@@ -64,7 +69,8 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn scroll_down(&mut self, num: i16) {
         // get area data size
-        let data_size = self.data.len() as i16;
-        self.position = std::cmp::min(self.position + num, data_size - 1);
+        // let data_size = self.data.len() as i16;
+        // self.position = std::cmp::min(self.position + num, data_size - 1);
+        self.position = std::cmp::min(self.position + num, self.lines - 1);
     }
 }

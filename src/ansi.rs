@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Blacknon.
+// Copyright (c) 2024 Blacknon.
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
 use termwiz::cell::{Blink, Intensity, Underline};
@@ -9,7 +9,8 @@ use termwiz::escape::{
     Action, ControlCode,
 };
 use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans, Text};
+use tui::text::{Span,Text};
+use tui::prelude::Line;
 
 /// Converts ANSI-escaped strings to tui-rs compatible text
 pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
@@ -17,7 +18,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
     let parsed = parser.parse_as_vec(bytes.as_ref());
 
     // each span will be a line
-    let mut spans = Vec::<Spans>::new();
+    let mut spans = Vec::<Line>::new();
 
     // create span buffer
     let mut span_style = Style::default();
@@ -39,7 +40,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                 span_text = String::new();
 
                 // finish the current line
-                spans.push(Spans::from(current_line));
+                spans.push(Line::from(current_line));
                 current_line = Vec::new();
             }
             Action::CSI(CSI::Sgr(sgr)) => {
@@ -108,19 +109,19 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                         ColorSpec::Default => span_style = span_style.fg(Color::Reset),
                         ColorSpec::PaletteIndex(i) => span_style = span_style.fg(Color::Indexed(i)),
                         ColorSpec::TrueColor(rgb) => {
-                            let rgb_tuple = rgb.to_tuple_rgb8();
+                            let rgb_tuple = rgb.to_srgb_u8();
                             span_style =
-                                span_style.fg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
+                                span_style.bg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
                         }
                     },
                     Sgr::Background(c) => match c {
                         ColorSpec::Default => span_style = span_style.bg(Color::Reset),
                         ColorSpec::PaletteIndex(i) => span_style = span_style.bg(Color::Indexed(i)),
                         ColorSpec::TrueColor(rgb) => {
-                            let rgb_tuple = rgb.to_tuple_rgb8();
+                            let rgb_tuple = rgb.to_srgb_u8();
                             span_style =
                                 span_style.bg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
-                        }
+                        },
                     },
                     _ => {}
                 }
@@ -134,7 +135,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
         // finish the current span
         current_line.push(Span::styled(span_text, span_style));
         // finish the current line
-        spans.push(Spans::from(current_line));
+        spans.push(Line::from(current_line));
     }
 
     spans.into()
