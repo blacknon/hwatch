@@ -46,6 +46,15 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    pub fn get_area_size(&mut self) -> i16 {
+        let height = self.area.height as i16;
+
+        return height
+    }
+
+
+
+    ///
     pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         self.data = data;
     }
