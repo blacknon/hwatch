@@ -6,7 +6,7 @@ keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
 repository = "https://github.com/blacknon/hwatch"
-version = "0.3.10"
+version = "0.3.11"
 
 [dependencies]
 # TODO: [ansi-parser](https://crates.io/crates/ansi-parser)のバージョンアップ対応が必要になるので、その対応待ち. PRはmargeされたのでいい加減アップデートされてもいいと思うのだが….

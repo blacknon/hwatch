@@ -3,6 +3,8 @@
 // that can be found in the LICENSE file.
 
 // v0.3.11
+
+// v0.3.12
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
@@ -119,8 +121,8 @@ fn build_app() -> clap::Command<'static> {
                 .allow_invalid_utf8(true)
                 .multiple_values(true)
                 .required(true),
-
         )
+
         // -- flags --
         // Enable batch mode option
         //     [-b,--batch]
