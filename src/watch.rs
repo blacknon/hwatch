@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 use tui::{
-    backend::Backend,
     style::Style,
     prelude::Line,
     widgets::{Paragraph, Wrap},
@@ -47,7 +46,7 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame) {
+    pub fn draw(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone())
             .style(Style::default())
             .wrap(Wrap { trim: false })

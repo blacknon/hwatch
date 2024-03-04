@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 use tui::{
-    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     prelude::Line,
@@ -28,7 +27,7 @@ impl<'a> HelpWindow<'a> {
     }
 
     ///
-    pub fn draw<B: Backend>(&mut self, f: &mut Frame) {
+    pub fn draw(&mut self, f: &mut Frame) {
         let title = "help";
 
         let size = f.size();

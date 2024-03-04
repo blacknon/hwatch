@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 use tui::{
-    backend::Backend,
     layout::Constraint,
     style::{Color, Modifier, Style},
     text::Span,
@@ -82,7 +81,7 @@ impl HistoryArea {
         self.state.select(Some(0));
     }
 
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame) {
+    pub fn draw(&mut self, frame: &mut Frame) {
         // insert latest timestamp
         const LATEST_COLOR: Color = Color::Blue;
         let draw_data = &self.data;
@@ -118,7 +117,7 @@ impl HistoryArea {
             },
             false => base_selected_style.fg(Color::DarkGray),
         };
-        let table = Table::new(rows)
+        let table = Table::new(rows, [Constraint::Length(crate::HISTORY_WIDTH)])
             .block(Block::default())
             .highlight_style(selected_style)
             .highlight_symbol(">>")
