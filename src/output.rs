@@ -704,7 +704,7 @@ pub fn get_word_diff<'a>(
                 let mut lines_data = vec![];
 
                 // check lines.
-                if i > 0 {
+                if diffs.len() > i  {
                     let after_diffs = &diffs[i + 1];
 
                     lines_data = get_word_diff_remline(color, after_diffs, diff_data.to_string())
