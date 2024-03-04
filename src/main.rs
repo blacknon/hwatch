@@ -6,6 +6,11 @@
 // TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
 
 // v0.3.12
+// TODO(blacknon): pagedown/pageupスクロールの実装
+// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する
+// TODO(blacknon): issueの中で簡単に実装できそうなやつ
+
+// v0.3.13
 // TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
