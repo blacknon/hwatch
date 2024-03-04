@@ -8,5 +8,6 @@ pub enum AppEvent {
     OutputUpdate(CommandResult),
     TerminalEvent(crossterm::event::Event),
     Redraw,
+    ToggleMouseEvents,
     Exit,
 }
