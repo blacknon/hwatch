@@ -6,14 +6,14 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    text::Spans,
+    prelude::Line,
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 
 pub struct HelpWindow<'a> {
     ///
-    data: Vec<Spans<'a>>,
+    data: Vec<Line<'a>>,
 
     ///
     position: i16,
@@ -28,7 +28,7 @@ impl<'a> HelpWindow<'a> {
     }
 
     ///
-    pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
+    pub fn draw<B: Backend>(&mut self, f: &mut Frame) {
         let title = "help";
 
         let size = f.size();
@@ -68,37 +68,37 @@ impl<'a> HelpWindow<'a> {
 }
 
 ///
-fn gen_help_text<'a>() -> Vec<Spans<'a>> {
+fn gen_help_text<'a>() -> Vec<Line<'a>> {
     // set help messages.
     let text = vec![
-        Spans::from(" - [h] key   ... show this help message."),
+        Line::from(" - [h] key   ... show this help message."),
         // toggle
-        Spans::from(" - [c] key   ... toggle color mode."),
-        Spans::from(" - [n] key   ... toggle line number."),
-        Spans::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
-        Spans::from(" - [t] key   ... toggle ui (history pane & header both on/off). "),
-        Spans::from(" - [Bkspace] ... toggle history pane. "),
-        Spans::from(" - [m] key   ... toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key."),
+        Line::from(" - [c] key   ... toggle color mode."),
+        Line::from(" - [n] key   ... toggle line number."),
+        Line::from(" - [d] key   ... switch diff mode at None, Watch, Line, and Word mode. "),
+        Line::from(" - [t] key   ... toggle ui (history pane & header both on/off). "),
+        Line::from(" - [Bkspace] ... toggle history pane. "),
+        Line::from(" - [m] key   ... toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key."),
         // exit hwatch
-        Spans::from(" - [q] key   ... exit hwatch."),
+        Line::from(" - [q] key   ... exit hwatch."),
         // change diff
-        Spans::from(" - [0] key   ... disable diff."),
-        Spans::from(" - [1] key   ... switch Watch type diff."),
-        Spans::from(" - [2] key   ... switch Line type diff."),
-        Spans::from(" - [3] key   ... switch Word type diff."),
+        Line::from(" - [0] key   ... disable diff."),
+        Line::from(" - [1] key   ... switch Watch type diff."),
+        Line::from(" - [2] key   ... switch Line type diff."),
+        Line::from(" - [3] key   ... switch Word type diff."),
         // change output
-        Spans::from(" - [F1] key  ... change output mode as stdout."),
-        Spans::from(" - [F2] key  ... change output mode as stderr."),
-        Spans::from(" - [F3] key  ... change output mode as output(stdout/stderr set.)"),
+        Line::from(" - [F1] key  ... change output mode as stdout."),
+        Line::from(" - [F2] key  ... change output mode as stderr."),
+        Line::from(" - [F3] key  ... change output mode as output(stdout/stderr set.)"),
         // change interval
-        Spans::from(" - [+] key ... Increase interval by .5 seconds."),
-        Spans::from(" - [-] key ... Decrease interval by .5 seconds."),
+        Line::from(" - [+] key ... Increase interval by .5 seconds."),
+        Line::from(" - [-] key ... Decrease interval by .5 seconds."),
         // change use area
-        Spans::from(" - [Tab] key ... toggle current area at history or watch."),
+        Line::from(" - [Tab] key ... toggle current area at history or watch."),
         // filter text input
-        Spans::from(" - [/] key   ... filter history by string."),
-        Spans::from(" - [*] key   ... filter history by regex."),
-        Spans::from(" - [ESC] key ... unfiltering."),
+        Line::from(" - [/] key   ... filter history by string."),
+        Line::from(" - [*] key   ... filter history by regex."),
+        Line::from(" - [ESC] key ... unfiltering."),
     ];
 
     text

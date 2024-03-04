@@ -12,7 +12,8 @@ use std::cmp;
 use std::fmt::Write;
 use tui::{
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::Span,
+    prelude::Line,
 };
 
 // local const
@@ -82,7 +83,7 @@ pub fn get_plane_output<'a>(
     is_regex_filter: bool,
     filtered_text: &str,
     tab_size: u16,
-) -> Vec<Spans<'a>> {
+) -> Vec<Line<'a>> {
     let text = &expand_line_tab(base_text, tab_size);
 
     // set result `output_data`.
@@ -123,7 +124,7 @@ pub fn get_plane_output<'a>(
             {
                 if before_range_count > 0 {
                     let line_data = line_span.clone();
-                    output_data.push(Spans::from(line_data));
+                    output_data.push(Line::from(line_data));
                     line_span = vec![];
                     counter += 1;
                 }
@@ -150,7 +151,7 @@ pub fn get_plane_output<'a>(
                     }
 
                     let line_data = line_span.clone();
-                    output_data.push(Spans::from(line_data));
+                    output_data.push(Line::from(line_data));
                     line_span = vec![];
                     counter += 1;
                 }
@@ -183,7 +184,7 @@ pub fn get_plane_output<'a>(
             }
             last_str_line_span.push(Span::from(String::from(last_str_line)));
 
-            output_data.push(Spans::from(last_str_line_span));
+            output_data.push(Line::from(last_str_line_span));
 
             counter += 1;
         }
@@ -213,7 +214,7 @@ pub fn get_plane_output<'a>(
                 line_span.push(Span::from(String::from(l)));
             }
 
-            output_data.push(Spans::from(line_span));
+            output_data.push(Line::from(line_span));
             counter += 1;
         }
     }
@@ -231,7 +232,7 @@ pub fn get_watch_diff<'a>(
     old: &str,
     new: &str,
     tab_size: u16,
-) -> Vec<Spans<'a>> {
+) -> Vec<Line<'a>> {
     //
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
@@ -285,10 +286,10 @@ pub fn get_watch_diff<'a>(
 }
 
 ///
-fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
+fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Line<'a> {
     // If the contents are the same line.
     if old_line == new_line {
-        return Spans::from(String::from(new_line));
+        return Line::from(String::from(new_line));
     }
 
     // Decompose lines by character.
@@ -339,11 +340,11 @@ fn get_watch_diff_line<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
     // NOTE: NBSP used as tui-rs trims regular spaces.
     _result.push(Span::styled(space.to_string(), Style::default()));
 
-    Spans::from(_result)
+    Line::from(_result)
 }
 
 ///
-fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a> {
+fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Line<'a> {
     // If the contents are the same line.
     if old_line == new_line {
         let new_spans = ansi::bytes_to_text(format!("{new_line}\n").as_bytes());
@@ -406,7 +407,7 @@ fn get_watch_diff_line_with_ansi<'a>(old_line: &str, new_line: &str) -> Spans<'a
     _result.push(Span::styled(space, Style::default()));
 
     //
-    Spans::from(_result)
+    Line::from(_result)
 }
 
 // line diff
@@ -420,7 +421,7 @@ pub fn get_line_diff<'a>(
     old: &str,
     new: &str,
     tab_size: u16,
-) -> Vec<Spans<'a>> {
+) -> Vec<Line<'a>> {
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
 
@@ -456,10 +457,10 @@ pub fn get_line_diff<'a>(
                                 colored_span.push(x);
                             }
                         }
-                        Spans::from(colored_span)
+                        Line::from(colored_span)
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(format!("   {line}\n"))
+                        Line::from(format!("   {line}\n"))
                     };
 
                     if line_number {
@@ -489,13 +490,13 @@ pub fn get_line_diff<'a>(
                     let mut data = if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(&line);
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("+  {strip_str}\n"),
                             Style::default().fg(Color::Green),
                         ))
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("+  {line}\n"),
                             Style::default().fg(Color::Green),
                         ))
@@ -525,13 +526,13 @@ pub fn get_line_diff<'a>(
                     let mut data = if color {
                         // ansi color code => parse and delete. to rs-tui span(green).
                         let strip_str = get_ansi_strip_str(&line);
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("-  {strip_str}\n"),
                             Style::default().fg(Color::Red),
                         ))
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(Span::styled(
+                        Line::from(Span::styled(
                             format!("-  {line}\n"),
                             Style::default().fg(Color::Red),
                         ))
@@ -570,7 +571,7 @@ pub fn get_word_diff<'a>(
     old: &str,
     new: &str,
     tab_size: u16,
-) -> Vec<Spans<'a>> {
+) -> Vec<Line<'a>> {
     let old_text = &expand_line_tab(old, tab_size);
     let new_text = &expand_line_tab(new, tab_size);
 
@@ -606,10 +607,10 @@ pub fn get_word_diff<'a>(
                                 colored_span.push(x);
                             }
                         }
-                        Spans::from(colored_span)
+                        Line::from(colored_span)
                     } else {
                         // to string => rs-tui span.
-                        Spans::from(format!("   {line}\n"))
+                        Line::from(format!("   {line}\n"))
                     };
 
                     if line_number {
@@ -682,7 +683,7 @@ pub fn get_word_diff<'a>(
                         );
                     }
 
-                    result.push(Spans::from(data.clone()));
+                    result.push(Line::from(data.clone()));
 
                     // add new_counter
                     new_counter += 1;
@@ -738,7 +739,7 @@ pub fn get_word_diff<'a>(
                         );
                     }
 
-                    result.push(Spans::from(data.clone()));
+                    result.push(Line::from(data.clone()));
 
                     // add old_counter
                     old_counter += 1;
@@ -954,7 +955,7 @@ fn get_word_diff_remline<'a>(
 }
 
 ///
-fn get_word_diff_line_to_spans<'a>(
+fn get_word_diff_line_to_Line<'a>(
     color: bool,
     style: Style,
     diff_str: &str,

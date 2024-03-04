@@ -9,9 +9,11 @@
 use tui::{
     backend::Backend,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::Span,
+
     widgets::Paragraph,
     Frame,
+    prelude::Line,
 };
 
 // local module
@@ -40,7 +42,7 @@ pub struct HeaderArea<'a> {
     exec_status: bool,
 
     ///
-    data: Vec<Spans<'a>>,
+    data: Vec<Line<'a>>,
 
     ///
     line_number: bool,
@@ -85,7 +87,7 @@ impl<'a> HeaderArea<'a> {
             timestamp: "".to_string(),
             exec_status: true,
 
-            data: vec![Spans::from("")],
+            data: vec![Line::from("")],
             ansi_color: false,
             line_number: false,
             banner: "".to_string(),
@@ -249,7 +251,7 @@ impl<'a> HeaderArea<'a> {
         };
 
         // Create 1st line.
-        self.data.push(Spans::from(vec![
+        self.data.push(Line::from(vec![
             Span::raw("Every "),
             Span::styled(
                 format!("{:>wid$}", interval, wid = 9),
@@ -271,7 +273,7 @@ impl<'a> HeaderArea<'a> {
         ]));
 
         // Create 2nd line
-        self.data.push(Spans::from(vec![
+        self.data.push(Line::from(vec![
             // filter keyword
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
@@ -320,7 +322,7 @@ impl<'a> HeaderArea<'a> {
         ]));
     }
 
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
+    pub fn draw<B: Backend>(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone());
         frame.render_widget(block, self.area);
     }
