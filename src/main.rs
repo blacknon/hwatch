@@ -2,9 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.11
-// TODO(blacknon): セキュリティのため、heaplessのバージョンを上げる
-
 // v0.3.12
 // TODO(blacknon): pagedown/pageupスクロールの実装
 // TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する
