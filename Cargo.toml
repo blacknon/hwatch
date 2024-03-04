@@ -12,25 +12,24 @@ version = "0.3.11"
 # TODO: [ansi-parser](https://crates.io/crates/ansi-parser)のバージョンアップ対応が必要になるので、その対応待ち. PRはmargeされたのでいい加減アップデートされてもいいと思うのだが….
 # ansi-parser = {version = "0.9.0", path = "../ansi-parser"}
 ansi-parser = "0.8.0"
+
+# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
+heapless = "0.5.6"
+termwiz = "0.15.0"
+
 async-std = {version = "1.12"}
 chrono = "0.4.34"
-clap = {version = "3.1.18", features = ["cargo"]}
+clap = {version = "3.2.25", features = ["cargo"]}
 crossbeam-channel = "0.5.12"
 crossterm = "0.27.0"
 ctrlc = {version = "3.4.2", features = ["termination"]}
 difference = "2.0"
 futures = "0.3.30"
 question = "0.2.2"
-
-# tui = {version = "0.19.0", default-features = false, features = ['crossterm']}
-ratatui = {version = "0.26.1", default-features = false, features = ['crossterm']}
-
 regex = "1.10.3"
 serde = "1.0.197"
 serde_derive = "1.0.197"
 serde_json = "1.0.114"
 shell-words = "1.1.0"
 
-# TODO: ansi-parserのバージョンアップグレードの対応が必要になるので、その対応をしたらバージョンアップが必要.
-heapless = "0.5.6"
-termwiz = "0.15.0"
+ratatui = {version = "0.26.1", default-features = false, features = ['crossterm', 'unstable-rendered-line-info']}
