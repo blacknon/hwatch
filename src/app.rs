@@ -720,6 +720,22 @@ impl<'a> App<'a> {
                         state: KeyEventState::NONE,
                     }) => self.input_key_down(),
 
+                    // pgup
+                    Event::Key(KeyEvent {
+                        code: KeyCode::PageUp,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_pgup(),
+
+                    // pgdn
+                    Event::Key(KeyEvent {
+                        code: KeyCode::PageDown,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_pgdn(),
+
                     // mouse wheel up
                     Event::Mouse(MouseEvent {
                         kind: MouseEventKind::ScrollUp,
@@ -1214,6 +1230,36 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
+    fn input_key_pgup(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            if self.area == ActiveArea::Watch  {
+                let mut page_height = self.watch_area.get_area_size();
+                if page_height > 1 {
+                    page_height = page_height - 1
+                }
+
+                // scroll up watch
+                self.watch_area.scroll_up(page_height);
+            }
+        }
+    }
+
+    ///
+    fn input_key_pgdn(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            if self.area == ActiveArea::Watch  {
+                let mut page_height = self.watch_area.get_area_size();
+                if page_height > 1 {
+                    page_height = page_height - 1
+                }
+
+                // scroll up watch
+                self.watch_area.scroll_down(page_height);
+            }
+        }
+    }
+
     // Mouse wheel always scrolls the main area
     fn mouse_scroll_up(&mut self) {
         self.watch_area.scroll_up(2);
@@ -1222,20 +1268,6 @@ impl<'a> App<'a> {
     fn mouse_scroll_down(&mut self) {
         self.watch_area.scroll_down(2);
     }
-
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
-    //     - https://github.com/tui-rs-revival/ratatui/pull/12
-    ///
-    //fn input_key_pgup(&mut self) {}
-
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
-    //     - https://github.com/tui-rs-revival/ratatui/pull/12
-    ///
-    //fn input_key_pgdn(&mut self) {}
 
     ///
     fn input_key_left(&mut self) {
