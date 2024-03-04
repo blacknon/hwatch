@@ -7,7 +7,6 @@
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
 use tui::{
-    backend::Backend,
     style::{Color, Modifier, Style},
     text::Span,
 
@@ -322,7 +321,7 @@ impl<'a> HeaderArea<'a> {
         ]));
     }
 
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame) {
+    pub fn draw(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone());
         frame.render_widget(block, self.area);
     }

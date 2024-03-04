@@ -268,7 +268,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn draw<B: Backend>(&mut self, f: &mut Frame) {
+    pub fn draw(&mut self, f: &mut Frame) {
         self.define_subareas(f.size());
 
         if self.show_header {
