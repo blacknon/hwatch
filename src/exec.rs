@@ -5,7 +5,6 @@
 // module
 use crossbeam_channel::Sender;
 use std::io::prelude::*;
-use std::io::BufRead;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -89,90 +88,55 @@ impl ExecuteCommand {
         let mut vec_stdout = Vec::new();
         let mut vec_stderr = Vec::new();
 
-        // TODO: bufferのdead lockが起きてるので、うまいこと非同期I/Oを使って修正する
+        // get output data
         let status = match child_result {
             Ok(mut child) => {
                 let child_stdout = child.stdout.take().expect("");
                 let child_stderr = child.stderr.take().expect("");
 
-                // let mut stdout = BufReader::new(child_stdout);
-                // let mut stderr = BufReader::new(child_stderr);
-
-                // stdout と stderr の出力を格納するためのベクターを準備する
+                // Prepare vector for collapsing stdout and stderr output
                 let arc_vec_output = Arc::new(Mutex::new(Vec::new()));
                 let arc_vec_stdout = Arc::new(Mutex::new(Vec::new()));
                 let arc_vec_stderr = Arc::new(Mutex::new(Vec::new()));
 
-                // ベクターへの書き込みをスレッド間で共有するために、Arc と Mutex を使用す
+                // Using Arc and Mutex to share sequential writes between threads
                 let arc_vec_output_stdout_clone = Arc::clone(&arc_vec_output);
                 let arc_vec_output_stderr_clone = Arc::clone(&arc_vec_output);
                 let arc_vec_stdout_clone = Arc::clone(&arc_vec_stdout);
                 let arc_vec_stderr_clone = Arc::clone(&arc_vec_stderr);
 
-                // stdout を処理するスレッドを開始する
+                // start stdout thread
                 let stdout_thread = thread::spawn(move || {
-                    // BufReader を使用して子プロセスの stdout を読み取る
+                    // Use BufReader to read child process stdout
                     let mut stdout = BufReader::new(child_stdout);
                     let mut buf = Vec::new();
-                    // stdout を完全に読み取り、ベクターに書き込む
+
+                    // write to vector
                     stdout.read_to_end(&mut buf).expect("Failed to read stdout");
                     arc_vec_stdout_clone.lock().unwrap().extend_from_slice(&buf);
                     arc_vec_output_stdout_clone.lock().unwrap().extend_from_slice(&buf);
                 });
 
-                // stderr を処理するスレッドを開始する
+                // start stderr thread
                 let stderr_thread = thread::spawn(move || {
-                    // BufReader を使用して子プロセスの stderr を読み取る
+                    // Use BufReader to read child process stderr
                     let mut stderr = BufReader::new(child_stderr);
                     let mut buf = Vec::new();
-                    // stderr を完全に読み取り、ベクターに書き込む
+
+                    // write to vector
                     stderr.read_to_end(&mut buf).expect("Failed to read stderr");
                     arc_vec_stderr_clone.lock().unwrap().extend_from_slice(&buf);
                     arc_vec_output_stderr_clone.lock().unwrap().extend_from_slice(&buf);
                 });
 
-                // stdout と stderr のスレッドが終了するまで待機する
+                // with thread stdout/stderr
                 stdout_thread.join().expect("Failed to join stdout thread");
                 stderr_thread.join().expect("Failed to join stderr thread");
 
-                // Arc をアンラップし、MutexGuard を取得してベクターを取り出す
+                // Unwrap Arc, get MutexGuard and extract vector
                 vec_output = Arc::try_unwrap(arc_vec_output).unwrap().into_inner().unwrap();
                 vec_stdout = Arc::try_unwrap(arc_vec_stdout).unwrap().into_inner().unwrap();
                 vec_stderr = Arc::try_unwrap(arc_vec_stderr).unwrap().into_inner().unwrap();
-
-                // loop {
-                //     // stdout
-                //     let stdout_bytes = match stdout.fill_buf() {
-                //         Ok(stdout) => {
-                //             vec_output.write_all(stdout).expect("");
-                //             vec_stdout.write_all(stdout).expect("");
-
-                //             stdout.len()
-                //         },
-                //         other => panic!("Some better error handling here, {other:?}"),
-                //     };
-                //     stdout.consume(stdout_bytes);
-
-                //     // stderr
-                //     let stderr_bytes = match stderr.fill_buf() {
-                //         Ok(stderr) => {
-                //             vec_output.write_all(stderr).expect("");
-                //             vec_stderr.write_all(stderr).expect("");
-
-                //             stderr.len()
-                //         },
-                //         other => panic!("Some better error handling here, {other:?}"),
-                //     };
-                //     stderr.consume(stderr_bytes);
-
-                //     if stdout_bytes == 0 && stderr_bytes == 0 {
-                //         break;
-                //     }
-                // }
-
-                // // Memory release.
-                // drop(stdout);
-                // drop(stderr);
 
                 // get command status
                 let exit_status = child.wait().expect("");
