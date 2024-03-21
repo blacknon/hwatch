@@ -52,8 +52,6 @@ impl<'a> WatchArea<'a> {
         return height
     }
 
-
-
     ///
     pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         self.data = data;

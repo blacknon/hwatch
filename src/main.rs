@@ -3,9 +3,10 @@
 // that can be found in the LICENSE file.
 
 // v0.3.12
-// TODO(blacknon): pagedown/pageupスクロールの実装
-// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する
-// TODO(blacknon): issueの中で簡単に実装できそうなやつ
+// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する？
+// TODO(blacknon): Home/Endのキーサポートを追加
+// TODO(blacknon): batch mode及びoutput/stdout/stderrごとにhistoryを分ける実装の前準備
+// TODO(blacknon): issueの中でマイルストーンに突っ込んでるやつ
 
 // v0.3.13
 // TODO(blakcnon): batch modeの実装.
