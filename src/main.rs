@@ -3,13 +3,15 @@
 // that can be found in the LICENSE file.
 
 // v0.3.12
-// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する？
-// TODO(blacknon): Home/Endのキーサポートを追加
+// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する？ => ok
+// TODO(blacknon): Home/Endのキーサポートを追加 => ok
 // TODO(blacknon): batch mode及びoutput/stdout/stderrごとにhistoryを分ける実装の前準備
 // TODO(blacknon): issueの中でマイルストーンに突っ込んでるやつ
+//                 - https://github.com/blacknon/hwatch/issues/82
+//                 - https://github.com/blacknon/hwatch/issues/103
+// TODO(blakcnon): batch modeの実装.
 
 // v0.3.13
-// TODO(blakcnon): batch modeの実装.
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
