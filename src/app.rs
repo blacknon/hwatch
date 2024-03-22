@@ -736,6 +736,22 @@ impl<'a> App<'a> {
                         state: KeyEventState::NONE,
                     }) => self.input_key_pgdn(),
 
+                    // Home
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Home,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_home(),
+
+                    // End
+                    Event::Key(KeyEvent {
+                        code: KeyCode::End,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_end(),
+
                     // mouse wheel up
                     Event::Mouse(MouseEvent {
                         kind: MouseEventKind::ScrollUp,
@@ -1256,6 +1272,22 @@ impl<'a> App<'a> {
 
                 // scroll up watch
                 self.watch_area.scroll_down(page_height);
+            }
+        }
+    }
+
+    fn input_key_home(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            if self.area == ActiveArea::Watch  {
+                self.watch_area.scroll_home();
+            }
+        }
+    }
+
+    fn input_key_end(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            if self.area == ActiveArea::Watch  {
+                self.watch_area.scroll_end();
             }
         }
     }
