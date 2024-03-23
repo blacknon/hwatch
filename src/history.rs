@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use std::borrow::BorrowMut;
+
 use tui::{
     layout::Constraint,
     style::{Color, Modifier, Style},
@@ -21,6 +23,7 @@ pub struct HistoryArea {
     ///
     pub area: tui::layout::Rect,
 
+    ///
     pub active: bool,
 
     ///
@@ -126,6 +129,10 @@ impl HistoryArea {
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 
+    pub fn get_history_size(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn get_state_select(&self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
@@ -135,40 +142,41 @@ impl HistoryArea {
         self.data[i][0].num as usize
     }
 
-    pub fn next(&mut self) {
+    ///
+    pub fn next(&mut self, num: usize) {
         let i = match self.state.selected() {
-            Some(i) => {
-                if i > 0 {
-                    i - 1
+            Some(i) =>{
+            if i > num {
+                    i - num
                 } else {
-                    i
+                    0
                 }
-            }
+            },
             None => 0,
         };
         self.state.select(Some(i));
     }
 
-    pub fn previous(&mut self) {
-        let i = match self.state.selected() {
+    ///
+    pub fn previous(&mut self, num: usize) {
+        let i= match self.state.selected() {
             Some(i) => {
-                if i < self.data.len() - 1 {
-                    i + 1
+                if i + num < self.data.len() - 1 {
+                    i + num
                 } else {
-                    i
+                    self.data.len() - 1
                 }
-            }
+            },
             None => 0,
         };
         self.state.select(Some(i));
     }
 
-    // NOTE: TODO:
-    // It will not be supported until the following issues are resolved.
-    //     - https://github.com/fdehau/tui-rs/issues/495
-    //
-    // pub fn click_row(&mut self, row: u16) {
-    //     let select_num = row as usize;
-    //     self.state.select(Some(select_num));
-    // }
+    pub fn click_row(&mut self, row: u16) {
+        let first_row = self.state.offset();
+        let select_num = row as usize;
+        if select_num < self.data.len() {
+            self.state.select(Some(select_num + first_row));
+        }
+    }
 }

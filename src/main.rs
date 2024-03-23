@@ -3,8 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.12
-// TODO(blacknon): scrollで一番↓まで行くとき、ページの一番下がターミナルの最終行になるように変更する？ => ok
-// TODO(blacknon): Home/Endのキーサポートを追加 => ok
 // TODO(blacknon): batch mode及びoutput/stdout/stderrごとにhistoryを分ける実装の前準備
 // TODO(blacknon): issueの中でマイルストーンに突っ込んでるやつ
 //                 - https://github.com/blacknon/hwatch/issues/82
@@ -30,6 +28,7 @@
 // TODO(blacknon): diffのとき、stdout/stderrでの比較時におけるdiffでhistoryも変化させる？
 //                 - データの扱いが変わってきそう？
 //                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
+// TODO(blacknon): キー入力のカスタマイズが行えるようにする
 
 // crate
 // extern crate ansi_parser;
@@ -254,8 +253,10 @@ fn get_clap_matcher() -> clap::ArgMatches {
     let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
     let mut os_args = std::env::args_os();
     let mut args: Vec<std::ffi::OsString> = vec![];
+
     // First argument is the program name
     args.push(os_args.next().unwrap());
+
     // Environment variables go next so that they can be overridded
     // TODO: Currently, the opposites of command-line options are not
     // yet implemented. E.g., there is no `--no-color` to override

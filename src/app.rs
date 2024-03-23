@@ -8,8 +8,7 @@ use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        KeyEventState, KeyModifiers, MouseEvent, MouseEventKind,
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent, MouseEventKind
     },
     execute,
 };
@@ -20,7 +19,7 @@ use std::{
 };
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     Frame, Terminal,
 };
 
@@ -214,7 +213,7 @@ impl<'a> App<'a> {
 
     ///
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        self.history_area.next();
+        self.history_area.next(1);
         let mut update_draw = true;
         loop {
             if self.done {
@@ -249,6 +248,7 @@ impl<'a> App<'a> {
                     update_draw = true;
                 }
 
+                //
                 Ok(AppEvent::ToggleMouseEvents) => {
                     if self.mouse_events {
                         execute!(terminal.backend_mut(), DisableMouseCapture)?;
@@ -688,7 +688,7 @@ impl<'a> App<'a> {
 
             // update selected
             if selected != 0 {
-                self.history_area.previous();
+                self.history_area.previous(1);
             }
         }
         selected = self.history_area.get_state_select();
@@ -767,19 +767,12 @@ impl<'a> App<'a> {
                     }) => self.mouse_scroll_down(),
 
                     Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                        kind: MouseEventKind::Down(MouseButton::Left),
                         column,
                         row,
                         modifiers: KeyModifiers::NONE,
                         ..
-                    }) => {
-                        // Currently a no-op
-                        self.mouse_click_left(column, row);
-                    }
-
-                    // pgup
-
-                    // pgdn
+                    }) => self.mouse_click_left(column, row),
 
                     // left
                     Event::Key(KeyEvent {
@@ -1210,7 +1203,7 @@ impl<'a> App<'a> {
                 }
                 ActiveArea::History => {
                     // move next history
-                    self.history_area.next();
+                    self.history_area.next(1);
 
                     // get now selected history
                     let selected = self.history_area.get_state_select();
@@ -1233,7 +1226,7 @@ impl<'a> App<'a> {
                 }
                 ActiveArea::History => {
                     // move previous history
-                    self.history_area.previous();
+                    self.history_area.previous(1);
 
                     // get now selected history
                     let selected = self.history_area.get_state_select();
@@ -1249,14 +1242,32 @@ impl<'a> App<'a> {
     ///
     fn input_key_pgup(&mut self) {
         if self.window == ActiveWindow::Normal {
-            if self.area == ActiveArea::Watch  {
-                let mut page_height = self.watch_area.get_area_size();
-                if page_height > 1 {
-                    page_height = page_height - 1
-                }
+            match self.area {
+                ActiveArea::Watch => {
+                    let mut page_height = self.watch_area.get_area_size();
+                    if page_height > 1 {
+                        page_height = page_height - 1
+                    }
 
-                // scroll up watch
-                self.watch_area.scroll_up(page_height);
+                    // scroll up watch
+                    self.watch_area.scroll_up(page_height);
+                },
+                ActiveArea::History => {
+                    // move next history
+                    let area_size = self.history_area.area.height;
+                    let move_size = if area_size > 1 {
+                        area_size - 1
+                    } else {
+                        1
+                    };
+
+                    // up
+                    self.history_area.next(move_size as usize);
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
             }
         }
     }
@@ -1264,41 +1275,75 @@ impl<'a> App<'a> {
     ///
     fn input_key_pgdn(&mut self) {
         if self.window == ActiveWindow::Normal {
-            if self.area == ActiveArea::Watch  {
-                let mut page_height = self.watch_area.get_area_size();
-                if page_height > 1 {
-                    page_height = page_height - 1
-                }
+            match self.area {
+                ActiveArea::Watch => {
+                    let mut page_height = self.watch_area.get_area_size();
+                    if page_height > 1 {
+                        page_height = page_height - 1
+                    }
 
-                // scroll up watch
-                self.watch_area.scroll_down(page_height);
+                    // scroll up watch
+                    self.watch_area.scroll_down(page_height);
+                },
+                ActiveArea::History => {
+                    // move previous history
+                    let area_size = self.history_area.area.height;
+                    let move_size = if area_size > 1 {
+                        area_size - 1
+                    } else {
+                        1
+                    };
+
+                    // down
+                    self.history_area.previous(move_size as usize);
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                },
             }
         }
     }
 
     fn input_key_home(&mut self) {
         if self.window == ActiveWindow::Normal {
-            if self.area == ActiveArea::Watch  {
-                self.watch_area.scroll_home();
+            match self.area {
+                ActiveArea::Watch => self.watch_area.scroll_home(),
+                ActiveArea::History => {
+                    // move latest history move size
+                    let hisotory_size = self.history_area.get_history_size();
+                    self.history_area.next(hisotory_size);
+
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
             }
         }
     }
 
     fn input_key_end(&mut self) {
         if self.window == ActiveWindow::Normal {
-            if self.area == ActiveArea::Watch  {
-                self.watch_area.scroll_end();
+            match self.area {
+                ActiveArea::Watch => self.watch_area.scroll_end(),
+                ActiveArea::History => {
+                    // get end history move size
+                    let hisotory_size = self.history_area.get_history_size();
+                    let move_size = if hisotory_size > 1 {
+                        hisotory_size - 1
+                    } else {
+                        1
+                    };
+
+                    // move end
+                    self.history_area.previous(move_size);
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+
+                },
             }
         }
-    }
-
-    // Mouse wheel always scrolls the main area
-    fn mouse_scroll_up(&mut self) {
-        self.watch_area.scroll_up(2);
-    }
-
-    fn mouse_scroll_down(&mut self) {
-        self.watch_area.scroll_down(2);
     }
 
     ///
@@ -1323,46 +1368,78 @@ impl<'a> App<'a> {
         }
     }
 
-    // NOTE: TODO: Currently does not do anything
-    // Mouse clicks will not be supported until the following issues are resolved.
-    //     - https://github.com/tui-rs-revival/ratatui/pull/12
-    fn mouse_click_left(&mut self, _column: u16, _row: u16) {
-        //    // check in hisotry area
-        //    let is_history_area = check_in_area(self.history_area.area, column, row);
-        //    if is_history_area {
-        //        // let headline_count = self.history_area.area.y;
-        //        // self.history_area.click_row(row - headline_count);
+    fn mouse_click_left(&mut self, column: u16, row: u16) {
+        // check in hisotry area
+        let is_history_area = check_in_area(self.history_area.area, column, row);
+        if is_history_area {
+            let headline_count = self.history_area.area.y;
+            self.history_area.click_row(row - headline_count);
+             //    self.history_area.previous(1);
 
-        //        // self.history_area.previous();
-
-        //        let selected = self.history_area.get_state_select();
-        //        self.set_output_data(selected);
-        //    }
+            let selected = self.history_area.get_state_select();
+            self.set_output_data(selected);
+        }
     }
+
+    // Mouse wheel always scrolls the main area
+    fn mouse_scroll_up(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.watch_area.scroll_up(2);
+                },
+                ActiveArea::History => {
+                    self.history_area.next(2);
+
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_down(2);
+            },
+        }
+    }
+
+    fn mouse_scroll_down(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.watch_area.scroll_down(2);
+                },
+                ActiveArea::History => {
+                    self.history_area.previous(2);
+
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_down(2);
+            },
+        }
+    }
+
 }
 
-// NOTE: TODO:
-// Not currently used.
-//     - https://github.com/tui-rs-revival/ratatui/pull/12
-//fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
-//    let mut result = true;
-//
-//    // get area range's
-//    let area_top = area.top();
-//    let area_bottom = area.bottom();
-//    let area_left = area.left();
-//    let area_right = area.right();
-//
-//    let area_row_range = area_top..area_bottom;
-//    let area_column_range = area_left..area_right;
-//
-//    if !area_row_range.contains(&row) {
-//        result = false;
-//    }
-//
-//    if !area_column_range.contains(&column) {
-//        result = false;
-//    }
-//
-//    result
-//}
+fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
+    let mut result = true;
+
+    // get area range's
+    let area_top = area.top();
+    let area_bottom = area.bottom();
+    let area_left = area.left();
+    let area_right = area.right();
+
+    let area_row_range = area_top..area_bottom;
+    let area_column_range = area_left..area_right;
+
+    if !area_row_range.contains(&row) {
+        result = false;
+    }
+
+    if !area_column_range.contains(&column) {
+        result = false;
+    }
+    result
+}
