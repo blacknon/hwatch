@@ -74,16 +74,21 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn scroll_down(&mut self, num: i16) {
-        // self.position = std::cmp::min(self.position + num, self.lines - 1);
-        self.position = std::cmp::min(self.position + num, self.lines - self.area.height as i16);
+        if self.lines > self.area.height as i16 {
+            self.position = std::cmp::min(self.position + num, self.lines - self.area.height as i16);
+        }
     }
 
+    ///
     pub fn scroll_home(&mut self) {
         self.position = 0;
     }
 
+    ///
     pub fn scroll_end(&mut self) {
-        self.position = self.lines - self.area.height as i16;
+        if self.lines > self.area.height as i16 {
+            self.position = self.lines - self.area.height as i16;
+        }
     }
 
 }
