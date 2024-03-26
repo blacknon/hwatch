@@ -122,6 +122,7 @@ impl View {
         ctrlc::set_handler(|| {
             // Runs on SIGINT, SIGTERM (kill), SIGHUP
             restore_terminal();
+
             // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
             std::process::exit(128 + 15)
         })?;

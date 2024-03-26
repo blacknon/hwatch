@@ -2,8 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use std::borrow::BorrowMut;
-
 use tui::{
     layout::Constraint,
     style::{Color, Modifier, Style},
@@ -35,6 +33,7 @@ pub struct HistoryArea {
 
 /// History Area Object Trait
 impl HistoryArea {
+    ///
     pub fn new() -> Self {
         //! new Self
         Self {
@@ -49,18 +48,22 @@ impl HistoryArea {
         }
     }
 
+    ///
     pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
     }
 
+    ///
     pub fn set_active(&mut self, active: bool) {
         self.active = active;
     }
 
+    ///
     pub fn set_latest_status(&mut self, latest_status: bool) {
         self.data[0][0].status = latest_status;
     }
 
+    ///
     pub fn update(&mut self, timestamp: String, status: bool, num: u16) {
         self.set_latest_status(status);
 
@@ -77,6 +80,8 @@ impl HistoryArea {
 
     ///
     pub fn reset_history_data(&mut self, data: Vec<Vec<History>>) {
+        // @TODO: output mode切り替えでも使えるようにするため、indexを受け取るようにする
+
         // update data
         self.data = data;
 
@@ -84,6 +89,7 @@ impl HistoryArea {
         self.state.select(Some(0));
     }
 
+    ///
     pub fn draw(&mut self, frame: &mut Frame) {
         // insert latest timestamp
         const LATEST_COLOR: Color = Color::Blue;
@@ -129,17 +135,37 @@ impl HistoryArea {
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 
+    ///
     pub fn get_history_size(&self) -> usize {
         self.data.len()
     }
 
+    ///
     pub fn get_state_select(&self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
             None => self.data.len() - 1,
         };
 
-        self.data[i][0].num as usize
+        if self.data.len() > i {
+            return self.data[i][0].num as usize;
+        } else {
+            return 0;
+        }
+    }
+
+    ///
+    pub fn set_state_select(&mut self, index: usize) {
+        // find index
+        let mut i = 0;
+        for d in self.data.iter() {
+            if d[0].num == index as u16 {
+                break;
+            }
+            i += 1;
+        }
+
+        self.state.select(Some(i));
     }
 
     ///
@@ -172,6 +198,7 @@ impl HistoryArea {
         self.state.select(Some(i));
     }
 
+    ///
     pub fn click_row(&mut self, row: u16) {
         let first_row = self.state.offset();
         let select_num = row as usize;
