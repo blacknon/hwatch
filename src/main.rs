@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.12
-// TODO(blacknon): batch mode及びoutput/stdout/stderrごとにhistoryを分ける実装の前準備(https://github.com/blacknon/hwatch/issues/82)
 // TODO(blacknon): diffオプション指定時に引数でパターン分けの機能を付与させる
 //                 - https://github.com/blacknon/hwatch/issues/98
 //                 - これの前に、clapのバージョンを上げてやらないとだめかも？？
@@ -57,7 +56,8 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{AppSettings, Arg, Command};
+use clap::{Arg, ArgAction, Command, builder::ArgPredicate};
+
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
@@ -99,7 +99,7 @@ const LINE_ENDING: &str = "\n";
 const SHELL_COMMAND: &str = "sh -c";
 
 /// Parse args and options function.
-fn build_app() -> clap::Command<'static> {
+fn build_app() -> clap::Command {
     // get own name
     let _program = args()
         .next()
@@ -112,19 +112,18 @@ fn build_app() -> clap::Command<'static> {
 
     Command::new(crate_name!())
         .about(crate_description!())
-        .allow_hyphen_values(true)
         .version(crate_version!())
         .trailing_var_arg(true)
         .author(crate_authors!())
-        .setting(AppSettings::DeriveDisplayOrder)
 
         // -- command --
         .arg(
             Arg::new("command")
                 // .allow_hyphen_values(true)
-                .takes_value(true)
-                .allow_invalid_utf8(true)
-                .multiple_values(true)
+                .action(ArgAction::Append)
+                .allow_hyphen_values(true)
+                // .allow_invalid_utf8(true)
+                .num_args(0..)
                 .required(true),
         )
 
@@ -143,6 +142,7 @@ fn build_app() -> clap::Command<'static> {
             Arg::new("beep")
                 .help("beep if command has a change result")
                 .short('B')
+                .action(ArgAction::SetTrue)
                 .long("beep"),
         )
         // mouse option
@@ -150,13 +150,15 @@ fn build_app() -> clap::Command<'static> {
         .arg(
             Arg::new("mouse")
                 .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
+                .action(ArgAction::SetTrue)
                 .long("mouse"),
         )
         .arg(
             Arg::new("tab_size")
                 .help("Specifying tab display size")
                 .long("tab_size")
-                .takes_value(true)
+                .value_parser(clap::value_parser!(u16))
+                .action(ArgAction::Append)
                 .default_value("4"),
         )
         // Option to specify the command to be executed when the output fluctuates.
@@ -166,7 +168,8 @@ fn build_app() -> clap::Command<'static> {
                 .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
                 .short('A')
                 .long("aftercommand")
-                .takes_value(true)
+                // .takes_value(true)
+                .action(ArgAction::Append)
         )
         // Enable ANSI color option
         //     [-c,--color]
@@ -174,6 +177,7 @@ fn build_app() -> clap::Command<'static> {
             Arg::new("color")
                 .help("interpret ANSI color and style sequences")
                 .short('c')
+                .action(ArgAction::SetTrue)
                 .long("color"),
         )
         // Enable diff mode option
@@ -182,13 +186,15 @@ fn build_app() -> clap::Command<'static> {
             Arg::new("differences")
                 .help("highlight changes between updates")
                 .long("differences")
+                .action(ArgAction::SetTrue)
                 .short('d'),
         )
         .arg(
             Arg::new("no_title")
-            .help("hide the UI on start. Use `t` to toggle it.")
-            .long("no-title")
-            .short('t'),
+                .help("hide the UI on start. Use `t` to toggle it.")
+                .long("no-title")
+                .action(ArgAction::SetTrue)
+                .short('t'),
         )
         // Enable line number mode option
         //   [--line-number,-N]
@@ -196,12 +202,14 @@ fn build_app() -> clap::Command<'static> {
             Arg::new("line_number")
                 .help("show line number")
                 .short('N')
+                .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
         .arg(
             Arg::new("no_help_banner")
-            .help("hide the \"Display help with h key\" message")
-            .long("no-help-banner")
+                .help("hide the \"Display help with h key\" message")
+                .long("no-help-banner")
+                .action(ArgAction::SetTrue),
         )
 
         // exec flag.
@@ -210,7 +218,9 @@ fn build_app() -> clap::Command<'static> {
             Arg::new("exec")
                 .help("Run the command directly, not through the shell. Much like the `-x` option of the watch command.")
                 .short('x')
+                .action(ArgAction::SetTrue)
                 .long("exec"),
+
         )
         // -- options --
         // Logging option
@@ -224,7 +234,8 @@ fn build_app() -> clap::Command<'static> {
                 .help("logging file")
                 .short('l')
                 .long("logfile")
-                .takes_value(true),
+                // .takes_value(true),
+                .action(ArgAction::Append)
         )
         // shell command
         .arg(
@@ -232,7 +243,8 @@ fn build_app() -> clap::Command<'static> {
                 .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
                 .short('s')
                 .long("shell")
-                .takes_value(true)
+                // .takes_value(true)
+                .action(ArgAction::Append)
                 .default_value(SHELL_COMMAND),
         )
         // Interval option
@@ -242,7 +254,8 @@ fn build_app() -> clap::Command<'static> {
                 .help("seconds to wait between updates")
                 .short('n')
                 .long("interval")
-                .takes_value(true)
+                .action(ArgAction::Append)
+                .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
 }
@@ -272,8 +285,10 @@ fn main() {
 
     // Get options flag
     // let batch = matcher.is_present("batch");
-    let after_command = matcher.value_of("after_command");
-    let logfile = matcher.value_of("logfile");
+
+    let after_command = matcher.get_one::<String>("after_command");
+    let logfile = matcher.get_one::<String>("logfile");
+
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
     if let Some(logfile) = logfile {
@@ -306,18 +321,19 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
-    let override_interval = matcher.value_of_t("interval").unwrap_or(DEFAULT_INTERVAL);
+    let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
+
     let interval = Interval::new(override_interval.into());
 
-    let tab_size = matcher.value_of_t("tab_size").unwrap_or(DEFAULT_TAB_SIZE);
+    let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
 
     // Start Command Thread
     {
         let m = matcher.clone();
         let tx = tx.clone();
-        let shell_command = m.value_of("shell_command").unwrap().to_string();
-        let command = m.values_of_lossy("command").unwrap();
-        let is_exec = m.is_present("exec");
+        let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
+        let command: Vec<_> = m.get_many::<String>("command").unwrap().into_iter().map(|s| s.clone()).collect();
+        let is_exec = m.get_flag("exec");
         let interval = interval.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
@@ -348,19 +364,19 @@ fn main() {
         // Set interval on view.header
         .set_interval(interval)
         .set_tab_size(tab_size)
-        .set_beep(matcher.is_present("beep"))
-        .set_mouse_events(matcher.is_present("mouse"))
+        .set_beep(matcher.get_flag("beep"))
+        .set_mouse_events(matcher.get_flag("mouse"))
 
         // Set color in view
-        .set_color(matcher.is_present("color"))
+        .set_color(matcher.get_flag("color"))
 
         // Set line number in view
-        .set_line_number(matcher.is_present("line_number"))
+        .set_line_number(matcher.get_flag("line_number"))
 
         // Set diff(watch diff) in view
-        .set_watch_diff(matcher.is_present("differences"))
-        .set_show_ui(!matcher.is_present("no_title"))
-        .set_show_help_banner(!matcher.is_present("no_help_banner"));
+        .set_watch_diff(matcher.get_flag("differences"))
+        .set_show_ui(!matcher.get_flag("no_title"))
+        .set_show_help_banner(!matcher.get_flag("no_help_banner"));
 
     // Set logfile
     if let Some(logfile) = logfile {

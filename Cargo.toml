@@ -15,7 +15,8 @@ hwatch-ansi-parser = "0.9.0"
 
 async-std = {version = "1.12"}
 chrono = "0.4.34"
-clap = {version = "3.2.25", features = ["cargo"]}
+# clap = {version = "3.2.25", features = ["cargo"]}
+clap = {version = "4.5.3", features = ["cargo"]}
 crossbeam-channel = "0.5.12"
 crossterm = "0.27.0"
 ctrlc = {version = "3.4.2", features = ["termination"]}
