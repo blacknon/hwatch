@@ -482,7 +482,7 @@ impl<'a> App<'a> {
 
         let selected: usize = self.history_area.get_state_select();
         let new_selected = get_near_index(&results, selected);
-        self.reset_history(new_selected, self.is_regex_filter);
+        self.reset_history(new_selected);
 
         // selected = self.history_area.get_state_select();
         self.set_output_data(new_selected);
@@ -578,7 +578,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn reset_history(&mut self, selected: usize,is_regex: bool) {
+    fn reset_history(&mut self, selected: usize) {
         // @TODO: output modeでの切り替えに使うのかも？？(多分使う？)
         // @NOTE: まだ作成中(output modeでの切り替えにhistoryを追随させる機能)
 
@@ -1079,7 +1079,7 @@ impl<'a> App<'a> {
                         self.set_input_mode(InputMode::None);
 
                         let selected = self.history_area.get_state_select();
-                        self.reset_history(selected, false);
+                        self.reset_history(selected);
 
                         // update WatchArea
                         self.set_output_data(selected);
@@ -1233,7 +1233,7 @@ impl<'a> App<'a> {
                     self.set_input_mode(InputMode::None);
 
                     let selected = self.history_area.get_state_select();
-                    self.reset_history(selected, is_regex);
+                    self.reset_history(selected);
 
                     // update WatchArea
                     self.set_output_data(selected);
@@ -1244,7 +1244,7 @@ impl<'a> App<'a> {
                     self.set_input_mode(InputMode::None);
 
                     let selected = self.history_area.get_state_select();
-                    self.reset_history(selected, is_regex);
+                    self.reset_history(selected);
 
                     // update WatchArea
                     self.set_output_data(selected);
