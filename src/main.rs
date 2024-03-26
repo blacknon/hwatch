@@ -3,11 +3,11 @@
 // that can be found in the LICENSE file.
 
 // v0.3.12
-// TODO(blacknon): batch mode及びoutput/stdout/stderrごとにhistoryを分ける実装の前準備
-// TODO(blacknon): issueの中でマイルストーンに突っ込んでるやつ
-//                 - https://github.com/blacknon/hwatch/issues/82
-//                 - https://github.com/blacknon/hwatch/issues/103
-// TODO(blakcnon): batch modeの実装.
+// TODO(blacknon): batch mode及びoutput/stdout/stderrごとにhistoryを分ける実装の前準備(https://github.com/blacknon/hwatch/issues/82)
+// TODO(blacknon): diffオプション指定時に引数でパターン分けの機能を付与させる
+//                 - https://github.com/blacknon/hwatch/issues/98
+//                 - これの前に、clapのバージョンを上げてやらないとだめかも？？
+// TODO(blakcnon): batch modeの実装.(clapのバージョンをあげてから、diff等のオプションを指定できるようにしたほうがいいのかも？？)
 
 // v0.3.13
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
@@ -62,7 +62,6 @@ use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-// use std::sync::mpsc::channel;
 use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
@@ -351,10 +350,13 @@ fn main() {
         .set_tab_size(tab_size)
         .set_beep(matcher.is_present("beep"))
         .set_mouse_events(matcher.is_present("mouse"))
+
         // Set color in view
         .set_color(matcher.is_present("color"))
+
         // Set line number in view
         .set_line_number(matcher.is_present("line_number"))
+
         // Set diff(watch diff) in view
         .set_watch_diff(matcher.is_present("differences"))
         .set_show_ui(!matcher.is_present("no_title"))
