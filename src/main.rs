@@ -119,10 +119,8 @@ fn build_app() -> clap::Command {
         // -- command --
         .arg(
             Arg::new("command")
-                // .allow_hyphen_values(true)
                 .action(ArgAction::Append)
                 .allow_hyphen_values(true)
-                // .allow_invalid_utf8(true)
                 .num_args(0..)
                 .required(true),
         )
@@ -168,7 +166,6 @@ fn build_app() -> clap::Command {
                 .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
                 .short('A')
                 .long("aftercommand")
-                // .takes_value(true)
                 .action(ArgAction::Append)
         )
         // Enable ANSI color option
@@ -189,6 +186,8 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .short('d'),
         )
+        // exec flag.
+        //     [--no-title]
         .arg(
             Arg::new("no_title")
                 .help("hide the UI on start. Use `t` to toggle it.")
@@ -205,6 +204,8 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
+        // exec flag.
+        //     [--no-help-banner]
         .arg(
             Arg::new("no_help_banner")
                 .help("hide the \"Display help with h key\" message")
@@ -213,7 +214,7 @@ fn build_app() -> clap::Command {
         )
 
         // exec flag.
-        //
+        //     [-x,--exec]
         .arg(
             Arg::new("exec")
                 .help("Run the command directly, not through the shell. Much like the `-x` option of the watch command.")
@@ -234,8 +235,7 @@ fn build_app() -> clap::Command {
                 .help("logging file")
                 .short('l')
                 .long("logfile")
-                // .takes_value(true),
-                .action(ArgAction::Append)
+                .action(ArgAction::Append),
         )
         // shell command
         .arg(
@@ -243,7 +243,6 @@ fn build_app() -> clap::Command {
                 .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
                 .short('s')
                 .long("shell")
-                // .takes_value(true)
                 .action(ArgAction::Append)
                 .default_value(SHELL_COMMAND),
         )
@@ -284,7 +283,7 @@ fn main() {
     let matcher = get_clap_matcher();
 
     // Get options flag
-    // let batch = matcher.is_present("batch");
+    // let batch = matcher.get_one("batch");
 
     let after_command = matcher.get_one::<String>("after_command");
     let logfile = matcher.get_one::<String>("logfile");
