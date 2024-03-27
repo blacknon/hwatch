@@ -56,8 +56,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{Arg, ArgAction, Command, builder::ArgPredicate};
-
+use clap::{Arg, ArgAction, Command, ValueHint, builder::ArgPredicate};
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
@@ -65,6 +64,7 @@ use std::sync::{Arc, RwLock};
 use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
+use app::DiffMode;
 
 // local modules
 mod ansi;
@@ -122,6 +122,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::Append)
                 .allow_hyphen_values(true)
                 .num_args(0..)
+                .value_hint(ValueHint::CommandWithArguments)
                 .required(true),
         )
 
@@ -150,23 +151,6 @@ fn build_app() -> clap::Command {
                 .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
                 .action(ArgAction::SetTrue)
                 .long("mouse"),
-        )
-        .arg(
-            Arg::new("tab_size")
-                .help("Specifying tab display size")
-                .long("tab_size")
-                .value_parser(clap::value_parser!(u16))
-                .action(ArgAction::Append)
-                .default_value("4"),
-        )
-        // Option to specify the command to be executed when the output fluctuates.
-        //     [-C,--changed-command]
-        .arg(
-            Arg::new("after_command")
-                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
-                .short('A')
-                .long("aftercommand")
-                .action(ArgAction::Append)
         )
         // Enable ANSI color option
         //     [-c,--color]
@@ -224,6 +208,16 @@ fn build_app() -> clap::Command {
 
         )
         // -- options --
+        // Option to specify the command to be executed when the output fluctuates.
+        //     [-A,--aftercommand]
+        .arg(
+            Arg::new("after_command")
+                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
+                .short('A')
+                .long("aftercommand")
+                .value_hint(ValueHint::CommandString)
+                .action(ArgAction::Append)
+        )
         // Logging option
         //   [--logfile,-l] /path/to/logfile
         // ex.)
@@ -235,6 +229,7 @@ fn build_app() -> clap::Command {
                 .help("logging file")
                 .short('l')
                 .long("logfile")
+                .value_hint(ValueHint::FilePath)
                 .action(ArgAction::Append),
         )
         // shell command
@@ -244,6 +239,7 @@ fn build_app() -> clap::Command {
                 .short('s')
                 .long("shell")
                 .action(ArgAction::Append)
+                .value_hint(ValueHint::CommandString)
                 .default_value(SHELL_COMMAND),
         )
         // Interval option
@@ -256,6 +252,14 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::Append)
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
+        )
+        .arg(
+            Arg::new("tab_size")
+                .help("Specifying tab display size")
+                .long("tab_size")
+                .value_parser(clap::value_parser!(u16))
+                .action(ArgAction::Append)
+                .default_value("4"),
         )
 }
 
