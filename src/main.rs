@@ -161,15 +161,6 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("color"),
         )
-        // Enable diff mode option
-        //   [--differences,-d]
-        .arg(
-            Arg::new("differences")
-                .help("highlight changes between updates")
-                .long("differences")
-                .action(ArgAction::SetTrue)
-                .short('d'),
-        )
         // exec flag.
         //     [--no-title]
         .arg(
@@ -233,6 +224,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::Append),
         )
         // shell command
+        //   [--shell,-s] command
         .arg(
             Arg::new("shell_command")
                 .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
@@ -253,6 +245,8 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
+        // tab size set option
+        //   [--tab_size] size(default:4)
         .arg(
             Arg::new("tab_size")
                 .help("Specifying tab display size")
@@ -260,6 +254,19 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(u16))
                 .action(ArgAction::Append)
                 .default_value("4"),
+        )
+        // Enable diff mode option
+        //   [--differences,-d] [none, watch, line, word]
+        .arg(
+            Arg::new("differences")
+                .help("highlight changes between updates")
+                .long("differences")
+                .short('d')
+                .num_args(0..=1)
+                .value_parser(["none", "watch", "line", "word"])
+                .default_missing_value("watch")
+                .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
+                .action(ArgAction::Append),
         )
 }
 
@@ -324,11 +331,25 @@ fn main() {
     // Create channel
     let (tx, rx) = unbounded();
 
+    // interval
     let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
-
     let interval = Interval::new(override_interval.into());
 
+    // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
+
+    // diff mode
+    let diff_mode = if matcher.contains_id("differences") {
+        match matcher.get_one::<String>("differences").unwrap().as_str() {
+            "none" => DiffMode::Disable,
+            "watch" => DiffMode::Watch,
+            "line" => DiffMode::Line,
+            "word" => DiffMode::Word,
+            _ => DiffMode::Disable,
+        }
+    } else {
+        DiffMode::Disable
+    };
 
     // Start Command Thread
     {
@@ -377,7 +398,7 @@ fn main() {
         .set_line_number(matcher.get_flag("line_number"))
 
         // Set diff(watch diff) in view
-        .set_watch_diff(matcher.get_flag("differences"))
+        .set_diff_mode(diff_mode)
         .set_show_ui(!matcher.get_flag("no_title"))
         .set_show_help_banner(!matcher.get_flag("no_help_banner"));
 
