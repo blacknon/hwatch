@@ -36,7 +36,7 @@ pub struct View {
     show_ui: bool,
     show_help_banner: bool,
     line_number: bool,
-    watch_diff: bool,
+    diff_mode: DiffMode,
     log_path: String,
 }
 
@@ -53,7 +53,7 @@ impl View {
             show_ui: true,
             show_help_banner: true,
             line_number: false,
-            watch_diff: false,
+            diff_mode: DiffMode::Disable,
             log_path: "".to_string(),
         }
     }
@@ -103,8 +103,8 @@ impl View {
         self
     }
 
-    pub fn set_watch_diff(mut self, watch_diff: bool) -> Self {
-        self.watch_diff = watch_diff;
+    pub fn set_diff_mode(mut self, diff_mode: DiffMode) -> Self {
+        self.diff_mode = diff_mode;
         self
     }
 
@@ -167,10 +167,9 @@ impl View {
         // set line_number
         app.set_line_number(self.line_number);
 
-        // set watch diff
-        if self.watch_diff {
-            app.set_diff_mode(DiffMode::Watch);
-        }
+        // set diff mode
+        app.set_diff_mode(self.diff_mode);
+
 
         // Run App
         let res = app.run(&mut terminal);
