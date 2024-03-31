@@ -22,12 +22,11 @@ use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame, Terminal,
 };
-
-// use std::process::Command;
 use std::thread;
 
 // local module
 use crate::common::logging_result;
+use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
@@ -53,23 +52,6 @@ pub enum ActiveArea {
 pub enum ActiveWindow {
     Normal,
     Help,
-}
-
-///
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum DiffMode {
-    Disable,
-    Watch,
-    Line,
-    Word,
-}
-
-///
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum OutputMode {
-    Output,
-    Stdout,
-    Stderr,
 }
 
 ///
@@ -160,6 +142,9 @@ pub struct App<'a> {
     /// Enable mouse wheel support.
     mouse_events: bool,
 
+    ///
+    printer: output::Printer,
+
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
     pub done: bool,
@@ -167,7 +152,10 @@ pub struct App<'a> {
     /// logfile path.
     logfile: String,
 
+    ///
     pub tx: Sender<AppEvent>,
+
+    ///
     pub rx: Receiver<AppEvent>,
 }
 
@@ -216,6 +204,8 @@ impl<'a> App<'a> {
 
             mouse_events,
 
+            printer: output::Printer::new(),
+
             done: false,
             logfile: "".to_string(),
             tx,
@@ -227,6 +217,19 @@ impl<'a> App<'a> {
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         self.history_area.next(1);
         let mut update_draw = true;
+
+        self.printer
+            .set_batch(false)
+            .set_color(self.ansi_color)
+            .set_diff_mode(self.diff_mode)
+            .set_filter(self.is_filtered)
+            .set_regex_filter(self.is_regex_filter)
+            .set_line_number(self.line_number)
+            .set_output_mode(self.output_mode)
+            .set_tab_size(self.tab_size)
+            .set_filter_text(self.filtered_text.clone())
+            .set_only_diffline(self.is_only_diffline);
+
         loop {
             if self.done {
                 return Ok(());
@@ -371,10 +374,6 @@ impl<'a> App<'a> {
 
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
-        // @TODO: setするresultを、output modeのoutput/stdout/stderrで切り替える実装の追加
-        //        ※ 一応、usizeをkeyにして前後のresult+他のoutput mode時のresultを取得できるようにしたつもり…
-
-
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
             OutputMode::Output => self.results.clone(),
@@ -406,9 +405,12 @@ impl<'a> App<'a> {
             OutputMode::Stdout => &results[&target_dst].stdout,
             OutputMode::Stderr => &results[&target_dst].stderr,
         };
+        let dest = results[&target_dst].clone();
 
         // set old text(text_src)
+        let mut src = CommandResult::default();
         if previous_dst > 0 {
+            src = results[&previous_dst].clone();
             match self.output_mode {
                 OutputMode::Output => text_src = &results[&previous_dst].output,
                 OutputMode::Stdout => text_src = &results[&previous_dst].stdout,
@@ -419,32 +421,18 @@ impl<'a> App<'a> {
         }
 
         let output_data = match self.diff_mode {
-            DiffMode::Disable => output::get_plane_output(
-                self.ansi_color,
-                self.line_number,
-                text_dst,
-                self.is_filtered,
-                self.is_regex_filter,
-                &self.filtered_text,
-                self.tab_size,
-            ),
+            DiffMode::Disable => self.printer.get_watch_text(dest, src),
+            DiffMode::Watch => self.printer.get_watch_text(dest, src),
+            DiffMode::Line => self.printer.get_watch_text(dest, src),
 
-            DiffMode::Watch => output::get_watch_diff(
-                self.ansi_color,
-                self.line_number,
-                text_src,
-                text_dst,
-                self.tab_size,
-            ),
-
-            DiffMode::Line => output::get_line_diff(
-                self.ansi_color,
-                self.line_number,
-                self.is_only_diffline,
-                text_src,
-                text_dst,
-                self.tab_size,
-            ),
+            // DiffMode::Line => output::get_line_diff(
+            //     self.ansi_color,
+            //     self.line_number,
+            //     self.is_only_diffline,
+            //     text_src,
+            //     text_dst,
+            //     self.tab_size,
+            // ),
 
             DiffMode::Word => output::get_word_diff(
                 self.ansi_color,
@@ -473,19 +461,22 @@ impl<'a> App<'a> {
         self.header_area.set_output_mode(mode);
         self.header_area.update();
 
-        // Switch the result depending on the output mode.
-        let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
-        };
+        self.printer.set_output_mode(mode);
 
-        let selected: usize = self.history_area.get_state_select();
-        let new_selected = get_near_index(&results, selected);
-        self.reset_history(new_selected);
+        //
+        if self.results.len() > 0 {
+            // Switch the result depending on the output mode.
+            let results = match self.output_mode {
+                OutputMode::Output => self.results.clone(),
+                OutputMode::Stdout => self.results_stdout.clone(),
+                OutputMode::Stderr => self.results_stderr.clone(),
+            };
 
-        // selected = self.history_area.get_state_select();
-        self.set_output_data(new_selected);
+            let selected: usize = self.history_area.get_state_select();
+            let new_selected = get_near_index(&results, selected);
+            self.reset_history(new_selected);
+            self.set_output_data(new_selected);
+        }
     }
 
     ///
@@ -494,6 +485,8 @@ impl<'a> App<'a> {
 
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
+
+        self.printer.set_color(ansi_color);
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -511,6 +504,8 @@ impl<'a> App<'a> {
         self.header_area.set_line_number(line_number);
         self.header_area.update();
 
+        self.printer.set_line_number(line_number);
+
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
@@ -518,6 +513,7 @@ impl<'a> App<'a> {
     ///
     pub fn set_tab_size(&mut self, tab_size: u16) {
         self.tab_size = tab_size;
+        self.printer.set_tab_size(tab_size);
     }
 
     ///
@@ -549,16 +545,20 @@ impl<'a> App<'a> {
         self.header_area.set_diff_mode(diff_mode);
         self.header_area.update();
 
+        self.printer.set_diff_mode(diff_mode);
+
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
 
     ///
-    fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
+    pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
         self.is_only_diffline = is_only_diffline;
 
         self.header_area.set_is_only_diffline(is_only_diffline);
         self.header_area.update();
+
+        self.printer.set_only_diffline(is_only_diffline);
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -747,14 +747,6 @@ impl<'a> App<'a> {
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
-            // Switch the result depending on the output mode.
-            // let results = match self.output_mode {
-            //     OutputMode::Output => self.results.clone(),
-            //     OutputMode::Stdout => self.results_stdout.clone(),
-            //     OutputMode::Stderr => self.results_stderr.clone(),
-            // };
-
-            // let result_text = &results[&result_index].output.clone();
             let result_text = match self.output_mode {
                 OutputMode::Output => self.results[&result_index].output.clone(),
                 OutputMode::Stdout => self.results_stdout[&result_index].stdout.clone(),
@@ -1078,6 +1070,10 @@ impl<'a> App<'a> {
                         self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
 
+                        self.printer.set_filter(self.is_filtered);
+                        self.printer.set_regex_filter(self.is_regex_filter);
+                        self.printer.set_filter_text("".to_string());
+
                         let selected = self.history_area.get_state_select();
                         self.reset_history(selected);
 
@@ -1232,6 +1228,10 @@ impl<'a> App<'a> {
                     self.filtered_text = self.header_area.input_text.clone();
                     self.set_input_mode(InputMode::None);
 
+                    self.printer.set_filter(self.is_filtered);
+                    self.printer.set_regex_filter(self.is_regex_filter);
+                    self.printer.set_filter_text(self.filtered_text.clone());
+
                     let selected = self.history_area.get_state_select();
                     self.reset_history(selected);
 
@@ -1242,6 +1242,10 @@ impl<'a> App<'a> {
                 KeyCode::Esc => {
                     self.header_area.input_text = self.filtered_text.clone();
                     self.set_input_mode(InputMode::None);
+                    self.is_filtered = false;
+
+                    self.printer.set_filter(self.is_filtered);
+                    self.printer.set_regex_filter(self.is_regex_filter);
 
                     let selected = self.history_area.get_state_select();
                     self.reset_history(selected);

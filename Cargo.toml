@@ -13,6 +13,7 @@ version = "0.3.12"
 heapless = "0.6.1"
 hwatch-ansi-parser = "0.9.0"
 
+ansi_term = "0.12.1"
 async-std = {version = "1.12"}
 chrono = "0.4.34"
 clap = {version = "4.5.3", features = ["cargo"]}

@@ -12,6 +12,23 @@ use std::io::prelude::*;
 use crate::exec::CommandResult;
 
 ///
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DiffMode {
+    Disable,
+    Watch,
+    Line,
+    Word,
+}
+
+///
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum OutputMode {
+    Output,
+    Stdout,
+    Stderr,
+}
+
+///
 pub fn now_str() -> String {
     let date = Local::now();
     return date.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
