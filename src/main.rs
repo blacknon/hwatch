@@ -3,9 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.12
-// TODO(blacknon): diffオプション指定時に引数でパターン分けの機能を付与させる
-//                 - https://github.com/blacknon/hwatch/issues/98
-//                 - これの前に、clapのバージョンを上げてやらないとだめかも？？
 // TODO(blakcnon): batch modeの実装.(clapのバージョンをあげてから、diff等のオプションを指定できるようにしたほうがいいのかも？？)
 
 // v0.3.13
@@ -32,6 +29,7 @@
 // crate
 // extern crate ansi_parser;
 extern crate hwatch_ansi_parser as ansi_parser;
+extern crate ansi_term;
 extern crate async_std;
 extern crate chrono;
 extern crate crossbeam_channel;
@@ -64,11 +62,12 @@ use std::sync::{Arc, RwLock};
 use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
-use app::DiffMode;
+use common::DiffMode;
 
 // local modules
 mod ansi;
 mod app;
+mod batch;
 mod common;
 mod event;
 mod exec;
@@ -129,12 +128,13 @@ fn build_app() -> clap::Command {
         // -- flags --
         // Enable batch mode option
         //     [-b,--batch]
-        // .arg(
-        //     Arg::with_name("batch")
-        //         .help("output exection results to stdout")
-        //         .short('b')
-        //         .long("batch"),
-        // )
+        .arg(
+            Arg::new("batch")
+                .help("output exection results to stdout")
+                .short('b')
+                .action(ArgAction::SetTrue)
+                .long("batch"),
+        )
         // Beep option
         //     [-B,--beep]
         .arg(
@@ -187,7 +187,6 @@ fn build_app() -> clap::Command {
                 .long("no-help-banner")
                 .action(ArgAction::SetTrue),
         )
-
         // exec flag.
         //     [-x,--exec]
         .arg(
@@ -198,6 +197,18 @@ fn build_app() -> clap::Command {
                 .long("exec"),
 
         )
+        // output only flag.
+        //     [-O,--diff-output-only]
+        .arg(
+            Arg::new("diff_output_only")
+                .help("Display only the lines with differences during line diff and word diff.")
+                .short('O')
+                .long("diff-output-only")
+                .requires("differences")
+                .action(ArgAction::SetTrue),
+
+        )
+
         // -- options --
         // Option to specify the command to be executed when the output fluctuates.
         //     [-A,--aftercommand]
@@ -250,7 +261,7 @@ fn build_app() -> clap::Command {
         .arg(
             Arg::new("tab_size")
                 .help("Specifying tab display size")
-                .long("tab_size")
+                .long("tab-size")
                 .value_parser(clap::value_parser!(u16))
                 .action(ArgAction::Append)
                 .default_value("4"),
@@ -266,6 +277,16 @@ fn build_app() -> clap::Command {
                 .value_parser(["none", "watch", "line", "word"])
                 .default_missing_value("watch")
                 .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("output")
+                .help("Select command output.")
+                .short('o')
+                .long("output")
+                .num_args(0..=1)
+                .value_parser(["output", "stdout", "stderr"])
+                .default_value("output")
                 .action(ArgAction::Append),
         )
 }
@@ -294,7 +315,7 @@ fn main() {
     let matcher = get_clap_matcher();
 
     // Get options flag
-    // let batch = matcher.get_one("batch");
+    let batch = matcher.get_flag("batch");
 
     let after_command = matcher.get_one::<String>("after_command");
     let logfile = matcher.get_one::<String>("logfile");
@@ -337,6 +358,13 @@ fn main() {
 
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
+
+    let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
+        "output" => common::OutputMode::Output,
+        "stdout" => common::OutputMode::Stdout,
+        "stderr" => common::OutputMode::Stderr,
+        _ => common::OutputMode::Output,
+    };
 
     // diff mode
     let diff_mode = if matcher.contains_id("differences") {
@@ -381,41 +409,59 @@ fn main() {
     }
 
     // check batch mode
-    // if !batch {
-    // is watch mode
-    // Create view
-    let mut view = view::View::new(interval.clone())
-        // Set interval on view.header
-        .set_interval(interval)
-        .set_tab_size(tab_size)
-        .set_beep(matcher.get_flag("beep"))
-        .set_mouse_events(matcher.get_flag("mouse"))
+    if !batch {
+        // is watch mode
+        // Create view
+        let mut view = view::View::new(interval.clone())
+            // Set interval on view.header
+            .set_interval(interval)
+            .set_tab_size(tab_size)
+            .set_beep(matcher.get_flag("beep"))
+            .set_mouse_events(matcher.get_flag("mouse"))
 
-        // Set color in view
-        .set_color(matcher.get_flag("color"))
+            // Set color in view
+            .set_color(matcher.get_flag("color"))
 
-        // Set line number in view
-        .set_line_number(matcher.get_flag("line_number"))
+            // Set line number in view
+            .set_line_number(matcher.get_flag("line_number"))
 
-        // Set diff(watch diff) in view
-        .set_diff_mode(diff_mode)
-        .set_show_ui(!matcher.get_flag("no_title"))
-        .set_show_help_banner(!matcher.get_flag("no_help_banner"));
+            // Set output in view
+            .set_output_mode(output_mode)
 
-    // Set logfile
-    if let Some(logfile) = logfile {
-        view = view.set_logfile(logfile.to_string());
+            // Set diff(watch diff) in view
+            .set_diff_mode(diff_mode)
+            .set_only_diffline(matcher.get_flag("diff_output_only"))
+
+            .set_show_ui(!matcher.get_flag("no_title"))
+            .set_show_help_banner(!matcher.get_flag("no_help_banner"));
+
+        // Set logfile
+        if let Some(logfile) = logfile {
+            view = view.set_logfile(logfile.to_string());
+        }
+
+        // Set after_command
+        if let Some(after_command) = after_command {
+            view = view.set_after_command(after_command.to_string());
+        }
+
+        // start app.
+        let _res = view.start(tx, rx);
+    } else {
+        // is batch mode
+        let mut batch = batch::Batch::new(tx, rx)
+            .set_beep(matcher.get_flag("beep"))
+            .set_output_mode(output_mode)
+            .set_diff_mode(diff_mode)
+            .set_line_number(matcher.get_flag("line_number"))
+            .set_only_diffline(matcher.get_flag("diff_output_only"));
+
+        // Set after_command
+        if let Some(after_command) = after_command {
+            batch = batch.set_after_command(after_command.to_string());
+        }
+
+        // start batch.
+        let _res = batch.run();
     }
-
-    // Set after_command
-    if let Some(after_command) = after_command {
-        view = view.set_after_command(after_command.to_string());
-    }
-
-    // start app.
-    let _res = view.start(tx, rx);
-    // } else {
-    //     // is batch mode
-    //     println!("is batch (developing now)");
-    // }
 }
