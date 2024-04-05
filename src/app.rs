@@ -387,9 +387,6 @@ impl<'a> App<'a> {
             return;
         }
 
-        // text_src ... old text.
-        let text_src: &str;
-
         // set target number at new history.
         let mut target_dst: usize = num;
 
@@ -400,49 +397,15 @@ impl<'a> App<'a> {
         let previous_dst = get_results_previous_index(&results, target_dst);
 
         // set new text(text_dst)
-        let text_dst = match self.output_mode {
-            OutputMode::Output => &results[&target_dst].output,
-            OutputMode::Stdout => &results[&target_dst].stdout,
-            OutputMode::Stderr => &results[&target_dst].stderr,
-        };
         let dest = results[&target_dst].clone();
 
         // set old text(text_src)
         let mut src = CommandResult::default();
         if previous_dst > 0 {
             src = results[&previous_dst].clone();
-            match self.output_mode {
-                OutputMode::Output => text_src = &results[&previous_dst].output,
-                OutputMode::Stdout => text_src = &results[&previous_dst].stdout,
-                OutputMode::Stderr => text_src = &results[&previous_dst].stderr,
-            }
-        } else {
-            text_src = "";
         }
 
-        let output_data = match self.diff_mode {
-            DiffMode::Disable => self.printer.get_watch_text(dest, src),
-            DiffMode::Watch => self.printer.get_watch_text(dest, src),
-            DiffMode::Line => self.printer.get_watch_text(dest, src),
-
-            // DiffMode::Line => output::get_line_diff(
-            //     self.ansi_color,
-            //     self.line_number,
-            //     self.is_only_diffline,
-            //     text_src,
-            //     text_dst,
-            //     self.tab_size,
-            // ),
-
-            DiffMode::Word => output::get_word_diff(
-                self.ansi_color,
-                self.line_number,
-                self.is_only_diffline,
-                text_src,
-                text_dst,
-                self.tab_size,
-            ),
-        };
+        let output_data = self.printer.get_watch_text(dest, src);
 
         // TODO: output_dataのtabをスペース展開する処理を追加
 
