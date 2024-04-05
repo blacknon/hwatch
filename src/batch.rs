@@ -3,15 +3,13 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::{Receiver, Sender};
-use difference::{Changeset, Difference};
 use std::{io, collections::HashMap};
 use std::thread;
-use ansi_term::Colour;
 
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
-use crate::{output, LINE_ENDING};
+use crate::output;
 
 /// Struct at watch view window.
 pub struct Batch {
@@ -207,111 +205,3 @@ impl Batch {
         self
     }
 }
-
-
-// fn generate_watch_diff_printout_data() -> Vec<String>  {}
-
-
-fn generate_line_diff_printout_data(
-    dst: CommandResult,
-    src: CommandResult,
-    line_number: bool,
-    is_color: bool,
-    output_mode: OutputMode,
-    only_diff_line: bool,
-) -> Vec<String> {
-    let mut result: Vec<String> = Vec::new();
-
-    // Switch the result depending on the output mode.
-    let text_dst = match output_mode {
-        OutputMode::Output => dst.output.clone(),
-        OutputMode::Stdout => dst.stdout.clone(),
-        OutputMode::Stderr => dst.stderr.clone(),
-    };
-
-    // Switch the result depending on the output mode.
-    let text_src = match output_mode {
-        OutputMode::Output => src.output.clone(),
-        OutputMode::Stdout => src.stdout.clone(),
-        OutputMode::Stderr => src.stderr.clone(),
-    };
-
-    // get diff
-    let Changeset { diffs, .. } = Changeset::new(&text_src, &text_dst, LINE_ENDING);
-
-    let mut src_counter = 1;
-    let mut dst_counter = 1;
-
-    for i in 0..diffs.len() {
-        match diffs[i] {
-            Difference::Same(ref x) => {
-                for line in x.split("\n") {
-                    let line_number = if line_number {
-                        if is_color {
-                            let style = Colour::Fixed(240);
-                            let format = style.paint(format!("{:5} | ", src_counter));
-                            format!("{}", format)
-                        } else {
-                            format!("{:4} | ", src_counter)
-                        }
-                    } else {
-                        "".to_string()
-                    };
-
-                    result.push(format!("{:}{:}", line_number, line));
-                    src_counter += 1;
-                    dst_counter += 1;
-                }
-            }
-
-            Difference::Add(ref x) => {
-                for line in x.split("\n") {
-                    let line_number = if line_number {
-                        if is_color {
-                            let style = Colour::Green;
-                            let format = style.paint(format!("{:5} | ", dst_counter));
-                            format!("{}", format)
-                        } else {
-                            format!("{:4} | ", dst_counter)
-                        }
-                    } else {
-                        "".to_string()
-                    };
-
-                    result.push(format!("{:}{:}", line_number, line));
-                    dst_counter += 1;
-                }
-            }
-
-            Difference::Rem(ref x) => {
-                for line in x.split("\n") {
-                    let line_number = if line_number {
-                        if is_color {
-                            let style = Colour::Red;
-                            let format = style.paint(format!("{:5} | ", src_counter));
-                            format!("{}", format)
-                        } else {
-                            format!("{:4} | ", src_counter)
-                        }
-                    } else {
-                        "".to_string()
-                    };
-
-                    if only_diff_line {
-                        result.push(format!("{:}{:}", line_number, line));
-                    }
-
-                    src_counter += 1;
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-// fn generate_word_diff_printout_data(
-//
-// ) -> Vec<String> {
-//
-// }

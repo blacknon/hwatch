@@ -1,6 +1,8 @@
 // Copyright (c) 2024 Blacknon.
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
+use ansi_parser::{AnsiParser, AnsiSequence, Output};
+use heapless::consts::*;
 use termwiz::cell::{Blink, Intensity, Underline};
 use termwiz::color::ColorSpec;
 use termwiz::escape::{
@@ -139,4 +141,69 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
     }
 
     spans.into()
+}
+
+// Ansi Color Code parse
+// ==========
+
+/// Apply ANSI color code character by character.
+pub fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
+    // set Result
+    let mut result = vec![];
+
+    // ansi reset code heapless_vec
+    let mut ansi_reset_vec = heapless::Vec::<u8, U5>::new();
+    let _ = ansi_reset_vec.push(0);
+
+    // get ansi reset code string
+    let ansi_reset_seq = AnsiSequence::SetGraphicsMode(ansi_reset_vec);
+    let ansi_reset_seq_str = ansi_reset_seq.to_string();
+
+    // init sequence.
+    let mut sequence: AnsiSequence;
+    let mut sequence_str = "".to_string();
+
+    // text processing
+    let mut processed_text = vec![];
+    for block in text.ansi_parse() {
+        match block {
+            Output::TextBlock(text) => {
+                for char in text.chars() {
+                    let append_text = if !sequence_str.is_empty() {
+                        format!("{sequence_str}{char}{ansi_reset_seq_str}")
+                    } else {
+                        format!("{char}")
+                    };
+
+                    // parse ansi text to tui text.
+                    let data = bytes_to_text(format!("{append_text}\n").as_bytes());
+                    if let Some(d) = data.into_iter().next() {
+                        for x in d.spans {
+                            processed_text.push(x);
+                        }
+                    }
+                }
+            }
+            Output::Escape(seq) => {
+                sequence = seq;
+                sequence_str = sequence.to_string();
+            }
+        }
+    }
+
+    result.push(processed_text);
+
+    result
+}
+
+///
+pub fn get_ansi_strip_str(text: &str) -> String {
+    let mut line_str = "".to_string();
+    for block in text.ansi_parse() {
+        if let Output::TextBlock(t) = block {
+            line_str.push_str(t);
+        }
+    }
+
+    line_str
 }
