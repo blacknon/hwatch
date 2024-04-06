@@ -987,7 +987,7 @@ impl Printer {
                             // append elements_line
                             elements_line.push(vec![Span::styled(
                                 data.to_string(),
-                                Style::default().fg(Color::Green),
+                                Style::default().fg(COLOR_WATCH_LINE_ADD),
                             )]);
 
                             // append elements_str
@@ -1016,7 +1016,7 @@ impl Printer {
                                 if self.is_line_number {
                                     line.insert_str(
                                         0,
-                                        &gen_counter_str(self.is_color, dest_counter as usize, header_width,    DifferenceType::Add)
+                                        &gen_counter_str(self.is_color, dest_counter as usize, header_width, DifferenceType::Add)
                                     );
                                 }
 
@@ -1078,7 +1078,7 @@ impl Printer {
                             // append elements_line
                             elements_line.push(vec![Span::styled(
                                 data.to_string(),
-                                Style::default().fg(Color::Green),
+                                Style::default().fg(COLOR_WATCH_LINE_REM),
                             )]);
 
                             // append elements_str
@@ -1106,7 +1106,7 @@ impl Printer {
                                 if self.is_line_number {
                                     line.insert_str(
                                         0,
-                                        &gen_counter_str(self.is_color, dest_counter as usize, header_width,    DifferenceType::Add)
+                                        &gen_counter_str(self.is_color, src_counter as usize, header_width, DifferenceType::Rem)
                                     );
                                 }
 
@@ -1119,7 +1119,7 @@ impl Printer {
                         LineElementData::Spans(data_line) => {
                             // is watch
                             for l in data_line {
-                                let mut line = vec![Span::styled("+  ", Style::default().fg(COLOR_WATCH_LINE_REM))];
+                                let mut line = vec![Span::styled("-  ", Style::default().fg(COLOR_WATCH_LINE_REM))];
 
                                 for d in l {
                                     line.push(d);
@@ -1130,7 +1130,7 @@ impl Printer {
                                         0,
                                         Span::styled(
                                             format!("{src_counter:>header_width$} | "),
-                                            Style::default().fg(Color::DarkGray),
+                                            Style::default().fg(COLOR_WATCH_LINE_NUMBER_REM),
                                         ),
                                     );
                                 }
@@ -1172,7 +1172,7 @@ impl Printer {
 
         // line
         let mut line_data_spans  = vec![];
-        let mut line_data_strs = vec![];
+        let mut line_data_strs = "".to_string();
 
         match before_diffs {
             // Change Line.
@@ -1193,9 +1193,22 @@ impl Printer {
                                 // batch data
                                 let str_line_style = ansi_term::Style::new()
                                     .fg(COLOR_BATCH_LINE_ADD);
-                                line_data_strs.push(
-                                    str_line_style.paint(char).to_string()
+
+                                let same_element = get_word_diff_line_to_strs(
+                                    str_line_style,
+                                    char,
                                 );
+
+                                for (counter, lines) in same_element.into_iter().enumerate() {
+                                    if counter > 0 {
+                                        result_data_strs.push(line_data_strs);
+                                        line_data_strs = "".to_string();
+                                    }
+
+                                    for l in lines {
+                                        line_data_strs.push_str(&l);
+                                    }
+                                }
                             } else {
                                 // watch data
                                 let same_element = get_word_diff_line_to_spans(
@@ -1222,11 +1235,24 @@ impl Printer {
                             if self.is_batch {
                                 // batch data
                                 let str_line_style = ansi_term::Style::new()
-                                    .reverse()
-                                    .fg(COLOR_BATCH_LINE_ADD);
-                                line_data_strs.push(
-                                    str_line_style.paint(char).to_string()
+                                    .fg(COLOR_BATCH_LINE_ADD)
+                                    .reverse();
+
+                                let add_element = get_word_diff_line_to_strs(
+                                    str_line_style,
+                                    char,
                                 );
+
+                                for (counter, lines) in add_element.into_iter().enumerate() {
+                                    if counter > 0 {
+                                        result_data_strs.push(line_data_strs);
+                                        line_data_strs = "".to_string();
+                                    }
+
+                                    for l in lines {
+                                        line_data_strs.push_str(&l);
+                                    }
+                                }
                             } else {
                                 // watch data
                                 let add_element = get_word_diff_line_to_spans(
@@ -1283,8 +1309,11 @@ impl Printer {
             result_data_spans.push(line_data_spans);
         }
 
+        if line_data_strs.len() > 0{
+            result_data_strs.push(line_data_strs);
+        }
+
         if self.is_batch {
-            result_data_strs.push(line_data_strs.join(" "));
             return LineElementData::String(result_data_strs);
         } else {
             return LineElementData::Spans(result_data_spans);
@@ -1312,7 +1341,7 @@ impl Printer {
 
         // line
         let mut line_data_spans  = vec![];
-        let mut line_data_strs = vec![];
+        let mut line_data_strs = "".to_string();
 
         match before_diffs {
             // Change Line.
@@ -1333,9 +1362,23 @@ impl Printer {
                                 // batch data
                                 let str_line_style = ansi_term::Style::new()
                                     .fg(COLOR_BATCH_LINE_REM);
-                                line_data_strs.push(
-                                    str_line_style.paint(char).to_string()
+
+                                let same_element = get_word_diff_line_to_strs(
+                                    str_line_style,
+                                    char,
                                 );
+
+
+                                for (counter, lines) in same_element.into_iter().enumerate() {
+                                    if counter > 0 {
+                                        result_data_strs.push(line_data_strs);
+                                        line_data_strs = "".to_string();
+                                    }
+
+                                    for l in lines {
+                                        line_data_strs.push_str(&l);
+                                    }
+                                }
                             } else {
                                 // watch data
                                 let same_element = get_word_diff_line_to_spans(
@@ -1362,11 +1405,25 @@ impl Printer {
                             if self.is_batch {
                                 // batch data
                                 let str_line_style = ansi_term::Style::new()
-                                    .reverse()
-                                    .fg(COLOR_BATCH_LINE_REM);
-                                line_data_strs.push(
-                                    str_line_style.paint(char).to_string()
+                                    .fg(COLOR_BATCH_LINE_REM)
+                                    .reverse();
+
+                                let same_element = get_word_diff_line_to_strs(
+                                    str_line_style,
+                                    char,
                                 );
+
+
+                                for (counter, lines) in same_element.into_iter().enumerate() {
+                                    if counter > 0 {
+                                        result_data_strs.push(line_data_strs);
+                                        line_data_strs = "".to_string();
+                                    }
+
+                                    for l in lines {
+                                        line_data_strs.push_str(&l);
+                                    }
+                                }
                             } else {
                                 // watch data
                                 let add_element = get_word_diff_line_to_spans(
@@ -1406,7 +1463,7 @@ impl Printer {
                         // batch data
                         let str_line_style = ansi_term::Style::new()
                             .fg(COLOR_BATCH_LINE_REM);
-                        line_data_strs.push(str_line_style.paint(data).to_string());
+                        result_data_strs.push(str_line_style.paint(data).to_string());
                     } else {
                         // watch data
                         let line_data = vec![Span::styled(
@@ -1423,8 +1480,11 @@ impl Printer {
             result_data_spans.push(line_data_spans);
         }
 
+        if line_data_strs.len() > 0{
+            result_data_strs.push(line_data_strs);
+        }
+
         if self.is_batch {
-            result_data_strs.push(line_data_strs.join(" "));
             return LineElementData::String(result_data_strs);
         } else {
             return LineElementData::Spans(result_data_spans);
@@ -1572,6 +1632,27 @@ fn get_word_diff_line_to_spans<'a>(
         ];
 
         result.push(line);
+    }
+
+    result
+}
+
+///
+fn get_word_diff_line_to_strs(
+    style: ansi_term::Style,
+    diff_str: &str,
+) -> Vec<Vec<String>> {
+    // result
+    let mut result = vec![];
+
+    for l in diff_str.split('\n') {
+        let text = get_ansi_strip_str(l);
+        result.push(
+            vec![
+                style.paint(text).to_string(),
+                ansi_term::Style::new().paint(" ").to_string(),
+                ]
+            );
     }
 
     result

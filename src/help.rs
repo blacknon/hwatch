@@ -28,10 +28,10 @@ impl<'a> HelpWindow<'a> {
 
     ///
     pub fn draw(&mut self, f: &mut Frame) {
-        let title = "help";
+        let title = " [help] ";
 
         let size = f.size();
-        let area = centered_rect(60, 50, size);
+        let area = centered_rect(80, 70, size);
 
         // create block.
         let block = Paragraph::new(self.data.clone())
