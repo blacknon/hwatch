@@ -4,6 +4,7 @@
 
 // v0.3.12
 // TODO(blakcnon): batch modeの実装.(clapのバージョンをあげてから、diff等のオプションを指定できるようにしたほうがいいのかも？？)
+// TODO(blacknon): word diffでremove行のワードがハイライト表示されないので、原因を調べる.
 
 // v0.3.13
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
