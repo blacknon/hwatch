@@ -19,6 +19,8 @@ That records the result of command execution and can display it history and diff
 - Can output the execution result as log (json format).
 - Support ANSI color code.
 - Execution result can be scroll.
+- Not only as a TUI application, but also to have the differences output as standard output.
+- If a difference occurs, you can have the specified command additionally executed.
 
 ## Install
 
@@ -40,66 +42,34 @@ That records the result of command execution and can display it history and diff
 
 ## Usage
 
-        hwatch 0.3.10
-        blacknon <blacknon@orebibou.com>
-        A modern alternative to the watch command, records the differences in execution results and can
-        check this differences at after.
+        $ hwatch --help
+        A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
-        USAGE:
-            hwatch [OPTIONS] <command>...
+        Usage: hwatch [OPTIONS] [command]...
 
-        ARGS:
-            <command>...
+        Arguments:
+          [command]...
 
-        OPTIONS:
-            -B, --beep
-                    beep if command has a change result
+        Options:
+          -b, --batch                         output exection results to stdout
+          -B, --beep                          beep if command has a change result
+              --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
+          -c, --color                         interpret ANSI color and style sequences
+          -t, --no-title                      hide the UI on start. Use `t` to toggle it.
+          -N, --line-number                   show line number
+              --no-help-banner                hide the "Display help with h key" message
+          -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
+          -O, --diff-output-only              Display only the lines with differences during line diff and word diff.
+          -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
+          -l, --logfile <logfile>             logging file
+          -s, --shell <shell_command>         shell to use at runtime. can  also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
+          -n, --interval <interval>           seconds to wait between updates [default: 2]
+              --tab-size <tab_size>           Specifying tab display size [default: 4]
+          -d, --differences [<differences>]   highlight changes between updates [possible values: none, watch, line, word]
+          -o, --output [<output>]             Select command output. [default: output] [possible values: output, stdout, stderr]
+          -h, --help                          Print help
+          -V, --version                       Print version
 
-                --mouse
-                    enable mouse wheel support. With this option, copying text with your terminal may be
-                    harder. Try holding the Shift key.
-
-                --tab_size <tab_size>
-                    Specifying tab display size [default: 4]
-
-            -A, --aftercommand <after_command>
-                    Executes the specified command if the output changes. Information about changes is
-                    stored in json format in environment variable ${HWATCH_DATA}.
-
-            -c, --color
-                    interpret ANSI color and style sequences
-
-            -d, --differences
-                    highlight changes between updates
-
-            -t, --no-title
-                    hide the UI on start. Use `t` to toggle it.
-
-            -N, --line-number
-                    show line number
-
-                --no-help-banner
-                    hide the "Display help with h key" message
-
-            -x, --exec
-                    Run the command directly, not through the shell. Much like the `-x` option of the watch
-                    command.
-
-            -l, --logfile <logfile>
-                    logging file
-
-            -s, --shell <shell_command>
-                    shell to use at runtime. can  also insert the command to the location specified by
-                    {COMMAND}. [default: "sh -c"]
-
-            -n, --interval <interval>
-                    seconds to wait between updates [default: 2]
-
-            -h, --help
-                    Print help information
-
-            -V, --version
-                    Print version information
 
 
 
@@ -234,3 +204,12 @@ hwatch -n 3 -d command...
 ### history filtering
 
 You can filter history as a string with <kbd>/</kbd> key and as a regular expression with <kbd>*</kbd> key.
+
+
+### run batch mode
+
+You can have command diffs output directly to stdout instead with `-b` option of getting them as a TUI app.
+
+```bash
+hwatch -b command...
+```
