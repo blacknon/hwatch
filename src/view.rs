@@ -17,7 +17,8 @@ use std::{
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
-use crate::app::{App, DiffMode};
+use crate::app::App;
+use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 
 // local const
@@ -36,7 +37,9 @@ pub struct View {
     show_ui: bool,
     show_help_banner: bool,
     line_number: bool,
-    watch_diff: bool,
+    output_mode: OutputMode,
+    diff_mode: DiffMode,
+    is_only_diffline: bool,
     log_path: String,
 }
 
@@ -53,7 +56,9 @@ impl View {
             show_ui: true,
             show_help_banner: true,
             line_number: false,
-            watch_diff: false,
+            output_mode: OutputMode::Output,
+            diff_mode: DiffMode::Disable,
+            is_only_diffline: false,
             log_path: "".to_string(),
         }
     }
@@ -103,8 +108,18 @@ impl View {
         self
     }
 
-    pub fn set_watch_diff(mut self, watch_diff: bool) -> Self {
-        self.watch_diff = watch_diff;
+    pub fn set_output_mode(mut self, output_mode: OutputMode) -> Self {
+        self.output_mode = output_mode;
+        self
+    }
+
+    pub fn set_diff_mode(mut self, diff_mode: DiffMode) -> Self {
+        self.diff_mode = diff_mode;
+        self
+    }
+
+    pub fn set_only_diffline(mut self, only_diffline: bool) -> Self {
+        self.is_only_diffline = only_diffline;
         self
     }
 
@@ -122,6 +137,7 @@ impl View {
         ctrlc::set_handler(|| {
             // Runs on SIGINT, SIGTERM (kill), SIGHUP
             restore_terminal();
+
             // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
             std::process::exit(128 + 15)
         })?;
@@ -166,10 +182,12 @@ impl View {
         // set line_number
         app.set_line_number(self.line_number);
 
-        // set watch diff
-        if self.watch_diff {
-            app.set_diff_mode(DiffMode::Watch);
-        }
+        // set output mode
+        app.set_output_mode(self.output_mode);
+
+        // set diff mode
+        app.set_diff_mode(self.diff_mode);
+        app.set_is_only_diffline(self.is_only_diffline);
 
         // Run App
         let res = app.run(&mut terminal);

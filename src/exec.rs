@@ -5,9 +5,10 @@
 // module
 use crossbeam_channel::Sender;
 use std::io::prelude::*;
-use std::io::BufRead;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 // local module
 use crate::common;
@@ -87,44 +88,55 @@ impl ExecuteCommand {
         let mut vec_stdout = Vec::new();
         let mut vec_stderr = Vec::new();
 
+        // get output data
         let status = match child_result {
             Ok(mut child) => {
                 let child_stdout = child.stdout.take().expect("");
                 let child_stderr = child.stderr.take().expect("");
 
-                let mut stdout = BufReader::new(child_stdout);
-                let mut stderr = BufReader::new(child_stderr);
+                // Prepare vector for collapsing stdout and stderr output
+                let arc_vec_output = Arc::new(Mutex::new(Vec::new()));
+                let arc_vec_stdout = Arc::new(Mutex::new(Vec::new()));
+                let arc_vec_stderr = Arc::new(Mutex::new(Vec::new()));
 
-                loop {
-                    let (stdout_bytes, stderr_bytes) = match (stdout.fill_buf(), stderr.fill_buf())
-                    {
-                        (Ok(stdout), Ok(stderr)) => {
-                            // merge stdout/stderr
-                            vec_output.write_all(stdout).expect("");
-                            vec_output.write_all(stderr).expect("");
+                // Using Arc and Mutex to share sequential writes between threads
+                let arc_vec_output_stdout_clone = Arc::clone(&arc_vec_output);
+                let arc_vec_output_stderr_clone = Arc::clone(&arc_vec_output);
+                let arc_vec_stdout_clone = Arc::clone(&arc_vec_stdout);
+                let arc_vec_stderr_clone = Arc::clone(&arc_vec_stderr);
 
-                            // stdout
-                            vec_stdout.write_all(stdout).expect("");
+                // start stdout thread
+                let stdout_thread = thread::spawn(move || {
+                    // Use BufReader to read child process stdout
+                    let mut stdout = BufReader::new(child_stdout);
+                    let mut buf = Vec::new();
 
-                            // stderr
-                            vec_stderr.write_all(stderr).expect("");
+                    // write to vector
+                    stdout.read_to_end(&mut buf).expect("Failed to read stdout");
+                    arc_vec_stdout_clone.lock().unwrap().extend_from_slice(&buf);
+                    arc_vec_output_stdout_clone.lock().unwrap().extend_from_slice(&buf);
+                });
 
-                            (stdout.len(), stderr.len())
-                        }
-                        other => panic!("Some better error handling here, {other:?}"),
-                    };
+                // start stderr thread
+                let stderr_thread = thread::spawn(move || {
+                    // Use BufReader to read child process stderr
+                    let mut stderr = BufReader::new(child_stderr);
+                    let mut buf = Vec::new();
 
-                    if stdout_bytes == 0 && stderr_bytes == 0 {
-                        break;
-                    }
+                    // write to vector
+                    stderr.read_to_end(&mut buf).expect("Failed to read stderr");
+                    arc_vec_stderr_clone.lock().unwrap().extend_from_slice(&buf);
+                    arc_vec_output_stderr_clone.lock().unwrap().extend_from_slice(&buf);
+                });
 
-                    stdout.consume(stdout_bytes);
-                    stderr.consume(stderr_bytes);
-                }
+                // with thread stdout/stderr
+                stdout_thread.join().expect("Failed to join stdout thread");
+                stderr_thread.join().expect("Failed to join stderr thread");
 
-                // Memory release.
-                drop(stdout);
-                drop(stderr);
+                // Unwrap Arc, get MutexGuard and extract vector
+                vec_output = Arc::try_unwrap(arc_vec_output).unwrap().into_inner().unwrap();
+                vec_stdout = Arc::try_unwrap(arc_vec_stdout).unwrap().into_inner().unwrap();
+                vec_stderr = Arc::try_unwrap(arc_vec_stderr).unwrap().into_inner().unwrap();
 
                 // get command status
                 let exit_status = child.wait().expect("");
