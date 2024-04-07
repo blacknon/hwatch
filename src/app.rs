@@ -2,14 +2,13 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: batch modeを処理するのはmain.rsではなく、こっち側でやらせるのが良さそう?
+// TODO: そろそろリファクタしたほうが良さそう(2024/03/26)
 
 use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        KeyEventState, KeyModifiers, MouseEvent, MouseEventKind,
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent, MouseEventKind
     },
     execute,
 };
@@ -20,15 +19,14 @@ use std::{
 };
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     Frame, Terminal,
 };
-
-// use std::process::Command;
 use std::thread;
 
 // local module
 use crate::common::logging_result;
+use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
@@ -54,23 +52,6 @@ pub enum ActiveArea {
 pub enum ActiveWindow {
     Normal,
     Help,
-}
-
-///
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum DiffMode {
-    Disable,
-    Watch,
-    Line,
-    Word,
-}
-
-///
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum OutputMode {
-    Output,
-    Stdout,
-    Stderr,
 }
 
 ///
@@ -128,8 +109,17 @@ pub struct App<'a> {
     ///
     is_only_diffline: bool,
 
-    ///
+    /// result at output.
+    /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
     results: HashMap<usize, CommandResult>,
+
+    /// result at output only stdout.
+    /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
+    results_stdout: HashMap<usize, CommandResult>,
+
+    /// result at output only stderr.
+    /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
+    results_stderr: HashMap<usize, CommandResult>,
 
     ///
     interval: Interval,
@@ -152,6 +142,9 @@ pub struct App<'a> {
     /// Enable mouse wheel support.
     mouse_events: bool,
 
+    ///
+    printer: output::Printer,
+
     /// It is a flag value to confirm the done of the app.
     /// If `true`, exit app.
     pub done: bool,
@@ -159,7 +152,10 @@ pub struct App<'a> {
     /// logfile path.
     logfile: String,
 
+    ///
     pub tx: Sender<AppEvent>,
+
+    ///
     pub rx: Receiver<AppEvent>,
 }
 
@@ -194,6 +190,9 @@ impl<'a> App<'a> {
             is_only_diffline: false,
 
             results: HashMap::new(),
+            results_stdout: HashMap::new(),
+            results_stderr: HashMap::new(),
+
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
@@ -205,6 +204,8 @@ impl<'a> App<'a> {
 
             mouse_events,
 
+            printer: output::Printer::new(),
+
             done: false,
             logfile: "".to_string(),
             tx,
@@ -214,8 +215,21 @@ impl<'a> App<'a> {
 
     ///
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        self.history_area.next();
+        self.history_area.next(1);
         let mut update_draw = true;
+
+        self.printer
+            .set_batch(false)
+            .set_color(self.ansi_color)
+            .set_diff_mode(self.diff_mode)
+            .set_filter(self.is_filtered)
+            .set_regex_filter(self.is_regex_filter)
+            .set_line_number(self.line_number)
+            .set_output_mode(self.output_mode)
+            .set_tab_size(self.tab_size)
+            .set_filter_text(self.filtered_text.clone())
+            .set_only_diffline(self.is_only_diffline);
+
         loop {
             if self.done {
                 return Ok(());
@@ -249,6 +263,7 @@ impl<'a> App<'a> {
                     update_draw = true;
                 }
 
+                //
                 Ok(AppEvent::ToggleMouseEvents) => {
                     if self.mouse_events {
                         execute!(terminal.backend_mut(), DisableMouseCapture)?;
@@ -359,83 +374,38 @@ impl<'a> App<'a> {
 
     /// Set the history to be output to WatchArea.
     fn set_output_data(&mut self, num: usize) {
-        // let results = self.results;
+        // Switch the result depending on the output mode.
+        let results = match self.output_mode {
+            OutputMode::Output => self.results.clone(),
+            OutputMode::Stdout => self.results_stdout.clone(),
+            OutputMode::Stderr => self.results_stderr.clone(),
+        };
 
         // check result size.
         //　If the size of result is not 0 or more, return and not process.
-        if self.results.is_empty() {
+        if results.is_empty() {
             return;
         }
-
-        // text_src ... old text.
-        let text_src: &str;
 
         // set target number at new history.
         let mut target_dst: usize = num;
 
         // check results over target...
         if target_dst == 0 {
-            target_dst = self.results.len() - 1;
+            target_dst = get_results_latest_index(&results);
         }
-
-        // set target number at old history.
-        let target_src = target_dst - 1;
+        let previous_dst = get_results_previous_index(&results, target_dst);
 
         // set new text(text_dst)
-        let text_dst = match self.output_mode {
-            OutputMode::Output => &self.results[&target_dst].output,
-            OutputMode::Stdout => &self.results[&target_dst].stdout,
-            OutputMode::Stderr => &self.results[&target_dst].stderr,
-        };
+        let dest = results[&target_dst].clone();
 
         // set old text(text_src)
-        if self.results.len() > target_src {
-            match self.output_mode {
-                OutputMode::Output => text_src = &self.results[&target_src].output,
-                OutputMode::Stdout => text_src = &self.results[&target_src].stdout,
-                OutputMode::Stderr => text_src = &self.results[&target_src].stderr,
-            }
-        } else {
-            text_src = "";
+        let mut src = CommandResult::default();
+        if previous_dst > 0 {
+            src = results[&previous_dst].clone();
         }
 
-        let output_data = match self.diff_mode {
-            DiffMode::Disable => output::get_plane_output(
-                self.ansi_color,
-                self.line_number,
-                text_dst,
-                self.is_filtered,
-                self.is_regex_filter,
-                &self.filtered_text,
-                self.tab_size,
-            ),
-
-            DiffMode::Watch => output::get_watch_diff(
-                self.ansi_color,
-                self.line_number,
-                text_src,
-                text_dst,
-                self.tab_size,
-            ),
-
-            DiffMode::Line => output::get_line_diff(
-                self.ansi_color,
-                self.line_number,
-                self.is_only_diffline,
-                text_src,
-                text_dst,
-                self.tab_size,
-            ),
-
-            DiffMode::Word => output::get_word_diff(
-                self.ansi_color,
-                self.line_number,
-                self.is_only_diffline,
-                text_src,
-                text_dst,
-                self.tab_size,
-            ),
-        };
+        let output_data = self.printer.get_watch_text(dest, src);
 
         // TODO: output_dataのtabをスペース展開する処理を追加
 
@@ -449,12 +419,27 @@ impl<'a> App<'a> {
 
     ///
     pub fn set_output_mode(&mut self, mode: OutputMode) {
+        // header update
         self.output_mode = mode;
         self.header_area.set_output_mode(mode);
         self.header_area.update();
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.printer.set_output_mode(mode);
+
+        //
+        if self.results.len() > 0 {
+            // Switch the result depending on the output mode.
+            let results = match self.output_mode {
+                OutputMode::Output => self.results.clone(),
+                OutputMode::Stdout => self.results_stdout.clone(),
+                OutputMode::Stderr => self.results_stderr.clone(),
+            };
+
+            let selected: usize = self.history_area.get_state_select();
+            let new_selected = get_near_index(&results, selected);
+            self.reset_history(new_selected);
+            self.set_output_data(new_selected);
+        }
     }
 
     ///
@@ -463,6 +448,8 @@ impl<'a> App<'a> {
 
         self.header_area.set_ansi_color(ansi_color);
         self.header_area.update();
+
+        self.printer.set_color(ansi_color);
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -480,12 +467,16 @@ impl<'a> App<'a> {
         self.header_area.set_line_number(line_number);
         self.header_area.update();
 
+        self.printer.set_line_number(line_number);
+
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
 
+    ///
     pub fn set_tab_size(&mut self, tab_size: u16) {
         self.tab_size = tab_size;
+        self.printer.set_tab_size(tab_size);
     }
 
     ///
@@ -517,16 +508,20 @@ impl<'a> App<'a> {
         self.header_area.set_diff_mode(diff_mode);
         self.header_area.update();
 
+        self.printer.set_diff_mode(diff_mode);
+
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
 
     ///
-    fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
+    pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
         self.is_only_diffline = is_only_diffline;
 
         self.header_area.set_is_only_diffline(is_only_diffline);
         self.header_area.update();
+
+        self.printer.set_only_diffline(is_only_diffline);
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -546,39 +541,78 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn reset_history(&mut self, is_regex: bool) {
+    fn reset_history(&mut self, selected: usize) {
+        // @TODO: output modeでの切り替えに使うのかも？？(多分使う？)
+        // @NOTE: まだ作成中(output modeでの切り替えにhistoryを追随させる機能)
+
+        // Switch the result depending on the output mode.
+        let results = match self.output_mode {
+            OutputMode::Output => self.results.clone(),
+            OutputMode::Stdout => self.results_stdout.clone(),
+            OutputMode::Stderr => self.results_stderr.clone(),
+        };
+
         // unlock self.results
-        // let results = self.results;
-        let counter = self.results.len();
+        // let counter = results.len();
         let mut tmp_history = vec![];
 
         // append result.
-        let latest_num: usize = if counter > 1 { counter - 1 } else { 0 };
-
+        let latest_num: usize = get_results_latest_index(&results);
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
-            status: self.results[&latest_num].status,
+            status: results[&latest_num].status,
             num: 0,
         });
 
-        for result in self.results.clone().into_iter() {
+        let mut new_select: Option<usize> = None;
+        for result in results.clone().into_iter() {
             if result.0 == 0 {
                 continue;
             }
 
             let mut is_push = true;
             if self.is_filtered {
-                let result_text = &result.1.output.clone();
+                // @TODO: filterがうまく動いてないかも(ouput mode切り替えのやつ)
+                // @TODO: 重複しているからあとでリファクタしたほうが良さそう
+                // let result_text = &result.1.output.clone();
 
-                if is_regex {
-                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
-                    let regex_match = re.is_match(result_text);
-                    if !regex_match {
-                        is_push = false;
+                // if is_regex {
+                //     let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                //     let regex_match = re.is_match(result_text);
+                //     if !regex_match {
+                //         is_push = false;
+                //     }
+                // } else if !result_text.contains(&self.filtered_text) {
+                //     is_push = false;
+                // }
+
+                let result_text = match self.output_mode {
+                    OutputMode::Output => result.1.output.clone(),
+                    OutputMode::Stdout => result.1.stdout.clone(),
+                    OutputMode::Stderr => result.1.stderr.clone(),
+                };
+
+                match self.is_regex_filter {
+                    true => {
+                        let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                        let regex_match = re.is_match(&result_text);
+                        if !regex_match {
+                            is_push = false;
+                        }
                     }
-                } else if !result_text.contains(&self.filtered_text) {
-                    is_push = false;
+
+                    false => {
+                        if !result_text.contains(&self.filtered_text) {
+                            is_push = false;
+                        }
+                    }
                 }
+
+
+            }
+
+            if selected == result.0 {
+                new_select = Some(selected);
             }
 
             if is_push {
@@ -589,6 +623,11 @@ impl<'a> App<'a> {
                 });
             }
         }
+
+        if new_select.is_none() {
+            new_select = Some(get_near_index(&results, selected));
+        }
+
 
         // sort tmp_history, to push history
         let mut history = vec![];
@@ -602,8 +641,12 @@ impl<'a> App<'a> {
             }
         }
 
+        // @TODO: selectedをうまいことやる
+
         // reset data.
         self.history_area.reset_history_data(history);
+        self.history_area.set_state_select(new_select.unwrap());
+
     }
 
     ///
@@ -614,6 +657,8 @@ impl<'a> App<'a> {
         if self.results.is_empty() {
             // diff output data.
             self.results.insert(0, latest_result.clone());
+            self.results_stdout.insert(0, latest_result.clone());
+            self.results_stderr.insert(0, latest_result.clone());
         } else {
             let latest_num = self.results.len() - 1;
             latest_result = self.results[&latest_num].clone();
@@ -624,6 +669,7 @@ impl<'a> App<'a> {
         self.header_area.update();
 
         // check result diff
+        // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
         if latest_result == _result {
             return false;
         }
@@ -649,9 +695,12 @@ impl<'a> App<'a> {
             }
         }
 
+        // NOTE: resultをoutput/stdout/stderrで分けて登録させる？
         // append results
-        let result_index = self.results.len();
-        self.results.insert(result_index, _result);
+        let insert_result = self.insert_result(_result.clone());
+        let result_index = insert_result.0;
+        let is_update_stdout = insert_result.1;
+        let is_update_stderr = insert_result.2;
 
         // logging result.
         if !self.logfile.is_empty() {
@@ -659,15 +708,18 @@ impl<'a> App<'a> {
         }
 
         // update HistoryArea
-        let mut selected = self.history_area.get_state_select();
         let mut is_push = true;
         if self.is_filtered {
-            let result_text = &self.results[&result_index].output.clone();
+            let result_text = match self.output_mode {
+                OutputMode::Output => self.results[&result_index].output.clone(),
+                OutputMode::Stdout => self.results_stdout[&result_index].stdout.clone(),
+                OutputMode::Stderr => self.results_stderr[&result_index].stderr.clone(),
+            };
 
             match self.is_regex_filter {
                 true => {
                     let re = Regex::new(&self.filtered_text.clone()).unwrap();
-                    let regex_match = re.is_match(result_text);
+                    let regex_match = re.is_match(&result_text);
                     if !regex_match {
                         is_push = false;
                     }
@@ -680,15 +732,23 @@ impl<'a> App<'a> {
                 }
             }
         }
-        if is_push {
-            let _timestamp = &self.results[&result_index].timestamp;
-            let _status = &self.results[&result_index].status;
-            self.history_area
-                .update(_timestamp.to_string(), *_status, result_index as u16);
 
-            // update selected
-            if selected != 0 {
-                self.history_area.previous();
+        let mut selected = self.history_area.get_state_select();
+        if is_push {
+            match self.output_mode {
+                OutputMode::Output => {
+                    self.add_history(result_index, selected)
+                },
+                OutputMode::Stdout => {
+                    if is_update_stdout {
+                        self.add_history(result_index, selected)
+                    }
+                },
+                OutputMode::Stderr => {
+                    if is_update_stderr {
+                        self.add_history(result_index, selected)
+                    }
+                },
             }
         }
         selected = self.history_area.get_state_select();
@@ -697,6 +757,40 @@ impl<'a> App<'a> {
         self.set_output_data(selected);
 
         true
+    }
+
+    /// Insert CommandResult into the results of each output mode.
+    /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
+    /// Returns true if there is a change in stdout/stderr.
+    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool) {
+        let result_index = self.results.len();
+        self.results.insert(result_index, result.clone());
+
+        // create result_stdout
+        let stdout_latest_index = get_results_latest_index(&self.results_stdout);
+        let before_result_stdout = self.results_stdout[&stdout_latest_index].stdout.clone();
+        let result_stdout = result.stdout.clone();
+
+        // create result_stderr
+        let stderr_latest_index = get_results_latest_index(&self.results_stderr);
+        let before_result_stderr = self.results_stderr[&stderr_latest_index].stderr.clone();
+        let result_stderr = result.stderr.clone();
+
+        // append results_stdout
+        let mut is_stdout_update = false;
+        if before_result_stdout != result_stdout {
+            is_stdout_update = true;
+            self.results_stdout.insert(result_index, result.clone());
+        }
+
+        // append results_stderr
+        let mut is_stderr_update = false;
+        if before_result_stderr != result_stderr {
+            is_stderr_update = true;
+            self.results_stderr.insert(result_index, result.clone());
+        }
+
+        return (result_index, is_stdout_update, is_stderr_update);
     }
 
     ///
@@ -720,6 +814,38 @@ impl<'a> App<'a> {
                         state: KeyEventState::NONE,
                     }) => self.input_key_down(),
 
+                    // pgup
+                    Event::Key(KeyEvent {
+                        code: KeyCode::PageUp,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_pgup(),
+
+                    // pgdn
+                    Event::Key(KeyEvent {
+                        code: KeyCode::PageDown,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_pgdn(),
+
+                    // Home
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Home,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_home(),
+
+                    // End
+                    Event::Key(KeyEvent {
+                        code: KeyCode::End,
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.input_key_end(),
+
                     // mouse wheel up
                     Event::Mouse(MouseEvent {
                         kind: MouseEventKind::ScrollUp,
@@ -735,19 +861,12 @@ impl<'a> App<'a> {
                     }) => self.mouse_scroll_down(),
 
                     Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                        kind: MouseEventKind::Down(MouseButton::Left),
                         column,
                         row,
                         modifiers: KeyModifiers::NONE,
                         ..
-                    }) => {
-                        // Currently a no-op
-                        self.mouse_click_left(column, row);
-                    }
-
-                    // pgup
-
-                    // pgdn
+                    }) => self.mouse_click_left(column, row),
 
                     // left
                     Event::Key(KeyEvent {
@@ -913,9 +1032,13 @@ impl<'a> App<'a> {
                         self.filtered_text = "".to_string();
                         self.header_area.input_text = self.filtered_text.clone();
                         self.set_input_mode(InputMode::None);
-                        self.reset_history(false);
+
+                        self.printer.set_filter(self.is_filtered);
+                        self.printer.set_regex_filter(self.is_regex_filter);
+                        self.printer.set_filter_text("".to_string());
 
                         let selected = self.history_area.get_state_select();
+                        self.reset_history(selected);
 
                         // update WatchArea
                         self.set_output_data(selected);
@@ -1067,9 +1190,13 @@ impl<'a> App<'a> {
                     self.is_regex_filter = is_regex;
                     self.filtered_text = self.header_area.input_text.clone();
                     self.set_input_mode(InputMode::None);
-                    self.reset_history(is_regex);
+
+                    self.printer.set_filter(self.is_filtered);
+                    self.printer.set_regex_filter(self.is_regex_filter);
+                    self.printer.set_filter_text(self.filtered_text.clone());
 
                     let selected = self.history_area.get_state_select();
+                    self.reset_history(selected);
 
                     // update WatchArea
                     self.set_output_data(selected);
@@ -1078,9 +1205,13 @@ impl<'a> App<'a> {
                 KeyCode::Esc => {
                     self.header_area.input_text = self.filtered_text.clone();
                     self.set_input_mode(InputMode::None);
-                    self.reset_history(is_regex);
+                    self.is_filtered = false;
+
+                    self.printer.set_filter(self.is_filtered);
+                    self.printer.set_regex_filter(self.is_regex_filter);
 
                     let selected = self.history_area.get_state_select();
+                    self.reset_history(selected);
 
                     // update WatchArea
                     self.set_output_data(selected);
@@ -1091,6 +1222,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn set_area(&mut self, target: ActiveArea) {
         self.area = target;
         // set active window to header.
@@ -1144,6 +1276,27 @@ impl<'a> App<'a> {
         let _ = self.tx.send(AppEvent::Redraw);
     }
 
+    ///
+    fn add_history(&mut self, result_index: usize, selected: usize) {
+        // Switch the result depending on the output mode.
+        let results = match self.output_mode {
+            OutputMode::Output => self.results.clone(),
+            OutputMode::Stdout => self.results_stdout.clone(),
+            OutputMode::Stderr => self.results_stderr.clone(),
+        };
+
+        let _timestamp = &results[&result_index].timestamp;
+        let _status = &results[&result_index].status;
+        self.history_area
+            .update(_timestamp.to_string(), *_status, result_index as u16);
+
+        // update selected
+        if selected != 0 {
+            self.history_area.previous(1);
+        }
+    }
+
+    ///
     pub fn toggle_mouse_events(&mut self) {
         let _ = self.tx.send(AppEvent::ToggleMouseEvents);
     }
@@ -1178,7 +1331,7 @@ impl<'a> App<'a> {
                 }
                 ActiveArea::History => {
                     // move next history
-                    self.history_area.next();
+                    self.history_area.next(1);
 
                     // get now selected history
                     let selected = self.history_area.get_state_select();
@@ -1201,7 +1354,7 @@ impl<'a> App<'a> {
                 }
                 ActiveArea::History => {
                     // move previous history
-                    self.history_area.previous();
+                    self.history_area.previous(1);
 
                     // get now selected history
                     let selected = self.history_area.get_state_select();
@@ -1214,28 +1367,114 @@ impl<'a> App<'a> {
         }
     }
 
-    // Mouse wheel always scrolls the main area
-    fn mouse_scroll_up(&mut self) {
-        self.watch_area.scroll_up(2);
+    ///
+    fn input_key_pgup(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            match self.area {
+                ActiveArea::Watch => {
+                    let mut page_height = self.watch_area.get_area_size();
+                    if page_height > 1 {
+                        page_height = page_height - 1
+                    }
+
+                    // scroll up watch
+                    self.watch_area.scroll_up(page_height);
+                },
+                ActiveArea::History => {
+                    // move next history
+                    let area_size = self.history_area.area.height;
+                    let move_size = if area_size > 1 {
+                        area_size - 1
+                    } else {
+                        1
+                    };
+
+                    // up
+                    self.history_area.next(move_size as usize);
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
+            }
+        }
     }
 
-    fn mouse_scroll_down(&mut self) {
-        self.watch_area.scroll_down(2);
+    ///
+    fn input_key_pgdn(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            match self.area {
+                ActiveArea::Watch => {
+                    let mut page_height = self.watch_area.get_area_size();
+                    if page_height > 1 {
+                        page_height = page_height - 1
+                    }
+
+                    // scroll up watch
+                    self.watch_area.scroll_down(page_height);
+                },
+                ActiveArea::History => {
+                    // move previous history
+                    let area_size = self.history_area.area.height;
+                    let move_size = if area_size > 1 {
+                        area_size - 1
+                    } else {
+                        1
+                    };
+
+                    // down
+                    self.history_area.previous(move_size as usize);
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                },
+            }
+        }
     }
 
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
-    //     - https://github.com/tui-rs-revival/ratatui/pull/12
     ///
-    //fn input_key_pgup(&mut self) {}
+    fn input_key_home(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            match self.area {
+                ActiveArea::Watch => self.watch_area.scroll_home(),
+                ActiveArea::History => {
+                    // move latest history move size
+                    let hisotory_size = self.history_area.get_history_size();
+                    self.history_area.next(hisotory_size);
 
-    // NOTE: TODO:
-    // Not currently used.
-    // It will not be supported until the following issues are resolved.
-    //     - https://github.com/tui-rs-revival/ratatui/pull/12
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
+            }
+        }
+    }
+
     ///
-    //fn input_key_pgdn(&mut self) {}
+    fn input_key_end(&mut self) {
+        if self.window == ActiveWindow::Normal {
+            match self.area {
+                ActiveArea::Watch => self.watch_area.scroll_end(),
+                ActiveArea::History => {
+                    // get end history move size
+                    let hisotory_size = self.history_area.get_history_size();
+                    let move_size = if hisotory_size > 1 {
+                        hisotory_size - 1
+                    } else {
+                        1
+                    };
+
+                    // move end
+                    self.history_area.previous(move_size);
+
+                    // get now selected history
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+
+                },
+            }
+        }
+    }
 
     ///
     fn input_key_left(&mut self) {
@@ -1259,46 +1498,138 @@ impl<'a> App<'a> {
         }
     }
 
-    // NOTE: TODO: Currently does not do anything
-    // Mouse clicks will not be supported until the following issues are resolved.
-    //     - https://github.com/tui-rs-revival/ratatui/pull/12
-    fn mouse_click_left(&mut self, _column: u16, _row: u16) {
-        //    // check in hisotry area
-        //    let is_history_area = check_in_area(self.history_area.area, column, row);
-        //    if is_history_area {
-        //        // let headline_count = self.history_area.area.y;
-        //        // self.history_area.click_row(row - headline_count);
+    ///
+    fn mouse_click_left(&mut self, column: u16, row: u16) {
+        // check in hisotry area
+        let is_history_area = check_in_area(self.history_area.area, column, row);
+        if is_history_area {
+            let headline_count = self.history_area.area.y;
+            self.history_area.click_row(row - headline_count);
+             //    self.history_area.previous(1);
 
-        //        // self.history_area.previous();
+            let selected = self.history_area.get_state_select();
+            self.set_output_data(selected);
+        }
+    }
 
-        //        let selected = self.history_area.get_state_select();
-        //        self.set_output_data(selected);
-        //    }
+    /// Mouse wheel always scroll up 2 lines.
+    fn mouse_scroll_up(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.watch_area.scroll_up(2);
+                },
+                ActiveArea::History => {
+                    self.history_area.next(2);
+
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_down(2);
+            },
+        }
+    }
+
+    /// Mouse wheel always scroll down 2 lines.
+    fn mouse_scroll_down(&mut self) {
+        match self.window {
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.watch_area.scroll_down(2);
+                },
+                ActiveArea::History => {
+                    self.history_area.previous(2);
+
+                    let selected = self.history_area.get_state_select();
+                    self.set_output_data(selected);
+                }
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_down(2);
+            },
+        }
+    }
+
+}
+
+/// Checks whether the area where the mouse cursor is currently located is within the specified area.
+fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
+    let mut result = true;
+
+    // get area range's
+    let area_top = area.top();
+    let area_bottom = area.bottom();
+    let area_left = area.left();
+    let area_right = area.right();
+
+    let area_row_range = area_top..area_bottom;
+    let area_column_range = area_left..area_right;
+
+    if !area_row_range.contains(&row) {
+        result = false;
+    }
+
+    if !area_column_range.contains(&column) {
+        result = false;
+    }
+    result
+}
+
+fn get_near_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+    let keys = results.keys().cloned().collect::<Vec<usize>>();
+
+    if keys.contains(&index) {
+        return index;
+    } else {
+        // return get_results_next_index(results, index)
+        return get_results_previous_index(results, index)
     }
 }
 
-// NOTE: TODO:
-// Not currently used.
-//     - https://github.com/tui-rs-revival/ratatui/pull/12
-//fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
-//    let mut result = true;
-//
-//    // get area range's
-//    let area_top = area.top();
-//    let area_bottom = area.bottom();
-//    let area_left = area.left();
-//    let area_right = area.right();
-//
-//    let area_row_range = area_top..area_bottom;
-//    let area_column_range = area_left..area_right;
-//
-//    if !area_row_range.contains(&row) {
-//        result = false;
-//    }
-//
-//    if !area_column_range.contains(&column) {
-//        result = false;
-//    }
-//
-//    result
-//}
+fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
+    let keys = results.keys().cloned().collect::<Vec<usize>>();
+
+    // return keys.iter().max().unwrap();
+    let max: usize = match keys.iter().max() {
+        Some(n) => *n,
+        None => 0,
+    };
+
+    return max;
+}
+
+fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+    // get keys
+    let mut keys: Vec<_> = results.keys().cloned().collect();
+    keys.sort();
+
+    let mut previous_index: usize = 0;
+    for &k in &keys {
+        if index == k {
+            break;
+        }
+
+        previous_index = k;
+    }
+
+    return previous_index;
+
+}
+
+fn get_results_next_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+    // get keys
+    let mut keys: Vec<_> = results.keys().cloned().collect();
+    keys.sort();
+
+    let mut next_index: usize = 0;
+    for &k in &keys {
+        if index < k {
+            next_index = k;
+            break;
+        }
+    }
+
+    return next_index;
+}

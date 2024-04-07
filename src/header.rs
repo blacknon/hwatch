@@ -16,7 +16,8 @@ use tui::{
 };
 
 // local module
-use crate::app::{ActiveArea, DiffMode, InputMode, OutputMode};
+use crate::app::{ActiveArea, InputMode};
+use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
 
 //const
