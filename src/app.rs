@@ -2,8 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: そろそろリファクタしたほうが良さそう(2024/03/26)
-
 use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::{

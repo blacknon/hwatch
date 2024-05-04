@@ -26,6 +26,9 @@ pub struct Batch {
     is_beep: bool,
 
     ///
+    is_reverse: bool,
+
+    ///
     results: HashMap<usize, CommandResult>,
 
     ///
@@ -54,8 +57,8 @@ impl Batch {
             after_command: "".to_string(),
             line_number: false,
             is_color: true,
-            // is_color: false,
             is_beep: false,
+            is_reverse: false,
             results: HashMap::new(),
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
@@ -72,6 +75,7 @@ impl Batch {
             .set_color(self.is_color)
             .set_diff_mode(self.diff_mode)
             .set_line_number(self.line_number)
+            .set_reverse(self.is_reverse)
             .set_only_diffline(self.is_only_diffline)
             .set_output_mode(self.output_mode);
 
@@ -184,6 +188,12 @@ impl Batch {
     ///
     pub fn set_beep(mut self, is_beep: bool) -> Self {
         self.is_beep = is_beep;
+        self
+    }
+
+    ///
+    pub fn set_reverse(mut self, is_reverse: bool) -> Self {
+        self.is_reverse = is_reverse;
         self
     }
 

@@ -3,13 +3,15 @@
 // that can be found in the LICENSE file.
 
 // v0.3.13
-// TODO(blacknon): キー入力のカスタマイズが行えるようにする
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
-//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): reverse modeの実装(`r`)で、出力を逆順に表示させる(batch modeでどのように表示させるかは要検討)
 // TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
 
 // v0.3.14
+// TODO(blacknon): キー入力のカスタマイズが行えるようにする
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
+//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+
+// v0.3.15
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
@@ -158,6 +160,15 @@ fn build_app() -> clap::Command {
                 .short('c')
                 .action(ArgAction::SetTrue)
                 .long("color"),
+            )
+        // Enable Reverse mode option
+        //     [-r,--reverse]
+        .arg(
+            Arg::new("reverse")
+                .help("display text upside down.")
+                .short('r')
+                .action(ArgAction::SetTrue)
+                .long("reverse"),
         )
         // exec flag.
         //     [--no-title]
@@ -423,6 +434,9 @@ fn main() {
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
 
+            // Set reverse mode in view
+            .set_reverse(matcher.get_flag("reverse"))
+
             // Set output in view
             .set_output_mode(output_mode)
 
@@ -452,6 +466,7 @@ fn main() {
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)
             .set_line_number(matcher.get_flag("line_number"))
+            .set_reverse(matcher.get_flag("reverse"))
             .set_only_diffline(matcher.get_flag("diff_output_only"));
 
         // Set after_command
