@@ -37,6 +37,7 @@ pub struct View {
     show_ui: bool,
     show_help_banner: bool,
     line_number: bool,
+    reverse: bool,
     output_mode: OutputMode,
     diff_mode: DiffMode,
     is_only_diffline: bool,
@@ -56,6 +57,7 @@ impl View {
             show_ui: true,
             show_help_banner: true,
             line_number: false,
+            reverse: false,
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
             is_only_diffline: false,
@@ -105,6 +107,11 @@ impl View {
 
     pub fn set_line_number(mut self, line_number: bool) -> Self {
         self.line_number = line_number;
+        self
+    }
+
+    pub fn set_reverse(mut self, reverse: bool) -> Self {
+        self.reverse = reverse;
         self
     }
 
@@ -181,6 +188,9 @@ impl View {
 
         // set line_number
         app.set_line_number(self.line_number);
+
+        // set reverse
+        app.set_reverse(self.reverse);
 
         // set output mode
         app.set_output_mode(self.output_mode);
