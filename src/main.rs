@@ -2,30 +2,26 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.12
-// TODO(blakcnon): batch modeの実装.(clapのバージョンをあげてから、diff等のオプションを指定できるようにしたほうがいいのかも？？)
-// TODO(blacknon): word diffでremove行のワードがハイライト表示されないので、原因を調べる.
-
 // v0.3.13
-// TODO(blacknon): 任意時点間のdiffが行えるようにする.
-// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
+// TODO(blacknon): キー入力のカスタマイズが行えるようにする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): reverse modeの実装(`r`)で、出力を逆順に表示させる(batch modeでどのように表示させるかは要検討)
+// TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
+
+// v0.3.14
+// TODO(blacknon): 任意時点間のdiffが行えるようにする.
+// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
-// TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
-//                 => outputごとに分離して比較できる仕組みにする方式で対処？
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
 //                 - https://github.com/mitsuhiko/similar
 //                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
 //                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
-// TODO(blacknon): diffのとき、stdout/stderrでの比較時におけるdiffでhistoryも変化させる？
-//                 - データの扱いが変わってきそう？
-//                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
-// TODO(blacknon): キー入力のカスタマイズが行えるようにする
+
 
 // crate
 // extern crate ansi_parser;
