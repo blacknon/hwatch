@@ -48,6 +48,9 @@ pub struct HeaderArea<'a> {
     line_number: bool,
 
     ///
+    reverse: bool,
+
+    ///
     ansi_color: bool,
 
     ///
@@ -90,6 +93,7 @@ impl<'a> HeaderArea<'a> {
             data: vec![Line::from("")],
             ansi_color: false,
             line_number: false,
+            reverse: false,
             banner: "".to_string(),
 
             active_area: ActiveArea::History,
@@ -119,6 +123,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
+    }
+
+    pub fn set_reverse(&mut self, reverse: bool) {
+        self.reverse = reverse;
     }
 
     pub fn set_banner(&mut self, banner: String) {
@@ -151,6 +159,7 @@ impl<'a> HeaderArea<'a> {
         self.input_mode = input_mode;
     }
 
+    ///
     pub fn update(&mut self) {
         // init data
         self.data = vec![];
@@ -171,7 +180,10 @@ impl<'a> HeaderArea<'a> {
 
         // filter keyword.
         let filter_keyword_width = if width > (POSITION_X_HELP_TEXT + 2 + 14) {
-            width - POSITION_X_HELP_TEXT - 2 - 14
+            // width - POSITION_X_HELP_TEXT - 2 - 14
+            // length("[Number] [Color] [Output] [history] [Line(Only)]") = 48
+            // length("[Number] [Color] [Reverse] [Output] [history] [Line(Only)]") = 58
+            width - 58
         } else {
             0
         };
@@ -196,7 +208,7 @@ impl<'a> HeaderArea<'a> {
         // Get the data to display at header.
         let interval = format!("{:.3}", self.interval);
 
-        // Set number flag value
+        // Set Number flag value
         let value_number: Span = match self.line_number {
             true => Span::styled(
                 "Number".to_string(),
@@ -220,7 +232,19 @@ impl<'a> HeaderArea<'a> {
             false => Span::styled("Color".to_string(), Style::default().fg(Color::Reset)),
         };
 
-        // Set output type value
+        // Set Reverse flag value
+        let value_reverse: Span = match self.reverse {
+            true => Span::styled(
+                "Reverse".to_string(),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            false => Span::styled("Reverse".to_string(), Style::default().fg(Color::Reset)),
+        };
+
+        // Set Output type value
         let value_output = match self.output_mode {
             OutputMode::Output => "Output".to_string(),
             OutputMode::Stdout => "Stdout".to_string(),
@@ -229,8 +253,8 @@ impl<'a> HeaderArea<'a> {
 
         // Set Active Area value
         let value_active = match self.active_area {
-            ActiveArea::History => "history".to_string(),
-            ActiveArea::Watch => "watch".to_string(),
+            ActiveArea::History => "History".to_string(),
+            ActiveArea::Watch => "Watch".to_string(),
         };
 
         // Set IsOnlyDiffline value
@@ -287,9 +311,14 @@ impl<'a> HeaderArea<'a> {
             value_color,
             Span::raw("]"),
             Span::raw(" "),
+            // Reverse flag
+            Span::raw("["),
+            value_reverse,
+            Span::raw("]"),
+            Span::raw(" "),
             // Output Type
             Span::raw("["),
-            Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
+            // Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_output, wid = 6),
                 Style::default()
@@ -300,7 +329,7 @@ impl<'a> HeaderArea<'a> {
             Span::raw(" "),
             // Active Area
             Span::raw("["),
-            Span::styled("Active: ", Style::default().add_modifier(Modifier::BOLD)),
+            // Span::styled("Active:", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_active, wid = 7),
                 Style::default()
@@ -311,7 +340,7 @@ impl<'a> HeaderArea<'a> {
             Span::raw(" "),
             // Diff Type
             Span::raw("["),
-            Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
+            // Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!("{:wid$}", value_diff, wid = 10),
                 Style::default()
@@ -322,6 +351,7 @@ impl<'a> HeaderArea<'a> {
         ]));
     }
 
+    ///
     pub fn draw(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone());
         frame.render_widget(block, self.area);

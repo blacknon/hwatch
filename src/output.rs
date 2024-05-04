@@ -118,6 +118,9 @@ pub struct Printer {
     // line number.
     is_line_number: bool,
 
+    // is reverse text.
+    is_reverse: bool,
+
     // is filtered text.
     is_filter: bool,
 
@@ -142,6 +145,7 @@ impl Printer {
             is_batch: false,
             is_color: false,
             is_line_number: false,
+            is_reverse: false,
             is_filter: false,
             is_regex_filter: false,
             filter_text: "".to_string(),
@@ -173,7 +177,11 @@ impl Printer {
             DiffMode::Word => self.gen_word_diff_output(&text_dest, &text_src),
         };
 
-        if let PrintData::Lines(result) = data {
+        if let PrintData::Lines(mut result) = data {
+            // if is_reverse enable, flip upside down to result.
+            if self.is_reverse {
+                result.reverse();
+            }
             return result;
         } else {
             return vec![];
@@ -208,7 +216,11 @@ impl Printer {
             DiffMode::Word => self.gen_word_diff_output(&text_dest, &text_src),
         };
 
-        if let PrintData::Strings(result) = data {
+        if let PrintData::Strings(mut result) = data {
+            // if is_reverse enable, flip upside down to result.
+            if self.is_reverse {
+                result.reverse();
+            }
             return result;
         } else {
             return vec![];
@@ -1518,6 +1530,12 @@ impl Printer {
     /// set line number.
     pub fn set_line_number(&mut self, is_line_number: bool) -> &mut Self {
         self.is_line_number = is_line_number;
+        self
+    }
+
+    // set is reverse.
+    pub fn set_reverse(&mut self, is_reverse: bool) -> &mut Self {
+        self.is_reverse = is_reverse;
         self
     }
 

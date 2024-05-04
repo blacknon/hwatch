@@ -80,6 +80,9 @@ pub struct App<'a> {
     line_number: bool,
 
     ///
+    reverse: bool,
+
+    ///
     is_beep: bool,
 
     ///
@@ -176,6 +179,7 @@ impl<'a> App<'a> {
             after_command: "".to_string(),
             ansi_color: false,
             line_number: false,
+            reverse: false,
             show_history: true,
             show_header: true,
 
@@ -474,6 +478,19 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_reverse(&mut self, reverse: bool) {
+        self.reverse = reverse;
+
+        self.header_area.set_reverse(reverse);
+        self.header_area.update();
+
+        self.printer.set_reverse(reverse);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
     pub fn set_tab_size(&mut self, tab_size: u16) {
         self.tab_size = tab_size;
         self.printer.set_tab_size(tab_size);
@@ -572,20 +589,6 @@ impl<'a> App<'a> {
 
             let mut is_push = true;
             if self.is_filtered {
-                // @TODO: filterがうまく動いてないかも(ouput mode切り替えのやつ)
-                // @TODO: 重複しているからあとでリファクタしたほうが良さそう
-                // let result_text = &result.1.output.clone();
-
-                // if is_regex {
-                //     let re = Regex::new(&self.filtered_text.clone()).unwrap();
-                //     let regex_match = re.is_match(result_text);
-                //     if !regex_match {
-                //         is_push = false;
-                //     }
-                // } else if !result_text.contains(&self.filtered_text) {
-                //     is_push = false;
-                // }
-
                 let result_text = match self.output_mode {
                     OutputMode::Output => result.1.output.clone(),
                     OutputMode::Stdout => result.1.stdout.clone(),
@@ -892,7 +895,7 @@ impl<'a> App<'a> {
                         state: KeyEventState::NONE,
                     }) => self.set_ansi_color(!self.ansi_color),
 
-                    // d
+                    // d ... toggle diff mode.
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('d'),
                         modifiers: KeyModifiers::NONE,
@@ -907,6 +910,14 @@ impl<'a> App<'a> {
                         kind: KeyEventKind::Press,
                         state: KeyEventState::NONE,
                     }) => self.set_line_number(!self.line_number),
+
+                    // r
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('r'),
+                        modifiers: KeyModifiers::NONE,
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::NONE,
+                    }) => self.set_reverse(!self.reverse),
 
                     // o(lower o)
                     Event::Key(KeyEvent {
@@ -1012,7 +1023,7 @@ impl<'a> App<'a> {
                         state: KeyEventState::NONE,
                     }) => self.set_input_mode(InputMode::Filter),
 
-                    // / ... Change Filter Mode(regex text).
+                    // * ... Change Filter Mode(regex text).
                     Event::Key(KeyEvent {
                         code: KeyCode::Char('*'),
                         modifiers: KeyModifiers::NONE,
