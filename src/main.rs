@@ -2,16 +2,20 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.13
-// TODO(blacknon): reverse modeの実装(`r`)で、出力を逆順に表示させる(batch modeでどのように表示させるかは要検討)
-// TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
-
 // v0.3.14
-// TODO(blacknon): キー入力のカスタマイズが行えるようにする
+// TODO(blacknon): キー入力のカスタマイズが行えるようにする(custom keymap)
+
+// v0.3.15
+// TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 
-// v0.3.15
+// v0.3.16
+// TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
+//                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
+
+// v1.0.0
+// TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
 // TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく

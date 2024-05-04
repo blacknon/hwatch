@@ -6,7 +6,7 @@ keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
 repository = "https://github.com/blacknon/hwatch"
-version = "0.3.12"
+version = "0.3.13"
 
 [dependencies]
 # TODO: ansi-parserが正式にバージョンアップしたらそちらに切り替える
