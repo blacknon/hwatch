@@ -130,6 +130,7 @@ fn gen_help_text<'a>() -> Vec<Line<'a>> {
         // toggle
         KeyData { key: "c".to_string(), description: "toggle color mode.".to_string() },
         KeyData { key: "n".to_string(), description: "toggle line number.".to_string() },
+        KeyData { key: "r".to_string(), description: "toggle reverse mode.".to_string() },
         KeyData { key: "d".to_string(), description: "switch diff mode at None, Watch, Line, and Word mode.".to_string() },
         KeyData { key: "t".to_string(), description: "toggle ui (history pane & header both on/off).".to_string() },
         KeyData { key: "Bkspace".to_string(), description: "toggle history pane.".to_string() },
