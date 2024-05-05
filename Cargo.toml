@@ -9,9 +9,8 @@ repository = "https://github.com/blacknon/hwatch"
 version = "0.3.13"
 
 [dependencies]
-# TODO: ansi-parserが正式にバージョンアップしたらそちらに切り替える
+ansi-parser = "0.9.0"
 heapless = "0.6.1"
-hwatch-ansi-parser = "0.9.0"
 
 ansi_term = "0.12.1"
 async-std = {version = "1.12"}
