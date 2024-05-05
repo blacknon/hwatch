@@ -31,7 +31,7 @@
 
 // crate
 // extern crate ansi_parser;
-extern crate hwatch_ansi_parser as ansi_parser;
+extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
 extern crate chrono;
