@@ -214,7 +214,7 @@ fn build_app() -> clap::Command {
         //     [-O,--diff-output-only]
         .arg(
             Arg::new("diff_output_only")
-                .help("Display only the lines with differences during line diff and word diff.")
+                .help("Display only the lines with differences during `line` diff and `word` diff.")
                 .short('O')
                 .long("diff-output-only")
                 .requires("differences")
