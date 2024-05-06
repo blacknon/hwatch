@@ -127,10 +127,14 @@ fn gen_help_text_from_key_data<'a>(data: Vec<keys::KeyData>) -> Vec<Line<'a>> {
 fn gen_help_text<'a>() -> Vec<Line<'a>> {
     let keydata_list = vec![
         KeyData { key: "h".to_string(), description: "show this help message.".to_string() },
+        KeyData { key: "q".to_string(), description: "exit.".to_string() },
         // toggle
         KeyData { key: "c".to_string(), description: "toggle color mode.".to_string() },
         KeyData { key: "n".to_string(), description: "toggle line number.".to_string() },
+        KeyData { key: "r".to_string(), description: "toggle reverse mode.".to_string() },
         KeyData { key: "d".to_string(), description: "switch diff mode at None, Watch, Line, and Word mode.".to_string() },
+        KeyData { key: "o".to_string(), description: "switch output mode at stdout, stderr, and output.".to_string() },
+        KeyData { key: "O".to_string(), description: "toggle change only the lines with differences during `line` diff and `word` diff.".to_string() },
         KeyData { key: "t".to_string(), description: "toggle ui (history pane & header both on/off).".to_string() },
         KeyData { key: "Bkspace".to_string(), description: "toggle history pane.".to_string() },
         KeyData { key: "m".to_string(), description: "toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.".to_string() },
