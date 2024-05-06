@@ -2,34 +2,36 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.12
-// TODO(blakcnon): batch modeの実装.(clapのバージョンをあげてから、diff等のオプションを指定できるようにしたほうがいいのかも？？)
-// TODO(blacknon): word diffでremove行のワードがハイライト表示されないので、原因を調べる.
+// v0.3.14
+// TODO(blacknon): キー入力のカスタマイズが行えるようにする(custom keymap)
 
-// v0.3.13
-// TODO(blacknon): 任意時点間のdiffが行えるようにする.
-// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
+// v0.3.15
+// TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+
+// v0.3.16
+// TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
+//                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
+
+// v1.0.0
+// TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
+// TODO(blacknon): 任意時点間のdiffが行えるようにする.
+// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
-// TODO(blacknon): errorとの比較を行わない(正常終了時のみを比較対象とし、errorの履歴をスキップしてdiffする)キーバインドの追加(なんかのmode?)
-//                 => outputごとに分離して比較できる仕組みにする方式で対処？
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 // TODO(blacknon): diffのライブラリをsimilarに切り替える？
 //                 - https://github.com/mitsuhiko/similar
 //                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
 //                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
-// TODO(blacknon): diffのとき、stdout/stderrでの比較時におけるdiffでhistoryも変化させる？
-//                 - データの扱いが変わってきそう？
-//                 - どっちにしてもデータがあるなら、stdout/stderrのとこだけで比較するような何かがあればいい？？？
-// TODO(blacknon): キー入力のカスタマイズが行えるようにする
+
 
 // crate
 // extern crate ansi_parser;
-extern crate hwatch_ansi_parser as ansi_parser;
+extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
 extern crate chrono;
@@ -162,6 +164,15 @@ fn build_app() -> clap::Command {
                 .short('c')
                 .action(ArgAction::SetTrue)
                 .long("color"),
+            )
+        // Enable Reverse mode option
+        //     [-r,--reverse]
+        .arg(
+            Arg::new("reverse")
+                .help("display text upside down.")
+                .short('r')
+                .action(ArgAction::SetTrue)
+                .long("reverse"),
         )
         // exec flag.
         //     [--no-title]
@@ -203,7 +214,7 @@ fn build_app() -> clap::Command {
         //     [-O,--diff-output-only]
         .arg(
             Arg::new("diff_output_only")
-                .help("Display only the lines with differences during line diff and word diff.")
+                .help("Display only the lines with differences during `line` diff and `word` diff.")
                 .short('O')
                 .long("diff-output-only")
                 .requires("differences")
@@ -427,6 +438,9 @@ fn main() {
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
 
+            // Set reverse mode in view
+            .set_reverse(matcher.get_flag("reverse"))
+
             // Set output in view
             .set_output_mode(output_mode)
 
@@ -456,6 +470,7 @@ fn main() {
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)
             .set_line_number(matcher.get_flag("line_number"))
+            .set_reverse(matcher.get_flag("reverse"))
             .set_only_diffline(matcher.get_flag("diff_output_only"));
 
         // Set after_command

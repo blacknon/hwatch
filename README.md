@@ -55,6 +55,7 @@ That records the result of command execution and can display it history and diff
           -B, --beep                          beep if command has a change result
               --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
           -c, --color                         interpret ANSI color and style sequences
+          -r, --reverse                       display text upside down.
           -t, --no-title                      hide the UI on start. Use `t` to toggle it.
           -N, --line-number                   show line number
               --no-help-banner                hide the "Display help with h key" message
@@ -71,8 +72,6 @@ That records the result of command execution and can display it history and diff
           -V, --version                       Print version
 
 
-
-
 watch window keybind
 
 | Key                           | Action                                                      |
@@ -82,6 +81,7 @@ watch window keybind
 | <kbd>→</kbd>                  | select history screen.                                      |
 | <kbd>H</kbd>                  | show help window.                                           |
 | <kbd>C</kbd>                  | toggle color.                                               |
+| <kbd>R</kbd>                  | toggle reverse mode.                                               |
 | <kbd>D</kbd>                  | switch diff mode.                                           |
 | <kbd>N</kbd>                  | switch line number display.                                 |
 | <kbd>T</kbd>                  | toggle the UI (history pane and header).                    |
@@ -102,7 +102,6 @@ watch window keybind
 | <kbd>/</kbd>                  | filter history by string.                                   |
 | <kbd>*</kbd>                  | filter history by regex.                                    |
 | <kbd>Esc</kbd>                | unfiltering.                                                |
-
 
 ## Configuration
 
@@ -154,7 +153,6 @@ hwatch -n 3 -s 'zsh -c "source ~/.zshrc"; {COMMAND}' command...
 <img src="./img/shell_function.gif" />
 </p>
 
-
 ### ANSI Color code
 
 If you want to see output colored with ANSI color code, enable color mode.
@@ -169,7 +167,6 @@ hwatch -n 3 -c command...
 <p align="center">
 <img src="./img/ansi_color.gif" />
 </p>
-
 
 ### diff view
 
@@ -200,11 +197,9 @@ hwatch -n 3 -d command...
 <img src="./img/word_diff.png" />
 </p>
 
-
 ### history filtering
 
 You can filter history as a string with <kbd>/</kbd> key and as a regular expression with <kbd>*</kbd> key.
-
 
 ### run batch mode
 
