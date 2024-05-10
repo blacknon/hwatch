@@ -6,7 +6,8 @@ use tui::{
     layout::Constraint,
     style::{Color, Modifier, Style},
     text::Span,
-    widgets::{Block, Cell, Row, Table, TableState},
+    symbols,
+    widgets::{Block, Cell, Row, Table, TableState, Borders},
     Frame,
 };
 
@@ -126,8 +127,23 @@ impl HistoryArea {
             },
             false => base_selected_style.fg(Color::DarkGray),
         };
+
+
+        // debug
+        // NOTE: 試しに枠で区切って様子見中。 最終的にはオプションでどうにかする。
+        // let table_block = Block::default();
+
+        // let top_right_border_set = symbols::border::Set {
+        //     top_left: symbols::line::NORMAL.horizontal_down,
+        //     ..symbols::border::PLAIN
+        // };
+
+
+        let table_block = Block::default().borders(Borders::TOP).border_style(Style::default().fg(Color::DarkGray)).border_set(symbols::border::PLAIN); // TEST
+        // let table_block = Block::default().style(Style::default().bg(Color::Black).fg(Color::White)); // TEST
+
         let table = Table::new(rows, [Constraint::Length(crate::HISTORY_WIDTH)])
-            .block(Block::default())
+            .block(table_block)
             .highlight_style(selected_style)
             .highlight_symbol(">>")
             .widths(&[Constraint::Percentage(100)]);
