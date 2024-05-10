@@ -4,6 +4,8 @@
 
 // v0.3.14
 // TODO(blacknon): キー入力のカスタマイズが行えるようにする(custom keymap)
+// TODO(blakcnon): scroll barの表示を追加するオプションの実装(barとセットかな？)
+
 
 // v0.3.15
 // TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
@@ -17,7 +19,7 @@
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
-// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
+// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能を追加する(command mode option)
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man

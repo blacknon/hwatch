@@ -3,9 +3,10 @@
 // that can be found in the LICENSE file.
 
 use tui::{
-    style::Style,
+    style::{Style, Color},
     prelude::Line,
-    widgets::{Paragraph, Wrap},
+    symbols,
+    widgets::{Paragraph, Wrap, Block, Borders},
     Frame,
 };
 
@@ -59,8 +60,18 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn draw(&mut self, frame: &mut Frame) {
+        // debug
+        // NOTE: 試しに枠で区切って様子見中。 最終的にはオプションでどうにかする。
+        // NOTE: もし線で対処するなら↓を参考に、うまいことくっつけてきれいにしたいかも？
+        //       https://ratatui.rs/how-to/layout/collapse-borders/
+        let collapsed_top_and_left_border_set = symbols::border::Set {
+            top_right: symbols::line::NORMAL.horizontal_down,
+            ..symbols::border::PLAIN
+        };
+        let paragraph_block = Block::default().borders(Borders::RIGHT | Borders::TOP).border_style(Style::default().fg(Color::DarkGray)).border_set(collapsed_top_and_left_border_set);
         let block = Paragraph::new(self.data.clone())
             .style(Style::default())
+            .block(paragraph_block)
             .wrap(Wrap { trim: false })
             .scroll((self.position as u16, 0));
         self.lines = block.line_count(self.area.width) as i16;
