@@ -11,6 +11,8 @@ use tui::{
     Frame,
 };
 
+use crate::history;
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
     pub timestamp: String,
@@ -30,6 +32,15 @@ pub struct HistoryArea {
 
     ///
     state: TableState,
+
+    ///
+    border: bool,
+
+    /// is hide header
+    hide_header: bool,
+
+    /// is enable scroll bar
+    scroll_bar: bool,
 }
 
 /// History Area Object Trait
@@ -46,6 +57,9 @@ impl HistoryArea {
                 num: 0,
             }]],
             state: TableState::default(),
+            border: false,
+            hide_header: false,
+            scroll_bar: false,
         }
     }
 
@@ -62,6 +76,16 @@ impl HistoryArea {
     ///
     pub fn set_latest_status(&mut self, latest_status: bool) {
         self.data[0][0].status = latest_status;
+    }
+
+    ///
+    pub fn set_border(&mut self, border: bool) {
+        self.border = border;
+    }
+
+    ///
+    pub fn set_hide_header(&mut self, hide_header: bool) {
+        self.hide_header = hide_header;
     }
 
     ///
@@ -128,22 +152,31 @@ impl HistoryArea {
             false => base_selected_style.fg(Color::DarkGray),
         };
 
+        let pane_block: Block<'_>;
+        let history_width: u16;
+        if self.border {
+            history_width = crate::HISTORY_WIDTH + 1;
 
-        // debug
-        // NOTE: 試しに枠で区切って様子見中。 最終的にはオプションでどうにかする。
-        // let table_block = Block::default();
+            if self.hide_header {
+                pane_block = Block::default();
+            } else {
+            pane_block = Block::default()
+                .borders(Borders::TOP)
+                .border_style(Style::default().fg(Color::DarkGray))
+                .border_set(
+                    symbols::border::Set {
+                        top_left: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    }
+                );
+            }
+        } else {
+            history_width = crate::HISTORY_WIDTH;
+            pane_block = Block::default()
+        }
 
-        // let top_right_border_set = symbols::border::Set {
-        //     top_left: symbols::line::NORMAL.horizontal_down,
-        //     ..symbols::border::PLAIN
-        // };
-
-
-        let table_block = Block::default().borders(Borders::TOP).border_style(Style::default().fg(Color::DarkGray)).border_set(symbols::border::PLAIN); // TEST
-        // let table_block = Block::default().style(Style::default().bg(Color::Black).fg(Color::White)); // TEST
-
-        let table = Table::new(rows, [Constraint::Length(crate::HISTORY_WIDTH)])
-            .block(table_block)
+        let table = Table::new(rows, [Constraint::Length(history_width)])
+            .block(pane_block)
             .highlight_style(selected_style)
             .highlight_symbol(">>")
             .widths(&[Constraint::Percentage(100)]);

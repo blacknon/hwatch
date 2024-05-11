@@ -9,6 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ratatui::symbols::border;
 use std::{
     error::Error,
     io,
@@ -32,6 +33,7 @@ pub struct View {
     interval: Interval,
     tab_size: u16,
     beep: bool,
+    border: bool,
     mouse_events: bool,
     color: bool,
     show_ui: bool,
@@ -52,6 +54,7 @@ impl View {
             interval,
             tab_size: DEFAULT_TAB_SIZE,
             beep: false,
+            border: false,
             mouse_events: false,
             color: false,
             show_ui: true,
@@ -82,6 +85,11 @@ impl View {
 
     pub fn set_beep(mut self, beep: bool) -> Self {
         self.beep = beep;
+        self
+    }
+
+    pub fn set_border(mut self, border: bool) -> Self {
+        self.border = border;
         self
     }
 
@@ -173,6 +181,9 @@ impl View {
 
         // set beep
         app.set_beep(self.beep);
+
+        // set border
+        app.set_border(self.border);
 
         // set logfile path.
         app.set_logpath(self.log_path.clone());

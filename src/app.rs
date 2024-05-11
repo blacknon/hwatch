@@ -84,6 +84,9 @@ pub struct App<'a> {
     is_beep: bool,
 
     ///
+    is_border: bool,
+
+    ///
     is_filtered: bool,
 
     ///
@@ -182,6 +185,7 @@ impl<'a> App<'a> {
             show_header: true,
 
             is_beep: false,
+            is_border: false,
             is_filtered: false,
             is_regex_filter: false,
             filtered_text: "".to_string(),
@@ -460,6 +464,17 @@ impl<'a> App<'a> {
     ///
     pub fn set_beep(&mut self, beep: bool) {
         self.is_beep = beep;
+    }
+
+    pub fn set_border(&mut self, border: bool) {
+        self.is_border = border;
+
+        // set border
+        self.history_area.set_border(border);
+        self.watch_area.set_border(border);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     ///
@@ -1314,6 +1329,10 @@ impl<'a> App<'a> {
     pub fn show_ui(&mut self, visible: bool) {
         self.show_header = visible;
         self.show_history = visible;
+
+        self.history_area.set_hide_header(!visible);
+        self.watch_area.set_hide_header(!visible);
+
         let _ = self.tx.send(AppEvent::Redraw);
     }
 

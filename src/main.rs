@@ -150,6 +150,12 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("beep"),
         )
+        .arg(
+            Arg::new("border")
+                .help("Surround each pane with a border frame")
+                .action(ArgAction::SetTrue)
+                .long("border"),
+        )
         // mouse option
         //     [--mouse]
         .arg(
@@ -432,6 +438,7 @@ fn main() {
             .set_interval(interval)
             .set_tab_size(tab_size)
             .set_beep(matcher.get_flag("beep"))
+            .set_border(matcher.get_flag("border"))
             .set_mouse_events(matcher.get_flag("mouse"))
 
             // Set color in view
