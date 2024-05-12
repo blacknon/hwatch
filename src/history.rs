@@ -11,8 +11,6 @@ use tui::{
     Frame,
 };
 
-use crate::history;
-
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
     pub timestamp: String,
@@ -32,6 +30,9 @@ pub struct HistoryArea {
 
     ///
     state: TableState,
+
+    ///
+    summary: bool,
 
     ///
     border: bool,
@@ -57,6 +58,7 @@ impl HistoryArea {
                 num: 0,
             }]],
             state: TableState::default(),
+            summary: false,
             border: false,
             hide_header: false,
             scroll_bar: false,

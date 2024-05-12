@@ -840,7 +840,7 @@ impl<'a> App<'a> {
             ActiveWindow::Normal => {
                 match self.keymap.get(&terminal_event) {
                     // Up
-                    Some(InputAction::Up) => self.input_key_up(),
+                    Some(InputAction::Up) => self.action_up(),
 
                     // Watch Pane Up
                     Some(InputAction::WatchPaneUp) => self.watch_area.scroll_up(1),
@@ -849,7 +849,7 @@ impl<'a> App<'a> {
                     Some(InputAction::HistoryPaneUp) => self.history_area.next(1),
 
                     // Down
-                    Some(InputAction::Down) => self.input_key_down(),
+                    Some(InputAction::Down) => self.action_down(),
 
                     // Watch Pane Down
                     Some(InputAction::WatchPaneDown) => self.watch_area.scroll_down(1),
@@ -858,69 +858,61 @@ impl<'a> App<'a> {
                     Some(InputAction::HistoryPaneDown) => self.history_area.previous(1),
 
                     // PageUp
-                    Some(InputAction::PageUp) => self.input_key_pgup(),
+                    Some(InputAction::PageUp) => self.action_pgup(),
 
                     // Watch Pane PageUp
-                    // TODO: method分離したら実装
-                    // Some(InputAction::WatchPanePageUp) => self.watch_area.scroll_up(10),
+                    Some(InputAction::WatchPanePageUp) => self.action_watch_pgup(),
 
                     // History Pane PageUp
-                    // TODO: method分離したら実装
-                    // Some(InputAction::HistoryPanePageUp) => self.history_area.scroll_up(10),
+                    Some(InputAction::HistoryPanePageUp) => self.action_history_pgup(),
 
                     // PageDown
-                    Some(InputAction::PageDown) => self.input_key_pgdn(),
+                    Some(InputAction::PageDown) => self.action_pgdn(),
 
                     // Watch Pane PageDown
-                    // TODO: method分離したら実装
-                    // Some(InputAction::WatchPanePageDown) => self.watch_area.scroll_down(10),
+                    Some(InputAction::WatchPanePageDown) => self.action_watch_pgdn(),
 
                     // History Pane PageDown
-                    // TODO: method分離したら実装
-                    // Some(InputAction::HistoryPanePageDown) => self.history_area.scroll_down(10),
+                    Some(InputAction::HistoryPanePageDown) => self.action_history_pgdn(),
 
                     // MoveTop
-                    Some(InputAction::MoveTop) => self.input_key_home(),
+                    Some(InputAction::MoveTop) => self.action_top(),
 
                     // Watch Pane MoveTop
-                    // TODO: method分離したら実装
-                    // Some(InputAction::WatchPaneMoveTop) => self.watch_area.scroll_top(),
+                    Some(InputAction::WatchPaneMoveTop) => self.watch_area.scroll_home(),
 
                     // History Pane MoveTop
-                    // TODO: method分離したら実装
-                    // Some(InputAction::HistoryPaneMoveTop) => self.history_area.scroll_top(),
+                    Some(InputAction::HistoryPaneMoveTop) => self.action_history_top(),
 
                     // MoveEnd
-                    Some(InputAction::MoveEnd) => self.input_key_end(),
+                    Some(InputAction::MoveEnd) => self.action_end(),
 
                     // Watch Pane MoveEnd
-                    // TODO: method分離したら実装
-                    // Some(InputAction::WatchPaneMoveEnd) => self.watch_area.scroll_end(),
+                    Some(InputAction::WatchPaneMoveEnd) => self.watch_area.scroll_end(),
 
                     // History Pane MoveEnd
-                    // TODO: method分離したら実装
-                    // Some(InputAction::HistoryPaneMoveEnd) => self.history_area.scroll_end(),
+                    Some(InputAction::HistoryPaneMoveEnd) => self.action_history_end(),
 
                     // ToggleForcus
                     Some(InputAction::ToggleForcus) => self.toggle_area(),
 
                     // ForcusWatchPane
-                    Some(InputAction::ForcusWatchPane) => self.input_key_left(),
+                    Some(InputAction::ForcusWatchPane) => self.select_watch_pane(),
 
                     // ForcusHistoryPane
-                    Some(InputAction::ForcusHistoryPane) => self.input_key_right(),
+                    Some(InputAction::ForcusHistoryPane) => self.select_history_pane(),
 
                     // Quit
                     Some(InputAction::Quit) => self.tx.send(AppEvent::Exit).expect("send error hwatch exit."),
 
                     // Reset
                     // TODO: method分離したらちゃんとResetとしての機能を実装
-                    Some(InputAction::Reset) => self.action_reset(),
+                    Some(InputAction::Reset) => self.action_normal_reset(),
 
                     // Cancel
                     // TODO: method分離したらちゃんとResetとしての機能を実装
                     // Some(InputAction::Cancel) => self.action_cancel(),
-                    Some(InputAction::Cancel) => self.action_reset(),
+                    Some(InputAction::Cancel) => self.action_normal_reset(),
 
                     // Help
                     Some(InputAction::Help) => self.toggle_window(),
@@ -1019,10 +1011,10 @@ impl<'a> App<'a> {
                 match self.keymap.get(&terminal_event) {
                     // Common input key
                     // Up
-                    Some(InputAction::Up) => self.input_key_up(),
+                    Some(InputAction::Up) => self.action_up(),
 
                     // Down
-                    Some(InputAction::Down) => self.input_key_down(),
+                    Some(InputAction::Down) => self.action_down(),
 
                     // Help
                     Some(InputAction::Help) => self.toggle_window(),
@@ -1031,9 +1023,8 @@ impl<'a> App<'a> {
                     Some(InputAction::Quit) => self.tx.send(AppEvent::Exit).expect("send error hwatch exit."),
 
                     // Cancel
-                    // TODO: method分離したらちゃんとResetとしての機能を実装
-                    // Some(InputAction::Cancel) => self.action_cancel(),
-                    Some(InputAction::Cancel) => self.action_reset(),
+                    // Close help window with Cancel.
+                    Some(InputAction::Cancel) => self.toggle_window(),
 
                     _ => {}
                 }
@@ -1043,76 +1034,59 @@ impl<'a> App<'a> {
 
     ///
     fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
-        if let Event::Key(key) = terminal_event {
-            match key.code {
-                KeyCode::Char(c) => {
-                    // add header input_text;
-                    self.header_area.input_text.push(c);
-                    self.header_area.update();
-                }
+        match self.keymap.get(&terminal_event) {
+            // Cancel
+            Some(InputAction::Cancel) => self.action_input_reset(),
 
-                KeyCode::Backspace => {
-                    // remove header input_text;
-                    self.header_area.input_text.pop();
-                    self.header_area.update();
-                }
-
-                KeyCode::Enter => {
-                    // check regex error...
-                    if is_regex {
-                        let input_text = self.header_area.input_text.clone();
-                        let re_result = Regex::new(&input_text);
-                        if re_result.is_err() {
-                            // TODO: create print message method.
-                            return;
+            //
+            _ => {
+                if let Event::Key(key) = terminal_event {
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            // add header input_text;
+                            self.header_area.input_text.push(c);
+                            self.header_area.update();
                         }
+
+                        KeyCode::Backspace => {
+                            // remove header input_text;
+                            self.header_area.input_text.pop();
+                            self.header_area.update();
+                        }
+
+                        KeyCode::Enter => {
+                            // check regex error...
+                            if is_regex {
+                                let input_text = self.header_area.input_text.clone();
+                                let re_result = Regex::new(&input_text);
+                                if re_result.is_err() {
+                                    // TODO: create print message method.
+                                    return;
+                                }
+                            }
+
+                            // set filtered mode enable
+                            self.is_filtered = true;
+                            self.is_regex_filter = is_regex;
+                            self.filtered_text = self.header_area.input_text.clone();
+                            self.set_input_mode(InputMode::None);
+
+                            self.printer.set_filter(self.is_filtered);
+                            self.printer.set_regex_filter(self.is_regex_filter);
+                            self.printer.set_filter_text(self.filtered_text.clone());
+
+                            let selected = self.history_area.get_state_select();
+                            self.reset_history(selected);
+
+                            // update WatchArea
+                            self.set_output_data(selected);
+                        }
+
+                        _ => {}
                     }
-
-                    // set filtered mode enable
-                    self.is_filtered = true;
-                    self.is_regex_filter = is_regex;
-                    self.filtered_text = self.header_area.input_text.clone();
-                    self.set_input_mode(InputMode::None);
-
-                    self.printer.set_filter(self.is_filtered);
-                    self.printer.set_regex_filter(self.is_regex_filter);
-                    self.printer.set_filter_text(self.filtered_text.clone());
-
-                    let selected = self.history_area.get_state_select();
-                    self.reset_history(selected);
-
-                    // update WatchArea
-                    self.set_output_data(selected);
                 }
-
-                KeyCode::Esc => {
-                    self.header_area.input_text = self.filtered_text.clone();
-                    self.set_input_mode(InputMode::None);
-                    self.is_filtered = false;
-
-                    self.printer.set_filter(self.is_filtered);
-                    self.printer.set_regex_filter(self.is_regex_filter);
-
-                    let selected = self.history_area.get_state_select();
-                    self.reset_history(selected);
-
-                    // update WatchArea
-                    self.set_output_data(selected);
-                }
-
-                _ => {}
             }
         }
-    }
-
-    ///
-    fn get_normal_input_key_watch_window(terminal_event: crossterm::event::Event) {
-
-    }
-
-    ///
-    fn get_normal_input_key_help_window(terminal_event: crossterm::event::Event) {
-
     }
 
     ///
@@ -1219,7 +1193,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn action_reset(&mut self) {
+    fn action_normal_reset(&mut self) {
         self.is_filtered = false;
         self.is_regex_filter = false;
         self.filtered_text = "".to_string();
@@ -1238,7 +1212,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_up(&mut self) {
+    fn action_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
@@ -1261,7 +1235,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_down(&mut self) {
+    fn action_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
@@ -1284,120 +1258,157 @@ impl<'a> App<'a> {
     }
 
     ///
-    /// TODO: あとで分離する
-    fn input_key_pgup(&mut self) {
-        if self.window == ActiveWindow::Normal {
+    fn action_pgup(&mut self) {
+       if self.window == ActiveWindow::Normal {
             match self.area {
                 ActiveArea::Watch => {
-                    let mut page_height = self.watch_area.get_area_size();
-                    if page_height > 1 {
-                        page_height = page_height - 1
-                    }
-
-                    // scroll up watch
-                    self.watch_area.scroll_up(page_height);
+                    self.action_watch_pgup();
                 },
                 ActiveArea::History => {
-                    // move next history
-                    let area_size = self.history_area.area.height;
-                    let move_size = if area_size > 1 {
-                        area_size - 1
-                    } else {
-                        1
-                    };
-
-                    // up
-                    self.history_area.next(move_size as usize);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_pgup();
                 }
             }
         }
     }
 
     ///
-    /// TODO: あとで分離する
-    fn input_key_pgdn(&mut self) {
+    fn action_watch_pgup(&mut self) {
+        let mut page_height = self.watch_area.get_area_size();
+        if page_height > 1 {
+            page_height = page_height - 1
+        }
+
+        // scroll up watch
+        self.watch_area.scroll_up(page_height);
+    }
+
+    ///
+    fn action_history_pgup(&mut self) {
+        // move next history
+        let area_size = self.history_area.area.height;
+        let move_size = if area_size > 1 {
+            area_size - 1
+        } else {
+            1
+        };
+
+        // up
+        self.history_area.next(move_size as usize);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_pgdn(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {
                 ActiveArea::Watch => {
-                    let mut page_height = self.watch_area.get_area_size();
-                    if page_height > 1 {
-                        page_height = page_height - 1
-                    }
-
-                    // scroll up watch
-                    self.watch_area.scroll_down(page_height);
+                    self.action_watch_pgdn();
                 },
                 ActiveArea::History => {
-                    // move previous history
-                    let area_size = self.history_area.area.height;
-                    let move_size = if area_size > 1 {
-                        area_size - 1
-                    } else {
-                        1
-                    };
 
-                    // down
-                    self.history_area.previous(move_size as usize);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
                 },
             }
         }
     }
 
     ///
-    /// TODO: あとで分離する
-    fn input_key_home(&mut self) {
+    fn action_watch_pgdn(&mut self) {
+        let mut page_height = self.watch_area.get_area_size();
+        if page_height > 1 {
+            page_height = page_height - 1
+        }
+
+        // scroll up watch
+        self.watch_area.scroll_down(page_height);
+    }
+
+    ///
+    fn action_history_pgdn(&mut self) {
+        // move previous history
+        let area_size = self.history_area.area.height;
+        let move_size = if area_size > 1 {
+            area_size - 1
+        } else {
+            1
+        };
+
+        // down
+        self.history_area.previous(move_size as usize);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_top(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_home(),
-                ActiveArea::History => {
-                    // move latest history move size
-                    let hisotory_size = self.history_area.get_history_size();
-                    self.history_area.next(hisotory_size);
-
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                }
+                ActiveArea::History => self.action_history_top(),
             }
         }
     }
 
     ///
-    /// TODO: あとで分離する
-    fn input_key_end(&mut self) {
+    fn action_history_top(&mut self) {
+        // move latest history move size
+        let hisotory_size = self.history_area.get_history_size();
+        self.history_area.next(hisotory_size);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_end(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_end(),
-                ActiveArea::History => {
-                    // get end history move size
-                    let hisotory_size = self.history_area.get_history_size();
-                    let move_size = if hisotory_size > 1 {
-                        hisotory_size - 1
-                    } else {
-                        1
-                    };
-
-                    // move end
-                    self.history_area.previous(move_size);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-
-                },
+                ActiveArea::History => self.action_history_end(),
             }
         }
     }
 
     ///
-    fn input_key_left(&mut self) {
+    fn action_history_end(&mut self) {
+        // get end history move size
+        let hisotory_size = self.history_area.get_history_size();
+        let move_size = if hisotory_size > 1 {
+            hisotory_size - 1
+        } else {
+            1
+        };
+
+        // move end
+        self.history_area.previous(move_size);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_input_reset(&mut self) {
+        self.header_area.input_text = self.filtered_text.clone();
+        self.set_input_mode(InputMode::None);
+        self.is_filtered = false;
+
+        self.printer.set_filter(self.is_filtered);
+        self.printer.set_regex_filter(self.is_regex_filter);
+
+        let selected = self.history_area.get_state_select();
+        self.reset_history(selected);
+
+        // update WatchArea
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn select_watch_pane(&mut self) {
         if let ActiveWindow::Normal = self.window {
             self.area = ActiveArea::Watch;
 
@@ -1408,7 +1419,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_right(&mut self) {
+    fn select_history_pane(&mut self) {
         if let ActiveWindow::Normal = self.window {
             self.area = ActiveArea::History;
 

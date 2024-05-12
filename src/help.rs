@@ -124,6 +124,7 @@ fn gen_help_text_from_key_data<'a>(data: Vec<keys::KeyData>) -> Vec<Line<'a>> {
 }
 
 ///
+// TODO: keymapから読み取らせる方式とする(`description`をどのように取得するか・どこに説明を書くかは要検討)
 fn gen_help_text<'a>() -> Vec<Line<'a>> {
     let keydata_list = vec![
         KeyData { key: "h".to_string(), description: "show this help message.".to_string() },

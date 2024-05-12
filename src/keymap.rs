@@ -3,7 +3,7 @@
 // that can be found in the LICENSE file.
 
 use std::{collections::HashMap, fmt::Debug};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseButton, MouseEventKind, KeyEventKind, KeyEventState};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
 use serde::{Deserialize, Serialize};
@@ -436,4 +436,7 @@ pub enum InputAction {
     ChangeFilterMode,
     #[serde(rename = "change_regex_filter_mode")]
     ChangeRegexFilterMode,
+
+    // Input
+    // ==========
 }
