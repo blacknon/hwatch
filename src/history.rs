@@ -84,6 +84,11 @@ impl HistoryArea {
     }
 
     ///
+    pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
+        self.scroll_bar = scroll_bar;
+    }
+
+    ///
     pub fn set_hide_header(&mut self, hide_header: bool) {
         self.hide_header = hide_header;
     }
@@ -156,19 +161,18 @@ impl HistoryArea {
         let history_width: u16;
         if self.border {
             history_width = crate::HISTORY_WIDTH + 1;
-
             if self.hide_header {
                 pane_block = Block::default();
             } else {
-            pane_block = Block::default()
-                .borders(Borders::TOP)
-                .border_style(Style::default().fg(Color::DarkGray))
-                .border_set(
-                    symbols::border::Set {
-                        top_left: symbols::line::NORMAL.horizontal_down,
-                        ..symbols::border::PLAIN
-                    }
-                );
+                pane_block = Block::default()
+                    .borders(Borders::TOP)
+                    .border_style(Style::default().fg(Color::DarkGray))
+                    .border_set(
+                        symbols::border::Set {
+                            top_left: symbols::line::NORMAL.horizontal_down,
+                            ..symbols::border::PLAIN
+                        }
+                    );
             }
         } else {
             history_width = crate::HISTORY_WIDTH;
@@ -181,6 +185,7 @@ impl HistoryArea {
             .highlight_symbol(">>")
             .widths(&[Constraint::Percentage(100)]);
 
+        // render table
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 

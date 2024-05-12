@@ -28,9 +28,6 @@ pub struct WatchArea<'a> {
     /// is enable border
     border: bool,
 
-    /// is hidden history pane
-    hide_history: bool,
-
     // is hideen header pane
     hide_header: bool,
 
@@ -54,11 +51,9 @@ impl<'a> WatchArea<'a> {
 
             border: false,
 
-            hide_history: false,
-
             hide_header: false,
 
-            scroll_bar: true,
+            scroll_bar: false,
         }
     }
 
@@ -82,6 +77,11 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn set_border(&mut self, border: bool) {
         self.border = border;
+    }
+
+    ///
+    pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
+        self.scroll_bar = scroll_bar;
     }
 
     ///
@@ -130,7 +130,7 @@ impl<'a> WatchArea<'a> {
 
         // get self.lines
         let mut pane_width: u16 = self.area.width as u16;
-        if self.border && self.scroll_bar {
+        if self.border {
             pane_width = pane_width - 1;
         }
 
