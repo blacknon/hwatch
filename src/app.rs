@@ -87,6 +87,9 @@ pub struct App<'a> {
     is_border: bool,
 
     ///
+    is_scroll_bar: bool,
+
+    ///
     is_filtered: bool,
 
     ///
@@ -186,6 +189,7 @@ impl<'a> App<'a> {
 
             is_beep: false,
             is_border: false,
+            is_scroll_bar: false,
             is_filtered: false,
             is_regex_filter: false,
             filtered_text: "".to_string(),
@@ -466,6 +470,7 @@ impl<'a> App<'a> {
         self.is_beep = beep;
     }
 
+    ///
     pub fn set_border(&mut self, border: bool) {
         self.is_border = border;
 
@@ -476,6 +481,20 @@ impl<'a> App<'a> {
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
+
+    ///
+    pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
+        self.is_scroll_bar = scroll_bar;
+
+        // set scroll_bar
+        self.history_area.set_scroll_bar(scroll_bar);
+        self.watch_area.set_scroll_bar(scroll_bar);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+
 
     ///
     pub fn set_line_number(&mut self, line_number: bool) {
