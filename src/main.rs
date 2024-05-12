@@ -68,17 +68,20 @@ use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
 use common::DiffMode;
+use error_stack::{Report, ResultExt};
 
 // local modules
 mod ansi;
 mod app;
 mod batch;
 mod common;
+mod errors;
 mod event;
 mod exec;
 mod header;
 mod help;
 mod history;
+mod keymap;
 mod keys;
 mod output;
 mod view;

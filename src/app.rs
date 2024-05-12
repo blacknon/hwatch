@@ -2,8 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossbeam_channel::{Receiver, Sender};
 // module
+use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
         DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent, MouseEventKind
@@ -30,6 +30,7 @@ use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
+use crate::keymap::{Keymap, default_keymap};
 use crate::output;
 use crate::watch::WatchArea;
 use crate::Interval;
@@ -62,6 +63,9 @@ pub enum InputMode {
 
 /// Struct at watch view window.
 pub struct App<'a> {
+    ///
+    keymap: Keymap,
+
     ///
     area: ActiveArea,
 
@@ -177,6 +181,8 @@ impl<'a> App<'a> {
     ) -> Self {
         // method at create new view trail.
         Self {
+            keymap: default_keymap(),
+
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
 
@@ -493,8 +499,6 @@ impl<'a> App<'a> {
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
-
-
 
     ///
     pub fn set_line_number(&mut self, line_number: bool) {
