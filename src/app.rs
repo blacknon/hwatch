@@ -6,7 +6,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent, MouseEventKind
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEvent, MouseEventKind
     },
     execute,
 };
@@ -30,7 +30,7 @@ use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
-use crate::keymap::{Keymap, default_keymap};
+use crate::keymap::{Keymap, default_keymap, InputAction};
 use crate::output;
 use crate::watch::WatchArea;
 use crate::Interval;
@@ -834,370 +834,206 @@ impl<'a> App<'a> {
 
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
+        // TODO: あとでmethodを分ける
+        // TODO: 各methodの名称等を変更して、機能がわかりやすい状態にする
         match self.window {
             ActiveWindow::Normal => {
+                match self.keymap.get(&terminal_event) {
+                    // Up
+                    Some(InputAction::Up) => self.input_key_up(),
+
+                    // Watch Pane Up
+                    Some(InputAction::WatchPaneUp) => self.watch_area.scroll_up(1),
+
+                    // History Pane Up
+                    Some(InputAction::HistoryPaneUp) => self.history_area.next(1),
+
+                    // Down
+                    Some(InputAction::Down) => self.input_key_down(),
+
+                    // Watch Pane Down
+                    Some(InputAction::WatchPaneDown) => self.watch_area.scroll_down(1),
+
+                    // History Pane Down
+                    Some(InputAction::HistoryPaneDown) => self.history_area.previous(1),
+
+                    // PageUp
+                    Some(InputAction::PageUp) => self.input_key_pgup(),
+
+                    // Watch Pane PageUp
+                    // TODO: method分離したら実装
+                    // Some(InputAction::WatchPanePageUp) => self.watch_area.scroll_up(10),
+
+                    // History Pane PageUp
+                    // TODO: method分離したら実装
+                    // Some(InputAction::HistoryPanePageUp) => self.history_area.scroll_up(10),
+
+                    // PageDown
+                    Some(InputAction::PageDown) => self.input_key_pgdn(),
+
+                    // Watch Pane PageDown
+                    // TODO: method分離したら実装
+                    // Some(InputAction::WatchPanePageDown) => self.watch_area.scroll_down(10),
+
+                    // History Pane PageDown
+                    // TODO: method分離したら実装
+                    // Some(InputAction::HistoryPanePageDown) => self.history_area.scroll_down(10),
+
+                    // MoveTop
+                    Some(InputAction::MoveTop) => self.input_key_home(),
+
+                    // Watch Pane MoveTop
+                    // TODO: method分離したら実装
+                    // Some(InputAction::WatchPaneMoveTop) => self.watch_area.scroll_top(),
+
+                    // History Pane MoveTop
+                    // TODO: method分離したら実装
+                    // Some(InputAction::HistoryPaneMoveTop) => self.history_area.scroll_top(),
+
+                    // MoveEnd
+                    Some(InputAction::MoveEnd) => self.input_key_end(),
+
+                    // Watch Pane MoveEnd
+                    // TODO: method分離したら実装
+                    // Some(InputAction::WatchPaneMoveEnd) => self.watch_area.scroll_end(),
+
+                    // History Pane MoveEnd
+                    // TODO: method分離したら実装
+                    // Some(InputAction::HistoryPaneMoveEnd) => self.history_area.scroll_end(),
+
+                    // ToggleForcus
+                    Some(InputAction::ToggleForcus) => self.toggle_area(),
+
+                    // ForcusWatchPane
+                    Some(InputAction::ForcusWatchPane) => self.input_key_left(),
+
+                    // ForcusHistoryPane
+                    Some(InputAction::ForcusHistoryPane) => self.input_key_right(),
+
+                    // Quit
+                    Some(InputAction::Quit) => self.tx.send(AppEvent::Exit).expect("send error hwatch exit."),
+
+                    // Reset
+                    // TODO: method分離したらちゃんとResetとしての機能を実装
+                    Some(InputAction::Reset) => self.action_reset(),
+
+                    // Cancel
+                    // TODO: method分離したらちゃんとResetとしての機能を実装
+                    // Some(InputAction::Cancel) => self.action_cancel(),
+                    Some(InputAction::Cancel) => self.action_reset(),
+
+                    // Help
+                    Some(InputAction::Help) => self.toggle_window(),
+
+                    // ToggleColor
+                    Some(InputAction::ToggleColor) => self.set_ansi_color(!self.ansi_color),
+
+                    // ToggleLineNumber
+                    Some(InputAction::ToggleLineNumber) => self.set_line_number(!self.line_number),
+
+                    // ToggleReverse
+                    Some(InputAction::ToggleReverse) => self.set_reverse(!self.reverse),
+
+                    // ToggleMouseSupport
+                    Some(InputAction::ToggleMouseSupport) => self.toggle_mouse_events(),
+
+                    // ToggleViewPaneUI
+                    Some(InputAction::ToggleViewPaneUI) => self.show_ui(!self.show_header),
+
+                    // ToggleViewHistory
+                    Some(InputAction::ToggleViewHistoryPane) => self.show_history(!self.show_history),
+
+                    // ToggleBorder
+                    Some(InputAction::ToggleBorder) => self.set_border(!self.is_border),
+
+                    // ToggleScrollBar
+                    Some(InputAction::ToggleScrollBar) => self.set_scroll_bar(!self.is_scroll_bar),
+
+                    // ToggleDiffMode
+                    Some(InputAction::ToggleDiffMode) => self.toggle_diff_mode(),
+
+                    // SetDiffModePlane
+                    Some(InputAction::SetDiffModePlane) => self.set_diff_mode(DiffMode::Disable),
+
+                    // SetDiffModeWatch
+                    Some(InputAction::SetDiffModeWatch) => self.set_diff_mode(DiffMode::Watch),
+
+                    // SetDiffModeLine
+                    Some(InputAction::SetDiffModeLine) => self.set_diff_mode(DiffMode::Line),
+
+                    // SetDiffModeWord
+                    Some(InputAction::SetDiffModeWord) => self.set_diff_mode(DiffMode::Word),
+
+                    // SetOnlyDiffLine
+                    Some(InputAction::SetDiffOnly) => self.set_is_only_diffline(!self.is_only_diffline),
+
+                    // ToggleOutputMode
+                    Some(InputAction::ToggleOutputMode) => self.toggle_output(),
+
+                    // SetOutputModeOutput
+                    Some(InputAction::SetOutputModeOutput) => self.set_output_mode(OutputMode::Output),
+
+                    // SetOutputModeStdout
+                    Some(InputAction::SetOutputModeStdout) => self.set_output_mode(OutputMode::Stdout),
+
+                    // SetOutputModeStderr
+                    Some(InputAction::SetOutputModeStderr) => self.set_output_mode(OutputMode::Stderr),
+
+                    // IntervalPlus
+                    Some(InputAction::IntervalPlus) => self.increase_interval(),
+
+                    // IntervalMinus
+                    Some(InputAction::IntervalMinus) => self.decrease_interval(),
+
+                    // Change Filter Mode(plane text).
+                    Some(InputAction::ChangeFilterMode) => self.set_input_mode(InputMode::Filter),
+
+                    // Change Filter Mode(regex text).
+                    Some(InputAction::ChangeRegexFilterMode) => self.set_input_mode(InputMode::RegexFilter),
+                    _ => {}
+                }
+
+                // match mouse event
                 match terminal_event {
-                    // up
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_up(),
-
-                    // down
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_down(),
-
-                    // pgup
-                    Event::Key(KeyEvent {
-                        code: KeyCode::PageUp,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_pgup(),
-
-                    // pgdn
-                    Event::Key(KeyEvent {
-                        code: KeyCode::PageDown,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_pgdn(),
-
-                    // Home
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Home,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_home(),
-
-                    // End
-                    Event::Key(KeyEvent {
-                        code: KeyCode::End,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_end(),
-
-                    // mouse wheel up
                     Event::Mouse(MouseEvent {
                         kind: MouseEventKind::ScrollUp,
-                        modifiers: KeyModifiers::NONE,
                         ..
                     }) => self.mouse_scroll_up(),
 
-                    // mouse wheel down
                     Event::Mouse(MouseEvent {
                         kind: MouseEventKind::ScrollDown,
-                        modifiers: KeyModifiers::NONE,
                         ..
                     }) => self.mouse_scroll_down(),
 
                     Event::Mouse(MouseEvent {
                         kind: MouseEventKind::Down(MouseButton::Left),
-                        column,
-                        row,
-                        modifiers: KeyModifiers::NONE,
+                        column, row,
                         ..
                     }) => self.mouse_click_left(column, row),
 
-                    // left
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Left,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_left(),
-
-                    // right
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Right,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_right(),
-
-                    // c
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_ansi_color(!self.ansi_color),
-
-                    // d ... toggle diff mode.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('d'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_diff_mode(),
-
-                    // n
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('n'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_line_number(!self.line_number),
-
-                    // r
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('r'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_reverse(!self.reverse),
-
-                    // o(lower o)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('o'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_output(),
-
-                    // O(upper o). shift + o
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('O'),
-                        modifiers: KeyModifiers::SHIFT,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_is_only_diffline(!self.is_only_diffline),
-
-                    // 0 (DiffMode::Disable)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('0'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Disable),
-
-                    // 1 (DiffMode::Watch)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('1'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Watch),
-
-                    // 2 (DiffMode::Line)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('2'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Line),
-
-                    // 3 (DiffMode::Word)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('3'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Word),
-
-                    // F1 (OutputMode::Stdout)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(1),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Stdout),
-
-                    // F2 (OutputMode::Stderr)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(2),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Stderr),
-
-                    // F3 (OutputMode::Output)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(3),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Output),
-
-                    // + Increase interval
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('+'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.increase_interval(),
-
-                    // - Decrease interval
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('-'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.decrease_interval(),
-
-                    // Tab ... Toggle Area(Watch or History).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Tab,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_area(),
-
-                    // / ... Change Filter Mode(plane text).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('/'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_input_mode(InputMode::Filter),
-
-                    // * ... Change Filter Mode(regex text).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('*'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_input_mode(InputMode::RegexFilter),
-
-                    // ESC ... Reset.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Esc,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => {
-                        self.is_filtered = false;
-                        self.is_regex_filter = false;
-                        self.filtered_text = "".to_string();
-                        self.header_area.input_text = self.filtered_text.clone();
-                        self.set_input_mode(InputMode::None);
-
-                        self.printer.set_filter(self.is_filtered);
-                        self.printer.set_regex_filter(self.is_regex_filter);
-                        self.printer.set_filter_text("".to_string());
-
-                        let selected = self.history_area.get_state_select();
-                        self.reset_history(selected);
-
-                        // update WatchArea
-                        self.set_output_data(selected);
-                    }
-
-                    // Common input key
-                    // Backspace ... toggle history panel.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Backspace,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.show_history(!self.show_history),
-
-                    // Common input key
-                    // t ... toggle ui
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('t'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.show_ui(!self.show_header),
-
-                    // Common input key
-                    // h ... toggle help window.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('h'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_window(),
-
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('m'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_mouse_events(),
-
-                    // q ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    // Ctrl + C ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
                     _ => {}
                 }
+
             }
             ActiveWindow::Help => {
-                match terminal_event {
+                match self.keymap.get(&terminal_event) {
                     // Common input key
-                    // up
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_up(),
+                    // Up
+                    Some(InputAction::Up) => self.input_key_up(),
 
-                    // down
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_down(),
+                    // Down
+                    Some(InputAction::Down) => self.input_key_down(),
 
-                    // h ... toggle help window.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('h'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_window(),
+                    // Help
+                    Some(InputAction::Help) => self.toggle_window(),
 
-                    // q ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
+                    // Quit
+                    Some(InputAction::Quit) => self.tx.send(AppEvent::Exit).expect("send error hwatch exit."),
 
-                    // Ctrl + C ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
+                    // Cancel
+                    // TODO: method分離したらちゃんとResetとしての機能を実装
+                    // Some(InputAction::Cancel) => self.action_cancel(),
+                    Some(InputAction::Cancel) => self.action_reset(),
 
                     _ => {}
                 }
@@ -1267,6 +1103,16 @@ impl<'a> App<'a> {
                 _ => {}
             }
         }
+    }
+
+    ///
+    fn get_normal_input_key_watch_window(terminal_event: crossterm::event::Event) {
+
+    }
+
+    ///
+    fn get_normal_input_key_help_window(terminal_event: crossterm::event::Event) {
+
     }
 
     ///
@@ -1373,6 +1219,25 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn action_reset(&mut self) {
+        self.is_filtered = false;
+        self.is_regex_filter = false;
+        self.filtered_text = "".to_string();
+        self.header_area.input_text = self.filtered_text.clone();
+        self.set_input_mode(InputMode::None);
+
+        self.printer.set_filter(self.is_filtered);
+        self.printer.set_regex_filter(self.is_regex_filter);
+        self.printer.set_filter_text("".to_string());
+
+        let selected = self.history_area.get_state_select();
+        self.reset_history(selected);
+
+        // update WatchArea
+        self.set_output_data(selected);
+    }
+
+    ///
     fn input_key_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
@@ -1419,6 +1284,7 @@ impl<'a> App<'a> {
     }
 
     ///
+    /// TODO: あとで分離する
     fn input_key_pgup(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {
@@ -1452,6 +1318,7 @@ impl<'a> App<'a> {
     }
 
     ///
+    /// TODO: あとで分離する
     fn input_key_pgdn(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {
@@ -1485,6 +1352,7 @@ impl<'a> App<'a> {
     }
 
     ///
+    /// TODO: あとで分離する
     fn input_key_home(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {
@@ -1502,6 +1370,7 @@ impl<'a> App<'a> {
     }
 
     ///
+    /// TODO: あとで分離する
     fn input_key_end(&mut self) {
         if self.window == ActiveWindow::Normal {
             match self.area {

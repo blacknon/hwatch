@@ -3,7 +3,7 @@
 // that can be found in the LICENSE file.
 
 use std::{collections::HashMap, fmt::Debug};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseButton, MouseEventKind, KeyEventKind, KeyEventState};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
 use serde::{Deserialize, Serialize};
@@ -150,7 +150,7 @@ impl<'de> Deserialize<'de> for Key {
                 return Err(D::Error::custom(HwatchError::ConfigError));
             }
         };
-        Ok(Key { code, modifiers })
+        Ok(Key { code, modifiers})
     }
 }
 
@@ -163,116 +163,116 @@ impl From<KeyEvent> for Key {
     }
 }
 
-pub type Keymap = HashMap<Key, InputAction>;
+pub type Keymap = HashMap<Event, InputAction>;
 
 pub fn default_keymap() -> Keymap {
     HashMap::from([
         // Up
-        ( Key { code: KeyCode::Up, modifiers: KeyModifiers::NONE }, InputAction::Up ),
+        ( Event::Key(KeyEvent{code: KeyCode::Up, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Up ),
 
         // Down
-        ( Key { code: KeyCode::Down, modifiers: KeyModifiers::NONE }, InputAction::Down ),
+        ( Event::Key(KeyEvent{code: KeyCode::Down, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Down ),
 
         // PageUp
-        ( Key { code: KeyCode::PageUp, modifiers: KeyModifiers::NONE }, InputAction::PageUp ),
+        ( Event::Key(KeyEvent{code: KeyCode::PageUp, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::PageUp ),
 
         // PageDown
-        ( Key { code: KeyCode::PageDown, modifiers: KeyModifiers::NONE }, InputAction::PageDown ),
+        ( Event::Key(KeyEvent{code: KeyCode::PageDown, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::PageDown ),
 
         // Move Top: Home
-        ( Key { code: KeyCode::Home, modifiers: KeyModifiers::NONE }, InputAction::MoveTop ),
+        ( Event::Key(KeyEvent{code: KeyCode::Home, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::MoveTop ),
 
         // Move End: End
-        ( Key { code: KeyCode::End, modifiers: KeyModifiers::NONE }, InputAction::MoveEnd ),
+        ( Event::Key(KeyEvent{code: KeyCode::End, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::MoveEnd ),
 
         // ToggleForcus: Tab
-        ( Key { code: KeyCode::Tab, modifiers: KeyModifiers::NONE }, InputAction::ToggleForcus ),
+        ( Event::Key(KeyEvent{code: KeyCode::Tab, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleForcus ),
 
         // Forcus Watch Pane: Left
-        ( Key { code: KeyCode::Left, modifiers: KeyModifiers::NONE }, InputAction::ForcusWatchPane ),
+        ( Event::Key(KeyEvent{code: KeyCode::Left, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ForcusWatchPane ),
 
         // Forcus History Pane: Right
-        ( Key { code: KeyCode::Right, modifiers: KeyModifiers::NONE }, InputAction::ForcusHistoryPane ),
+        ( Event::Key(KeyEvent{code: KeyCode::Right, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ForcusHistoryPane ),
 
         // Quit: q
-        ( Key { code: KeyCode::Char('q'), modifiers: KeyModifiers::NONE }, InputAction::Quit ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('q'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Quit ),
 
         // Reset: ESC
-        ( Key { code: KeyCode::Esc, modifiers: KeyModifiers::NONE }, InputAction::Reset ),
+        ( Event::Key(KeyEvent{code: KeyCode::Esc, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Reset ),
 
         // Cancel: Ctrl + c
-        ( Key { code: KeyCode::Char('c'), modifiers: KeyModifiers::CONTROL }, InputAction::Cancel ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('c'), modifiers: KeyModifiers::CONTROL, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Cancel ),
 
         // Help: h
-        ( Key { code: KeyCode::Char('h'), modifiers: KeyModifiers::NONE }, InputAction::Help ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('h'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}) , InputAction::Help ),
 
         // Toggle Color: c
-        ( Key { code: KeyCode::Char('c'), modifiers: KeyModifiers::NONE }, InputAction::ToggleColor ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('c'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleColor ),
 
         // Toggle Line Number: n
-        ( Key { code: KeyCode::Char('n'), modifiers: KeyModifiers::NONE }, InputAction::ToggleLineNumber ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('n'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleLineNumber ),
 
         // Toggle Reverse: r
-        ( Key { code: KeyCode::Char('r'), modifiers: KeyModifiers::NONE }, InputAction::ToggleReverse ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('r'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleReverse ),
 
         // Toggle Mouse Support: m
-        ( Key { code: KeyCode::Char('m'), modifiers: KeyModifiers::NONE }, InputAction::ToggleMouseSupport ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('m'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleMouseSupport ),
 
         // Toggle View Pane UI: t
-        ( Key { code: KeyCode::Char('t'), modifiers: KeyModifiers::NONE }, InputAction::ToggleViewPaneUI ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('t'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleViewPaneUI ),
 
         // Toggle View History Pane: Backspace
-        ( Key { code: KeyCode::Backspace, modifiers: KeyModifiers::NONE }, InputAction::ToggleViewHistoryPane ),
+        ( Event::Key(KeyEvent{code: KeyCode::Backspace, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleViewHistoryPane ),
 
         // Diff Mode
         // ==========
         // Toggle Diff Mode: d
-        ( Key { code: KeyCode::Char('d'), modifiers: KeyModifiers::NONE }, InputAction::ToggleDiffMode ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('d'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleDiffMode ),
 
         // Set Diff Mode Plane: 0
-        ( Key { code: KeyCode::Char('0'), modifiers: KeyModifiers::NONE }, InputAction::SetDiffModePlane ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('0'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModePlane ),
 
         // Set Diff Mode Watch: 1
-        ( Key { code: KeyCode::Char('1'), modifiers: KeyModifiers::NONE }, InputAction::SetDiffModeWatch ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('1'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModeWatch ),
 
         // Set Diff Mode Line: 2
-        ( Key { code: KeyCode::Char('2'), modifiers: KeyModifiers::NONE }, InputAction::SetDiffModeLine ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('2'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModeLine ),
 
         // Set Diff Mode Word: 3
-        ( Key { code: KeyCode::Char('3'), modifiers: KeyModifiers::NONE }, InputAction::SetDiffModeWord ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('3'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModeWord ),
 
         // Set Diff Only: Shift + o
-        ( Key { code: KeyCode::Char('o'), modifiers: KeyModifiers::SHIFT }, InputAction::SetDiffOnly ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('o'), modifiers: KeyModifiers::SHIFT, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffOnly ),
 
         // Output Mode
         // ==========
         // Toggle Output Mode: o
-        ( Key { code: KeyCode::Char('o'), modifiers: KeyModifiers::NONE }, InputAction::ToggleOutputMode ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('o'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleOutputMode ),
 
         // Set Output Mode Output: F3
-        ( Key { code: KeyCode::F(3), modifiers: KeyModifiers ::NONE }, InputAction::SetOutputModeOutput ),
+        ( Event::Key(KeyEvent{code: KeyCode::F(3), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetOutputModeOutput ),
 
         // Set Output Mode Stdout: F2
-        ( Key { code: KeyCode::F(1), modifiers: KeyModifiers ::NONE }, InputAction::SetOutputModeStdout ),
+        ( Event::Key(KeyEvent{code: KeyCode::F(1), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetOutputModeStdout ),
 
         // Set Output Mode Stderr: F3
-        ( Key { code: KeyCode::F(2), modifiers: KeyModifiers ::NONE }, InputAction::SetOutputModeStderr ),
+        ( Event::Key(KeyEvent{code: KeyCode::F(2), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetOutputModeStderr ),
 
         // Interval
         // ==========
         // Interval Plus: +
-        ( Key { code: KeyCode::Char('+'), modifiers: KeyModifiers::NONE }, InputAction::IntervalPlus ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('+'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::IntervalPlus ),
 
         // Interval Minus: -
-        ( Key { code: KeyCode::Char('-'), modifiers: KeyModifiers::NONE }, InputAction::IntervalMinus ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('-'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::IntervalMinus ),
 
         // Command
         // ==========
         // Change Filter Mode: /
-        ( Key { code: KeyCode::Char('/'), modifiers: KeyModifiers::NONE }, InputAction::ChangeFilterMode ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('/'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ChangeFilterMode ),
 
         // Change Regex Filter Mode: *
-        ( Key { code: KeyCode::Char('*'), modifiers: KeyModifiers::CONTROL }, InputAction::ChangeRegexFilterMode ),
+        ( Event::Key(KeyEvent{code: KeyCode::Char('*'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ChangeRegexFilterMode ),
     ])
 }
 
