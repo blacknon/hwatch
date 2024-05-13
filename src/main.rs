@@ -422,9 +422,9 @@ fn main() {
         DiffMode::Disable
     };
 
-    // Add keymap
+    // Get Add keymap
     let keymap_options: Vec<&str> = matcher.get_many::<String>("keymap")
-        .unwrap()
+        .unwrap_or_default()
         .map(|s| s.as_str())
         .collect();
 

@@ -145,6 +145,8 @@ impl<'de> Deserialize<'de> for Key {
             "f11" => KeyCode::F(11),
             "f12" => KeyCode::F(12),
             "space" => KeyCode::Char(' '),
+            "minus" => KeyCode::Char('-'),
+            "hyphen" => KeyCode::Char('-'),
             "tab" => KeyCode::Tab,
             c if c.len() == 1 => KeyCode::Char(c.chars().next().unwrap()),
             _ => {
@@ -168,6 +170,9 @@ pub type Keymap = HashMap<Event, InputAction>;
 
 pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
     let mut keymap = default_keymap();
+    if keymap_options.len() == 0 {
+        return Ok(keymap);
+    }
 
     let mut builder = Config::builder();
     for ko in keymap_options {
