@@ -8,6 +8,7 @@ use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
+use config::{Config, ConfigError, FileFormat};
 
 use crate::errors::HwatchError;
 
@@ -164,6 +165,33 @@ impl From<KeyEvent> for Key {
 }
 
 pub type Keymap = HashMap<Event, InputAction>;
+
+pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
+    let mut keymap = default_keymap();
+
+    let mut builder = Config::builder();
+    for ko in keymap_options {
+        builder = builder.add_source(config::File::from_str(ko, FileFormat::Ini).required(false));
+    }
+
+    let config = builder
+        .build()?;
+    let keys = config.try_deserialize::<HashMap<Key, InputAction>>()?;
+
+    for (k, a) in keys {
+        keymap.insert(
+            Event::Key(KeyEvent {
+                code: k.code,
+                modifiers: k.modifiers,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::NONE,
+            }),
+            a,
+        );
+    }
+
+    Ok(keymap)
+}
 
 pub fn default_keymap() -> Keymap {
     HashMap::from([
@@ -440,3 +468,7 @@ pub enum InputAction {
     // Input
     // ==========
 }
+
+// pub fn get_input_action_description(input_action: InputAction) -> String {
+
+// }

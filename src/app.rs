@@ -429,6 +429,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_keymap(&mut self,keymap: Keymap) {
+        self.keymap = keymap.clone();
+    }
+
+    ///
     pub fn set_after_command(&mut self, command: String) {
         self.after_command = command;
     }

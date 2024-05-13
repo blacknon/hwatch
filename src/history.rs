@@ -32,7 +32,7 @@ pub struct HistoryArea {
     state: TableState,
 
     ///
-    summary: bool,
+    // summary: bool,
 
     ///
     border: bool,
@@ -58,7 +58,7 @@ impl HistoryArea {
                 num: 0,
             }]],
             state: TableState::default(),
-            summary: false,
+            // summary: false,
             border: false,
             hide_header: false,
             scroll_bar: false,
