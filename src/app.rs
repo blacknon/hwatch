@@ -848,19 +848,19 @@ impl<'a> App<'a> {
                     Some(InputAction::Up) => self.action_up(),
 
                     // Watch Pane Up
-                    Some(InputAction::WatchPaneUp) => self.watch_area.scroll_up(1),
+                    Some(InputAction::WatchPaneUp) => self.action_watch_up(),
 
                     // History Pane Up
-                    Some(InputAction::HistoryPaneUp) => self.history_area.next(1),
+                    Some(InputAction::HistoryPaneUp) => self.action_history_up(),
 
                     // Down
                     Some(InputAction::Down) => self.action_down(),
 
                     // Watch Pane Down
-                    Some(InputAction::WatchPaneDown) => self.watch_area.scroll_down(1),
+                    Some(InputAction::WatchPaneDown) => self.action_watch_down(),
 
                     // History Pane Down
-                    Some(InputAction::HistoryPaneDown) => self.history_area.previous(1),
+                    Some(InputAction::HistoryPaneDown) => self.action_history_down(),
 
                     // PageUp
                     Some(InputAction::PageUp) => self.action_pgup(),
@@ -1221,16 +1221,10 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
-                    // scroll up watch
-                    self.watch_area.scroll_up(1);
+                    self.action_watch_up()
                 }
                 ActiveArea::History => {
-                    // move next history
-                    self.history_area.next(1);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_up()
                 }
             },
             ActiveWindow::Help => {
@@ -1240,26 +1234,52 @@ impl<'a> App<'a> {
     }
 
     ///
+    fn action_watch_up(&mut self) {
+        // scroll up watch
+        self.watch_area.scroll_up(1);
+    }
+
+    ///
+    fn action_history_up(&mut self) {
+        // move next history
+        self.history_area.next(1);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
     fn action_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
-                    // scroll up watch
-                    self.watch_area.scroll_down(1);
+                    self.action_watch_down()
                 }
                 ActiveArea::History => {
-                    // move previous history
-                    self.history_area.previous(1);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_down()
                 }
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_down(1);
             }
         }
+    }
+
+    ///
+    fn action_watch_down(&mut self) {
+        // scroll up watch
+        self.watch_area.scroll_down(1);
+    }
+
+    ///
+    fn action_history_down(&mut self) {
+        // move previous history
+        self.history_area.previous(1);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     ///
