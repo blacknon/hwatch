@@ -927,6 +927,10 @@ impl<'a> App<'a> {
                         // Common input key
                         InputAction::Up => self.action_up(), // Up
                         InputAction::Down => self.action_down(), // Down
+                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::MoveEnd => self.action_end(), // MoveEnd
                         InputAction::Help => self.toggle_window(), // Help
                         InputAction::Quit => self.tx.send(AppEvent::Exit)
                             .expect("send error hwatch exit."), // Quit
@@ -1193,14 +1197,18 @@ impl<'a> App<'a> {
 
     ///
     fn action_pgup(&mut self) {
-       if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => {
-                    self.action_watch_pgup();
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => {
+                        self.action_watch_pgup();
+                    },
+                    ActiveArea::History => {
+                        self.action_history_pgup();
+                    }
                 },
-                ActiveArea::History => {
-                    self.action_history_pgup();
-                }
+            ActiveWindow::Help => {
+                self.help_window.page_up();
             }
         }
     }
@@ -1236,14 +1244,19 @@ impl<'a> App<'a> {
 
     ///
     fn action_pgdn(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => {
-                    self.action_watch_pgdn();
-                },
-                ActiveArea::History => {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => {
+                        self.action_watch_pgdn();
+                    },
+                    ActiveArea::History => {
 
+                        self.action_history_pgdn();
+                    },
                 },
+            ActiveWindow::Help => {
+                self.help_window.page_down();
             }
         }
     }
@@ -1279,10 +1292,14 @@ impl<'a> App<'a> {
 
     ///
     fn action_top(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_home(),
                 ActiveArea::History => self.action_history_top(),
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_top();
             }
         }
     }
@@ -1299,10 +1316,14 @@ impl<'a> App<'a> {
 
     ///
     fn action_end(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => self.watch_area.scroll_end(),
-                ActiveArea::History => self.action_history_end(),
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => self.watch_area.scroll_end(),
+                    ActiveArea::History => self.action_history_end(),
+                },
+            ActiveWindow::Help => {
+                self.help_window.scroll_end();
             }
         }
     }

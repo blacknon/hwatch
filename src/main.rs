@@ -82,7 +82,6 @@ mod header;
 mod help;
 mod history;
 mod keymap;
-mod keys;
 mod output;
 mod view;
 mod watch;
