@@ -19,10 +19,6 @@ pub struct Key {
 }
 
 impl Key {
-    fn new(code: KeyCode, modifiers: KeyModifiers) -> Self {
-        Self { code, modifiers }
-    }
-
     pub fn to_str(&self) -> String {
         let modifiers = self
             .modifiers

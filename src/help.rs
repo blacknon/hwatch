@@ -8,7 +8,6 @@
 // TODO(blacknon): keyの内容を折り返して表示させるようにする
 
 use ratatui::text::Span;
-use termwiz::input;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
