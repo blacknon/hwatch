@@ -8,6 +8,7 @@
 // TODO(blacknon): keyの内容を折り返して表示させるようにする
 
 use ratatui::text::Span;
+use termwiz::input;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -17,6 +18,7 @@ use tui::{
 };
 
 use crate::keys::{self, KeyData};
+use crate::keymap::{Keymap, get_input_action_description};
 
 pub struct HelpWindow<'a> {
     ///
@@ -31,8 +33,8 @@ pub struct HelpWindow<'a> {
 
 /// History Area Object Trait
 impl<'a> HelpWindow<'a> {
-    pub fn new() -> Self {
-        let text = gen_help_text();
+    pub fn new(keymap: Keymap) -> Self {
+        let text = gen_help_text(keymap);
 
         Self {
             text,
@@ -125,41 +127,18 @@ fn gen_help_text_from_key_data<'a>(data: Vec<keys::KeyData>) -> Vec<Line<'a>> {
 
 ///
 // TODO: keymapから読み取らせる方式とする(`description`をどのように取得するか・どこに説明を書くかは要検討)
-fn gen_help_text<'a>() -> Vec<Line<'a>> {
-    let keydata_list = vec![
-        KeyData { key: "h".to_string(), description: "show this help message.".to_string() },
-        KeyData { key: "q".to_string(), description: "exit.".to_string() },
-        // toggle
-        KeyData { key: "c".to_string(), description: "toggle color mode.".to_string() },
-        KeyData { key: "n".to_string(), description: "toggle line number.".to_string() },
-        KeyData { key: "r".to_string(), description: "toggle reverse mode.".to_string() },
-        KeyData { key: "d".to_string(), description: "switch diff mode at None, Watch, Line, and Word mode.".to_string() },
-        KeyData { key: "o".to_string(), description: "switch output mode at stdout, stderr, and output.".to_string() },
-        KeyData { key: "O".to_string(), description: "toggle change only the lines with differences during `line` diff and `word` diff.".to_string() },
-        KeyData { key: "t".to_string(), description: "toggle ui (history pane & header both on/off).".to_string() },
-        KeyData { key: "Bkspace".to_string(), description: "toggle history pane.".to_string() },
-        KeyData { key: "m".to_string(), description: "toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.".to_string() },
-        // exit hwatch
-        KeyData { key: "q".to_string(), description: "exit hwatch.".to_string() },
-        // change diff
-        KeyData { key: "0".to_string(), description: "disable diff.".to_string() },
-        KeyData { key: "1".to_string(), description: "switch Watch type diff.".to_string() },
-        KeyData { key: "2".to_string(), description: "switch Line type diff.".to_string() },
-        KeyData { key: "3".to_string(), description: "switch Word type diff.".to_string() },
-        // change output
-        KeyData { key: "F1".to_string(), description: "change output mode as stdout.".to_string() },
-        KeyData { key: "F2".to_string(), description: "change output mode as stderr.".to_string() },
-        KeyData { key: "F3".to_string(), description: "change output mode as output(stdout/stderr set.).".to_string() },
-        // change interval
-        KeyData { key: "+".to_string(), description: "Increase interval by .5 seconds.".to_string() },
-        KeyData { key: "-".to_string(), description: "Decrease interval by .5 seconds.".to_string() },
-        // change use area
-        KeyData { key: "Tab".to_string(), description: "toggle current area at history or watch.".to_string() },
-        // filter text input
-        KeyData { key: "/".to_string(), description: "filter history by string.".to_string() },
-        KeyData { key: "*".to_string(), description: "filter history by regex.".to_string() },
-        KeyData { key: "ESC".to_string(), description: "unfiltering.".to_string() },
-    ];
+fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
+    let mut keydata_list = vec![];
+
+    for (_, input_event_content) in &keymap {
+        let key = input_event_content.key.to_str();
+        let description = get_input_action_description(input_event_content.action);
+
+        keydata_list.push(KeyData { key: key, description: description });
+    };
+
+    // sort
+    keydata_list.sort_by(|a, b| a.key.cmp(&b.key));
 
     let text = gen_help_text_from_key_data(keydata_list);
 

@@ -18,6 +18,63 @@ pub struct Key {
     modifiers: KeyModifiers,
 }
 
+impl Key {
+    fn new(code: KeyCode, modifiers: KeyModifiers) -> Self {
+        Self { code, modifiers }
+    }
+
+    pub fn to_str(&self) -> String {
+        let modifiers = self
+            .modifiers
+            .iter()
+            .filter_map(modifier_to_string)
+            .collect::<Vec<&str>>()
+            .join("-");
+        let code = keycode_to_string(self.code).unwrap();
+        if modifiers.is_empty() {
+            code
+        } else {
+            format!("{}-{}", modifiers, code)
+        }
+    }
+}
+
+const DEFAULT_KEYMAP: [&str; 33] = [
+    "up=up",  // Up
+    "down=down", // Down
+    "pageup=page_up", // PageUp
+    "pagedown=page_down", // PageDown
+    "home=move_top", // MoveTop: Home
+    "end=move_end", // MoveEnd: End
+    "tab=toggle_forcus", // ToggleForcus: Tab
+    "left=forcus_watch_pane", // ForcusWatchPane: Left
+    "right=forcus_history_pane", // ForcusHistoryPane: Right
+    "q=quit", // Quit: q
+    "esc=reset", // Reset: ESC
+    "ctrl-c=cancel", // Cancel: Ctrl + c
+    "h=help", // Help: h
+    "c=toggle_color", // Toggle Color: c
+    "n=toggle_line_number", // Toggle Line Number: n
+    "r=toggle_reverse", // Toggle Reverse: r
+    "m=toggle_mouse_support", // Toggle Mouse Support: m
+    "t=toggle_view_pane_ui", // Toggle View Pane UI: t
+    "backspace=toggle_view_history_pane", // Toggle View History Pane: Backspace
+    "d=toggle_diff_mode", // Toggle Diff Mode: d
+    "0=set_diff_mode_plane", // Set Diff Mode Plane: 0
+    "1=set_diff_mode_watch", // Set Diff Mode Watch: 1
+    "2=set_diff_mode_line", // Set Diff Mode Line: 2
+    "3=set_diff_mode_word", // Set Diff Mode Word: 3
+    "shift-o=set_diff_only", // Set Diff Only: Shift + o
+    "o=toggle_output_mode", // Toggle Output Mode: o
+    "f3=set_output_mode_output", // Set Output Mode Output: F3
+    "f1=set_output_mode_stdout", // Set Output Mode Stdout: F1
+    "f2=set_output_mode_stderr", // Set Output Mode Stderr: F2
+    "plus=interval_plus", // Interval Plus: +
+    "minus=interval_minus", // Interval Minus: -
+    "/=change_filter_mode", // Change Filter Mode: /
+    "*=change_regex_filter_mode", // Change Regex Filter Mode: *
+];
+
 impl Serialize for Key {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -145,6 +202,7 @@ impl<'de> Deserialize<'de> for Key {
             "f11" => KeyCode::F(11),
             "f12" => KeyCode::F(12),
             "space" => KeyCode::Char(' '),
+            "plus" => KeyCode::Char('+'),
             "minus" => KeyCode::Char('-'),
             "hyphen" => KeyCode::Char('-'),
             "tab" => KeyCode::Tab,
@@ -153,7 +211,7 @@ impl<'de> Deserialize<'de> for Key {
                 return Err(D::Error::custom(HwatchError::ConfigError));
             }
         };
-        Ok(Key { code, modifiers})
+        Ok(Key { code, modifiers })
     }
 }
 
@@ -166,10 +224,23 @@ impl From<KeyEvent> for Key {
     }
 }
 
-pub type Keymap = HashMap<Event, InputAction>;
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
+pub struct InputEventContents {
+    pub key: Key,
+    pub action: InputAction,
+}
+
+// pub type Keymap = HashMap<Event, InputAction>;
+pub type Keymap = HashMap<Event, InputEventContents>;
 
 pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
-    let mut keymap = default_keymap();
+    let keymap = default_keymap();
+    let result = create_keymap(keymap, keymap_options);
+    return result;
+}
+
+///
+fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
     if keymap_options.len() == 0 {
         return Ok(keymap);
     }
@@ -181,17 +252,26 @@ pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError>
 
     let config = builder
         .build()?;
-    let keys = config.try_deserialize::<HashMap<Key, InputAction>>()?;
+
+    let keys = config
+        .try_deserialize::<HashMap<Key, InputAction>>()?;
 
     for (k, a) in keys {
+        // Create KeyEvent
+        let key_event = KeyEvent {
+            code: k.code,
+            modifiers: k.modifiers,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+
+        // Insert InputEventContents
         keymap.insert(
-            Event::Key(KeyEvent {
-                code: k.code,
-                modifiers: k.modifiers,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE,
-            }),
-            a,
+            Event::Key(key_event),
+            InputEventContents {
+                key: k,
+                action: a,
+            },
         );
     }
 
@@ -199,117 +279,13 @@ pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError>
 }
 
 pub fn default_keymap() -> Keymap {
-    HashMap::from([
-        // Up
-        ( Event::Key(KeyEvent{code: KeyCode::Up, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Up ),
-
-        // Down
-        ( Event::Key(KeyEvent{code: KeyCode::Down, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Down ),
-
-        // PageUp
-        ( Event::Key(KeyEvent{code: KeyCode::PageUp, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::PageUp ),
-
-        // PageDown
-        ( Event::Key(KeyEvent{code: KeyCode::PageDown, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::PageDown ),
-
-        // Move Top: Home
-        ( Event::Key(KeyEvent{code: KeyCode::Home, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::MoveTop ),
-
-        // Move End: End
-        ( Event::Key(KeyEvent{code: KeyCode::End, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::MoveEnd ),
-
-        // ToggleForcus: Tab
-        ( Event::Key(KeyEvent{code: KeyCode::Tab, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleForcus ),
-
-        // Forcus Watch Pane: Left
-        ( Event::Key(KeyEvent{code: KeyCode::Left, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ForcusWatchPane ),
-
-        // Forcus History Pane: Right
-        ( Event::Key(KeyEvent{code: KeyCode::Right, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ForcusHistoryPane ),
-
-        // Quit: q
-        ( Event::Key(KeyEvent{code: KeyCode::Char('q'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Quit ),
-
-        // Reset: ESC
-        ( Event::Key(KeyEvent{code: KeyCode::Esc, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Reset ),
-
-        // Cancel: Ctrl + c
-        ( Event::Key(KeyEvent{code: KeyCode::Char('c'), modifiers: KeyModifiers::CONTROL, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::Cancel ),
-
-        // Help: h
-        ( Event::Key(KeyEvent{code: KeyCode::Char('h'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}) , InputAction::Help ),
-
-        // Toggle Color: c
-        ( Event::Key(KeyEvent{code: KeyCode::Char('c'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleColor ),
-
-        // Toggle Line Number: n
-        ( Event::Key(KeyEvent{code: KeyCode::Char('n'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleLineNumber ),
-
-        // Toggle Reverse: r
-        ( Event::Key(KeyEvent{code: KeyCode::Char('r'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleReverse ),
-
-        // Toggle Mouse Support: m
-        ( Event::Key(KeyEvent{code: KeyCode::Char('m'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleMouseSupport ),
-
-        // Toggle View Pane UI: t
-        ( Event::Key(KeyEvent{code: KeyCode::Char('t'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleViewPaneUI ),
-
-        // Toggle View History Pane: Backspace
-        ( Event::Key(KeyEvent{code: KeyCode::Backspace, modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleViewHistoryPane ),
-
-        // Diff Mode
-        // ==========
-        // Toggle Diff Mode: d
-        ( Event::Key(KeyEvent{code: KeyCode::Char('d'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleDiffMode ),
-
-        // Set Diff Mode Plane: 0
-        ( Event::Key(KeyEvent{code: KeyCode::Char('0'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModePlane ),
-
-        // Set Diff Mode Watch: 1
-        ( Event::Key(KeyEvent{code: KeyCode::Char('1'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModeWatch ),
-
-        // Set Diff Mode Line: 2
-        ( Event::Key(KeyEvent{code: KeyCode::Char('2'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModeLine ),
-
-        // Set Diff Mode Word: 3
-        ( Event::Key(KeyEvent{code: KeyCode::Char('3'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffModeWord ),
-
-        // Set Diff Only: Shift + o
-        ( Event::Key(KeyEvent{code: KeyCode::Char('o'), modifiers: KeyModifiers::SHIFT, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetDiffOnly ),
-
-        // Output Mode
-        // ==========
-        // Toggle Output Mode: o
-        ( Event::Key(KeyEvent{code: KeyCode::Char('o'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ToggleOutputMode ),
-
-        // Set Output Mode Output: F3
-        ( Event::Key(KeyEvent{code: KeyCode::F(3), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetOutputModeOutput ),
-
-        // Set Output Mode Stdout: F2
-        ( Event::Key(KeyEvent{code: KeyCode::F(1), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetOutputModeStdout ),
-
-        // Set Output Mode Stderr: F3
-        ( Event::Key(KeyEvent{code: KeyCode::F(2), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::SetOutputModeStderr ),
-
-        // Interval
-        // ==========
-        // Interval Plus: +
-        ( Event::Key(KeyEvent{code: KeyCode::Char('+'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::IntervalPlus ),
-
-        // Interval Minus: -
-        ( Event::Key(KeyEvent{code: KeyCode::Char('-'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::IntervalMinus ),
-
-        // Command
-        // ==========
-        // Change Filter Mode: /
-        ( Event::Key(KeyEvent{code: KeyCode::Char('/'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ChangeFilterMode ),
-
-        // Change Regex Filter Mode: *
-        ( Event::Key(KeyEvent{code: KeyCode::Char('*'), modifiers: KeyModifiers::NONE, kind: KeyEventKind::Press, state: KeyEventState::NONE}), InputAction::ChangeRegexFilterMode ),
-    ])
+    let default_keymap = DEFAULT_KEYMAP.to_vec();
+    let keymap = HashMap::new();
+    let result = create_keymap(keymap, default_keymap);
+    return result.unwrap();
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum InputAction {
     // Up
     // ==========
@@ -420,7 +396,7 @@ pub enum InputAction {
     ToggleViewPaneUI,
     #[serde(rename = "toggle_view_header_pane")]
     ToggleViewHeaderPane,
-    #[serde(rename = "toggle_view_hisotry_pane")]
+    #[serde(rename = "toggle_view_history_pane")]
     ToggleViewHistoryPane,
 
     // Border
@@ -474,6 +450,99 @@ pub enum InputAction {
     // ==========
 }
 
-// pub fn get_input_action_description(input_action: InputAction) -> String {
+pub fn get_input_action_description(input_action: InputAction) -> String {
+    match input_action {
+        // Up
+        InputAction::Up => "Move up".to_string(),
+        InputAction::WatchPaneUp => "Move up in watch pane".to_string(),
+        InputAction::HistoryPaneUp => "Move up in history pane".to_string(),
 
-// }
+        // Down
+        InputAction::Down => "Move down".to_string(),
+        InputAction::WatchPaneDown => "Move down in watch pane".to_string(),
+        InputAction::HistoryPaneDown => "Move down in history pane".to_string(),
+
+        // PageUp
+        InputAction::PageUp => "Move page up".to_string(),
+        InputAction::WatchPanePageUp => "Move page up in watch pane".to_string(),
+        InputAction::HistoryPanePageUp => "Move page up in history pane".to_string(),
+
+        // PageDown
+        InputAction::PageDown => "Move page down".to_string(),
+        InputAction::WatchPanePageDown => "Move page down in watch pane".to_string(),
+        InputAction::HistoryPanePageDown => "Move page down in history pane".to_string(),
+
+        // MoveTop
+        InputAction::MoveTop => "Move top".to_string(),
+        InputAction::WatchPaneMoveTop => "Move top in watch pane".to_string(),
+        InputAction::HistoryPaneMoveTop => "Move top in history pane".to_string(),
+
+        // MoveEnd
+        InputAction::MoveEnd => "Move end".to_string(),
+        InputAction::WatchPaneMoveEnd => "Move end in watch pane".to_string(),
+        InputAction::HistoryPaneMoveEnd => "Move end in history pane".to_string(),
+
+        // Forcus
+        InputAction::ToggleForcus => "Toggle forcus window".to_string(),
+        InputAction::ForcusWatchPane => "Forcus watch pane".to_string(),
+        InputAction::ForcusHistoryPane => "Forcus history pane".to_string(),
+
+        // Quit
+        InputAction::Quit => "Quit hwatch".to_string(),
+
+        // Reset
+        InputAction::Reset => "filter reset".to_string(),
+
+        // Cancel
+        InputAction::Cancel => "Cancel".to_string(),
+
+        // Help
+        InputAction::Help => "Show and hide help window".to_string(),
+
+        // Color
+        InputAction::ToggleColor => "Toggle enable/disable ANSI Color".to_string(),
+
+        // LineNumber
+        InputAction::ToggleLineNumber => "Toggle enable/disable Line Number".to_string(),
+
+        // Reverse
+        InputAction::ToggleReverse => "Toggle enable/disable text reverse".to_string(),
+
+        // Mouse Support
+        InputAction::ToggleMouseSupport => "Toggle enable/disable mouse support".to_string(),
+
+        // Toggle View Pane UI
+        InputAction::ToggleViewPaneUI => "Toggle view header/history pane".to_string(),
+        InputAction::ToggleViewHeaderPane => "Toggle view header pane".to_string(),
+        InputAction::ToggleViewHistoryPane => "Toggle view history pane".to_string(),
+
+        // Border
+        InputAction::ToggleBorder => "Toggle enable/disable border".to_string(),
+        InputAction::ToggleScrollBar => "Toggle enable/disable scroll bar".to_string(),
+
+        // Diff Mode
+        InputAction::ToggleDiffMode => "Toggle diff mode".to_string(),
+        InputAction::SetDiffModePlane => "Set diff mode plane".to_string(),
+        InputAction::SetDiffModeWatch => "Set diff mode watch".to_string(),
+        InputAction::SetDiffModeLine => "Set diff mode line".to_string(),
+        InputAction::SetDiffModeWord => "Set diff mode word".to_string(),
+        InputAction::SetDiffOnly => "Set diff line only (line/word diff only)".to_string(),
+
+        // Output Mode
+        InputAction::ToggleOutputMode => "Toggle output mode".to_string(),
+        InputAction::SetOutputModeOutput => "Set output mode output".to_string(),
+        InputAction::SetOutputModeStdout => "Set output mode stdout".to_string(),
+        InputAction::SetOutputModeStderr => "Set output mode stderr".to_string(),
+
+        // Interval
+        InputAction::IntervalPlus => "Interval +0.5sec".to_string(),
+        InputAction::IntervalMinus => "Interval -0.5sec".to_string(),
+
+        // Command
+        InputAction::ChangeFilterMode => "Change filter mode".to_string(),
+        InputAction::ChangeRegexFilterMode => "Change regex filter mode".to_string(),
+
+        // Input
+    }
+
+}

@@ -17,7 +17,7 @@ use std::{
 use tui::{backend::CrosstermBackend, Terminal};
 
 // local module
-use crate::app::App;
+use crate::{app::App};
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::keymap::{Keymap, default_keymap};

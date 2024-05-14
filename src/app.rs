@@ -216,7 +216,7 @@ impl<'a> App<'a> {
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
-            help_window: HelpWindow::new(),
+            help_window: HelpWindow::new(default_keymap()),
 
             mouse_events,
 
@@ -431,6 +431,7 @@ impl<'a> App<'a> {
     ///
     pub fn set_keymap(&mut self,keymap: Keymap) {
         self.keymap = keymap.clone();
+        self.help_window = HelpWindow::new(self.keymap.clone());
     }
 
     ///
@@ -839,199 +840,101 @@ impl<'a> App<'a> {
 
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
-        // TODO: あとでmethodを分ける
-        // TODO: 各methodの名称等を変更して、機能がわかりやすい状態にする
-        match self.window {
-            ActiveWindow::Normal => {
-                match self.keymap.get(&terminal_event) {
-                    // Up
-                    Some(InputAction::Up) => self.action_up(),
+        if let Some(event_content) = self.keymap.get(&terminal_event) {
+            let action = event_content.action;
+            match self.window {
+                ActiveWindow::Normal => {
+                    match action {
+                        InputAction::Up => self.action_up(), // Up
+                        InputAction::WatchPaneUp => self.action_watch_up(), // Watch Pane Up
+                        InputAction::HistoryPaneUp => self.action_history_up(), // History Pane Up
+                        InputAction::Down => self.action_down(), // Dow
+                        InputAction::WatchPaneDown => self.action_watch_down(), // Watch Pane Down
+                        InputAction::HistoryPaneDown => self.action_history_down(), // History Pane Down
+                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::WatchPanePageUp => self.action_watch_pgup(), // Watch Pane PageUp
+                        InputAction::HistoryPanePageUp => self.action_history_pgup(), // History Pane PageUp
+                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::WatchPanePageDown => self.action_watch_pgdn(), // Watch Pane PageDown
+                        InputAction::HistoryPanePageDown => self.action_history_pgdn(), // History Pane PageDown
+                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::WatchPaneMoveTop => self.watch_area.scroll_home(), // Watch Pane MoveTop
+                        InputAction::HistoryPaneMoveTop => self.action_history_top(), // History Pane MoveTop
+                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::WatchPaneMoveEnd => self.watch_area.scroll_end(), // Watch Pane MoveEnd
+                        InputAction::HistoryPaneMoveEnd => self.action_history_end(), // History Pane MoveEnd
+                        InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
+                        InputAction::ForcusWatchPane => self.select_watch_pane(), // ForcusWatchPane
+                        InputAction::ForcusHistoryPane => self.select_history_pane(), // ForcusHistoryPane
+                        InputAction::Quit => self.tx.send(AppEvent::Exit)
+                            .expect("send error hwatch exit."), // Quit
+                        InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
+                        // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
+                        InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
+                        InputAction::ToggleReverse => self.set_reverse(!self.reverse), // ToggleReverse
+                        InputAction::ToggleMouseSupport => self.toggle_mouse_events(), // ToggleMouseSupport
+                        InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header), // ToggleViewPaneUI
+                        InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
+                        InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
+                        InputAction::ToggleScrollBar => self.set_scroll_bar(!self.is_scroll_bar), // ToggleScrollBar
+                        InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
+                        InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
+                        InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
+                        InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
+                        InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
+                        InputAction::SetDiffOnly => self.set_is_only_diffline(!self.is_only_diffline), // SetOnlyDiffLine
+                        InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
+                        InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
+                        InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
+                        InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
+                        InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
+                        InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
 
-                    // Watch Pane Up
-                    Some(InputAction::WatchPaneUp) => self.action_watch_up(),
+                        // default
+                        _ => {}
+                    }
 
-                    // History Pane Up
-                    Some(InputAction::HistoryPaneUp) => self.action_history_up(),
+                    // match mouse event
+                    match terminal_event {
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::ScrollUp,
+                            ..
+                        }) => self.mouse_scroll_up(),
 
-                    // Down
-                    Some(InputAction::Down) => self.action_down(),
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::ScrollDown,
+                            ..
+                        }) => self.mouse_scroll_down(),
 
-                    // Watch Pane Down
-                    Some(InputAction::WatchPaneDown) => self.action_watch_down(),
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::Down(MouseButton::Left),
+                            column, row,
+                            ..
+                        }) => self.mouse_click_left(column, row),
 
-                    // History Pane Down
-                    Some(InputAction::HistoryPaneDown) => self.action_history_down(),
+                        // default
+                        _ => {}
+                    }
 
-                    // PageUp
-                    Some(InputAction::PageUp) => self.action_pgup(),
-
-                    // Watch Pane PageUp
-                    Some(InputAction::WatchPanePageUp) => self.action_watch_pgup(),
-
-                    // History Pane PageUp
-                    Some(InputAction::HistoryPanePageUp) => self.action_history_pgup(),
-
-                    // PageDown
-                    Some(InputAction::PageDown) => self.action_pgdn(),
-
-                    // Watch Pane PageDown
-                    Some(InputAction::WatchPanePageDown) => self.action_watch_pgdn(),
-
-                    // History Pane PageDown
-                    Some(InputAction::HistoryPanePageDown) => self.action_history_pgdn(),
-
-                    // MoveTop
-                    Some(InputAction::MoveTop) => self.action_top(),
-
-                    // Watch Pane MoveTop
-                    Some(InputAction::WatchPaneMoveTop) => self.watch_area.scroll_home(),
-
-                    // History Pane MoveTop
-                    Some(InputAction::HistoryPaneMoveTop) => self.action_history_top(),
-
-                    // MoveEnd
-                    Some(InputAction::MoveEnd) => self.action_end(),
-
-                    // Watch Pane MoveEnd
-                    Some(InputAction::WatchPaneMoveEnd) => self.watch_area.scroll_end(),
-
-                    // History Pane MoveEnd
-                    Some(InputAction::HistoryPaneMoveEnd) => self.action_history_end(),
-
-                    // ToggleForcus
-                    Some(InputAction::ToggleForcus) => self.toggle_area(),
-
-                    // ForcusWatchPane
-                    Some(InputAction::ForcusWatchPane) => self.select_watch_pane(),
-
-                    // ForcusHistoryPane
-                    Some(InputAction::ForcusHistoryPane) => self.select_history_pane(),
-
-                    // Quit
-                    Some(InputAction::Quit) => self.tx.send(AppEvent::Exit).expect("send error hwatch exit."),
-
-                    // Reset
-                    // TODO: method分離したらちゃんとResetとしての機能を実装
-                    Some(InputAction::Reset) => self.action_normal_reset(),
-
-                    // Cancel
-                    // TODO: method分離したらちゃんとResetとしての機能を実装
-                    // Some(InputAction::Cancel) => self.action_cancel(),
-                    Some(InputAction::Cancel) => self.action_normal_reset(),
-
-                    // Help
-                    Some(InputAction::Help) => self.toggle_window(),
-
-                    // ToggleColor
-                    Some(InputAction::ToggleColor) => self.set_ansi_color(!self.ansi_color),
-
-                    // ToggleLineNumber
-                    Some(InputAction::ToggleLineNumber) => self.set_line_number(!self.line_number),
-
-                    // ToggleReverse
-                    Some(InputAction::ToggleReverse) => self.set_reverse(!self.reverse),
-
-                    // ToggleMouseSupport
-                    Some(InputAction::ToggleMouseSupport) => self.toggle_mouse_events(),
-
-                    // ToggleViewPaneUI
-                    Some(InputAction::ToggleViewPaneUI) => self.show_ui(!self.show_header),
-
-                    // ToggleViewHistory
-                    Some(InputAction::ToggleViewHistoryPane) => self.show_history(!self.show_history),
-
-                    // ToggleBorder
-                    Some(InputAction::ToggleBorder) => self.set_border(!self.is_border),
-
-                    // ToggleScrollBar
-                    Some(InputAction::ToggleScrollBar) => self.set_scroll_bar(!self.is_scroll_bar),
-
-                    // ToggleDiffMode
-                    Some(InputAction::ToggleDiffMode) => self.toggle_diff_mode(),
-
-                    // SetDiffModePlane
-                    Some(InputAction::SetDiffModePlane) => self.set_diff_mode(DiffMode::Disable),
-
-                    // SetDiffModeWatch
-                    Some(InputAction::SetDiffModeWatch) => self.set_diff_mode(DiffMode::Watch),
-
-                    // SetDiffModeLine
-                    Some(InputAction::SetDiffModeLine) => self.set_diff_mode(DiffMode::Line),
-
-                    // SetDiffModeWord
-                    Some(InputAction::SetDiffModeWord) => self.set_diff_mode(DiffMode::Word),
-
-                    // SetOnlyDiffLine
-                    Some(InputAction::SetDiffOnly) => self.set_is_only_diffline(!self.is_only_diffline),
-
-                    // ToggleOutputMode
-                    Some(InputAction::ToggleOutputMode) => self.toggle_output(),
-
-                    // SetOutputModeOutput
-                    Some(InputAction::SetOutputModeOutput) => self.set_output_mode(OutputMode::Output),
-
-                    // SetOutputModeStdout
-                    Some(InputAction::SetOutputModeStdout) => self.set_output_mode(OutputMode::Stdout),
-
-                    // SetOutputModeStderr
-                    Some(InputAction::SetOutputModeStderr) => self.set_output_mode(OutputMode::Stderr),
-
-                    // IntervalPlus
-                    Some(InputAction::IntervalPlus) => self.increase_interval(),
-
-                    // IntervalMinus
-                    Some(InputAction::IntervalMinus) => self.decrease_interval(),
-
-                    // Change Filter Mode(plane text).
-                    Some(InputAction::ChangeFilterMode) => self.set_input_mode(InputMode::Filter),
-
-                    // Change Filter Mode(regex text).
-                    Some(InputAction::ChangeRegexFilterMode) => self.set_input_mode(InputMode::RegexFilter),
-                    _ => {}
                 }
+                ActiveWindow::Help => {
+                    match action {
+                        // Common input key
+                        InputAction::Up => self.action_up(), // Up
+                        InputAction::Down => self.action_down(), // Down
+                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::Quit => self.tx.send(AppEvent::Exit)
+                            .expect("send error hwatch exit."), // Quit
+                        InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
-                // match mouse event
-                match terminal_event {
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::ScrollUp,
-                        ..
-                    }) => self.mouse_scroll_up(),
-
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::ScrollDown,
-                        ..
-                    }) => self.mouse_scroll_down(),
-
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::Down(MouseButton::Left),
-                        column, row,
-                        ..
-                    }) => self.mouse_click_left(column, row),
-
-                    _ => {}
-                }
-
-            }
-            ActiveWindow::Help => {
-                match self.keymap.get(&terminal_event) {
-                    // Common input key
-                    // Up
-                    Some(InputAction::Up) => self.action_up(),
-
-                    // Down
-                    Some(InputAction::Down) => self.action_down(),
-
-                    // Help
-                    Some(InputAction::Help) => self.toggle_window(),
-
-                    // Quit
-                    Some(InputAction::Quit) => self.tx.send(AppEvent::Exit).expect("send error hwatch exit."),
-
-                    // Cancel
-                    // Close help window with Cancel.
-                    Some(InputAction::Cancel) => self.toggle_window(),
-
-                    _ => {}
+                        // default
+                        _ => {}
+                    }
                 }
             }
         }
@@ -1039,57 +942,63 @@ impl<'a> App<'a> {
 
     ///
     fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
-        match self.keymap.get(&terminal_event) {
-            // Cancel
-            Some(InputAction::Cancel) => self.action_input_reset(),
+        if let Some(event_content) = self.keymap.get(&terminal_event) {
+            let action = event_content.action;
+            match action {
+                InputAction::Cancel => self.action_input_reset(),
+                _ => self.get_default_filter_input_key(is_regex, terminal_event),
+            }
+        } else {
+            self.get_default_filter_input_key(is_regex, terminal_event)
+        }
+    }
 
-            //
-            _ => {
-                if let Event::Key(key) = terminal_event {
-                    match key.code {
-                        KeyCode::Char(c) => {
-                            // add header input_text;
-                            self.header_area.input_text.push(c);
-                            self.header_area.update();
-                        }
-
-                        KeyCode::Backspace => {
-                            // remove header input_text;
-                            self.header_area.input_text.pop();
-                            self.header_area.update();
-                        }
-
-                        KeyCode::Enter => {
-                            // check regex error...
-                            if is_regex {
-                                let input_text = self.header_area.input_text.clone();
-                                let re_result = Regex::new(&input_text);
-                                if re_result.is_err() {
-                                    // TODO: create print message method.
-                                    return;
-                                }
-                            }
-
-                            // set filtered mode enable
-                            self.is_filtered = true;
-                            self.is_regex_filter = is_regex;
-                            self.filtered_text = self.header_area.input_text.clone();
-                            self.set_input_mode(InputMode::None);
-
-                            self.printer.set_filter(self.is_filtered);
-                            self.printer.set_regex_filter(self.is_regex_filter);
-                            self.printer.set_filter_text(self.filtered_text.clone());
-
-                            let selected = self.history_area.get_state_select();
-                            self.reset_history(selected);
-
-                            // update WatchArea
-                            self.set_output_data(selected);
-                        }
-
-                        _ => {}
-                    }
+    ///
+    fn get_default_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+        if let Event::Key(key) = terminal_event {
+            match key.code {
+                KeyCode::Char(c) => {
+                    // add header input_text;
+                    self.header_area.input_text.push(c);
+                    self.header_area.update();
                 }
+
+                KeyCode::Backspace => {
+                    // remove header input_text;
+                    self.header_area.input_text.pop();
+                    self.header_area.update();
+                }
+
+                KeyCode::Enter => {
+                    // check regex error...
+                    if is_regex {
+                        let input_text = self.header_area.input_text.clone();
+                        let re_result = Regex::new(&input_text);
+                        if re_result.is_err() {
+                            // TODO: create print message method.
+                            return;
+                        }
+                    }
+
+                    // set filtered mode enable
+                    self.is_filtered = true;
+                    self.is_regex_filter = is_regex;
+                    self.filtered_text = self.header_area.input_text.clone();
+                    self.set_input_mode(InputMode::None);
+
+                    self.printer.set_filter(self.is_filtered);
+                    self.printer.set_regex_filter(self.is_regex_filter);
+                    self.printer.set_filter_text(self.filtered_text.clone());
+
+                    let selected = self.history_area.get_state_select();
+                    self.reset_history(selected);
+
+                    // update WatchArea
+                    self.set_output_data(selected);
+                }
+
+                // default
+                _ => {}
             }
         }
     }
