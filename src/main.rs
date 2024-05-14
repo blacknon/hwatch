@@ -36,6 +36,7 @@
 extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
+extern crate config;
 extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
@@ -74,12 +75,13 @@ mod ansi;
 mod app;
 mod batch;
 mod common;
+mod errors;
 mod event;
 mod exec;
 mod header;
 mod help;
 mod history;
-mod keys;
+mod keymap;
 mod output;
 mod view;
 mod watch;
@@ -258,6 +260,7 @@ fn build_app() -> clap::Command {
                 .help("logging file")
                 .short('l')
                 .long("logfile")
+                .num_args(0..=1)
                 .value_hint(ValueHint::FilePath)
                 .action(ArgAction::Append),
         )
@@ -306,6 +309,8 @@ fn build_app() -> clap::Command {
                 .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
                 .action(ArgAction::Append),
         )
+        // Set output mode option
+        //   [--output,-o] [output, stdout, stderr]
         .arg(
             Arg::new("output")
                 .help("Select command output.")
@@ -316,6 +321,15 @@ fn build_app() -> clap::Command {
                 .default_value("output")
                 .action(ArgAction::Append),
         )
+        //
+        .arg(
+            Arg::new("keymap")
+                .help("Add keymap")
+                .short('K')
+                .long("keymap")
+                .action(ArgAction::Append),
+        )
+
 }
 
 fn get_clap_matcher() -> clap::ArgMatches {
@@ -386,6 +400,7 @@ fn main() {
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
 
+    // output mode
     let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
         "output" => common::OutputMode::Output,
         "stdout" => common::OutputMode::Stdout,
@@ -404,6 +419,21 @@ fn main() {
         }
     } else {
         DiffMode::Disable
+    };
+
+    // Get Add keymap
+    let keymap_options: Vec<&str> = matcher.get_many::<String>("keymap")
+        .unwrap_or_default()
+        .map(|s| s.as_str())
+        .collect();
+
+    // Parse Add Keymap
+    let keymap = match keymap::generate_keymap(keymap_options) {
+        Ok(keymap) => keymap,
+        _ => {
+            eprintln!("Failed to parse keymap.");
+            std::process::exit(1);
+        }
     };
 
     // Start Command Thread
@@ -447,6 +477,9 @@ fn main() {
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
+
+            // set keymap
+            .set_keymap(keymap)
 
             // Set color in view
             .set_color(matcher.get_flag("color"))

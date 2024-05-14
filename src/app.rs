@@ -2,11 +2,11 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossbeam_channel::{Receiver, Sender};
 // module
+use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent, MouseEventKind
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEvent, MouseEventKind
     },
     execute,
 };
@@ -30,6 +30,7 @@ use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
+use crate::keymap::{Keymap, default_keymap, InputAction};
 use crate::output;
 use crate::watch::WatchArea;
 use crate::Interval;
@@ -62,6 +63,9 @@ pub enum InputMode {
 
 /// Struct at watch view window.
 pub struct App<'a> {
+    ///
+    keymap: Keymap,
+
     ///
     area: ActiveArea,
 
@@ -177,6 +181,8 @@ impl<'a> App<'a> {
     ) -> Self {
         // method at create new view trail.
         Self {
+            keymap: default_keymap(),
+
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
 
@@ -210,7 +216,7 @@ impl<'a> App<'a> {
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
-            help_window: HelpWindow::new(),
+            help_window: HelpWindow::new(default_keymap()),
 
             mouse_events,
 
@@ -423,6 +429,12 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_keymap(&mut self,keymap: Keymap) {
+        self.keymap = keymap.clone();
+        self.help_window = HelpWindow::new(self.keymap.clone());
+    }
+
+    ///
     pub fn set_after_command(&mut self, command: String) {
         self.after_command = command;
     }
@@ -493,8 +505,6 @@ impl<'a> App<'a> {
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
     }
-
-
 
     ///
     pub fn set_line_number(&mut self, line_number: bool) {
@@ -830,372 +840,105 @@ impl<'a> App<'a> {
 
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
-        match self.window {
-            ActiveWindow::Normal => {
-                match terminal_event {
-                    // up
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_up(),
+        if let Some(event_content) = self.keymap.get(&terminal_event) {
+            let action = event_content.action;
+            match self.window {
+                ActiveWindow::Normal => {
+                    match action {
+                        InputAction::Up => self.action_up(), // Up
+                        InputAction::WatchPaneUp => self.action_watch_up(), // Watch Pane Up
+                        InputAction::HistoryPaneUp => self.action_history_up(), // History Pane Up
+                        InputAction::Down => self.action_down(), // Dow
+                        InputAction::WatchPaneDown => self.action_watch_down(), // Watch Pane Down
+                        InputAction::HistoryPaneDown => self.action_history_down(), // History Pane Down
+                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::WatchPanePageUp => self.action_watch_pgup(), // Watch Pane PageUp
+                        InputAction::HistoryPanePageUp => self.action_history_pgup(), // History Pane PageUp
+                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::WatchPanePageDown => self.action_watch_pgdn(), // Watch Pane PageDown
+                        InputAction::HistoryPanePageDown => self.action_history_pgdn(), // History Pane PageDown
+                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::WatchPaneMoveTop => self.watch_area.scroll_home(), // Watch Pane MoveTop
+                        InputAction::HistoryPaneMoveTop => self.action_history_top(), // History Pane MoveTop
+                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::WatchPaneMoveEnd => self.watch_area.scroll_end(), // Watch Pane MoveEnd
+                        InputAction::HistoryPaneMoveEnd => self.action_history_end(), // History Pane MoveEnd
+                        InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
+                        InputAction::ForcusWatchPane => self.select_watch_pane(), // ForcusWatchPane
+                        InputAction::ForcusHistoryPane => self.select_history_pane(), // ForcusHistoryPane
+                        InputAction::Quit => self.tx.send(AppEvent::Exit)
+                            .expect("send error hwatch exit."), // Quit
+                        InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
+                        // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
+                        InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
+                        InputAction::ToggleReverse => self.set_reverse(!self.reverse), // ToggleReverse
+                        InputAction::ToggleMouseSupport => self.toggle_mouse_events(), // ToggleMouseSupport
+                        InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header), // ToggleViewPaneUI
+                        InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
+                        InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
+                        InputAction::ToggleScrollBar => self.set_scroll_bar(!self.is_scroll_bar), // ToggleScrollBar
+                        InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
+                        InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
+                        InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
+                        InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
+                        InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
+                        InputAction::SetDiffOnly => self.set_is_only_diffline(!self.is_only_diffline), // SetOnlyDiffLine
+                        InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
+                        InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
+                        InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
+                        InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
+                        InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
+                        InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
 
-                    // down
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_down(),
-
-                    // pgup
-                    Event::Key(KeyEvent {
-                        code: KeyCode::PageUp,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_pgup(),
-
-                    // pgdn
-                    Event::Key(KeyEvent {
-                        code: KeyCode::PageDown,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_pgdn(),
-
-                    // Home
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Home,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_home(),
-
-                    // End
-                    Event::Key(KeyEvent {
-                        code: KeyCode::End,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_end(),
-
-                    // mouse wheel up
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::ScrollUp,
-                        modifiers: KeyModifiers::NONE,
-                        ..
-                    }) => self.mouse_scroll_up(),
-
-                    // mouse wheel down
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::ScrollDown,
-                        modifiers: KeyModifiers::NONE,
-                        ..
-                    }) => self.mouse_scroll_down(),
-
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::Down(MouseButton::Left),
-                        column,
-                        row,
-                        modifiers: KeyModifiers::NONE,
-                        ..
-                    }) => self.mouse_click_left(column, row),
-
-                    // left
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Left,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_left(),
-
-                    // right
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Right,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_right(),
-
-                    // c
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_ansi_color(!self.ansi_color),
-
-                    // d ... toggle diff mode.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('d'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_diff_mode(),
-
-                    // n
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('n'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_line_number(!self.line_number),
-
-                    // r
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('r'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_reverse(!self.reverse),
-
-                    // o(lower o)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('o'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_output(),
-
-                    // O(upper o). shift + o
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('O'),
-                        modifiers: KeyModifiers::SHIFT,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_is_only_diffline(!self.is_only_diffline),
-
-                    // 0 (DiffMode::Disable)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('0'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Disable),
-
-                    // 1 (DiffMode::Watch)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('1'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Watch),
-
-                    // 2 (DiffMode::Line)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('2'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Line),
-
-                    // 3 (DiffMode::Word)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('3'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Word),
-
-                    // F1 (OutputMode::Stdout)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(1),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Stdout),
-
-                    // F2 (OutputMode::Stderr)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(2),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Stderr),
-
-                    // F3 (OutputMode::Output)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(3),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Output),
-
-                    // + Increase interval
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('+'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.increase_interval(),
-
-                    // - Decrease interval
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('-'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.decrease_interval(),
-
-                    // Tab ... Toggle Area(Watch or History).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Tab,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_area(),
-
-                    // / ... Change Filter Mode(plane text).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('/'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_input_mode(InputMode::Filter),
-
-                    // * ... Change Filter Mode(regex text).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('*'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_input_mode(InputMode::RegexFilter),
-
-                    // ESC ... Reset.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Esc,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => {
-                        self.is_filtered = false;
-                        self.is_regex_filter = false;
-                        self.filtered_text = "".to_string();
-                        self.header_area.input_text = self.filtered_text.clone();
-                        self.set_input_mode(InputMode::None);
-
-                        self.printer.set_filter(self.is_filtered);
-                        self.printer.set_regex_filter(self.is_regex_filter);
-                        self.printer.set_filter_text("".to_string());
-
-                        let selected = self.history_area.get_state_select();
-                        self.reset_history(selected);
-
-                        // update WatchArea
-                        self.set_output_data(selected);
+                        // default
+                        _ => {}
                     }
 
-                    // Common input key
-                    // Backspace ... toggle history panel.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Backspace,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.show_history(!self.show_history),
+                    // match mouse event
+                    match terminal_event {
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::ScrollUp,
+                            ..
+                        }) => self.mouse_scroll_up(),
 
-                    // Common input key
-                    // t ... toggle ui
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('t'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.show_ui(!self.show_header),
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::ScrollDown,
+                            ..
+                        }) => self.mouse_scroll_down(),
 
-                    // Common input key
-                    // h ... toggle help window.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('h'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_window(),
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::Down(MouseButton::Left),
+                            column, row,
+                            ..
+                        }) => self.mouse_click_left(column, row),
 
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('m'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_mouse_events(),
+                        // default
+                        _ => {}
+                    }
 
-                    // q ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    // Ctrl + C ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    _ => {}
                 }
-            }
-            ActiveWindow::Help => {
-                match terminal_event {
-                    // Common input key
-                    // up
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_up(),
+                ActiveWindow::Help => {
+                    match action {
+                        // Common input key
+                        InputAction::Up => self.action_up(), // Up
+                        InputAction::Down => self.action_down(), // Down
+                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::Quit => self.tx.send(AppEvent::Exit)
+                            .expect("send error hwatch exit."), // Quit
+                        InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
-                    // down
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_down(),
-
-                    // h ... toggle help window.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('h'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_window(),
-
-                    // q ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    // Ctrl + C ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    _ => {}
+                        // default
+                        _ => {}
+                    }
                 }
             }
         }
@@ -1203,6 +946,19 @@ impl<'a> App<'a> {
 
     ///
     fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+        if let Some(event_content) = self.keymap.get(&terminal_event) {
+            let action = event_content.action;
+            match action {
+                InputAction::Cancel => self.action_input_reset(),
+                _ => self.get_default_filter_input_key(is_regex, terminal_event),
+            }
+        } else {
+            self.get_default_filter_input_key(is_regex, terminal_event)
+        }
+    }
+
+    ///
+    fn get_default_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
         if let Event::Key(key) = terminal_event {
             match key.code {
                 KeyCode::Char(c) => {
@@ -1245,21 +1001,7 @@ impl<'a> App<'a> {
                     self.set_output_data(selected);
                 }
 
-                KeyCode::Esc => {
-                    self.header_area.input_text = self.filtered_text.clone();
-                    self.set_input_mode(InputMode::None);
-                    self.is_filtered = false;
-
-                    self.printer.set_filter(self.is_filtered);
-                    self.printer.set_regex_filter(self.is_regex_filter);
-
-                    let selected = self.history_area.get_state_select();
-                    self.reset_history(selected);
-
-                    // update WatchArea
-                    self.set_output_data(selected);
-                }
-
+                // default
                 _ => {}
             }
         }
@@ -1369,20 +1111,33 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_up(&mut self) {
+    fn action_normal_reset(&mut self) {
+        self.is_filtered = false;
+        self.is_regex_filter = false;
+        self.filtered_text = "".to_string();
+        self.header_area.input_text = self.filtered_text.clone();
+        self.set_input_mode(InputMode::None);
+
+        self.printer.set_filter(self.is_filtered);
+        self.printer.set_regex_filter(self.is_regex_filter);
+        self.printer.set_filter_text("".to_string());
+
+        let selected = self.history_area.get_state_select();
+        self.reset_history(selected);
+
+        // update WatchArea
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
-                    // scroll up watch
-                    self.watch_area.scroll_up(1);
+                    self.action_watch_up()
                 }
                 ActiveArea::History => {
-                    // move next history
-                    self.history_area.next(1);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_up()
                 }
             },
             ActiveWindow::Help => {
@@ -1392,20 +1147,30 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_down(&mut self) {
+    fn action_watch_up(&mut self) {
+        // scroll up watch
+        self.watch_area.scroll_up(1);
+    }
+
+    ///
+    fn action_history_up(&mut self) {
+        // move next history
+        self.history_area.next(1);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
-                    // scroll up watch
-                    self.watch_area.scroll_down(1);
+                    self.action_watch_down()
                 }
                 ActiveArea::History => {
-                    // move previous history
-                    self.history_area.previous(1);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_down()
                 }
             },
             ActiveWindow::Help => {
@@ -1415,116 +1180,190 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_pgup(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => {
-                    let mut page_height = self.watch_area.get_area_size();
-                    if page_height > 1 {
-                        page_height = page_height - 1
+    fn action_watch_down(&mut self) {
+        // scroll up watch
+        self.watch_area.scroll_down(1);
+    }
+
+    ///
+    fn action_history_down(&mut self) {
+        // move previous history
+        self.history_area.previous(1);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_pgup(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => {
+                        self.action_watch_pgup();
+                    },
+                    ActiveArea::History => {
+                        self.action_history_pgup();
                     }
-
-                    // scroll up watch
-                    self.watch_area.scroll_up(page_height);
                 },
-                ActiveArea::History => {
-                    // move next history
-                    let area_size = self.history_area.area.height;
-                    let move_size = if area_size > 1 {
-                        area_size - 1
-                    } else {
-                        1
-                    };
-
-                    // up
-                    self.history_area.next(move_size as usize);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                }
+            ActiveWindow::Help => {
+                self.help_window.page_up();
             }
         }
     }
 
     ///
-    fn input_key_pgdn(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => {
-                    let mut page_height = self.watch_area.get_area_size();
-                    if page_height > 1 {
-                        page_height = page_height - 1
-                    }
+    fn action_watch_pgup(&mut self) {
+        let mut page_height = self.watch_area.get_area_size();
+        if page_height > 1 {
+            page_height = page_height - 1
+        }
 
-                    // scroll up watch
-                    self.watch_area.scroll_down(page_height);
+        // scroll up watch
+        self.watch_area.scroll_up(page_height);
+    }
+
+    ///
+    fn action_history_pgup(&mut self) {
+        // move next history
+        let area_size = self.history_area.area.height;
+        let move_size = if area_size > 1 {
+            area_size - 1
+        } else {
+            1
+        };
+
+        // up
+        self.history_area.next(move_size as usize);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_pgdn(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => {
+                        self.action_watch_pgdn();
+                    },
+                    ActiveArea::History => {
+
+                        self.action_history_pgdn();
+                    },
                 },
-                ActiveArea::History => {
-                    // move previous history
-                    let area_size = self.history_area.area.height;
-                    let move_size = if area_size > 1 {
-                        area_size - 1
-                    } else {
-                        1
-                    };
-
-                    // down
-                    self.history_area.previous(move_size as usize);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                },
+            ActiveWindow::Help => {
+                self.help_window.page_down();
             }
         }
     }
 
     ///
-    fn input_key_home(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
+    fn action_watch_pgdn(&mut self) {
+        let mut page_height = self.watch_area.get_area_size();
+        if page_height > 1 {
+            page_height = page_height - 1
+        }
+
+        // scroll up watch
+        self.watch_area.scroll_down(page_height);
+    }
+
+    ///
+    fn action_history_pgdn(&mut self) {
+        // move previous history
+        let area_size = self.history_area.area.height;
+        let move_size = if area_size > 1 {
+            area_size - 1
+        } else {
+            1
+        };
+
+        // down
+        self.history_area.previous(move_size as usize);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_top(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_home(),
-                ActiveArea::History => {
-                    // move latest history move size
-                    let hisotory_size = self.history_area.get_history_size();
-                    self.history_area.next(hisotory_size);
-
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                }
+                ActiveArea::History => self.action_history_top(),
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_top();
             }
         }
     }
 
     ///
-    fn input_key_end(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => self.watch_area.scroll_end(),
-                ActiveArea::History => {
-                    // get end history move size
-                    let hisotory_size = self.history_area.get_history_size();
-                    let move_size = if hisotory_size > 1 {
-                        hisotory_size - 1
-                    } else {
-                        1
-                    };
+    fn action_history_top(&mut self) {
+        // move latest history move size
+        let hisotory_size = self.history_area.get_history_size();
+        self.history_area.next(hisotory_size);
 
-                    // move end
-                    self.history_area.previous(move_size);
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
 
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-
+    ///
+    fn action_end(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => self.watch_area.scroll_end(),
+                    ActiveArea::History => self.action_history_end(),
                 },
+            ActiveWindow::Help => {
+                self.help_window.scroll_end();
             }
         }
     }
 
     ///
-    fn input_key_left(&mut self) {
+    fn action_history_end(&mut self) {
+        // get end history move size
+        let hisotory_size = self.history_area.get_history_size();
+        let move_size = if hisotory_size > 1 {
+            hisotory_size - 1
+        } else {
+            1
+        };
+
+        // move end
+        self.history_area.previous(move_size);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_input_reset(&mut self) {
+        self.header_area.input_text = self.filtered_text.clone();
+        self.set_input_mode(InputMode::None);
+        self.is_filtered = false;
+
+        self.printer.set_filter(self.is_filtered);
+        self.printer.set_regex_filter(self.is_regex_filter);
+
+        let selected = self.history_area.get_state_select();
+        self.reset_history(selected);
+
+        // update WatchArea
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn select_watch_pane(&mut self) {
         if let ActiveWindow::Normal = self.window {
             self.area = ActiveArea::Watch;
 
@@ -1535,7 +1374,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_right(&mut self) {
+    fn select_history_pane(&mut self) {
         if let ActiveWindow::Normal = self.window {
             self.area = ActiveArea::History;
 

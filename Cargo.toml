@@ -10,17 +10,18 @@ version = "0.3.14"
 
 [dependencies]
 ansi-parser = "0.9.0"
-heapless = "0.6.1"
-
 ansi_term = "0.12.1"
 async-std = {version = "1.12"}
 chrono = "0.4.34"
 clap = {version = "4.5.3", features = ["cargo"]}
+config = {version = "0.14", default-features = false, features = ["ini"]}
 crossbeam-channel = "0.5.12"
 crossterm = "0.27.0"
 ctrlc = {version = "3.4.2", features = ["termination"]}
 difference = "2.0"
+error-stack = "0.4.1"
 futures = "0.3.30"
+heapless = "0.6.1"
 question = "0.2.2"
 ratatui = {version = "0.26.1", default-features = false, features = ['crossterm', 'unstable-rendered-line-info']}
 regex = "1.10.3"

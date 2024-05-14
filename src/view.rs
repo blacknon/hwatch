@@ -20,6 +20,7 @@ use tui::{backend::CrosstermBackend, Terminal};
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
+use crate::keymap::{Keymap, default_keymap};
 
 // local const
 use crate::Interval;
@@ -31,6 +32,7 @@ pub struct View {
     after_command: String,
     interval: Interval,
     tab_size: u16,
+    keymap: Keymap,
     beep: bool,
     border: bool,
     scroll_bar: bool,
@@ -53,6 +55,7 @@ impl View {
             after_command: "".to_string(),
             interval,
             tab_size: DEFAULT_TAB_SIZE,
+            keymap: default_keymap(),
             beep: false,
             border: false,
             scroll_bar: false,
@@ -81,6 +84,11 @@ impl View {
 
     pub fn set_tab_size(mut self, tab_size: u16) -> Self {
         self.tab_size = tab_size;
+        self
+    }
+
+    pub fn set_keymap(mut self, keymap: Keymap) -> Self {
+        self.keymap = keymap;
         self
     }
 
@@ -181,6 +189,9 @@ impl View {
 
         // Create App
         let mut app = App::new(tx, rx, self.interval.clone(), self.mouse_events);
+
+        // set keymap
+        app.set_keymap(self.keymap.clone());
 
         // set after command
         app.set_after_command(self.after_command.clone());
