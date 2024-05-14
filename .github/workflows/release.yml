@@ -6,7 +6,6 @@
 #     - https://github.com/motemen/hwatch/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
 #   - https://github.com/greymd/teip/blob/master/.github/workflows/release.yml
 
-
 name: Release Job.
 
 on:
@@ -14,7 +13,7 @@ on:
     branches:
       - master
     paths-ignore:
-      - '**/README.md'
+      - "**/README.md"
 
 jobs:
   # build rust binary
@@ -40,9 +39,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             ext: tar.gz
-          # - target: x86_64-pc-windows-gnu
-          #   os: ubuntu-latest
-          #   ext: zip
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+            ext: zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
@@ -211,7 +210,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             ext: tar.gz
-          # - x86_64-pc-windows-gnu
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+            ext: zip
     needs: [create-release]
     runs-on: ubuntu-latest
     steps:
