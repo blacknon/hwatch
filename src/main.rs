@@ -352,7 +352,6 @@ fn get_clap_matcher() -> clap::ArgMatches {
 }
 
 fn main() {
-    unsafe { backtrace_on_stack_overflow::enable() };
     // Get command args matches
     let matcher = get_clap_matcher();
 

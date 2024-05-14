@@ -12,7 +12,6 @@ version = "0.3.14"
 ansi-parser = "0.9.0"
 ansi_term = "0.12.1"
 async-std = {version = "1.12"}
-backtrace-on-stack-overflow = "0.3.0"
 chrono = "0.4.34"
 clap = {version = "4.5.3", features = ["cargo"]}
 config = {version = "0.14", default-features = false, features = ["ini"]}
