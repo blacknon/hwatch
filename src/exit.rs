@@ -2,12 +2,12 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use ratatui::{style::Stylize, text::Span};
+use ratatui::style::Stylize;
 use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Style},
     prelude::Line,
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, BorderType, Clear, Paragraph, Wrap},
     Frame,
 };
 
@@ -42,12 +42,13 @@ impl<'a> ExitWindow<'a> {
 
         // create block.
         let block = Paragraph::new(self.text.clone())
-            .style(Style::default().fg(Color::Green).bg(Color::Reset).reversed())
+            .style(Style::default().bold())
             .block(
                 Block::default()
                     .title(title)
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Green).bg(Color::Reset).reversed()),
+                    .border_type(BorderType::Double)
+                    .border_style(Style::default().bold().fg(Color::Green)),
             )
             .wrap(Wrap { trim: false });
 
