@@ -3,9 +3,16 @@
 // that can be found in the LICENSE file.
 
 // v0.3.14
-// TODO(blacknon): キー入力のカスタマイズが行えるようにする(custom keymap)
-// TODO(blakcnon): scroll barの表示を追加するオプションの実装(barとセットかな？)
-// TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
+// TODO(blacknon): historyにSummary表示を追加する
+//                 - 前回差分発生時との時刻差 ... 表示方式はoptionや後で変えられるようにする(vim like command modeで変更？)
+//                 - 前回差分発生時との差分行数(+/-での表示) ... 行数/文字/byte数の表示は選べるように(ショートカットキーとvim like command modeで変更できるように)
+//                 - 前回差分発生時との差分文字数(+/-での表示)
+//                 - 前回差分発生時との差分byte数(+/-での表示)
+//                 これらの情報については、こまごまとしているのでコマンドラインで細かいOptionを受付けられるようにする？(あとは、vim like command mode実装時にあとからコマンドベース変更ができるように)
+// TODO(blacknon): diffのライブラリをsimilarに切り替える？
+//                 - https://github.com/mitsuhiko/similar
+//                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
+//                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
 
 // v0.3.15
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
@@ -24,11 +31,6 @@
 //                 https://github.com/rust-cli/man
 // TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
-// TODO(blacknon): diffのライブラリをsimilarに切り替える？
-//                 - https://github.com/mitsuhiko/similar
-//                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
-//                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
-
 
 // crate
 // extern crate ansi_parser;
