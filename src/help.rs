@@ -4,7 +4,7 @@
 
 use ratatui::text::Span;
 use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Style},
     prelude::Line,
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
@@ -12,6 +12,7 @@ use tui::{
 };
 
 use crate::keymap::{get_input_action_description, InputAction, Keymap};
+use crate::common::centered_rect;
 
 pub struct KeyData {
     pub key: String,
@@ -170,30 +171,4 @@ fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
     let text = gen_help_text_from_key_data(keydata_list);
 
     text
-}
-
-///
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(popup_layout[1])[1]
 }

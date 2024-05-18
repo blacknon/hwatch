@@ -27,6 +27,7 @@ use crate::common::logging_result;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
+use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea};
@@ -51,6 +52,7 @@ pub enum ActiveArea {
 pub enum ActiveWindow {
     Normal,
     Help,
+    Exit,
 }
 
 ///
@@ -83,6 +85,9 @@ pub struct App<'a> {
 
     ///
     reverse: bool,
+
+    ///
+    disable_exit_dialog: bool,
 
     ///
     is_beep: bool,
@@ -150,6 +155,9 @@ pub struct App<'a> {
     ///
     help_window: HelpWindow<'a>,
 
+    ///
+    exit_window: ExitWindow<'a>,
+
     /// Enable mouse wheel support.
     mouse_events: bool,
 
@@ -190,6 +198,7 @@ impl<'a> App<'a> {
             ansi_color: false,
             line_number: false,
             reverse: false,
+            disable_exit_dialog: false,
             show_history: true,
             show_header: true,
 
@@ -217,6 +226,7 @@ impl<'a> App<'a> {
             watch_area: WatchArea::new(),
 
             help_window: HelpWindow::new(default_keymap()),
+            exit_window: ExitWindow::new(),
 
             mouse_events,
 
@@ -317,6 +327,13 @@ impl<'a> App<'a> {
         // match help mode
         if let ActiveWindow::Help = self.window {
             self.help_window.draw(f);
+        }
+
+        if let ActiveWindow::Exit = self.window {
+            self.exit_window.draw(f);
+        }
+
+        if self.window != ActiveWindow::Normal {
             return;
         }
 
@@ -840,6 +857,32 @@ impl<'a> App<'a> {
 
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
+        // if exit window
+        if self.window == ActiveWindow::Exit {
+            // match key event
+            match terminal_event {
+                Event::Key(key) => {
+                    match key.code {
+                        KeyCode::Char('y') => {
+                            self.exit();
+                            return;
+                        },
+                        KeyCode::Char('n') => {
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        },
+                        KeyCode::Char('h') => {
+                            self.window = ActiveWindow::Help;
+                            return;
+                        },
+                        // default
+                        _ => {}
+                    }
+                },
+                _ => {},
+            }
+        }
+
         if let Some(event_content) = self.keymap.get(&terminal_event) {
             let action = event_content.action;
             match self.window {
@@ -866,8 +909,13 @@ impl<'a> App<'a> {
                         InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
                         InputAction::ForcusWatchPane => self.select_watch_pane(), // ForcusWatchPane
                         InputAction::ForcusHistoryPane => self.select_history_pane(), // ForcusHistoryPane
-                        InputAction::Quit => self.tx.send(AppEvent::Exit)
-                            .expect("send error hwatch exit."), // Quit
+                        InputAction::Quit => {
+                            if self.disable_exit_dialog {
+                                self.exit();
+                            } else {
+                                self.show_exit_popup();
+                            }
+                        }, // Quit
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
                         // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
@@ -932,15 +980,29 @@ impl<'a> App<'a> {
                         InputAction::MoveTop => self.action_top(), // MoveTop
                         InputAction::MoveEnd => self.action_end(), // MoveEnd
                         InputAction::Help => self.toggle_window(), // Help
-                        InputAction::Quit => self.tx.send(AppEvent::Exit)
-                            .expect("send error hwatch exit."), // Quit
+                        InputAction::Quit => {
+                            if self.disable_exit_dialog {
+                                self.exit();
+                            } else {
+                                self.show_exit_popup();
+                            }
+                        },
                         InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
                         // default
                         _ => {}
                     }
+                },
+                ActiveWindow::Exit => {
+                    match action {
+                        InputAction::Quit => self.exit(), // Quit
+                        InputAction::Cancel => self.window = ActiveWindow::Normal, // Cancel
+                        _ => {}
+                    }
                 }
             }
+
+            return
         }
     }
 
@@ -1049,7 +1111,13 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
+            _ => {},
         }
+    }
+
+    ///
+    fn show_exit_popup(&mut self) {
+        self.window = ActiveWindow::Exit;
     }
 
     ///
@@ -1112,21 +1180,31 @@ impl<'a> App<'a> {
 
     ///
     fn action_normal_reset(&mut self) {
-        self.is_filtered = false;
-        self.is_regex_filter = false;
-        self.filtered_text = "".to_string();
-        self.header_area.input_text = self.filtered_text.clone();
-        self.set_input_mode(InputMode::None);
+        if self.is_filtered {
+            // unset filter
+            self.is_filtered = false;
+            self.is_regex_filter = false;
+            self.filtered_text = "".to_string();
+            self.header_area.input_text = self.filtered_text.clone();
+            self.set_input_mode(InputMode::None);
 
-        self.printer.set_filter(self.is_filtered);
-        self.printer.set_regex_filter(self.is_regex_filter);
-        self.printer.set_filter_text("".to_string());
+            self.printer.set_filter(self.is_filtered);
+            self.printer.set_regex_filter(self.is_regex_filter);
+            self.printer.set_filter_text("".to_string());
 
-        let selected = self.history_area.get_state_select();
-        self.reset_history(selected);
+            let selected = self.history_area.get_state_select();
+            self.reset_history(selected);
 
-        // update WatchArea
-        self.set_output_data(selected);
+            // update WatchArea
+            self.set_output_data(selected);
+        } else if 0 != self.history_area.get_state_select() {
+            // set latest history
+            self.reset_history(0);
+            self.set_output_data(0);
+        } else {
+            // exit popup
+            self.show_exit_popup()
+        }
     }
 
     ///
@@ -1143,6 +1221,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_up(1);
             }
+            _ => {},
         }
     }
 
@@ -1176,6 +1255,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(1);
             }
+            _ => {},
         }
     }
 
@@ -1210,6 +1290,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.page_up();
             }
+            _ => {},
         }
     }
 
@@ -1258,6 +1339,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.page_down();
             }
+            _ => {},
         }
     }
 
@@ -1301,6 +1383,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_top();
             }
+            _ => {},
         }
     }
 
@@ -1325,6 +1408,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_end();
             }
+            _ => {},
         }
     }
 
@@ -1415,6 +1499,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
+            _ => {},
         }
     }
 
@@ -1435,9 +1520,14 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
+            _ => {},
         }
     }
 
+    fn exit(&mut self) {
+        self.tx.send(AppEvent::Exit)
+            .expect("send error hwatch exit.");
+    }
 }
 
 /// Checks whether the area where the mouse cursor is currently located is within the specified area.

@@ -77,6 +77,7 @@ mod common;
 mod errors;
 mod event;
 mod exec;
+mod exit;
 mod header;
 mod help;
 mod history;
