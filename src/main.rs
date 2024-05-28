@@ -33,7 +33,6 @@
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // crate
-// extern crate ansi_parser;
 extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
@@ -49,6 +48,7 @@ extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
+extern crate similar;
 extern crate termwiz;
 extern crate ratatui as tui;
 
