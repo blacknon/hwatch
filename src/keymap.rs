@@ -7,7 +7,6 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, Key
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
 use serde::{Deserialize, Serialize};
-use serde_derive::{Deserialize, Serialize};
 use config::{Config, ConfigError, FileFormat};
 
 use crate::errors::HwatchError;
