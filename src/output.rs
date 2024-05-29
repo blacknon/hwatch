@@ -2,8 +2,13 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: watch diffのハイライトについて、旧watchと同様のパターンとは別により見やすいハイライトを実装する
+//       => Watch(Word)とかにするか？？
+//       => すぐには出来なさそう？なので、0.3.15にて対応とする？
+// TODO: 行・文字差分数の取得を行うための関数を作成する(ここじゃないかも？？)
+
 // modules
-use difference::{Changeset, Difference};
+use ratatui::style::Stylize;
 use regex::Regex;
 use std::{borrow::Cow, vec};
 use std::cmp;
@@ -14,6 +19,7 @@ use tui::{
     prelude::Line,
 };
 use ansi_term::Colour;
+use similar::{ChangeTag, InlineChange, TextDiff};
 
 // const
 const COLOR_BATCH_LINE_NUMBER_DEFAULT: Colour = Colour::Fixed(240);
@@ -21,6 +27,7 @@ const COLOR_BATCH_LINE_NUMBER_ADD: Colour = Colour::RGB(56, 119, 120);
 const COLOR_BATCH_LINE_NUMBER_REM: Colour = Colour::RGB(118, 0, 0);
 const COLOR_BATCH_LINE_ADD: Colour = Colour::Green;
 const COLOR_BATCH_LINE_REM: Colour = Colour::Red;
+const COLOR_BATCH_LINE_REVERSE_FG: Colour = Colour::White;
 const COLOR_WATCH_LINE_NUMBER_DEFAULT: Color = Color::DarkGray;
 const COLOR_WATCH_LINE_NUMBER_ADD: Color = Color::Rgb(56, 119, 120);
 const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
@@ -30,7 +37,6 @@ const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
 
 // local const
 use crate::ansi;
-use crate::LINE_ENDING;
 use crate::DEFAULT_TAB_SIZE;
 
 // local module
@@ -48,11 +54,7 @@ enum PrintData<'a> {
 enum PrintElementData<'a> {
     Line(Line<'a>),
     String(String),
-}
-
-enum LineElementData<'a> {
-    Spans(Vec<Vec<Span<'a>>>),
-    String(Vec<String>),
+    None(),
 }
 
 enum DifferenceType {
@@ -127,14 +129,20 @@ pub struct Printer {
     // is regex filter text.
     is_regex_filter: bool,
 
-    // filter text.
-    filter_text: String,
+    // is word highlight at line diff.
+    is_word_highlight: bool,
 
     // is only print different line.
     is_only_diffline: bool,
 
+    // filter text.
+    filter_text: String,
+
     // tab size.
     tab_size: u16,
+
+    // watch window header width.
+    header_width: usize,
 }
 
 impl Printer {
@@ -148,9 +156,11 @@ impl Printer {
             is_reverse: false,
             is_filter: false,
             is_regex_filter: false,
-            filter_text: "".to_string(),
+            is_word_highlight: false,
             is_only_diffline: false,
+            filter_text: "".to_string(),
             tab_size: DEFAULT_TAB_SIZE,
+            header_width: 0,
         }
     }
 
@@ -173,8 +183,14 @@ impl Printer {
         let data = match self.diff_mode {
             DiffMode::Disable => self.gen_plane_output(&text_dest),
             DiffMode::Watch => self.gen_watch_diff_output(&text_dest, &text_src),
-            DiffMode::Line => self.gen_line_diff_output(&text_dest, &text_src),
-            DiffMode::Word => self.gen_word_diff_output(&text_dest, &text_src),
+            DiffMode::Line => {
+                self.is_word_highlight = false;
+                self.gen_line_diff_output(&text_dest, &text_src)
+            },
+            DiffMode::Word => {
+                self.is_word_highlight = true;
+                self.gen_line_diff_output(&text_dest, &text_src)
+            },
         };
 
         if let PrintData::Lines(mut result) = data {
@@ -212,8 +228,14 @@ impl Printer {
         let data = match self.diff_mode {
             DiffMode::Disable => self.gen_plane_output(&text_dest),
             DiffMode::Watch => self.gen_watch_diff_output(&text_dest, &text_src),
-            DiffMode::Line => self.gen_line_diff_output(&text_dest, &text_src),
-            DiffMode::Word => self.gen_word_diff_output(&text_dest, &text_src),
+            DiffMode::Line => {
+                self.is_word_highlight = false;
+                self.gen_line_diff_output(&text_dest, &text_src)
+            },
+            DiffMode::Word => {
+                self.is_word_highlight = true;
+                self.gen_line_diff_output(&text_dest, &text_src)
+            },
         };
 
         if let PrintData::Strings(mut result) = data {
@@ -523,6 +545,7 @@ impl Printer {
                             &gen_counter_str(self.is_color, counter, header_width, DifferenceType::Same)
                         );
                     }
+                    PrintElementData::None() => {},
                 }
             };
 
@@ -693,8 +716,6 @@ impl Printer {
 
     }
 
-    // Line Diff Output
-    // ====================
     ///
     fn gen_line_diff_output<'a>(&mut self, dest: &str, src: &str) -> PrintData<'a> {
         // tab expand dest
@@ -702,97 +723,39 @@ impl Printer {
         if !self.is_batch {
             text_dest = expand_line_tab(dest, self.tab_size);
         }
+        let text_dest_bytes = text_dest.as_bytes().to_vec();
 
         // tab expand src
         let mut text_src = src.to_string();
         if !self.is_batch {
             text_src = expand_line_tab(src, self.tab_size);
         }
+        let text_src_bytes = text_src.as_bytes().to_vec();
 
-        // Create changeset
-        let Changeset { diffs, .. } = Changeset::new(&text_src, &text_dest, LINE_ENDING);
+        // Create diff data
+        let diff_set  = TextDiff::from_lines(&text_src_bytes, &text_dest_bytes);
 
         // src and dest text's line count.
-        let src_len = &text_src.lines().count();
-        let dest_len = &text_dest.lines().count();
+        let src_len = diff_set.old_slices().len();
+        let dest_len = diff_set.new_slices().len();
 
         // get line_number width
-        let header_width = cmp::max(src_len, dest_len).to_string().chars().count();
-
-        // line_number counter
-        let mut src_counter = 1;
-        let mut dest_counter = 1;
+        self.header_width = cmp::max(src_len, dest_len).to_string().chars().count();
 
         // create result
         let mut result_line = vec![];
         let mut result_str = vec![];
-
-        (0..diffs.len()).for_each(|i| {
-            match diffs[i] {
-                // Same line.
-                Difference::Same(ref diff_data) => {
-                    for l in diff_data.lines() {
-                        let data = self.gen_line_diff_linedata_from_diffs_str(
-                            l,
-                            DifferenceType::Same,
-                            dest_counter,
-                            header_width,
-                        );
-
-                        if !self.is_only_diffline {
-                            match data {
-                                PrintElementData::String(data_str) => result_str.push(data_str),
-                                PrintElementData::Line(data_line) => result_line.push(data_line),
-                            }
-                        }
-
-                        // add counter
-                        src_counter += 1;
-                        dest_counter += 1;
-                    }
-                }
-
-                // Add line.
-                Difference::Add(ref diff_data) => {
-                    for l in diff_data.lines() {
-                        let data = self.gen_line_diff_linedata_from_diffs_str(
-                            l,
-                            DifferenceType::Add,
-                            dest_counter,
-                            header_width,
-                        );
-
-                        match data {
-                            PrintElementData::String(data_str) => result_str.push(data_str),
-                            PrintElementData::Line(data_line) => result_line.push(data_line),
-                        }
-
-                        // add counter
-                        dest_counter += 1;
-                    }
-                }
-
-                // Remove line.
-                Difference::Rem(ref diff_data) => {
-                    for l in diff_data.lines() {
-                        let data = self.gen_line_diff_linedata_from_diffs_str(
-                            l,
-                            DifferenceType::Rem,
-                            src_counter,
-                            header_width,
-                        );
-
-                        match data {
-                            PrintElementData::String(data_str) => result_str.push(data_str),
-                            PrintElementData::Line(data_line) => result_line.push(data_line),
-                        }
-
-                        // add counter
-                        src_counter += 1;
-                     }
+        for op in diff_set.ops().iter() {
+            for change in diff_set.iter_inline_changes(op) {
+                // create PrintElementData
+                let data = self.gen_line_diff_element(&change);
+                match data {
+                    PrintElementData::String(data_str) => result_str.push(data_str),
+                    PrintElementData::Line(data_line) => result_line.push(data_line),
+                    PrintElementData::None() => {},
                 }
             }
-        });
+        }
 
         if self.is_batch {
             return PrintData::Strings(result_str);
@@ -801,96 +764,121 @@ impl Printer {
         }
     }
 
-    ///
-    fn gen_line_diff_linedata_from_diffs_str<'a>(
+    //
+    fn gen_line_diff_element<'a>(
         &mut self,
-        diff_line: &str,
-        diff_type: DifferenceType,
-        line_number: i32,
-        header_width: usize,
+        change: &InlineChange<[u8]>,
     ) -> PrintElementData<'a> {
-        //
+        let mut result_line_spans = vec![];
+        let mut result_str_elements = vec![];
+
+        // set variables related to output
+        let line_number: i32;
         let line_header: &str;
+        let diff_type: DifferenceType;
         let tui_line_style: Style;
+        let tui_line_highlight_style: Style;
         let tui_line_header_style: Style;
         let str_line_style: ansi_term::Style;
+        let str_line_highlight_style: ansi_term::Style;
+        match change.tag() {
+            ChangeTag::Equal => {
+                // If is_only_diffline is valid, it will not be output in the first place, so it will return here.
+                if self.is_only_diffline {
+                    return PrintElementData::None();
+                }
 
-        match diff_type {
-            DifferenceType::Same => {
+                line_number = change.old_index().unwrap() as i32;
                 line_header = "   ";
+                diff_type = DifferenceType::Same;
                 tui_line_style = Style::default();
+                tui_line_highlight_style = Style::default();
                 tui_line_header_style = Style::default().fg(COLOR_WATCH_LINE_NUMBER_DEFAULT);
                 str_line_style = ansi_term::Style::new();
+                str_line_highlight_style = ansi_term::Style::new();
             },
-
-            DifferenceType::Add => {
-                line_header = "+  ";
-                tui_line_style = Style::default().fg(COLOR_WATCH_LINE_ADD);
-                tui_line_header_style = Style::default().fg(COLOR_WATCH_LINE_NUMBER_ADD);
-                str_line_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_ADD);
-            },
-
-            DifferenceType::Rem => {
+            ChangeTag::Delete => {
+                line_number = change.old_index().unwrap() as i32;
                 line_header = "-  ";
+                diff_type = DifferenceType::Rem;
                 tui_line_style = Style::default().fg(COLOR_WATCH_LINE_REM);
+                tui_line_highlight_style = Style::default().fg(COLOR_WATCH_LINE_REM).reversed().bg(COLOR_WATCH_LINE_REVERSE_FG);
                 tui_line_header_style = Style::default().fg(COLOR_WATCH_LINE_NUMBER_REM);
                 str_line_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_REM);
+                str_line_highlight_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_REVERSE_FG).on(COLOR_BATCH_LINE_REM);
+            },
+            ChangeTag::Insert => {
+                line_number = change.new_index().unwrap() as i32;
+                line_header = "+  ";
+                diff_type = DifferenceType::Add;
+                tui_line_style = Style::default().fg(COLOR_WATCH_LINE_ADD);
+                tui_line_highlight_style = Style::default().fg(COLOR_WATCH_LINE_ADD).reversed().bg(COLOR_WATCH_LINE_REVERSE_FG);
+                tui_line_header_style = Style::default().fg(COLOR_WATCH_LINE_NUMBER_ADD);
+                str_line_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_ADD);
+                str_line_highlight_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_REVERSE_FG).on(COLOR_BATCH_LINE_ADD);
             },
         };
 
-        // create result_line
-        let mut result_line =  match diff_type {
-            DifferenceType::Same => {
-                if self.is_color {
-                    let mut colored_span = vec![Span::from(line_header)];
-                    let colored_data = ansi::bytes_to_text(format!("{diff_line}\n").as_bytes());
-                    for d in colored_data.lines {
-                        for x in d.spans {
-                            colored_span.push(x);
+        // create result_line and result_str
+        result_line_spans.push(Span::styled(format!("{line_header}"), tui_line_style));
+        result_str_elements.push(str_line_style.paint(format!("{line_header}").to_string()).to_string());
+        for (emphasized, value) in change.iter_strings_lossy() {
+            let mut line_data = value.to_string();
+            if self.is_color {
+                line_data = get_ansi_strip_str(&value);
+            }
+
+            if self.is_word_highlight && emphasized { // word highlight
+                // line push
+                result_line_spans.push(
+                    Span::styled(
+                        format!("{line_data}"),
+                        tui_line_highlight_style
+                    )
+                );
+
+                // str push
+                result_str_elements.push(
+                    str_line_highlight_style
+                        .paint(
+                            format!("{line_data}")
+                        )
+                        .to_string()
+                );
+            } else { // normal
+                match change.tag() {
+                    ChangeTag::Equal => {
+                        if self.is_color {
+                            result_line_spans = vec![Span::from(line_header)];
+                            let colored_data = ansi::bytes_to_text(format!("{line_data}").as_bytes());
+                            for d in colored_data.lines {
+                                for x in d.spans {
+                                    result_line_spans.push(x);
+                                }
+                            }
+                            result_str_elements.push(str_line_style.paint(format!("{line_data}").to_string()).to_string());
+                        } else {
+                            let color_strip_data = get_ansi_strip_str(&line_data);
+                            result_line_spans.push(Span::styled(format!("{line_data}"), tui_line_style));
+                            result_str_elements.push(str_line_style.paint(format!("{color_strip_data}").to_string()).to_string());
                         }
-                    }
-                    Line::from(colored_span)
-                } else {
-                    Line::from(format!("{line_header}{diff_line}\n"))
+                    },
+                    _ => {
+                        let color_strip_data = get_ansi_strip_str(&line_data).trim_end_matches('\n').to_string();
+                        result_line_spans.push(Span::styled(format!("{line_data}"), tui_line_style));
+                        result_str_elements.push(str_line_style.paint(format!("{color_strip_data}").to_string()).to_string());
+                    },
                 }
+            }
+        }
 
-            },
-
-            _ => {
-                let mut line_data = diff_line.to_string();
-                if self.is_color {
-                    line_data = get_ansi_strip_str(&diff_line);
-                }
-
-                Line::from(
-                    Span::styled(format!("{line_header}{line_data}\n"), tui_line_style)
-                )
-            },
-        };
-
-        // create result_str
-        let mut result_str = match diff_type {
-            DifferenceType::Same => {
-                let mut line_data = format!("{line_header}{diff_line}");
-                if !self.is_color {
-                    line_data = get_ansi_strip_str(&line_data);
-                }
-                line_data
-            },
-
-            _ => {
-                let mut line_data = format!("{line_header}{diff_line}");
-                if self.is_color {
-                    line_data = str_line_style.paint(
-                        get_ansi_strip_str(&format!("{line_header}{diff_line}"))
-                    ).to_string();
-                }
-                line_data
-            },
-        };
+        let mut result_line = Line::from(result_line_spans);
+        let mut result_str = result_str_elements.join("").trim_end_matches('\n').to_string();
 
         // add line number
         if self.is_line_number {
+            let line_number = line_number + 1;
+            let header_width = self.header_width;
             // result_line update
             result_line.spans.insert(
                 0,
@@ -906,600 +894,10 @@ impl Printer {
             );
         }
 
-
         if self.is_batch {
-            return PrintElementData::String(result_str.to_string().trim_end().to_string());
+            return PrintElementData::String(result_str.trim_end_matches('\n').to_string());
         } else {
             return PrintElementData::Line(result_line);
-        }
-    }
-
-    // Word Diff Output
-    // ====================
-    fn gen_word_diff_output<'a>(&mut self, dest: &str, src: &str) -> PrintData<'a> {
-        // tab expand dest
-        let mut text_dest = dest.to_string();
-        if !self.is_batch {
-            text_dest = expand_line_tab(dest, self.tab_size);
-        }
-
-        // tab expand src
-        let mut text_src = src.to_string();
-        if !self.is_batch {
-            text_src = expand_line_tab(src, self.tab_size);
-        }
-
-        // Create changeset
-        let Changeset { diffs, .. } = Changeset::new(&text_src, &text_dest, LINE_ENDING);
-
-        // src and dest text's line count.
-        let src_len = &text_src.lines().count();
-        let dest_len = &text_dest.lines().count();
-
-        // get line_number width
-        let header_width = cmp::max(src_len, dest_len).to_string().chars().count();
-
-        // line_number counter
-        let mut src_counter = 1;
-        let mut dest_counter = 1;
-
-        // create result
-        let mut result_line = vec![];
-        let mut result_str = vec![];
-
-        (0..diffs.len()).for_each(|i| {
-            match diffs[i] {
-                // Same line.
-                Difference::Same(ref diff_data) => {
-                    // For lines with the same data output, it is no different from line diff, so use to that function.
-                    for l in diff_data.lines() {
-                        let data = self.gen_line_diff_linedata_from_diffs_str(
-                            l,
-                            DifferenceType::Same,
-                            dest_counter,
-                            header_width,
-                        );
-
-                        if !self.is_only_diffline {
-                            match data {
-                                PrintElementData::String(data_str) => result_str.push(data_str),
-                                PrintElementData::Line(data_line) => result_line.push(data_line),
-                            }
-                        }
-
-                        // add counter
-                        src_counter += 1;
-                        dest_counter += 1;
-                    }
-                }
-
-                // Add line.
-                Difference::Add(ref diff_data) => {
-                    //
-                    //
-                    //
-                    let data: LineElementData;
-
-                    if i > 0 {
-                        let before_diffs = &diffs[i - 1];
-                        data = self.get_word_diff_linedata_from_diffs_str_add(before_diffs, diff_data.to_string());
-                    } else {
-                        let mut elements_line = vec![];
-                        let mut elements_str = vec![];
-                        let str_line_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_ADD);
-
-                        for l in diff_data.lines() {
-                            let line = l.expand_tabs(self.tab_size);
-                            let data = if self.is_color {
-                                get_ansi_strip_str(&line)
-                            } else {
-                                line.to_string()
-                            };
-
-                            // append elements_line
-                            elements_line.push(vec![Span::styled(
-                                data.to_string(),
-                                Style::default().fg(COLOR_WATCH_LINE_ADD),
-                            )]);
-
-                            // append elements_str
-                            elements_str.push(
-                                str_line_style.paint(data).to_string()
-                            );
-                        }
-
-                        if self.is_batch {
-                            data = LineElementData::String(elements_str);
-                        } else {
-                            data = LineElementData::Spans(elements_line);
-                        }
-                    }
-
-                    // batch or watch
-                    match data {
-                        // batch
-                        LineElementData::String(data_str) => {
-                            // is batch
-                            for l in data_str {
-                                let style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_ADD);
-                                let mut line = style.paint("+  ").to_string();
-                                line.push_str(&l);
-
-                                if self.is_line_number {
-                                    line.insert_str(
-                                        0,
-                                        &gen_counter_str(self.is_color, dest_counter as usize, header_width, DifferenceType::Add)
-                                    );
-                                }
-
-                                result_str.push(line);
-                                dest_counter += 1;
-                            }
-                        },
-
-                        // watch
-                        LineElementData::Spans(data_line) => {
-                            // is watch
-                            for l in data_line {
-                                let mut line = vec![Span::styled("+  ", Style::default().fg(COLOR_WATCH_LINE_ADD))];
-
-                                for d in l {
-                                    line.push(d);
-                                }
-
-                                if self.is_line_number {
-                                    line.insert(
-                                        0,
-                                        Span::styled(
-                                            format!("{dest_counter:>header_width$} | "),
-                                            Style::default().fg(Color::DarkGray),
-                                        ),
-                                    );
-                                }
-
-                                result_line.push(Line::from(line));
-                                dest_counter += 1;
-                            }
-                        },
-                    }
-                }
-
-                // Remove line.
-                Difference::Rem(ref diff_data) => {
-                    //
-                    //
-                    //
-                    let data: LineElementData;
-
-                    if i > 0 {
-                        let before_diffs = &diffs[i - 1];
-                        data = self.get_word_diff_linedata_from_diffs_str_rem(before_diffs, diff_data.to_string());
-                    } else {
-                        let mut elements_line = vec![];
-                        let mut elements_str = vec![];
-                        let str_line_style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_REM);
-
-                        for l in diff_data.lines() {
-                            let line = l.expand_tabs(self.tab_size);
-                            let data = if self.is_color {
-                                get_ansi_strip_str(&line)
-                            } else {
-                                line.to_string()
-                            };
-
-                            // append elements_line
-                            elements_line.push(vec![Span::styled(
-                                data.to_string(),
-                                Style::default().fg(COLOR_WATCH_LINE_REM),
-                            )]);
-
-                            // append elements_str
-                            elements_str.push(
-                                str_line_style.paint(data).to_string()
-                            );
-                        }
-
-                        if self.is_batch {
-                            data = LineElementData::String(elements_str);
-                        } else {
-                            data = LineElementData::Spans(elements_line);
-                        }
-                    }
-
-                    // batch or watch
-                    match data {
-                        // batch
-                        LineElementData::String(data_str) => {
-                            // is batch
-                            for l in data_str {
-                                let style = ansi_term::Style::new().fg(COLOR_BATCH_LINE_REM);
-                                let mut line = style.paint("-  ").to_string();
-                                line.push_str(&l);
-                                if self.is_line_number {
-                                    line.insert_str(
-                                        0,
-                                        &gen_counter_str(self.is_color, src_counter as usize, header_width, DifferenceType::Rem)
-                                    );
-                                }
-
-                                result_str.push(line);
-                                src_counter += 1;
-                            }
-                        },
-
-                        // watch
-                        LineElementData::Spans(data_line) => {
-                            // is watch
-                            for l in data_line {
-                                let mut line = vec![Span::styled("-  ", Style::default().fg(COLOR_WATCH_LINE_REM))];
-
-                                for d in l {
-                                    line.push(d);
-                                }
-
-                                if self.is_line_number {
-                                    line.insert(
-                                        0,
-                                        Span::styled(
-                                            format!("{src_counter:>header_width$} | "),
-                                            Style::default().fg(COLOR_WATCH_LINE_NUMBER_REM),
-                                        ),
-                                    );
-                                }
-
-                                result_line.push(Line::from(line));
-                                src_counter += 1;
-                            }
-                        },
-                    }
-                }
-            }
-        });
-
-        if self.is_batch {
-            return PrintData::Strings(result_str);
-        } else {
-            return PrintData::Lines(result_line);
-        }
-    }
-
-    ///
-    fn get_word_diff_linedata_from_diffs_str_add<'a>(
-        &mut self,
-        before_diffs: &difference::Difference,
-        diff_data: String,
-    ) -> LineElementData<'a> {
-        // result is Vec<Vec<Span>>
-        // ex)
-        // [   // 1st line...
-        //     [Sapn, Span, Span, ...],
-        //     // 2nd line...
-        //     [Sapn, Span, Span, ...],
-        //     // 3rd line...
-        //     [Sapn, Span, Span, ...],
-        // ]
-        // result
-        let mut result_data_spans: Vec<Vec<Span>> = vec![];
-        let mut result_data_strs: Vec<String> = vec![];
-
-        // line
-        let mut line_data_spans  = vec![];
-        let mut line_data_strs = "".to_string();
-
-        match before_diffs {
-            // Change Line.
-            Difference::Rem(before_diff_data) => {
-                // Craete Changeset at `Addlind` and `Before Diff Data`.
-                let Changeset { diffs, .. } = Changeset::new(
-                    before_diff_data,
-                    &diff_data,
-                    " ",
-                );
-
-                //
-                for c in diffs {
-                    match c {
-                        // Same
-                        Difference::Same(ref char) => {
-                            if self.is_batch {
-                                // batch data
-                                let str_line_style = ansi_term::Style::new()
-                                    .fg(COLOR_BATCH_LINE_ADD);
-
-                                let same_element = get_word_diff_line_to_strs(
-                                    str_line_style,
-                                    char,
-                                );
-
-                                for (counter, lines) in same_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_strs.push(line_data_strs);
-                                        line_data_strs = "".to_string();
-                                    }
-
-                                    for l in lines {
-                                        line_data_strs.push_str(&l);
-                                    }
-                                }
-                            } else {
-                                // watch data
-                                let same_element = get_word_diff_line_to_spans(
-                                    self.is_color,
-                                    Style::default().fg(COLOR_WATCH_LINE_ADD),
-                                    char,
-                                );
-
-                                for (counter, lines) in same_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_spans.push(line_data_spans);
-                                        line_data_spans = vec![];
-                                    }
-
-                                    for l in lines {
-                                        line_data_spans.push(l.clone());
-                                    }
-                                }
-                            }
-                        }
-
-                        // Add
-                        Difference::Add(ref char) => {
-                            if self.is_batch {
-                                // batch data
-                                let str_line_style = ansi_term::Style::new()
-                                    .fg(COLOR_BATCH_LINE_ADD)
-                                    .reverse();
-
-                                let add_element = get_word_diff_line_to_strs(
-                                    str_line_style,
-                                    char,
-                                );
-
-                                for (counter, lines) in add_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_strs.push(line_data_strs);
-                                        line_data_strs = "".to_string();
-                                    }
-
-                                    for l in lines {
-                                        line_data_strs.push_str(&l);
-                                    }
-                                }
-                            } else {
-                                // watch data
-                                let add_element = get_word_diff_line_to_spans(
-                                    self.is_color,
-                                    Style::default().fg(COLOR_WATCH_LINE_REVERSE_FG).bg(COLOR_WATCH_LINE_ADD),
-                                    char,
-                                );
-
-                                for (counter, lines) in add_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_spans.push(line_data_spans);
-                                        line_data_spans = vec![];
-                                    }
-
-                                    for l in lines {
-                                        line_data_spans.push(l.clone());
-                                    }
-                                }
-                            }
-                        }
-
-                        // No data.
-                        _ => {}
-                    }
-                }
-            }
-
-            // Add line
-            _ => {
-                for line in diff_data.lines() {
-                    let data = if self.is_color {
-                        get_ansi_strip_str(line)
-                    } else {
-                        line.to_string()
-                    };
-                    if self.is_batch {
-                        // batch data
-                        let str_line_style = ansi_term::Style::new()
-                            .fg(COLOR_BATCH_LINE_ADD);
-                        result_data_strs.push(str_line_style.paint(data).to_string());
-                    } else {
-                        // watch data
-                        let line_data = vec![Span::styled(
-                            data.to_string(),
-                            Style::default().fg(COLOR_WATCH_LINE_ADD)),
-                        ];
-                        result_data_spans.push(line_data);
-                    }
-                }
-            }
-        }
-
-        if !line_data_spans.is_empty() {
-            result_data_spans.push(line_data_spans);
-        }
-
-        if line_data_strs.len() > 0{
-            result_data_strs.push(line_data_strs);
-        }
-
-        if self.is_batch {
-            return LineElementData::String(result_data_strs);
-        } else {
-            return LineElementData::Spans(result_data_spans);
-        }
-    }
-
-    ///
-    fn get_word_diff_linedata_from_diffs_str_rem<'a>(
-        &mut self,
-        before_diffs: &difference::Difference,
-        diff_data: String,
-    ) -> LineElementData<'a> {
-        // result is Vec<Vec<Span>>
-        // ex)
-        // [   // 1st line...
-        //     [Sapn, Span, Span, ...],
-        //     // 2nd line...
-        //     [Sapn, Span, Span, ...],
-        //     // 3rd line...
-        //     [Sapn, Span, Span, ...],
-        // ]
-        // result
-        let mut result_data_spans: Vec<Vec<Span>> = vec![];
-        let mut result_data_strs: Vec<String> = vec![];
-
-        // line
-        let mut line_data_spans  = vec![];
-        let mut line_data_strs = "".to_string();
-
-        match before_diffs {
-            // Change Line.
-            Difference::Add(before_diff_data) => {
-                // Craete Changeset at `Addlind` and `Before Diff Data`.
-                let Changeset { diffs, .. } = Changeset::new(
-                    before_diff_data,
-                    &diff_data,
-                    " ",
-                );
-
-                //
-                for c in diffs {
-                    match c {
-                        // Same
-                        Difference::Same(ref char) => {
-                            if self.is_batch {
-                                // batch data
-                                let str_line_style = ansi_term::Style::new()
-                                    .fg(COLOR_BATCH_LINE_REM);
-
-                                let same_element = get_word_diff_line_to_strs(
-                                    str_line_style,
-                                    char,
-                                );
-
-
-                                for (counter, lines) in same_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_strs.push(line_data_strs);
-                                        line_data_strs = "".to_string();
-                                    }
-
-                                    for l in lines {
-                                        line_data_strs.push_str(&l);
-                                    }
-                                }
-                            } else {
-                                // watch data
-                                let same_element = get_word_diff_line_to_spans(
-                                    self.is_color,
-                                    Style::default().fg(COLOR_WATCH_LINE_REM),
-                                    char,
-                                );
-
-                                for (counter, lines) in same_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_spans.push(line_data_spans);
-                                        line_data_spans = vec![];
-                                    }
-
-                                    for l in lines {
-                                        line_data_spans.push(l.clone());
-                                    }
-                                }
-                            }
-                        }
-
-                        // Add
-                        Difference::Rem(ref char) => {
-                            if self.is_batch {
-                                // batch data
-                                let str_line_style = ansi_term::Style::new()
-                                    .fg(COLOR_BATCH_LINE_REM)
-                                    .reverse();
-
-                                let same_element = get_word_diff_line_to_strs(
-                                    str_line_style,
-                                    char,
-                                );
-
-
-                                for (counter, lines) in same_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_strs.push(line_data_strs);
-                                        line_data_strs = "".to_string();
-                                    }
-
-                                    for l in lines {
-                                        line_data_strs.push_str(&l);
-                                    }
-                                }
-                            } else {
-                                // watch data
-                                let add_element = get_word_diff_line_to_spans(
-                                    self.is_color,
-                                    Style::default().fg(COLOR_WATCH_LINE_REVERSE_FG).bg(COLOR_WATCH_LINE_REM),
-                                    char,
-                                );
-
-                                for (counter, lines) in add_element.into_iter().enumerate() {
-                                    if counter > 0 {
-                                        result_data_spans.push(line_data_spans);
-                                        line_data_spans = vec![];
-                                    }
-
-                                    for l in lines {
-                                        line_data_spans.push(l.clone());
-                                    }
-                                }
-                            }
-                        }
-
-                        // No data.
-                        _ => {}
-                    }
-                }
-            }
-
-            // Add line
-            _ => {
-                for line in diff_data.lines() {
-                    let data = if self.is_color {
-                        get_ansi_strip_str(line)
-                    } else {
-                        line.to_string()
-                    };
-                    if self.is_batch {
-                        // batch data
-                        let str_line_style = ansi_term::Style::new()
-                            .fg(COLOR_BATCH_LINE_REM);
-                        result_data_strs.push(str_line_style.paint(data).to_string());
-                    } else {
-                        // watch data
-                        let line_data = vec![Span::styled(
-                            data.to_string(),
-                            Style::default().fg(COLOR_WATCH_LINE_REM)),
-                        ];
-                        result_data_spans.push(line_data);
-                    }
-                }
-            }
-        }
-
-        if !line_data_spans.is_empty() {
-            result_data_spans.push(line_data_spans);
-        }
-
-        if line_data_strs.len() > 0{
-            result_data_strs.push(line_data_strs);
-        }
-
-        if self.is_batch {
-            return LineElementData::String(result_data_strs);
-        } else {
-            return LineElementData::Spans(result_data_spans);
         }
     }
 
@@ -1594,6 +992,7 @@ fn expand_print_element_data(is_batch: bool, data: Vec<PrintElementData>) -> Pri
             PrintElementData::String(string) => {
                 strings.push(string);
             }
+            _ => {}
         }
     }
 
@@ -1626,52 +1025,4 @@ fn gen_counter_str(is_color: bool,counter: usize, header_width: usize, diff_type
 
     let width = header_width + prefix_width + suffix_width;
     format!("{counter_str:>width$}{seprator}")
-}
-
-///
-fn get_word_diff_line_to_spans<'a>(
-    color: bool,
-    style: Style,
-    diff_str: &str,
-) -> Vec<Vec<Span<'a>>> {
-    // result
-    let mut result = vec![];
-
-    for l in diff_str.split('\n') {
-        let text = if color {
-            get_ansi_strip_str(l)
-        } else {
-            l.to_string()
-        };
-
-        let line = vec![
-            Span::styled(text.clone(), style),
-            Span::styled(" ", Style::default()),
-        ];
-
-        result.push(line);
-    }
-
-    result
-}
-
-///
-fn get_word_diff_line_to_strs(
-    style: ansi_term::Style,
-    diff_str: &str,
-) -> Vec<Vec<String>> {
-    // result
-    let mut result = vec![];
-
-    for l in diff_str.split('\n') {
-        let text = get_ansi_strip_str(l);
-        result.push(
-            vec![
-                style.paint(text).to_string(),
-                ansi_term::Style::new().paint(" ").to_string(),
-                ]
-            );
-    }
-
-    result
 }

@@ -9,14 +9,19 @@
 //                 - 前回差分発生時との差分文字数(+/-での表示)
 //                 - 前回差分発生時との差分byte数(+/-での表示)
 //                 これらの情報については、こまごまとしているのでコマンドラインで細かいOptionを受付けられるようにする？(あとは、vim like command mode実装時にあとからコマンドベース変更ができるように)
-// TODO(blacknon): diffのライブラリをsimilarに切り替える？
-//                 - https://github.com/mitsuhiko/similar
-//                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
-//                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
+// TODO(blacknon): 履歴の保存数の上限を設定できるようにする(-L, --limit)
+//                 デフォルトは5,000件で、上限を超えた場合は古いものから削除する
+//                 0で、履歴を無制限に記録していく(現在と同様)
+//                 ログに影響が出ないようにする(ログは5,000件以上利用する)
+// TODO(blacknon): historyのmemoryを圧縮して記録するオプションの追加(--compress)
+//                 https://users.rust-lang.org/t/how-to-compress-data-in-memory/77971/12
+// TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
 
 // v0.3.15
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): watchをモダンよりのものに変更する
+// TODO(blacknon): diff modeを複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
@@ -33,7 +38,6 @@
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // crate
-// extern crate ansi_parser;
 extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
@@ -42,13 +46,13 @@ extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
-extern crate difference;
 extern crate futures;
 extern crate heapless;
 extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
+extern crate similar;
 extern crate termwiz;
 extern crate ratatui as tui;
 
@@ -97,13 +101,9 @@ type Interval = Arc<RwLock<f64>>;
 
 // const at Windows
 #[cfg(windows)]
-const LINE_ENDING: &str = "\r\n";
-#[cfg(windows)]
 const SHELL_COMMAND: &str = "cmd /C";
 
 // const at not Windows
-#[cfg(not(windows))]
-const LINE_ENDING: &str = "\n";
 #[cfg(not(windows))]
 const SHELL_COMMAND: &str = "sh -c";
 
