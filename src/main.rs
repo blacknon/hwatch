@@ -41,7 +41,6 @@ extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
-extern crate difference;
 extern crate futures;
 extern crate heapless;
 extern crate question;
@@ -97,13 +96,9 @@ type Interval = Arc<RwLock<f64>>;
 
 // const at Windows
 #[cfg(windows)]
-const LINE_ENDING: &str = "\r\n";
-#[cfg(windows)]
 const SHELL_COMMAND: &str = "cmd /C";
 
 // const at not Windows
-#[cfg(not(windows))]
-const LINE_ENDING: &str = "\n";
 #[cfg(not(windows))]
 const SHELL_COMMAND: &str = "sh -c";
 
