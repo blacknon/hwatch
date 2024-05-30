@@ -10,12 +10,95 @@ use tui::{
     widgets::{Block, Cell, Row, Table, TableState, Borders},
     Frame,
 };
+use similar::{TextDiff, ChangeTag};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
+    // timestamp
     pub timestamp: String,
+
+    // result status
     pub status: bool,
+
+    // history number
     pub num: u16,
+
+    // summary
+    pub summary: HistorySummaryData,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct HistorySummaryData {
+    // output summary
+    pub output: HistorySummary,
+
+    // stdout summary
+    pub stdout: HistorySummary,
+
+    // stderr summary
+    pub stderr: HistorySummary,
+}
+
+impl HistorySummaryData {
+    pub fn init() -> Self {
+        Self {
+            output: HistorySummary::init(),
+            stdout: HistorySummary::init(),
+            stderr: HistorySummary::init(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct HistorySummary {
+    pub line_add: u16,
+    pub line_rem: u16,
+    pub char_add: u16,
+    pub char_rem: u16,
+}
+
+impl HistorySummary {
+    pub fn init() -> Self {
+        Self {
+            line_add: 0,
+            line_rem: 0,
+            char_add: 0,
+            char_rem: 0,
+        }
+    }
+
+    pub fn calc(&mut self, src: &str, dest: &str) {
+        let line_diff = TextDiff::from_lines(src, dest);
+        let char_diff = TextDiff::from_chars(src, dest);
+
+        // line
+        for op in line_diff.ops().iter() {
+            for change in line_diff.iter_inline_changes(op) {
+                match change.tag() {
+                    ChangeTag::Insert => {self.line_add += 1},
+                    ChangeTag::Delete => {self.line_rem += 1},
+                    _ => {},
+                }
+            }
+        }
+
+        // char
+        for op in char_diff.ops().iter() {
+            for change in char_diff.iter_inline_changes(op) {
+                match change.tag() {
+                    ChangeTag::Insert => {self.char_add += 1},
+                    ChangeTag::Delete => {self.char_rem += 1},
+                    _ => {},
+                }
+            }
+        }
+    }
+}
+
+enum HistorySummaryType {
+    None,
+    Line,
+    Char,
 }
 
 pub struct HistoryArea {
@@ -25,16 +108,19 @@ pub struct HistoryArea {
     ///
     pub active: bool,
 
+    /// View data
+
+    /// History data.
     ///
     data: Vec<Vec<History>>,
 
-    ///
+    /// State information including the selected position
     state: TableState,
 
-    ///
-    // summary: bool,
+    /// Set summary display mode.
+    summary: HistorySummaryType,
 
-    ///
+    /// is enable border
     border: bool,
 
     /// is hide header
@@ -56,9 +142,10 @@ impl HistoryArea {
                 timestamp: "latest                 ".to_string(),
                 status: true,
                 num: 0,
+                summary: HistorySummaryData::init(),
             }]],
             state: TableState::default(),
-            // summary: false,
+            summary: HistorySummaryType::None,
             border: false,
             hide_header: false,
             scroll_bar: false,
@@ -97,6 +184,7 @@ impl HistoryArea {
 
     ///
     pub fn update(&mut self, timestamp: String, status: bool, num: u16) {
+        // set result statu to latest
         self.set_latest_status(status);
 
         // insert latest timestamp
@@ -106,14 +194,15 @@ impl HistoryArea {
                 timestamp,
                 status,
                 num,
+                summary: HistorySummaryData::init(),
             }],
         );
     }
 
     ///
+    /// TODO: まいどリセット時にhistoryの再生成かけてたけど、これだとsummaryも再対応しないといけないのでメモリ内にオリジナルを保持させて、それを加工する方向に変更する
     pub fn reset_history_data(&mut self, data: Vec<Vec<History>>) {
         // @TODO: output mode切り替えでも使えるようにするため、indexを受け取るようにする
-
         // update data
         self.data = data;
 

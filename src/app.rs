@@ -23,14 +23,13 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::common::logging_result;
-use crate::common::{DiffMode, OutputMode};
+use crate::common::{DiffMode, OutputMode, logging_result};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
-use crate::history::{History, HistoryArea};
+use crate::history::{History, HistorySummaryData, HistoryArea};
 use crate::keymap::{Keymap, default_keymap, InputAction};
 use crate::output;
 use crate::watch::WatchArea;
@@ -129,10 +128,12 @@ pub struct App<'a> {
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
     results: HashMap<usize, CommandResult>,
 
+    // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stdout.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
     results_stdout: HashMap<usize, CommandResult>,
 
+    // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stderr.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
     results_stderr: HashMap<usize, CommandResult>,
@@ -409,9 +410,9 @@ impl<'a> App<'a> {
     fn set_output_data(&mut self, num: usize) {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
         // check result size.
@@ -425,9 +426,9 @@ impl<'a> App<'a> {
 
         // check results over target...
         if target_dst == 0 {
-            target_dst = get_results_latest_index(&results);
+            target_dst = get_results_latest_index(results);
         }
-        let previous_dst = get_results_previous_index(&results, target_dst);
+        let previous_dst = get_results_previous_index(results, target_dst);
 
         // set new text(text_dst)
         let dest = results[&target_dst].clone();
@@ -463,15 +464,16 @@ impl<'a> App<'a> {
         self.header_area.set_output_mode(mode);
         self.header_area.update();
 
+        // set output mode
         self.printer.set_output_mode(mode);
 
-        //
+        // set output data
         if self.results.len() > 0 {
             // Switch the result depending on the output mode.
             let results = match self.output_mode {
-                OutputMode::Output => self.results.clone(),
-                OutputMode::Stdout => self.results_stdout.clone(),
-                OutputMode::Stderr => self.results_stderr.clone(),
+                OutputMode::Output => &self.results,
+                OutputMode::Stdout => &self.results_stdout,
+                OutputMode::Stderr => &self.results_stderr,
             };
 
             let selected: usize = self.history_area.get_state_select();
@@ -616,28 +618,24 @@ impl<'a> App<'a> {
         self.header_area.update();
     }
 
+    // TODO: まいどリセット時にhistoryの再生成かけてたけど、これだとsummaryも再対応しないといけないのでメモリ内に保持させておく
     ///
     fn reset_history(&mut self, selected: usize) {
-        // @TODO: output modeでの切り替えに使うのかも？？(多分使う？)
-        // @NOTE: まだ作成中(output modeでの切り替えにhistoryを追随させる機能)
-
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
-        // unlock self.results
-        // let counter = results.len();
-        let mut tmp_history = vec![];
-
         // append result.
+        let mut tmp_history = vec![];
         let latest_num: usize = get_results_latest_index(&results);
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
             status: results[&latest_num].status,
             num: 0,
+            summary: HistorySummaryData::init(),
         });
 
         let mut new_select: Option<usize> = None;
@@ -682,6 +680,7 @@ impl<'a> App<'a> {
                     timestamp: result.1.timestamp.clone(),
                     status: result.1.status,
                     num: result.0 as u16,
+                    summary: HistorySummaryData::init(),
                 });
             }
         }
@@ -1133,15 +1132,16 @@ impl<'a> App<'a> {
     fn add_history(&mut self, result_index: usize, selected: usize) {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
-        let _timestamp = &results[&result_index].timestamp;
-        let _status = &results[&result_index].status;
-        self.history_area
-            .update(_timestamp.to_string(), *_status, result_index as u16);
+        // update history
+        let timestamp = &results[&result_index].timestamp;
+        let status = &results[&result_index].status;
+
+        self.history_area.update(timestamp.to_string(), *status, result_index as u16);
 
         // update selected
         if selected != 0 {

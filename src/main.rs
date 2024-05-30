@@ -16,6 +16,10 @@
 // TODO(blacknon): historyのmemoryを圧縮して記録するオプションの追加(--compress)
 //                 https://users.rust-lang.org/t/how-to-compress-data-in-memory/77971/12
 // TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
+// TODO(blacknon): `Display help with h key`の位置をちゃんと整備する(きれいじゃないので)
+// TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
+// TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする
+// TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 
 // v0.3.15
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する

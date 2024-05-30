@@ -2,6 +2,9 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO(blacknon): outputやcommandの型をbyteに変更する
+// TODO(blacknon): `command`は別のトコで保持するように変更する？(メモリの節約のため)
+
 // module
 use crossbeam_channel::Sender;
 use std::io::prelude::*;
