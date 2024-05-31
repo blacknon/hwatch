@@ -33,7 +33,6 @@
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
-// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // crate
