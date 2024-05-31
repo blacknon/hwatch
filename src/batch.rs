@@ -155,11 +155,11 @@ impl Batch {
         let latest = self.results.len() - 1;
 
         // Switch the result depending on the output mode.
-        let dest = self.results[&latest].clone();
-        let timestamp_dst = dest.timestamp.clone();
+        let dest = &self.results[&latest];
+        let timestamp_dst = &dest.timestamp;
 
         let previous = latest - 1;
-        let src = self.results[&previous].clone();
+        let src = &self.results[&previous];
 
         // print split line
         if self.is_color {

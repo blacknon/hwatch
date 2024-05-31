@@ -165,19 +165,19 @@ impl Printer {
     }
 
     ///
-    pub fn get_watch_text<'a>(&mut self, dest: CommandResult, src: CommandResult) -> Vec<Line<'a>> {
+    pub fn get_watch_text<'a>(&mut self, dest: &CommandResult, src: &CommandResult) -> Vec<Line<'a>> {
         // set new text(text_dst)
         let text_dest = match self.output_mode {
-            OutputMode::Output => dest.output,
-            OutputMode::Stdout => dest.stdout,
-            OutputMode::Stderr => dest.stderr,
+            OutputMode::Output => (*dest).output.clone(),
+            OutputMode::Stdout => (*dest).stdout.clone(),
+            OutputMode::Stderr => (*dest).stderr.clone(),
         };
 
         // set old text(text_src)
         let text_src = match self.output_mode {
-            OutputMode::Output => src.output,
-            OutputMode::Stdout => src.stdout,
-            OutputMode::Stderr => src.stderr,
+            OutputMode::Output => (*src).output.clone(),
+            OutputMode::Stdout => (*src).stdout.clone(),
+            OutputMode::Stderr => (*src).stderr.clone(),
         };
 
         let data = match self.diff_mode {
@@ -205,19 +205,19 @@ impl Printer {
     }
 
     ///
-    pub fn get_batch_text(&mut self, dest: CommandResult, src: CommandResult) -> Vec<String> {
+    pub fn get_batch_text(&mut self, dest: &CommandResult, src: &CommandResult) -> Vec<String> {
         // set new text(text_dst)
         let mut text_dest = match self.output_mode {
-            OutputMode::Output => dest.output,
-            OutputMode::Stdout => dest.stdout,
-            OutputMode::Stderr => dest.stderr,
+            OutputMode::Output => (*dest).output.clone(),
+            OutputMode::Stdout => (*dest).stdout.clone(),
+            OutputMode::Stderr => (*dest).stderr.clone(),
         };
 
         // set old text(text_src)
         let mut text_src = match self.output_mode {
-            OutputMode::Output => src.output,
-            OutputMode::Stdout => src.stdout,
-            OutputMode::Stderr => src.stderr,
+            OutputMode::Output => (*src).output.clone(),
+            OutputMode::Stdout => (*src).stdout.clone(),
+            OutputMode::Stderr => (*src).stderr.clone(),
         };
 
         if !self.is_color {
