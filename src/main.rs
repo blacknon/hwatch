@@ -3,17 +3,11 @@
 // that can be found in the LICENSE file.
 
 // v0.3.14
-// TODO(blacknon): historyにSummary表示を追加する
-//                 - 前回差分発生時との時刻差 ... 表示方式はoptionや後で変えられるようにする(vim like command modeで変更？)
-//                 - 前回差分発生時との差分行数(+/-での表示) ... 行数/文字/byte数の表示は選べるように(ショートカットキーとvim like command modeで変更できるように)
-//                 - 前回差分発生時との差分文字数(+/-での表示)
-//                 - 前回差分発生時との差分byte数(+/-での表示)
-//                 これらの情報については、こまごまとしているのでコマンドラインで細かいOptionを受付けられるようにする？(あとは、vim like command mode実装時にあとからコマンドベース変更ができるように)
-//                 この対応に伴い、historyの元データを毎回再作成している部分を修正し、output modeに応じてメモリに保持させる(summaryの保持を行わせるために)
 // TODO(blacknon): 履歴の保存数の上限を設定できるようにする(-L, --limit)
 //                 デフォルトは5,000件で、上限を超えた場合は古いものから削除する
 //                 0で、履歴を無制限に記録していく(現在と同様)
 //                 ログに影響が出ないようにする(ログは5,000件以上利用する)
+// TODO(blacknon): history summaryの記録自体を無効化するオプションを追加する(パフォーマンス向上のための処置)
 // TODO(blacknon): historyのmemoryを圧縮して記録するオプションの追加(--compress)
 //                 https://users.rust-lang.org/t/how-to-compress-data-in-memory/77971/12
 // TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
@@ -27,8 +21,6 @@
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeを複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
-// TODO(blacknon): メモリ使用量の低減をするためのチューニング対応
-//                 - app.rsのresultsについて、中のデータを重複登録している部分を参照にする(ライフタイムの問題があるが、results_stdout, results_stderrを参照にさせる)
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
