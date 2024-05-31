@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る)
+
 // module
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
@@ -24,21 +26,21 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::common::{DiffMode, OutputMode, logging_result};
+use crate::common::{logging_result, DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
-use crate::history::{History, HistorySummaryData, HistoryArea};
+use crate::history::{History, HistorySummary, HistoryArea};
 use crate::keymap::{Keymap, default_keymap, InputAction};
 use crate::output;
 use crate::watch::WatchArea;
-use crate::Interval;
-use crate::DEFAULT_TAB_SIZE;
 
 // local const
 use crate::HISTORY_WIDTH;
+use crate::DEFAULT_TAB_SIZE;
+use crate::Interval;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -94,6 +96,9 @@ pub struct App<'a> {
 
     ///
     is_border: bool,
+
+    ///
+    is_history_summary: bool,
 
     ///
     is_scroll_bar: bool,
@@ -206,6 +211,7 @@ impl<'a> App<'a> {
 
             is_beep: false,
             is_border: false,
+            is_history_summary: false,
             is_scroll_bar: false,
             is_filtered: false,
             is_regex_filter: false,
@@ -515,6 +521,17 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_history_summary(&mut self, history_summary: bool) {
+        self.is_history_summary = history_summary;
+
+        // set history_summary
+        self.history_area.set_summary(history_summary);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
     pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
         self.is_scroll_bar = scroll_bar;
 
@@ -619,7 +636,6 @@ impl<'a> App<'a> {
         self.header_area.update();
     }
 
-    // TODO: まいどリセット時にhistoryの再生成かけてたけど、これだとsummaryも再対応しないといけないのでメモリ内に保持させておく
     ///
     fn reset_history(&mut self, selected: usize) {
         // Switch the result depending on the output mode.
@@ -636,21 +652,31 @@ impl<'a> App<'a> {
             timestamp: "latest                 ".to_string(),
             status: results[&latest_num].status,
             num: 0,
-            summary: HistorySummaryData::init(),
+            summary: HistorySummary::init(),
         });
 
         let mut new_select: Option<usize> = None;
-        for result in results.clone().into_iter() {
-            if result.0 == 0 {
+        let mut previous_result: String = "".to_string();
+        let mut results_vec = results.iter().collect::<Vec<(&usize, &Rc<CommandResult>)>>();
+        results_vec.sort_by_key(|&(key, _)| key);
+
+        for (key, result) in results_vec {
+            if key == &0 {
+                previous_result = match self.output_mode {
+                    OutputMode::Output => result.output.clone(),
+                    OutputMode::Stdout => result.stdout.clone(),
+                    OutputMode::Stderr => result.stderr.clone(),
+                };
+
                 continue;
             }
 
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match self.output_mode {
-                    OutputMode::Output => result.1.output.clone(),
-                    OutputMode::Stdout => result.1.stdout.clone(),
-                    OutputMode::Stderr => result.1.stderr.clone(),
+                    OutputMode::Output => &result.output,
+                    OutputMode::Stdout => &result.stdout,
+                    OutputMode::Stderr => &result.stderr,
                 };
 
                 match self.is_regex_filter {
@@ -668,21 +694,32 @@ impl<'a> App<'a> {
                         }
                     }
                 }
-
-
             }
 
-            if selected == result.0 {
+            if &selected == key {
                 new_select = Some(selected);
             }
 
             if is_push {
+                let dest = match self.output_mode {
+                    OutputMode::Output => result.output.clone(),
+                    OutputMode::Stdout => result.stdout.clone(),
+                    OutputMode::Stderr => result.stderr.clone(),
+                };
+
+                // create history summary
+                let mut history_summary = HistorySummary::init();
+                history_summary.calc(&previous_result, &dest);
+
                 tmp_history.push(History {
-                    timestamp: result.1.timestamp.clone(),
-                    status: result.1.status,
-                    num: result.0 as u16,
-                    summary: HistorySummaryData::init(),
+                    timestamp: result.timestamp.clone(),
+                    status: result.status,
+                    num: *key as u16,
+                    summary: history_summary,
                 });
+
+                // update previous result
+                previous_result = dest;
             }
         }
 
@@ -940,6 +977,7 @@ impl<'a> App<'a> {
                         InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
                         InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
                         InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
@@ -1133,6 +1171,9 @@ impl<'a> App<'a> {
 
     ///
     fn add_history(&mut self, result_index: usize, selected: usize) {
+        // get latest history index
+        let latest_num = self.history_area.get_results_latest_index();
+
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
             OutputMode::Output => &self.results,
@@ -1140,11 +1181,33 @@ impl<'a> App<'a> {
             OutputMode::Stderr => &self.results_stderr,
         };
 
+        let previous_result = &self.results[&latest_num];
+
         // update history
         let timestamp = &results[&result_index].timestamp;
         let status = &results[&result_index].status;
 
-        self.history_area.update(timestamp.to_string(), *status, result_index as u16);
+        let src = match self.output_mode {
+            OutputMode::Output => &previous_result.output,
+            OutputMode::Stdout => &previous_result.stdout,
+            OutputMode::Stderr => &previous_result.stderr,
+        };
+
+        let dest = match self.output_mode {
+            OutputMode::Output => &results[&result_index].output,
+            OutputMode::Stdout => &results[&result_index].stdout,
+            OutputMode::Stderr => &results[&result_index].stderr,
+        };
+
+        let mut history_summary = HistorySummary::init();
+        history_summary.calc(&src, &dest);
+
+        self.history_area.update(
+            timestamp.to_string(),
+            *status,
+            result_index as u16,
+            history_summary
+        );
 
         // update selected
         if selected != 0 {
