@@ -14,6 +14,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io::{self, Write},
+    rc::Rc,
 };
 use tui::{
     backend::Backend,
@@ -126,17 +127,17 @@ pub struct App<'a> {
 
     /// result at output.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results: HashMap<usize, CommandResult>,
+    results: HashMap<usize, Rc<CommandResult>>,
 
     // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stdout.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stdout: HashMap<usize, CommandResult>,
+    results_stdout: HashMap<usize, Rc<CommandResult>>,
 
     // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stderr.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stderr: HashMap<usize, CommandResult>,
+    results_stderr: HashMap<usize, Rc<CommandResult>>,
 
     ///
     interval: Interval,
@@ -431,12 +432,12 @@ impl<'a> App<'a> {
         let previous_dst = get_results_previous_index(results, target_dst);
 
         // set new text(text_dst)
-        let dest = results[&target_dst].clone();
+        let dest: &CommandResult = &results[&target_dst];
 
         // set old text(text_src)
-        let mut src = CommandResult::default();
+        let mut src = &CommandResult::default();
         if previous_dst > 0 {
-            src = results[&previous_dst].clone();
+            src = &results[&previous_dst];
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
@@ -713,13 +714,13 @@ impl<'a> App<'a> {
     ///
     fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
-        let mut latest_result = CommandResult::default();
+        let mut latest_result = Rc::new(CommandResult::default());
 
         if self.results.is_empty() {
             // diff output data.
-            self.results.insert(0, latest_result.clone());
-            self.results_stdout.insert(0, latest_result.clone());
-            self.results_stderr.insert(0, latest_result.clone());
+            self.results.insert(0, Rc::clone(&latest_result));
+            self.results_stdout.insert(0, Rc::clone(&latest_result));
+            self.results_stderr.insert(0, Rc::clone(&latest_result));
         } else {
             let latest_num = self.results.len() - 1;
             latest_result = self.results[&latest_num].clone();
@@ -731,7 +732,7 @@ impl<'a> App<'a> {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result == _result {
+        if latest_result == Rc::new(_result.clone()) {
             return false;
         }
 
@@ -741,7 +742,7 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result = results[&latest_num].clone();
+            let before_result:CommandResult = (*results[&latest_num]).clone();
             let after_result = _result.clone();
 
             {
@@ -758,7 +759,7 @@ impl<'a> App<'a> {
 
         // NOTE: resultをoutput/stdout/stderrで分けて登録させる？
         // append results
-        let insert_result = self.insert_result(_result.clone());
+        let insert_result = self.insert_result(_result);
         let result_index = insert_result.0;
         let is_update_stdout = insert_result.1;
         let is_update_stderr = insert_result.2;
@@ -772,14 +773,14 @@ impl<'a> App<'a> {
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
-                OutputMode::Output => self.results[&result_index].output.clone(),
-                OutputMode::Stdout => self.results_stdout[&result_index].stdout.clone(),
-                OutputMode::Stderr => self.results_stderr[&result_index].stderr.clone(),
+                OutputMode::Output => &self.results[&result_index].output,
+                OutputMode::Stdout => &self.results_stdout[&result_index].stdout,
+                OutputMode::Stderr => &self.results_stderr[&result_index].stderr,
             };
 
             match self.is_regex_filter {
                 true => {
-                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let re = Regex::new(&self.filtered_text).unwrap();
                     let regex_match = re.is_match(&result_text);
                     if !regex_match {
                         is_push = false;
@@ -824,31 +825,33 @@ impl<'a> App<'a> {
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
     fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool) {
+        let rc_result = Rc::new(result);
+
         let result_index = self.results.len();
-        self.results.insert(result_index, result.clone());
+        self.results.insert(result_index, Rc::clone(&rc_result));
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = self.results_stdout[&stdout_latest_index].stdout.clone();
-        let result_stdout = result.stdout.clone();
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index].stdout;
+        let result_stdout = &rc_result.stdout;
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = self.results_stderr[&stderr_latest_index].stderr.clone();
-        let result_stderr = result.stderr.clone();
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index].stderr;
+        let result_stderr = &rc_result.stderr;
 
         // append results_stdout
         let mut is_stdout_update = false;
         if before_result_stdout != result_stdout {
             is_stdout_update = true;
-            self.results_stdout.insert(result_index, result.clone());
+            self.results_stdout.insert(result_index, Rc::clone(&rc_result));
         }
 
         // append results_stderr
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            self.results_stderr.insert(result_index, result.clone());
+            self.results_stderr.insert(result_index, Rc::clone(&rc_result));
         }
 
         return (result_index, is_stdout_update, is_stderr_update);
@@ -1553,7 +1556,7 @@ fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
     result
 }
 
-fn get_near_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_near_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     if keys.contains(&index) {
@@ -1564,7 +1567,7 @@ fn get_near_index(results: &HashMap<usize, CommandResult>, index: usize) -> usiz
     }
 }
 
-fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
+fn get_results_latest_index(results: &HashMap<usize, Rc<CommandResult>>) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     // return keys.iter().max().unwrap();
@@ -1576,7 +1579,7 @@ fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
     return max;
 }
 
-fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_results_previous_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
@@ -1594,7 +1597,7 @@ fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: us
 
 }
 
-fn get_results_next_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_results_next_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
