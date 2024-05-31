@@ -311,7 +311,11 @@ impl HistoryArea {
 
     ///
     pub fn get_results_latest_index(&self) -> usize {
-        self.data.last().unwrap()[0].num as usize
+        if self.data.len() > 1 {
+            return self.data[1][0].num as usize;
+        } else {
+            return 0;
+        }
     }
 
     ///
