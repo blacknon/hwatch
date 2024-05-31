@@ -37,6 +37,7 @@ impl<'a> ExitWindow<'a> {
     pub fn draw(&mut self, f: &mut Frame) {
         let title = " [exit] ";
 
+        // TODO: 枠を含めて3行にする
         let size = f.size();
         self.area = centered_rect(40, 10, size);
 

@@ -34,7 +34,7 @@ impl Key {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 33] = [
+const DEFAULT_KEYMAP: [&str; 34] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -64,6 +64,7 @@ const DEFAULT_KEYMAP: [&str; 33] = [
     "f3=set_output_mode_output", // Set Output Mode Output: F3
     "f1=set_output_mode_stdout", // Set Output Mode Stdout: F1
     "f2=set_output_mode_stderr", // Set Output Mode Stderr: F2
+    "shift-s=togge_history_summary",
     "plus=interval_plus", // Interval Plus: +
     "minus=interval_minus", // Interval Minus: -
     "/=change_filter_mode", // Change Filter Mode: /
@@ -427,6 +428,10 @@ pub enum InputAction {
     #[serde(rename = "set_output_mode_stderr")]
     SetOutputModeStderr,
 
+    // HistorySummary
+    #[serde(rename = "togge_history_summary")]
+    ToggleHistorySummary,
+
     // Interval
     // ==========
     #[serde(rename = "interval_plus")]
@@ -528,6 +533,9 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::SetOutputModeOutput => "Set output mode output".to_string(),
         InputAction::SetOutputModeStdout => "Set output mode stdout".to_string(),
         InputAction::SetOutputModeStderr => "Set output mode stderr".to_string(),
+
+        // HistorySummary
+        InputAction::ToggleHistorySummary => "Toggle history summary".to_string(),
 
         // Interval
         InputAction::IntervalPlus => "Interval +0.5sec".to_string(),

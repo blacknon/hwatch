@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る)
+
 // module
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
@@ -14,6 +16,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io::{self, Write},
+    rc::Rc,
 };
 use tui::{
     backend::Backend,
@@ -23,22 +26,21 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::common::logging_result;
-use crate::common::{DiffMode, OutputMode};
+use crate::common::{logging_result, DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
-use crate::history::{History, HistoryArea};
+use crate::history::{History, HistorySummary, HistoryArea};
 use crate::keymap::{Keymap, default_keymap, InputAction};
 use crate::output;
 use crate::watch::WatchArea;
-use crate::Interval;
-use crate::DEFAULT_TAB_SIZE;
 
 // local const
 use crate::HISTORY_WIDTH;
+use crate::DEFAULT_TAB_SIZE;
+use crate::Interval;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -96,6 +98,9 @@ pub struct App<'a> {
     is_border: bool,
 
     ///
+    is_history_summary: bool,
+
+    ///
     is_scroll_bar: bool,
 
     ///
@@ -127,15 +132,17 @@ pub struct App<'a> {
 
     /// result at output.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results: HashMap<usize, CommandResult>,
+    results: HashMap<usize, Rc<CommandResult>>,
 
+    // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stdout.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stdout: HashMap<usize, CommandResult>,
+    results_stdout: HashMap<usize, Rc<CommandResult>>,
 
+    // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stderr.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stderr: HashMap<usize, CommandResult>,
+    results_stderr: HashMap<usize, Rc<CommandResult>>,
 
     ///
     interval: Interval,
@@ -204,6 +211,7 @@ impl<'a> App<'a> {
 
             is_beep: false,
             is_border: false,
+            is_history_summary: false,
             is_scroll_bar: false,
             is_filtered: false,
             is_regex_filter: false,
@@ -409,9 +417,9 @@ impl<'a> App<'a> {
     fn set_output_data(&mut self, num: usize) {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
         // check result size.
@@ -425,17 +433,17 @@ impl<'a> App<'a> {
 
         // check results over target...
         if target_dst == 0 {
-            target_dst = get_results_latest_index(&results);
+            target_dst = get_results_latest_index(results);
         }
-        let previous_dst = get_results_previous_index(&results, target_dst);
+        let previous_dst = get_results_previous_index(results, target_dst);
 
         // set new text(text_dst)
-        let dest = results[&target_dst].clone();
+        let dest: &CommandResult = &results[&target_dst];
 
         // set old text(text_src)
-        let mut src = CommandResult::default();
+        let mut src = &CommandResult::default();
         if previous_dst > 0 {
-            src = results[&previous_dst].clone();
+            src = &results[&previous_dst];
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
@@ -463,15 +471,16 @@ impl<'a> App<'a> {
         self.header_area.set_output_mode(mode);
         self.header_area.update();
 
+        // set output mode
         self.printer.set_output_mode(mode);
 
-        //
+        // set output data
         if self.results.len() > 0 {
             // Switch the result depending on the output mode.
             let results = match self.output_mode {
-                OutputMode::Output => self.results.clone(),
-                OutputMode::Stdout => self.results_stdout.clone(),
-                OutputMode::Stderr => self.results_stderr.clone(),
+                OutputMode::Output => &self.results,
+                OutputMode::Stdout => &self.results_stdout,
+                OutputMode::Stderr => &self.results_stderr,
             };
 
             let selected: usize = self.history_area.get_state_select();
@@ -506,6 +515,17 @@ impl<'a> App<'a> {
         // set border
         self.history_area.set_border(border);
         self.watch_area.set_border(border);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    pub fn set_history_summary(&mut self, history_summary: bool) {
+        self.is_history_summary = history_summary;
+
+        // set history_summary
+        self.history_area.set_summary(history_summary);
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
@@ -618,40 +638,45 @@ impl<'a> App<'a> {
 
     ///
     fn reset_history(&mut self, selected: usize) {
-        // @TODO: output modeでの切り替えに使うのかも？？(多分使う？)
-        // @NOTE: まだ作成中(output modeでの切り替えにhistoryを追随させる機能)
-
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
-        // unlock self.results
-        // let counter = results.len();
-        let mut tmp_history = vec![];
-
         // append result.
+        let mut tmp_history = vec![];
         let latest_num: usize = get_results_latest_index(&results);
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
             status: results[&latest_num].status,
             num: 0,
+            summary: HistorySummary::init(),
         });
 
         let mut new_select: Option<usize> = None;
-        for result in results.clone().into_iter() {
-            if result.0 == 0 {
+        let mut previous_result: String = "".to_string();
+        let mut results_vec = results.iter().collect::<Vec<(&usize, &Rc<CommandResult>)>>();
+        results_vec.sort_by_key(|&(key, _)| key);
+
+        for (key, result) in results_vec {
+            if key == &0 {
+                previous_result = match self.output_mode {
+                    OutputMode::Output => result.output.clone(),
+                    OutputMode::Stdout => result.stdout.clone(),
+                    OutputMode::Stderr => result.stderr.clone(),
+                };
+
                 continue;
             }
 
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match self.output_mode {
-                    OutputMode::Output => result.1.output.clone(),
-                    OutputMode::Stdout => result.1.stdout.clone(),
-                    OutputMode::Stderr => result.1.stderr.clone(),
+                    OutputMode::Output => &result.output,
+                    OutputMode::Stdout => &result.stdout,
+                    OutputMode::Stderr => &result.stderr,
                 };
 
                 match self.is_regex_filter {
@@ -669,20 +694,32 @@ impl<'a> App<'a> {
                         }
                     }
                 }
-
-
             }
 
-            if selected == result.0 {
+            if &selected == key {
                 new_select = Some(selected);
             }
 
             if is_push {
+                let dest = match self.output_mode {
+                    OutputMode::Output => result.output.clone(),
+                    OutputMode::Stdout => result.stdout.clone(),
+                    OutputMode::Stderr => result.stderr.clone(),
+                };
+
+                // create history summary
+                let mut history_summary = HistorySummary::init();
+                history_summary.calc(&previous_result, &dest);
+
                 tmp_history.push(History {
-                    timestamp: result.1.timestamp.clone(),
-                    status: result.1.status,
-                    num: result.0 as u16,
+                    timestamp: result.timestamp.clone(),
+                    status: result.status,
+                    num: *key as u16,
+                    summary: history_summary,
                 });
+
+                // update previous result
+                previous_result = dest;
             }
         }
 
@@ -714,13 +751,13 @@ impl<'a> App<'a> {
     ///
     fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
-        let mut latest_result = CommandResult::default();
+        let mut latest_result = Rc::new(CommandResult::default());
 
         if self.results.is_empty() {
             // diff output data.
-            self.results.insert(0, latest_result.clone());
-            self.results_stdout.insert(0, latest_result.clone());
-            self.results_stderr.insert(0, latest_result.clone());
+            self.results.insert(0, Rc::clone(&latest_result));
+            self.results_stdout.insert(0, Rc::clone(&latest_result));
+            self.results_stderr.insert(0, Rc::clone(&latest_result));
         } else {
             let latest_num = self.results.len() - 1;
             latest_result = self.results[&latest_num].clone();
@@ -732,7 +769,7 @@ impl<'a> App<'a> {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result == _result {
+        if latest_result == Rc::new(_result.clone()) {
             return false;
         }
 
@@ -742,7 +779,7 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result = results[&latest_num].clone();
+            let before_result:CommandResult = (*results[&latest_num]).clone();
             let after_result = _result.clone();
 
             {
@@ -759,7 +796,7 @@ impl<'a> App<'a> {
 
         // NOTE: resultをoutput/stdout/stderrで分けて登録させる？
         // append results
-        let insert_result = self.insert_result(_result.clone());
+        let insert_result = self.insert_result(_result);
         let result_index = insert_result.0;
         let is_update_stdout = insert_result.1;
         let is_update_stderr = insert_result.2;
@@ -773,14 +810,14 @@ impl<'a> App<'a> {
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
-                OutputMode::Output => self.results[&result_index].output.clone(),
-                OutputMode::Stdout => self.results_stdout[&result_index].stdout.clone(),
-                OutputMode::Stderr => self.results_stderr[&result_index].stderr.clone(),
+                OutputMode::Output => &self.results[&result_index].output,
+                OutputMode::Stdout => &self.results_stdout[&result_index].stdout,
+                OutputMode::Stderr => &self.results_stderr[&result_index].stderr,
             };
 
             match self.is_regex_filter {
                 true => {
-                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let re = Regex::new(&self.filtered_text).unwrap();
                     let regex_match = re.is_match(&result_text);
                     if !regex_match {
                         is_push = false;
@@ -825,31 +862,33 @@ impl<'a> App<'a> {
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
     fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool) {
+        let rc_result = Rc::new(result);
+
         let result_index = self.results.len();
-        self.results.insert(result_index, result.clone());
+        self.results.insert(result_index, Rc::clone(&rc_result));
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = self.results_stdout[&stdout_latest_index].stdout.clone();
-        let result_stdout = result.stdout.clone();
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index].stdout;
+        let result_stdout = &rc_result.stdout;
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = self.results_stderr[&stderr_latest_index].stderr.clone();
-        let result_stderr = result.stderr.clone();
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index].stderr;
+        let result_stderr = &rc_result.stderr;
 
         // append results_stdout
         let mut is_stdout_update = false;
         if before_result_stdout != result_stdout {
             is_stdout_update = true;
-            self.results_stdout.insert(result_index, result.clone());
+            self.results_stdout.insert(result_index, Rc::clone(&rc_result));
         }
 
         // append results_stderr
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            self.results_stderr.insert(result_index, result.clone());
+            self.results_stderr.insert(result_index, Rc::clone(&rc_result));
         }
 
         return (result_index, is_stdout_update, is_stderr_update);
@@ -938,6 +977,7 @@ impl<'a> App<'a> {
                         InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
                         InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
                         InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
@@ -1131,17 +1171,43 @@ impl<'a> App<'a> {
 
     ///
     fn add_history(&mut self, result_index: usize, selected: usize) {
+        // get latest history index
+        let latest_num = self.history_area.get_results_latest_index();
+
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
-        let _timestamp = &results[&result_index].timestamp;
-        let _status = &results[&result_index].status;
-        self.history_area
-            .update(_timestamp.to_string(), *_status, result_index as u16);
+        let previous_result = &self.results[&latest_num];
+
+        // update history
+        let timestamp = &results[&result_index].timestamp;
+        let status = &results[&result_index].status;
+
+        let src = match self.output_mode {
+            OutputMode::Output => &previous_result.output,
+            OutputMode::Stdout => &previous_result.stdout,
+            OutputMode::Stderr => &previous_result.stderr,
+        };
+
+        let dest = match self.output_mode {
+            OutputMode::Output => &results[&result_index].output,
+            OutputMode::Stdout => &results[&result_index].stdout,
+            OutputMode::Stderr => &results[&result_index].stderr,
+        };
+
+        let mut history_summary = HistorySummary::init();
+        history_summary.calc(&src, &dest);
+
+        self.history_area.update(
+            timestamp.to_string(),
+            *status,
+            result_index as u16,
+            history_summary
+        );
 
         // update selected
         if selected != 0 {
@@ -1553,7 +1619,7 @@ fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
     result
 }
 
-fn get_near_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_near_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     if keys.contains(&index) {
@@ -1564,7 +1630,7 @@ fn get_near_index(results: &HashMap<usize, CommandResult>, index: usize) -> usiz
     }
 }
 
-fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
+fn get_results_latest_index(results: &HashMap<usize, Rc<CommandResult>>) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     // return keys.iter().max().unwrap();
@@ -1576,7 +1642,7 @@ fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
     return max;
 }
 
-fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_results_previous_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
@@ -1594,7 +1660,7 @@ fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: us
 
 }
 
-fn get_results_next_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_results_next_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
