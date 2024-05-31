@@ -21,7 +21,7 @@ use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
 
 //const
-const POSITION_X_HELP_TEXT: usize = 53;
+const POSITION_X_HELP_TEXT: usize = 47;
 const WIDTH_TEXT_INTERVAL: usize = 19;
 
 #[derive(Clone)]
