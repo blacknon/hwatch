@@ -95,6 +95,7 @@ pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
+pub const HISTORY_LIMIT: &str = "5000";
 type Interval = Arc<RwLock<f64>>;
 
 // const at Windows
@@ -286,6 +287,16 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
+        // set limit option
+        //   [--limit,-L] size(default:5000)
+        .arg(
+            Arg::new("limit")
+                .help("Set the number of history records to keep. only work in watch mode.")
+                .short('L')
+                .long("limit")
+                .value_parser(clap::value_parser!(u32))
+                .default_value(HISTORY_LIMIT),
+        )
         // tab size set option
         //   [--tab_size] size(default:4)
         .arg(
@@ -397,6 +408,10 @@ fn main() {
     let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
 
+    // history limit
+    let default_limit:u32 = HISTORY_LIMIT.parse().unwrap();
+    let limit = matcher.get_one::<u32>("limit").unwrap_or(&default_limit);
+
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
 
@@ -473,6 +488,7 @@ fn main() {
             // Set interval on view.header
             .set_interval(interval)
             .set_tab_size(tab_size)
+            .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
