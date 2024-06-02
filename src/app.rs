@@ -65,6 +65,12 @@ pub enum InputMode {
     RegexFilter,
 }
 
+#[derive(Clone)]
+struct ResultItems {
+    pub command_result: Rc<CommandResult>,
+    pub summary: HistorySummary,
+}
+
 /// Struct at watch view window.
 pub struct App<'a> {
     ///
@@ -132,17 +138,17 @@ pub struct App<'a> {
 
     /// result at output.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results: HashMap<usize, Rc<CommandResult>>,
+    results: HashMap<usize, ResultItems>,
 
     // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stdout.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stdout: HashMap<usize, Rc<CommandResult>>,
+    results_stdout: HashMap<usize, ResultItems>,
 
     // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stderr.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stderr: HashMap<usize, Rc<CommandResult>>,
+    results_stderr: HashMap<usize, ResultItems>,
 
     ///
     interval: Interval,
@@ -438,12 +444,12 @@ impl<'a> App<'a> {
         let previous_dst = get_results_previous_index(results, target_dst);
 
         // set new text(text_dst)
-        let dest: &CommandResult = &results[&target_dst];
+        let dest: &CommandResult = &results[&target_dst].command_result;
 
         // set old text(text_src)
         let mut src = &CommandResult::default();
         if previous_dst > 0 {
-            src = &results[&previous_dst];
+            src = &results[&previous_dst].command_result;
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
@@ -650,23 +656,23 @@ impl<'a> App<'a> {
         let latest_num: usize = get_results_latest_index(&results);
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
-            status: results[&latest_num].status,
+            status: results[&latest_num].command_result.status,
             num: 0,
             summary: HistorySummary::init(),
         });
 
         let mut new_select: Option<usize> = None;
-        let mut previous_result: String = "".to_string();
-        let mut results_vec = results.iter().collect::<Vec<(&usize, &Rc<CommandResult>)>>();
+        // let mut previous_result: String = "".to_string();
+        let mut results_vec = results.iter().collect::<Vec<(&usize, &ResultItems)>>();
         results_vec.sort_by_key(|&(key, _)| key);
 
         for (key, result) in results_vec {
             if key == &0 {
-                previous_result = match self.output_mode {
-                    OutputMode::Output => result.output.clone(),
-                    OutputMode::Stdout => result.stdout.clone(),
-                    OutputMode::Stderr => result.stderr.clone(),
-                };
+                // previous_result = match self.output_mode {
+                //     OutputMode::Output => result.command_result.output.clone(),
+                //     OutputMode::Stdout => result.command_result.stdout.clone(),
+                //     OutputMode::Stderr => result.command_result.stderr.clone(),
+                // };
 
                 continue;
             }
@@ -674,9 +680,9 @@ impl<'a> App<'a> {
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match self.output_mode {
-                    OutputMode::Output => &result.output,
-                    OutputMode::Stdout => &result.stdout,
-                    OutputMode::Stderr => &result.stderr,
+                    OutputMode::Output => &result.command_result.output,
+                    OutputMode::Stdout => &result.command_result.stdout,
+                    OutputMode::Stderr => &result.command_result.stderr,
                 };
 
                 match self.is_regex_filter {
@@ -701,25 +707,25 @@ impl<'a> App<'a> {
             }
 
             if is_push {
-                let dest = match self.output_mode {
-                    OutputMode::Output => result.output.clone(),
-                    OutputMode::Stdout => result.stdout.clone(),
-                    OutputMode::Stderr => result.stderr.clone(),
-                };
+                // let dest = match self.output_mode {
+                //     OutputMode::Output => result.command_result.output.clone(),
+                //     OutputMode::Stdout => result.command_result.stdout.clone(),
+                //     OutputMode::Stderr => result.command_result.stderr.clone(),
+                // };
 
                 // create history summary
-                let mut history_summary = HistorySummary::init();
-                history_summary.calc(&previous_result, &dest);
+                // let mut history_summary = HistorySummary::init();
+                // history_summary.calc(&previous_result, &dest);
 
                 tmp_history.push(History {
-                    timestamp: result.timestamp.clone(),
-                    status: result.status,
+                    timestamp: result.command_result.timestamp.clone(),
+                    status: result.command_result.status,
                     num: *key as u16,
-                    summary: history_summary,
+                    summary: result.summary.clone(),
                 });
 
                 // update previous result
-                previous_result = dest;
+                // previous_result = dest;
             }
         }
 
@@ -751,13 +757,16 @@ impl<'a> App<'a> {
     ///
     fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
-        let mut latest_result = Rc::new(CommandResult::default());
+        let mut latest_result = ResultItems {
+            command_result: Rc::new(CommandResult::default()),
+            summary: HistorySummary::init(),
+        };
 
         if self.results.is_empty() {
             // diff output data.
-            self.results.insert(0, Rc::clone(&latest_result));
-            self.results_stdout.insert(0, Rc::clone(&latest_result));
-            self.results_stderr.insert(0, Rc::clone(&latest_result));
+            self.results.insert(0, latest_result.clone());
+            self.results_stdout.insert(0, latest_result.clone());
+            self.results_stderr.insert(0, latest_result.clone());
         } else {
             let latest_num = self.results.len() - 1;
             latest_result = self.results[&latest_num].clone();
@@ -769,7 +778,7 @@ impl<'a> App<'a> {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result == Rc::new(_result.clone()) {
+        if latest_result.command_result == Rc::new(_result.clone()) {
             return false;
         }
 
@@ -779,7 +788,7 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result:CommandResult = (*results[&latest_num]).clone();
+            let before_result:CommandResult = (*results[&latest_num].command_result).clone();
             let after_result = _result.clone();
 
             {
@@ -803,16 +812,16 @@ impl<'a> App<'a> {
 
         // logging result.
         if !self.logfile.is_empty() {
-            let _ = logging_result(&self.logfile, &self.results[&result_index]);
+            let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
-                OutputMode::Output => &self.results[&result_index].output,
-                OutputMode::Stdout => &self.results_stdout[&result_index].stdout,
-                OutputMode::Stderr => &self.results_stderr[&result_index].stderr,
+                OutputMode::Output => &self.results[&result_index].command_result.output,
+                OutputMode::Stdout => &self.results_stdout[&result_index].command_result.stdout,
+                OutputMode::Stderr => &self.results_stderr[&result_index].command_result.stderr,
             };
 
             match self.is_regex_filter {
@@ -863,32 +872,51 @@ impl<'a> App<'a> {
     /// Returns true if there is a change in stdout/stderr.
     fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool) {
         let rc_result = Rc::new(result);
+        let mut rc_output_result = ResultItems {
+            command_result: Rc::clone(&rc_result),
+            summary: HistorySummary::init(),
+        };
 
         let result_index = self.results.len();
-        self.results.insert(result_index, Rc::clone(&rc_result));
+        if result_index > 0 {
+            let latest_num = result_index - 1;
+            let latest_result = self.results[&latest_num].clone();
+            rc_output_result.summary.calc(&latest_result.command_result.output, &rc_output_result.command_result.output);
+        }
+        self.results.insert(result_index, rc_output_result.clone());
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = &self.results_stdout[&stdout_latest_index].stdout;
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.stdout;
         let result_stdout = &rc_result.stdout;
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = &self.results_stderr[&stderr_latest_index].stderr;
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.stderr;
         let result_stderr = &rc_result.stderr;
 
         // append results_stdout
         let mut is_stdout_update = false;
         if before_result_stdout != result_stdout {
             is_stdout_update = true;
-            self.results_stdout.insert(result_index, Rc::clone(&rc_result));
+            let mut rc_stdout_result = ResultItems {
+                command_result: Rc::clone(&rc_result),
+                summary: HistorySummary::init(),
+            };
+            rc_stdout_result.summary.calc(before_result_stdout, result_stdout);
+            self.results_stdout.insert(result_index, rc_stdout_result);
         }
 
         // append results_stderr
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            self.results_stderr.insert(result_index, Rc::clone(&rc_result));
+            let mut rc_stderr_result = ResultItems {
+                command_result: Rc::clone(&rc_result),
+                summary: HistorySummary::init(),
+            };
+            rc_stderr_result.summary.calc(before_result_stderr, result_stderr);
+            self.results_stderr.insert(result_index, rc_stderr_result);
         }
 
         return (result_index, is_stdout_update, is_stderr_update);
@@ -1171,9 +1199,6 @@ impl<'a> App<'a> {
 
     ///
     fn add_history(&mut self, result_index: usize, selected: usize) {
-        // get latest history index
-        let latest_num = self.history_area.get_results_latest_index();
-
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
             OutputMode::Output => &self.results,
@@ -1181,26 +1206,11 @@ impl<'a> App<'a> {
             OutputMode::Stderr => &self.results_stderr,
         };
 
-        let previous_result = &self.results[&latest_num];
-
         // update history
-        let timestamp = &results[&result_index].timestamp;
-        let status = &results[&result_index].status;
+        let timestamp = &results[&result_index].command_result.timestamp;
+        let status = &results[&result_index].command_result.status;
 
-        let src = match self.output_mode {
-            OutputMode::Output => &previous_result.output,
-            OutputMode::Stdout => &previous_result.stdout,
-            OutputMode::Stderr => &previous_result.stderr,
-        };
-
-        let dest = match self.output_mode {
-            OutputMode::Output => &results[&result_index].output,
-            OutputMode::Stdout => &results[&result_index].stdout,
-            OutputMode::Stderr => &results[&result_index].stderr,
-        };
-
-        let mut history_summary = HistorySummary::init();
-        history_summary.calc(&src, &dest);
+        let history_summary = results[&result_index].summary.clone();
 
         self.history_area.update(
             timestamp.to_string(),
@@ -1619,7 +1629,7 @@ fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
     result
 }
 
-fn get_near_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
+fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     if keys.contains(&index) {
@@ -1630,7 +1640,7 @@ fn get_near_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> 
     }
 }
 
-fn get_results_latest_index(results: &HashMap<usize, Rc<CommandResult>>) -> usize {
+fn get_results_latest_index(results: &HashMap<usize, ResultItems>) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     // return keys.iter().max().unwrap();
@@ -1642,7 +1652,7 @@ fn get_results_latest_index(results: &HashMap<usize, Rc<CommandResult>>) -> usiz
     return max;
 }
 
-fn get_results_previous_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
+fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
@@ -1660,7 +1670,7 @@ fn get_results_previous_index(results: &HashMap<usize, Rc<CommandResult>>, index
 
 }
 
-fn get_results_next_index(results: &HashMap<usize, Rc<CommandResult>>, index: usize) -> usize {
+fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
