@@ -66,6 +66,8 @@ pub enum InputMode {
 }
 
 #[derive(Clone)]
+/// Struct to hold history summary and CommandResult set.
+/// Since the calculation source of the history summary changes depending on the output mode, it is necessary to set it separately from the command result.
 struct ResultItems {
     pub command_result: Rc<CommandResult>,
     pub summary: HistorySummary,
@@ -668,12 +670,6 @@ impl<'a> App<'a> {
 
         for (key, result) in results_vec {
             if key == &0 {
-                // previous_result = match self.output_mode {
-                //     OutputMode::Output => result.command_result.output.clone(),
-                //     OutputMode::Stdout => result.command_result.stdout.clone(),
-                //     OutputMode::Stderr => result.command_result.stderr.clone(),
-                // };
-
                 continue;
             }
 
@@ -707,25 +703,12 @@ impl<'a> App<'a> {
             }
 
             if is_push {
-                // let dest = match self.output_mode {
-                //     OutputMode::Output => result.command_result.output.clone(),
-                //     OutputMode::Stdout => result.command_result.stdout.clone(),
-                //     OutputMode::Stderr => result.command_result.stderr.clone(),
-                // };
-
-                // create history summary
-                // let mut history_summary = HistorySummary::init();
-                // history_summary.calc(&previous_result, &dest);
-
                 tmp_history.push(History {
                     timestamp: result.command_result.timestamp.clone(),
                     status: result.command_result.status,
                     num: *key as u16,
                     summary: result.summary.clone(),
                 });
-
-                // update previous result
-                // previous_result = dest;
             }
         }
 
@@ -803,7 +786,6 @@ impl<'a> App<'a> {
             }
         }
 
-        // NOTE: resultをoutput/stdout/stderrで分けて登録させる？
         // append results
         let insert_result = self.insert_result(_result);
         let result_index = insert_result.0;
