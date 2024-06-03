@@ -88,6 +88,9 @@ pub struct App<'a> {
     after_command: String,
 
     ///
+    limit: u32,
+
+    ///
     ansi_color: bool,
 
     ///
@@ -111,10 +114,10 @@ pub struct App<'a> {
     ///
     is_scroll_bar: bool,
 
-    ///
+    /// If text search filtering is enabled.
     is_filtered: bool,
 
-    ///
+    /// If regex search filtering is enabled.
     is_regex_filter: bool,
 
     ///
@@ -208,6 +211,8 @@ impl<'a> App<'a> {
 
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
+
+            limit: 0,
 
             after_command: "".to_string(),
             ansi_color: false,
@@ -442,6 +447,8 @@ impl<'a> App<'a> {
         // check results over target...
         if target_dst == 0 {
             target_dst = get_results_latest_index(results);
+        } else {
+            target_dst = get_near_index(results, target_dst);
         }
         let previous_dst = get_results_previous_index(results, target_dst);
 
@@ -526,6 +533,11 @@ impl<'a> App<'a> {
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
+    }
+
+    ///
+    pub fn set_limit(&mut self, limit: u32) {
+        self.limit = limit;
     }
 
     ///
@@ -676,9 +688,9 @@ impl<'a> App<'a> {
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match self.output_mode {
-                    OutputMode::Output => &result.command_result.output,
-                    OutputMode::Stdout => &result.command_result.stdout,
-                    OutputMode::Stderr => &result.command_result.stderr,
+                    OutputMode::Output => result.command_result.get_output(),
+                    OutputMode::Stdout => result.command_result.get_stdout(),
+                    OutputMode::Stderr => result.command_result.get_stderr(),
                 };
 
                 match self.is_regex_filter {
@@ -751,7 +763,7 @@ impl<'a> App<'a> {
             self.results_stdout.insert(0, latest_result.clone());
             self.results_stderr.insert(0, latest_result.clone());
         } else {
-            let latest_num = self.results.len() - 1;
+            let latest_num = get_results_latest_index(&self.results);
             latest_result = self.results[&latest_num].clone();
         }
 
@@ -789,8 +801,9 @@ impl<'a> App<'a> {
         // append results
         let insert_result = self.insert_result(_result);
         let result_index = insert_result.0;
-        let is_update_stdout = insert_result.1;
-        let is_update_stderr = insert_result.2;
+        let is_limit_over = insert_result.1;
+        let is_update_stdout = insert_result.2;
+        let is_update_stderr = insert_result.3;
 
         // logging result.
         if !self.logfile.is_empty() {
@@ -801,9 +814,9 @@ impl<'a> App<'a> {
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
-                OutputMode::Output => &self.results[&result_index].command_result.output,
-                OutputMode::Stdout => &self.results_stdout[&result_index].command_result.stdout,
-                OutputMode::Stderr => &self.results_stderr[&result_index].command_result.stderr,
+                OutputMode::Output => self.results[&result_index].command_result.get_output(),
+                OutputMode::Stdout => self.results_stdout[&result_index].command_result.get_stdout(),
+                OutputMode::Stderr => self.results_stderr[&result_index].command_result.get_stderr(),
             };
 
             match self.is_regex_filter {
@@ -843,6 +856,11 @@ impl<'a> App<'a> {
         }
         selected = self.history_area.get_state_select();
 
+        // update hisotry area
+        if is_limit_over {
+            self.reset_history(selected);
+        }
+
         // update WatchArea
         self.set_output_data(selected);
 
@@ -852,30 +870,30 @@ impl<'a> App<'a> {
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
-    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool) {
+    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool, bool) {
         let rc_result = Rc::new(result);
         let mut rc_output_result = ResultItems {
             command_result: Rc::clone(&rc_result),
             summary: HistorySummary::init(),
         };
 
-        let result_index = self.results.len();
+        let result_index = self.results.keys().max().unwrap_or(&0) + 1;
         if result_index > 0 {
             let latest_num = result_index - 1;
             let latest_result = self.results[&latest_num].clone();
-            rc_output_result.summary.calc(&latest_result.command_result.output, &rc_output_result.command_result.output);
+            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output());
         }
         self.results.insert(result_index, rc_output_result.clone());
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.stdout;
-        let result_stdout = &rc_result.stdout;
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
+        let result_stdout = &rc_result.get_stdout();
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.stderr;
-        let result_stderr = &rc_result.stderr;
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
+        let result_stderr = &rc_result.get_stderr();
 
         // append results_stdout
         let mut is_stdout_update = false;
@@ -901,7 +919,51 @@ impl<'a> App<'a> {
             self.results_stderr.insert(result_index, rc_stderr_result);
         }
 
-        return (result_index, is_stdout_update, is_stderr_update);
+        // limit check
+        let mut is_limit_over = false;
+        if self.limit > 0 {
+            let limit = self.limit as usize;
+            if self.results.len() > limit {
+                let mut keys: Vec<_> = self.results.keys().cloned().collect();
+                keys.sort();
+
+                let remove_count = self.results.len() - limit;
+
+                for key in keys.iter().take(remove_count) {
+                    self.results.remove(key);
+                }
+
+                is_limit_over = true;
+            }
+
+            if self.results_stdout.len() > limit {
+                let mut keys: Vec<_> = self.results_stdout.keys().cloned().collect();
+                keys.sort();
+
+                let remove_count = self.results_stdout.len() - limit;
+
+                for key in keys.iter().take(remove_count) {
+                    self.results_stdout.remove(key);
+                }
+
+                is_limit_over = true;
+            }
+
+            if self.results_stderr.len() > limit {
+                let mut keys: Vec<_> = self.results_stderr.keys().cloned().collect();
+                keys.sort();
+
+                let remove_count = self.results_stderr.len() - limit;
+
+                for key in keys.iter().take(remove_count) {
+                    self.results_stderr.remove(key);
+                }
+
+                is_limit_over = true;
+            }
+        }
+
+        return (result_index, is_limit_over,  is_stdout_update, is_stderr_update);
     }
 
     ///
@@ -1616,7 +1678,14 @@ fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize 
 
     if keys.contains(&index) {
         return index;
+    } else if index == 0 {
+        return index;
     } else {
+        let min = keys.iter().min().unwrap();
+        if *min >= index {
+            // return get_results_previous_index(results, index);
+            return get_results_next_index(results, index);
+        }
         // return get_results_next_index(results, index)
         return get_results_previous_index(results, index)
     }
@@ -1644,7 +1713,6 @@ fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usiz
         if index == k {
             break;
         }
-
         previous_index = k;
     }
 

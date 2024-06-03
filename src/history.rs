@@ -309,6 +309,7 @@ impl HistoryArea {
         self.data.len()
     }
 
+    #[allow(dead_code)]
     ///
     pub fn get_results_latest_index(&self) -> usize {
         if self.data.len() > 1 {

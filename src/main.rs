@@ -3,15 +3,9 @@
 // that can be found in the LICENSE file.
 
 // v0.3.14
-// TODO(blacknon): 履歴の保存数の上限を設定できるようにする(-L, --limit)
-//                 デフォルトは5,000件で、上限を超えた場合は古いものから削除する
-//                 0で、履歴を無制限に記録していく(現在と同様)
-//                 ログに影響が出ないようにする(ログは5,000件以上利用する)
-// TODO(blacknon): history summaryの記録自体を無効化するオプションを追加する(パフォーマンス向上のための処置)
 // TODO(blacknon): historyのmemoryを圧縮して記録するオプションの追加(--compress)
 //                 https://users.rust-lang.org/t/how-to-compress-data-in-memory/77971/12
 // TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
-// TODO(blacknon): `Display help with h key`の位置をちゃんと整備する(きれいじゃないので)
 // TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
@@ -44,6 +38,7 @@ extern crate chrono;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
+extern crate flate2;
 extern crate futures;
 extern crate heapless;
 extern crate question;
@@ -95,6 +90,7 @@ pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
+pub const HISTORY_LIMIT: &str = "5000";
 type Interval = Arc<RwLock<f64>>;
 
 // const at Windows
@@ -189,6 +185,15 @@ fn build_app() -> clap::Command {
                 .short('r')
                 .action(ArgAction::SetTrue)
                 .long("reverse"),
+        )
+        // Compress data in memory option.
+        //     [-C,--compress]
+        .arg(
+            Arg::new("compress")
+                .help("Compress data in memory.")
+                .short('C')
+                .action(ArgAction::SetTrue)
+                .long("compress"),
         )
         // exec flag.
         //     [--no-title]
@@ -286,6 +291,16 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
+        // set limit option
+        //   [--limit,-L] size(default:5000)
+        .arg(
+            Arg::new("limit")
+                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000)")
+                .short('L')
+                .long("limit")
+                .value_parser(clap::value_parser!(u32))
+                .default_value(HISTORY_LIMIT),
+        )
         // tab size set option
         //   [--tab_size] size(default:4)
         .arg(
@@ -357,8 +372,12 @@ fn main() {
 
     // Get options flag
     let batch = matcher.get_flag("batch");
+    let compress = matcher.get_flag("compress");
 
+    // Get after command
     let after_command = matcher.get_one::<String>("after_command");
+
+    // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
 
     // check _logfile directory
@@ -396,6 +415,10 @@ fn main() {
     // interval
     let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
+
+    // history limit
+    let default_limit:u32 = HISTORY_LIMIT.parse().unwrap();
+    let limit = matcher.get_one::<u32>("limit").unwrap_or(&default_limit);
 
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
@@ -454,6 +477,9 @@ fn main() {
             // Set command
             exe.command = command.clone();
 
+            // Set compress
+            exe.is_compress = compress;
+
             // Set is exec flag.
             exe.is_exec = is_exec;
 
@@ -473,6 +499,7 @@ fn main() {
             // Set interval on view.header
             .set_interval(interval)
             .set_tab_size(tab_size)
+            .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
