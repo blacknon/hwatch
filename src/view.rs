@@ -32,6 +32,7 @@ pub struct View {
     after_command: String,
     interval: Interval,
     tab_size: u16,
+    limit: u32,
     keymap: Keymap,
     beep: bool,
     border: bool,
@@ -55,6 +56,7 @@ impl View {
             after_command: "".to_string(),
             interval,
             tab_size: DEFAULT_TAB_SIZE,
+            limit: 0,
             keymap: default_keymap(),
             beep: false,
             border: false,
@@ -84,6 +86,11 @@ impl View {
 
     pub fn set_tab_size(mut self, tab_size: u16) -> Self {
         self.tab_size = tab_size;
+        self
+    }
+
+    pub fn set_limit(mut self, limit: u32) -> Self {
+        self.limit = limit;
         self
     }
 
@@ -195,6 +202,9 @@ impl View {
 
         // set after command
         app.set_after_command(self.after_command.clone());
+
+        // set limit
+        app.set_limit(self.limit);
 
         // set beep
         app.set_beep(self.beep);
