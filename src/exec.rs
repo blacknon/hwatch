@@ -12,7 +12,7 @@ use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use flate2::write::GzEncoder;
+use flate2::{write::GzEncoder, read::GzDecoder};
 
 // local module
 use crate::common;
@@ -107,7 +107,7 @@ impl CommandResult {
         };
 
         if self.is_compress {
-            let mut decoder = flate2::read::GzDecoder::new(&data[..]);
+            let mut decoder = GzDecoder::new(&data[..]);
             let mut s = String::new();
             decoder.read_to_string(&mut s).unwrap();
             s
