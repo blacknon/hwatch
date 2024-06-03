@@ -688,9 +688,9 @@ impl<'a> App<'a> {
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match self.output_mode {
-                    OutputMode::Output => &result.command_result.output,
-                    OutputMode::Stdout => &result.command_result.stdout,
-                    OutputMode::Stderr => &result.command_result.stderr,
+                    OutputMode::Output => result.command_result.get_output(),
+                    OutputMode::Stdout => result.command_result.get_stdout(),
+                    OutputMode::Stderr => result.command_result.get_stderr(),
                 };
 
                 match self.is_regex_filter {
@@ -814,9 +814,9 @@ impl<'a> App<'a> {
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
-                OutputMode::Output => &self.results[&result_index].command_result.output,
-                OutputMode::Stdout => &self.results_stdout[&result_index].command_result.stdout,
-                OutputMode::Stderr => &self.results_stderr[&result_index].command_result.stderr,
+                OutputMode::Output => self.results[&result_index].command_result.get_output(),
+                OutputMode::Stdout => self.results_stdout[&result_index].command_result.get_stdout(),
+                OutputMode::Stderr => self.results_stderr[&result_index].command_result.get_stderr(),
             };
 
             match self.is_regex_filter {
@@ -881,19 +881,19 @@ impl<'a> App<'a> {
         if result_index > 0 {
             let latest_num = result_index - 1;
             let latest_result = self.results[&latest_num].clone();
-            rc_output_result.summary.calc(&latest_result.command_result.output, &rc_output_result.command_result.output);
+            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output());
         }
         self.results.insert(result_index, rc_output_result.clone());
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.stdout;
-        let result_stdout = &rc_result.stdout;
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
+        let result_stdout = &rc_result.get_stdout();
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.stderr;
-        let result_stderr = &rc_result.stderr;
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
+        let result_stderr = &rc_result.get_stderr();
 
         // append results_stdout
         let mut is_stdout_update = false;

@@ -12,19 +12,26 @@ use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use flate2::write::GzEncoder;
 
 // local module
 use crate::common;
+use crate::common::OutputMode;
 use crate::event::AppEvent;
+
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
     pub timestamp: String,
     pub command: String,
     pub status: bool,
-    pub output: String,
-    pub stdout: String,
-    pub stderr: String,
+    pub is_compress: bool,
+    // pub output: String,
+    pub output: Vec<u8>,
+    // pub stdout: String,
+    pub stdout: Vec<u8>,
+    // pub stderr: String,
+    pub stderr: Vec<u8>,
 }
 
 impl Default for CommandResult {
@@ -33,9 +40,13 @@ impl Default for CommandResult {
             timestamp: String::default(),
             command: String::default(),
             status: true,
-            output: String::default(),
-            stdout: String::default(),
-            stderr: String::default(),
+            is_compress: false,
+            // output: String::default(),
+            output: vec![],
+            // stdout: String::default(),
+            stdout: vec![],
+            // stderr: String::default(),
+            stderr: vec![],
         }
     }
 }
@@ -50,11 +61,80 @@ impl PartialEq for CommandResult {
     }
 }
 
+impl CommandResult {
+    fn set_data(&self, data: Vec<u8>, data_type: OutputMode) -> Self {
+        let u8_data = if self.is_compress {
+            let mut encoder = GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(&data).unwrap();
+            encoder.finish().unwrap()
+        } else {
+            data
+        };
+
+        match data_type {
+            OutputMode::Output => CommandResult {
+                output: u8_data,
+                ..self.clone()
+            },
+            OutputMode::Stdout => CommandResult {
+                stdout: u8_data,
+                ..self.clone()
+            },
+            OutputMode::Stderr => CommandResult {
+                stderr: u8_data,
+                ..self.clone()
+            },
+        }
+    }
+
+    pub fn set_output(&self, data: Vec<u8>) -> Self {
+        return self.set_data(data, OutputMode::Output)
+    }
+
+    pub fn set_stdout(&self, data: Vec<u8>) -> Self {
+        return self.set_data(data, OutputMode::Stdout)
+    }
+
+    pub fn set_stderr(&self, data: Vec<u8>) -> Self {
+        return self.set_data(data, OutputMode::Stderr)
+    }
+
+    fn get_data(&self, data_type: OutputMode) -> String {
+        let data = match data_type {
+            OutputMode::Output => &self.output,
+            OutputMode::Stdout => &self.stdout,
+            OutputMode::Stderr => &self.stderr,
+        };
+
+        if self.is_compress {
+            let mut decoder = flate2::read::GzDecoder::new(&data[..]);
+            let mut s = String::new();
+            decoder.read_to_string(&mut s).unwrap();
+            s
+        } else {
+            String::from_utf8_lossy(&data).to_string()
+        }
+    }
+
+    pub fn get_output(&self) -> String {
+        self.get_data(OutputMode::Output)
+    }
+
+    pub fn get_stdout(&self) -> String {
+        self.get_data(OutputMode::Stdout)
+    }
+
+    pub fn get_stderr(&self) -> String {
+        self.get_data(OutputMode::Stderr)
+    }
+}
+
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
     pub shell_command: String,
     pub command: Vec<String>,
     pub is_exec: bool,
+    pub is_compress: bool,
     pub tx: Sender<AppEvent>,
 }
 
@@ -65,6 +145,7 @@ impl ExecuteCommand {
             shell_command: "".to_string(),
             command: vec![],
             is_exec: false,
+            is_compress: false,
             tx,
         }
     }
@@ -163,10 +244,14 @@ impl ExecuteCommand {
             timestamp: common::now_str(),
             command: command_str,
             status,
-            output: String::from_utf8_lossy(&vec_output).to_string(),
-            stdout: String::from_utf8_lossy(&vec_stdout).to_string(),
-            stderr: String::from_utf8_lossy(&vec_stderr).to_string(),
-        };
+            is_compress: self.is_compress,
+            output: vec![],
+            stdout: vec![],
+            stderr: vec![],
+        }
+        .set_output(vec_output)
+        .set_stdout(vec_stdout)
+        .set_stderr(vec_stderr);
 
         // Send result
         let _ = self.tx.send(AppEvent::OutputUpdate(result));
@@ -251,8 +336,6 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
 
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,30 +394,21 @@ mod tests {
     #[test]
     fn test_command_result_output_diff() {
         let command_result1 = CommandResult::default();
-        let command_result2 = CommandResult {
-            output: "different".to_string(),
-            ..Default::default()
-        };
+        let command_result2 = CommandResult::default().set_output("different".as_bytes().to_vec());
         assert!(command_result1 != command_result2);
     }
 
     #[test]
     fn test_command_result_stdout_diff() {
         let command_result1 = CommandResult::default();
-        let command_result2 = CommandResult {
-            stdout: "different".to_string(),
-            ..Default::default()
-        };
+        let command_result2 = CommandResult::default().set_stdout("different".as_bytes().to_vec());
         assert!(command_result1 != command_result2);
     }
 
     #[test]
     fn test_command_result_stderr_diff() {
         let command_result1 = CommandResult::default();
-        let command_result2 = CommandResult {
-            stderr: "different".to_string(),
-            ..Default::default()
-        };
+        let command_result2 = CommandResult::default().set_stderr("different".as_bytes().to_vec());
         assert!(command_result1 != command_result2);
     }
 }
