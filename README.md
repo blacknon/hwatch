@@ -53,24 +53,28 @@ That records the result of command execution and can display it history and diff
         Options:
           -b, --batch                         output exection results to stdout
           -B, --beep                          beep if command has a change result
+              --border                        Surround each pane with a border frame
+              --with-scrollbar                When the border option is enabled, display scrollbar on the right side of watch pane.
               --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
           -c, --color                         interpret ANSI color and style sequences
           -r, --reverse                       display text upside down.
+          -C, --compress                      Compress data in memory.
           -t, --no-title                      hide the UI on start. Use `t` to toggle it.
           -N, --line-number                   show line number
               --no-help-banner                hide the "Display help with h key" message
           -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
-          -O, --diff-output-only              Display only the lines with differences during line diff and word diff.
+          -O, --diff-output-only              Display only the lines with differences during `line` diff and `word` diff.
           -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
-          -l, --logfile <logfile>             logging file
+          -l, --logfile [<logfile>]           logging file
           -s, --shell <shell_command>         shell to use at runtime. can  also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
           -n, --interval <interval>           seconds to wait between updates [default: 2]
+          -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000) [default: 5000]
               --tab-size <tab_size>           Specifying tab display size [default: 4]
           -d, --differences [<differences>]   highlight changes between updates [possible values: none, watch, line, word]
           -o, --output [<output>]             Select command output. [default: output] [possible values: output, stdout, stderr]
+          -K, --keymap <keymap>               Add keymap
           -h, --help                          Print help
           -V, --version                       Print version
-
 
 watch window keybind
 

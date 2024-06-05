@@ -34,7 +34,7 @@ impl Key {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 34] = [
+const DEFAULT_KEYMAP: [&str; 36] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -48,6 +48,8 @@ const DEFAULT_KEYMAP: [&str; 34] = [
     "esc=reset", // Reset: ESC
     "ctrl-c=cancel", // Cancel: Ctrl + c
     "h=help", // Help: h
+    "b=toggle_border", // Toggle Border: b
+    "s=toggle_scroll_bar", // Toggle Scroll Bar: s
     "c=toggle_color", // Toggle Color: c
     "n=toggle_line_number", // Toggle Line Number: n
     "r=toggle_reverse", // Toggle Reverse: r
