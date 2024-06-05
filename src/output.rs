@@ -34,6 +34,7 @@ const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
 const COLOR_WATCH_LINE_ADD: Color = Color::Green;
 const COLOR_WATCH_LINE_REM: Color = Color::Red;
 const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
+const COLOR_WATCH_FILTER_KEYWORD: Color = Color::LightBlue;
 
 // local const
 use crate::ansi;
@@ -444,7 +445,7 @@ impl Printer {
                 // push to line_span at text_line.
                 line_span.push(Span::styled(
                     text_line.to_string(),
-                    Style::default().add_modifier(Modifier::REVERSED),
+                    Style::default().fg(COLOR_WATCH_FILTER_KEYWORD).add_modifier(Modifier::SLOW_BLINK | Modifier::REVERSED),
                 ));
             }
 

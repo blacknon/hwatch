@@ -3,8 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.14
-// TODO(blacknon): historyのmemoryを圧縮して記録するオプションの追加(--compress)
-//                 https://users.rust-lang.org/t/how-to-compress-data-in-memory/77971/12
 // TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
 // TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする
@@ -14,7 +12,7 @@
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): watchをモダンよりのものに変更する
-// TODO(blacknon): diff modeを複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
+// TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
@@ -190,7 +188,7 @@ fn build_app() -> clap::Command {
         //     [-C,--compress]
         .arg(
             Arg::new("compress")
-                .help("Compress data in memory.")
+                .help("Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.")
                 .short('C')
                 .action(ArgAction::SetTrue)
                 .long("compress"),
