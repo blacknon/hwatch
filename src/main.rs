@@ -3,7 +3,7 @@
 // that can be found in the LICENSE file.
 
 // v0.3.14
-// TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
+
 
 // v0.3.15
 // TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
@@ -13,6 +13,7 @@
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
+// TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
