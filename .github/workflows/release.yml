@@ -41,7 +41,7 @@ jobs:
             os: macos-latest
             ext: tar.gz
           - target: x86_64-pc-windows-gnu
-            os: windows-latest
+            os: ubuntu-latest
             ext: zip
     runs-on: ${{ matrix.os }}
     steps:
@@ -212,7 +212,7 @@ jobs:
             os: macos-latest
             ext: tar.gz
           - target: x86_64-pc-windows-gnu
-            os: windows-latest
+            os: ubuntu-latest
             ext: zip
     needs: [create-release]
     runs-on: ubuntu-latest
