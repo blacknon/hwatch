@@ -105,6 +105,12 @@ jobs:
           perl -i -pe s/___VERSION___/${{ steps.package_version.outputs.version }}/ ./package/.tar2package.yml
           tar czvf "$_TAR" -C "$PWD/package" completion bin man .tar2package.yml
 
+      - name: Create package file
+        if: ${{ (matrix.ext == 'zip') }}
+        run: |
+          _ZIP=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
+          7z a "$_ZIP" target/${{ matrix.target }}/release/hwatch.exe
+
       # use: https://github.com/greymd/tar2package
       - name: Build rpm
         id: rpm
