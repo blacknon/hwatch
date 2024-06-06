@@ -11,7 +11,7 @@ use tui::{
     Frame,
 };
 
-use crate::common::centered_rect;
+use crate::common::centered_rect_with_size;
 
 pub struct ExitWindow<'a> {
     ///
@@ -24,7 +24,7 @@ pub struct ExitWindow<'a> {
 impl<'a> ExitWindow<'a> {
     pub fn new() -> Self {
         let text = vec![
-            Line::from("Exit hwatch? (Y/N)"),
+            Line::from(" Exit hwatch? (Y/N)"),
         ];
 
         Self {
@@ -39,7 +39,7 @@ impl<'a> ExitWindow<'a> {
 
         // TODO: 枠を含めて3行にする
         let size = f.size();
-        self.area = centered_rect(40, 10, size);
+        self.area = centered_rect_with_size(4, 32, size);
 
         // create block.
         let block = Paragraph::new(self.text.clone())
@@ -49,7 +49,7 @@ impl<'a> ExitWindow<'a> {
                     .title(title)
                     .borders(Borders::ALL)
                     .border_type(BorderType::Double)
-                    .border_style(Style::default().bold().fg(Color::Green)),
+                    .border_style(Style::default().bold().fg(Color::Cyan)),
             )
             .wrap(Wrap { trim: false });
 
