@@ -154,6 +154,13 @@ jobs:
           name: build-${{ matrix.target }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
 
+      - name: Upload artifact
+        if: matrix.ext == 'zip'
+        uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
+
   # create package release
   create-release:
     needs:
