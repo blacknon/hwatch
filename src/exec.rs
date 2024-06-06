@@ -26,11 +26,8 @@ pub struct CommandResult {
     pub command: String,
     pub status: bool,
     pub is_compress: bool,
-    // pub output: String,
     pub output: Vec<u8>,
-    // pub stdout: String,
     pub stdout: Vec<u8>,
-    // pub stderr: String,
     pub stderr: Vec<u8>,
 }
 
@@ -41,11 +38,8 @@ impl Default for CommandResult {
             command: String::default(),
             status: true,
             is_compress: false,
-            // output: String::default(),
             output: vec![],
-            // stdout: String::default(),
             stdout: vec![],
-            // stderr: String::default(),
             stderr: vec![],
         }
     }

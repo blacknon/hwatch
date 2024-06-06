@@ -4,11 +4,11 @@
 
 // v0.3.14
 // TODO(blacknon): WindowsのバイナリをReleaseに放り込み、かつ(可能ならば)パッケージマネジメントシステムでインストール可能にする
-// TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
-// TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする
-// TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 
 // v0.3.15
+// TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
+// TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
+// TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): watchをモダンよりのものに変更する
