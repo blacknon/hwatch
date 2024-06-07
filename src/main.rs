@@ -2,9 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.14
-
-
 // v0.3.15
 // TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
@@ -14,6 +11,7 @@
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
@@ -547,6 +545,11 @@ fn main() {
             .set_line_number(matcher.get_flag("line_number"))
             .set_reverse(matcher.get_flag("reverse"))
             .set_only_diffline(matcher.get_flag("diff_output_only"));
+
+        // Set logfile
+        if let Some(logfile) = logfile {
+            batch = batch.set_logfile(logfile.to_string());
+        }
 
         // Set after_command
         if let Some(after_command) = after_command {
