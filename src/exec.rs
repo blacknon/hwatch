@@ -19,6 +19,17 @@ use crate::common;
 use crate::common::OutputMode;
 use crate::event::AppEvent;
 
+// struct for handling data during log/after exec
+#[derive(Serialize)]
+
+pub struct CommandResultData {
+    pub timestamp: String,
+    pub command: String,
+    pub status: bool,
+    pub output: String,
+    pub stdout: String,
+    pub stderr: String,
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CommandResult {
@@ -120,6 +131,17 @@ impl CommandResult {
 
     pub fn get_stderr(&self) -> String {
         self.get_data(OutputMode::Stderr)
+    }
+
+    pub fn export_data(&self) -> CommandResultData {
+        CommandResultData {
+            timestamp: self.timestamp.clone(),
+            command: self.command.clone(),
+            status: self.status,
+            output: self.get_output(),
+            stdout: self.get_stdout(),
+            stderr: self.get_stderr(),
+        }
     }
 }
 
@@ -255,11 +277,14 @@ impl ExecuteCommand {
 // TODO: 変化が発生した時の後処理コマンドを実行するためのstruct
 #[derive(Serialize)]
 pub struct ExecuteAfterResultData {
-    pub before_result: CommandResult,
-    pub after_result: CommandResult,
+    pub before_result: CommandResultData,
+    pub after_result: CommandResultData,
 }
 
-pub fn exec_after_command(shell_command: String, after_command: String, before_result: CommandResult, after_result: CommandResult) {
+pub fn exec_after_command(shell_command: String, after_command: String, before: CommandResult, after: CommandResult) {
+    let before_result: CommandResultData = before.export_data();
+    let after_result = after.export_data();
+
     let result_data = ExecuteAfterResultData {
         before_result,
         after_result,
