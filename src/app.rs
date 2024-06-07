@@ -8,7 +8,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEvent, MouseEventKind
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind
     },
     execute,
 };
@@ -973,21 +973,23 @@ impl<'a> App<'a> {
             // match key event
             match terminal_event {
                 Event::Key(key) => {
-                    match key.code {
-                        KeyCode::Char('y') => {
-                            self.exit();
-                            return;
-                        },
-                        KeyCode::Char('n') => {
-                            self.window = ActiveWindow::Normal;
-                            return;
-                        },
-                        KeyCode::Char('h') => {
-                            self.window = ActiveWindow::Help;
-                            return;
-                        },
-                        // default
-                        _ => {}
+                    if key.kind == KeyEventKind::Press {
+                        match key.code {
+                            KeyCode::Char('y') => {
+                                self.exit();
+                                return;
+                            },
+                            KeyCode::Char('n') => {
+                                self.window = ActiveWindow::Normal;
+                                return;
+                            },
+                            KeyCode::Char('h') => {
+                                self.window = ActiveWindow::Help;
+                                return;
+                            },
+                            // default
+                            _ => {}
+                        }
                     }
                 },
                 _ => {},
@@ -1134,49 +1136,51 @@ impl<'a> App<'a> {
     ///
     fn get_default_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
         if let Event::Key(key) = terminal_event {
-            match key.code {
-                KeyCode::Char(c) => {
-                    // add header input_text;
-                    self.header_area.input_text.push(c);
-                    self.header_area.update();
-                }
-
-                KeyCode::Backspace => {
-                    // remove header input_text;
-                    self.header_area.input_text.pop();
-                    self.header_area.update();
-                }
-
-                KeyCode::Enter => {
-                    // check regex error...
-                    if is_regex {
-                        let input_text = self.header_area.input_text.clone();
-                        let re_result = Regex::new(&input_text);
-                        if re_result.is_err() {
-                            // TODO: create print message method.
-                            return;
-                        }
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char(c) => {
+                        // add header input_text;
+                        self.header_area.input_text.push(c);
+                        self.header_area.update();
                     }
 
-                    // set filtered mode enable
-                    self.is_filtered = true;
-                    self.is_regex_filter = is_regex;
-                    self.filtered_text = self.header_area.input_text.clone();
-                    self.set_input_mode(InputMode::None);
+                    KeyCode::Backspace => {
+                        // remove header input_text;
+                        self.header_area.input_text.pop();
+                        self.header_area.update();
+                    }
 
-                    self.printer.set_filter(self.is_filtered);
-                    self.printer.set_regex_filter(self.is_regex_filter);
-                    self.printer.set_filter_text(self.filtered_text.clone());
+                    KeyCode::Enter => {
+                        // check regex error...
+                        if is_regex {
+                            let input_text = self.header_area.input_text.clone();
+                            let re_result = Regex::new(&input_text);
+                            if re_result.is_err() {
+                                // TODO: create print message method.
+                                return;
+                            }
+                        }
 
-                    let selected = self.history_area.get_state_select();
-                    self.reset_history(selected);
+                        // set filtered mode enable
+                        self.is_filtered = true;
+                        self.is_regex_filter = is_regex;
+                        self.filtered_text = self.header_area.input_text.clone();
+                        self.set_input_mode(InputMode::None);
 
-                    // update WatchArea
-                    self.set_output_data(selected);
+                        self.printer.set_filter(self.is_filtered);
+                        self.printer.set_regex_filter(self.is_regex_filter);
+                        self.printer.set_filter_text(self.filtered_text.clone());
+
+                        let selected = self.history_area.get_state_select();
+                        self.reset_history(selected);
+
+                        // update WatchArea
+                        self.set_output_data(selected);
+                    }
+
+                    // default
+                    _ => {}
                 }
-
-                // default
-                _ => {}
             }
         }
     }
