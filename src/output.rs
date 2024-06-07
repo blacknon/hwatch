@@ -445,7 +445,7 @@ impl Printer {
                 // push to line_span at text_line.
                 line_span.push(Span::styled(
                     text_line.to_string(),
-                    Style::default().fg(COLOR_WATCH_FILTER_KEYWORD).add_modifier(Modifier::SLOW_BLINK | Modifier::REVERSED),
+                    Style::default().fg(COLOR_WATCH_FILTER_KEYWORD).add_modifier(Modifier::REVERSED),
                 ));
             }
 

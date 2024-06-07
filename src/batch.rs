@@ -6,7 +6,7 @@ use crossbeam_channel::{Receiver, Sender};
 use std::{io, collections::HashMap};
 use std::thread;
 
-use crate::common::{DiffMode, OutputMode};
+use crate::common::{DiffMode, OutputMode, logging_result};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
@@ -41,6 +41,9 @@ pub struct Batch {
     is_only_diffline: bool,
 
     ///
+    logfile: String,
+
+    ///
     printer: output::Printer,
 
     ///
@@ -63,6 +66,7 @@ impl Batch {
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
             is_only_diffline: false,
+            logfile: "".to_string(),
             printer: output::Printer::new(),
             tx,
             rx,
@@ -117,6 +121,11 @@ impl Batch {
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
         if latest_result == _result {
             return false;
+        }
+
+        // logging result.
+        if !self.logfile.is_empty() {
+            let _ = logging_result(&self.logfile, &latest_result);
         }
 
         if !self.after_command.is_empty() {
@@ -214,4 +223,11 @@ impl Batch {
         self.is_only_diffline = is_only_diffline;
         self
     }
+
+    pub fn set_logfile(mut self, logfile: String) -> Self {
+        self.logfile = logfile;
+        self
+    }
+
+
 }
