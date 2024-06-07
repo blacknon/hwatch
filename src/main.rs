@@ -12,6 +12,7 @@
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
+// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
@@ -32,9 +33,11 @@ extern crate ansi_term;
 extern crate async_std;
 extern crate config;
 extern crate chrono;
+extern crate chardetng;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
+extern crate encoding_rs;
 extern crate flate2;
 extern crate futures;
 extern crate heapless;
