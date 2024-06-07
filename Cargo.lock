@@ -52,9 +52,9 @@ dependencies = [
 
 [[package]]
 name = "ansi-parser"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fad5bd94a775101bd68c2de2bb28ca2eccd69f395ae3aec4ac4f6da3c1cd2c6a"
+checksum = "c43e7fd8284f025d0bd143c2855618ecdf697db55bde39211e5c9faec7669173"
 dependencies = [
  "heapless",
  "nom",
@@ -122,18 +122,6 @@ name = "anyhow"
 version = "1.0.80"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ad32ce52e4161730f7098c077cd2ed6229b5804ccf99e5366be1ab72a98b4e1"
-
-[[package]]
-name = "as-slice"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45403b49e3954a4b8428a0ac21a4b7afadccf92bfd96273f1a58cd4812496ae0"
-dependencies = [
- "generic-array 0.12.4",
- "generic-array 0.13.3",
- "generic-array 0.14.5",
- "stable_deref_trait",
-]
 
 [[package]]
 name = "async-channel"
@@ -292,7 +280,7 @@ version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array",
 ]
 
 [[package]]
@@ -543,7 +531,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array",
  "typenum",
 ]
 
@@ -833,24 +821,6 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffdf9f34f1447443d37393cc6c2b8313aebddcd96906caf34e54c68d8e57d7bd"
-dependencies = [
- "typenum",
-]
-
-[[package]]
-name = "generic-array"
-version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f797e67af32588215eaaab8327027ee8e71b9dd0b2b26996aedf20c030fce309"
-dependencies = [
- "typenum",
-]
-
-[[package]]
-name = "generic-array"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
@@ -884,9 +854,9 @@ dependencies = [
 
 [[package]]
 name = "hash32"
-version = "0.1.1"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4041af86e63ac4298ce40e5cca669066e75b6f1aa3390fe2561ffa5e1d9f4cc"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
 dependencies = [
  "byteorder",
 ]
@@ -909,12 +879,10 @@ dependencies = [
 
 [[package]]
 name = "heapless"
-version = "0.6.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "634bd4d29cbf24424d0a4bfcbf80c6960129dc24424752a7d1d1390607023422"
+checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
 dependencies = [
- "as-slice",
- "generic-array 0.14.5",
  "hash32",
  "stable_deref_trait",
 ]

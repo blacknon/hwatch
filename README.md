@@ -17,6 +17,7 @@ That records the result of command execution and can display it history and diff
 - Can keep the history when the difference, occurs and check it later.
 - Can check the difference in the history. The display method can be changed in real time.
 - Can output the execution result as log (json format).
+- Custom keymaps are available.
 - Support ANSI color code.
 - Execution result can be scroll.
 - Not only as a TUI application, but also to have the differences output as standard output.

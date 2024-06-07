@@ -2,7 +2,6 @@
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
 use ansi_parser::{AnsiParser, AnsiSequence, Output};
-use heapless::consts::*;
 use termwiz::cell::{Blink, Intensity, Underline};
 use termwiz::color::ColorSpec;
 use termwiz::escape::{
@@ -152,7 +151,7 @@ pub fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
     let mut result = vec![];
 
     // ansi reset code heapless_vec
-    let mut ansi_reset_vec = heapless::Vec::<u8, U5>::new();
+    let mut ansi_reset_vec = heapless::Vec::<u8, 5>::new();
     let _ = ansi_reset_vec.push(0);
 
     // get ansi reset code string

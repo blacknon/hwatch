@@ -37,7 +37,7 @@ pub fn now_str() -> String {
 }
 
 /// logging result data to log file(_logpath).
-pub fn logging_result(_logpath: &str, _result: &CommandResult) -> Result<(), Box<dyn Error>> {
+pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<dyn Error>> {
     // try open logfile
     let mut logfile = match OpenOptions::new()
         .write(true)
@@ -50,7 +50,7 @@ pub fn logging_result(_logpath: &str, _result: &CommandResult) -> Result<(), Box
     };
 
     // create logline
-    let logdata = serde_json::to_string(&_result)?;
+    let logdata = serde_json::to_string(&result.export_data())?;
 
     // write log
     // TODO(blacknon): warning出てるので対応
