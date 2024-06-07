@@ -10,6 +10,7 @@ use crossbeam_channel::Sender;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use flate2::{write::GzEncoder, read::GzDecoder};
