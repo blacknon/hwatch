@@ -2,13 +2,17 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.14
-// TODO(blacknon): キー入力のカスタマイズが行えるようにする(custom keymap)
-
 // v0.3.15
-// TODO(blacknon): 終了時にYes/Noで確認を取る機能を実装する(オプションで無効化させる)
+// TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
+// TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
+// TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): watchをモダンよりのものに変更する
+// TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
+// TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
+// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する
 
 // v0.3.16
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
@@ -17,34 +21,31 @@
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
 // TODO(blacknon): 任意時点間のdiffが行えるようにする.
-// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能にする
+// TODO(blacknon): filtering時に、`指定したキーワードで差分が発生した場合のみ`を対象にするような機能を追加する(command mode option)
 // TODO(blacknon): Rustのドキュメンテーションコメントを追加していく
 // TODO(blacknon): マニュアル(manのデータ)を自動作成させる
 //                 https://github.com/rust-cli/man
-// TODO(blacknon): ライフタイムの名称をちゃんと命名する。
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
-// TODO(blacknon): diffのライブラリをsimilarに切り替える？
-//                 - https://github.com/mitsuhiko/similar
-//                 - 目的としては、複数文字を区切り文字指定して差分のある箇所をもっとうまく抽出できるようにしてやりたい、というもの
-//                 - diffのとき、スペースの増減は無視するようなオプションがほしい(あるか？というのは置いといて…)
-
 
 // crate
-// extern crate ansi_parser;
 extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
+extern crate config;
 extern crate chrono;
+extern crate chardetng;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
-extern crate difference;
+extern crate encoding_rs;
+extern crate flate2;
 extern crate futures;
 extern crate heapless;
 extern crate question;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
+extern crate similar;
 extern crate termwiz;
 extern crate ratatui as tui;
 
@@ -72,12 +73,14 @@ mod ansi;
 mod app;
 mod batch;
 mod common;
+mod errors;
 mod event;
 mod exec;
+mod exit;
 mod header;
 mod help;
 mod history;
-mod keys;
+mod keymap;
 mod output;
 mod view;
 mod watch;
@@ -87,17 +90,14 @@ pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
+pub const HISTORY_LIMIT: &str = "5000";
 type Interval = Arc<RwLock<f64>>;
 
 // const at Windows
 #[cfg(windows)]
-const LINE_ENDING: &str = "\r\n";
-#[cfg(windows)]
 const SHELL_COMMAND: &str = "cmd /C";
 
 // const at not Windows
-#[cfg(not(windows))]
-const LINE_ENDING: &str = "\n";
 #[cfg(not(windows))]
 const SHELL_COMMAND: &str = "sh -c";
 
@@ -148,6 +148,18 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("beep"),
         )
+        .arg(
+            Arg::new("border")
+                .help("Surround each pane with a border frame")
+                .action(ArgAction::SetTrue)
+                .long("border"),
+        )
+        .arg(
+            Arg::new("with_scrollbar")
+                .help("When the border option is enabled, display scrollbar on the right side of watch pane.")
+                .action(ArgAction::SetTrue)
+                .long("with-scrollbar"),
+        )
         // mouse option
         //     [--mouse]
         .arg(
@@ -173,6 +185,15 @@ fn build_app() -> clap::Command {
                 .short('r')
                 .action(ArgAction::SetTrue)
                 .long("reverse"),
+        )
+        // Compress data in memory option.
+        //     [-C,--compress]
+        .arg(
+            Arg::new("compress")
+                .help("Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.")
+                .short('C')
+                .action(ArgAction::SetTrue)
+                .long("compress"),
         )
         // exec flag.
         //     [--no-title]
@@ -244,6 +265,7 @@ fn build_app() -> clap::Command {
                 .help("logging file")
                 .short('l')
                 .long("logfile")
+                .num_args(0..=1)
                 .value_hint(ValueHint::FilePath)
                 .action(ArgAction::Append),
         )
@@ -269,6 +291,16 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
+        // set limit option
+        //   [--limit,-L] size(default:5000)
+        .arg(
+            Arg::new("limit")
+                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000)")
+                .short('L')
+                .long("limit")
+                .value_parser(clap::value_parser!(u32))
+                .default_value(HISTORY_LIMIT),
+        )
         // tab size set option
         //   [--tab_size] size(default:4)
         .arg(
@@ -292,6 +324,8 @@ fn build_app() -> clap::Command {
                 .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
                 .action(ArgAction::Append),
         )
+        // Set output mode option
+        //   [--output,-o] [output, stdout, stderr]
         .arg(
             Arg::new("output")
                 .help("Select command output.")
@@ -302,6 +336,15 @@ fn build_app() -> clap::Command {
                 .default_value("output")
                 .action(ArgAction::Append),
         )
+        //
+        .arg(
+            Arg::new("keymap")
+                .help("Add keymap")
+                .short('K')
+                .long("keymap")
+                .action(ArgAction::Append),
+        )
+
 }
 
 fn get_clap_matcher() -> clap::ArgMatches {
@@ -329,8 +372,12 @@ fn main() {
 
     // Get options flag
     let batch = matcher.get_flag("batch");
+    let compress = matcher.get_flag("compress");
 
+    // Get after command
     let after_command = matcher.get_one::<String>("after_command");
+
+    // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
 
     // check _logfile directory
@@ -369,9 +416,14 @@ fn main() {
     let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
 
+    // history limit
+    let default_limit:u32 = HISTORY_LIMIT.parse().unwrap();
+    let limit = matcher.get_one::<u32>("limit").unwrap_or(&default_limit);
+
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
 
+    // output mode
     let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
         "output" => common::OutputMode::Output,
         "stdout" => common::OutputMode::Stdout,
@@ -392,6 +444,21 @@ fn main() {
         DiffMode::Disable
     };
 
+    // Get Add keymap
+    let keymap_options: Vec<&str> = matcher.get_many::<String>("keymap")
+        .unwrap_or_default()
+        .map(|s| s.as_str())
+        .collect();
+
+    // Parse Add Keymap
+    let keymap = match keymap::generate_keymap(keymap_options) {
+        Ok(keymap) => keymap,
+        _ => {
+            eprintln!("Failed to parse keymap.");
+            std::process::exit(1);
+        }
+    };
+
     // Start Command Thread
     {
         let m = matcher.clone();
@@ -409,6 +476,9 @@ fn main() {
 
             // Set command
             exe.command = command.clone();
+
+            // Set compress
+            exe.is_compress = compress;
 
             // Set is exec flag.
             exe.is_exec = is_exec;
@@ -429,8 +499,14 @@ fn main() {
             // Set interval on view.header
             .set_interval(interval)
             .set_tab_size(tab_size)
+            .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
+            .set_border(matcher.get_flag("border"))
+            .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
+
+            // set keymap
+            .set_keymap(keymap)
 
             // Set color in view
             .set_color(matcher.get_flag("color"))
@@ -472,6 +548,11 @@ fn main() {
             .set_line_number(matcher.get_flag("line_number"))
             .set_reverse(matcher.get_flag("reverse"))
             .set_only_diffline(matcher.get_flag("diff_output_only"));
+
+        // Set logfile
+        if let Some(logfile) = logfile {
+            batch = batch.set_logfile(logfile.to_string());
+        }
 
         // Set after_command
         if let Some(after_command) = after_command {

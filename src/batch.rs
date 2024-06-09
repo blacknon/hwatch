@@ -6,7 +6,7 @@ use crossbeam_channel::{Receiver, Sender};
 use std::{io, collections::HashMap};
 use std::thread;
 
-use crate::common::{DiffMode, OutputMode};
+use crate::common::{DiffMode, OutputMode, logging_result};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
@@ -41,6 +41,9 @@ pub struct Batch {
     is_only_diffline: bool,
 
     ///
+    logfile: String,
+
+    ///
     printer: output::Printer,
 
     ///
@@ -63,6 +66,7 @@ impl Batch {
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
             is_only_diffline: false,
+            logfile: "".to_string(),
             printer: output::Printer::new(),
             tx,
             rx,
@@ -119,6 +123,11 @@ impl Batch {
             return false;
         }
 
+        // logging result.
+        if !self.logfile.is_empty() {
+            let _ = logging_result(&self.logfile, &latest_result);
+        }
+
         if !self.after_command.is_empty() {
             let after_command = self.after_command.clone();
 
@@ -155,11 +164,11 @@ impl Batch {
         let latest = self.results.len() - 1;
 
         // Switch the result depending on the output mode.
-        let dest = self.results[&latest].clone();
-        let timestamp_dst = dest.timestamp.clone();
+        let dest = &self.results[&latest];
+        let timestamp_dst = &dest.timestamp;
 
         let previous = latest - 1;
-        let src = self.results[&previous].clone();
+        let src = &self.results[&previous];
 
         // print split line
         if self.is_color {
@@ -214,4 +223,11 @@ impl Batch {
         self.is_only_diffline = is_only_diffline;
         self
     }
+
+    pub fn set_logfile(mut self, logfile: String) -> Self {
+        self.logfile = logfile;
+        self
+    }
+
+
 }

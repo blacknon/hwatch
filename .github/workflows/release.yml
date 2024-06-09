@@ -6,7 +6,6 @@
 #     - https://github.com/motemen/hwatch/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
 #   - https://github.com/greymd/teip/blob/master/.github/workflows/release.yml
 
-
 name: Release Job.
 
 on:
@@ -14,7 +13,7 @@ on:
     branches:
       - master
     paths-ignore:
-      - '**/README.md'
+      - "**/README.md"
 
 jobs:
   # build rust binary
@@ -40,9 +39,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             ext: tar.gz
-          # - target: x86_64-pc-windows-gnu
-          #   os: ubuntu-latest
-          #   ext: zip
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            ext: zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
@@ -105,6 +104,12 @@ jobs:
           perl -i -pe s/___VERSION___/${{ steps.package_version.outputs.version }}/ ./package/.tar2package.yml
           tar czvf "$_TAR" -C "$PWD/package" completion bin man .tar2package.yml
 
+      - name: Create package file
+        if: ${{ (matrix.ext == 'zip') }}
+        run: |
+          _ZIP=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
+          7z a "$_ZIP" target/${{ matrix.target }}/release/hwatch.exe
+
       # use: https://github.com/greymd/tar2package
       - name: Build rpm
         id: rpm
@@ -153,6 +158,13 @@ jobs:
         with:
           name: build-${{ matrix.target }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
+
+      - name: Upload artifact
+        if: matrix.ext == 'zip'
+        uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
 
   # create package release
   create-release:
@@ -211,7 +223,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             ext: tar.gz
-          # - x86_64-pc-windows-gnu
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            ext: zip
     needs: [create-release]
     runs-on: ubuntu-latest
     steps:

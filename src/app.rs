@@ -2,11 +2,13 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossbeam_channel::{Receiver, Sender};
+// TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る)
+
 // module
+use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent, MouseEventKind
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind
     },
     execute,
 };
@@ -14,6 +16,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io::{self, Write},
+    rc::Rc,
 };
 use tui::{
     backend::Backend,
@@ -23,20 +26,21 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::common::logging_result;
-use crate::common::{DiffMode, OutputMode};
+use crate::common::{logging_result, DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
+use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
-use crate::history::{History, HistoryArea};
+use crate::history::{History, HistorySummary, HistoryArea};
+use crate::keymap::{Keymap, default_keymap, InputAction};
 use crate::output;
 use crate::watch::WatchArea;
-use crate::Interval;
-use crate::DEFAULT_TAB_SIZE;
 
 // local const
 use crate::HISTORY_WIDTH;
+use crate::DEFAULT_TAB_SIZE;
+use crate::Interval;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -50,6 +54,7 @@ pub enum ActiveArea {
 pub enum ActiveWindow {
     Normal,
     Help,
+    Exit,
 }
 
 ///
@@ -60,8 +65,19 @@ pub enum InputMode {
     RegexFilter,
 }
 
+#[derive(Clone)]
+/// Struct to hold history summary and CommandResult set.
+/// Since the calculation source of the history summary changes depending on the output mode, it is necessary to set it separately from the command result.
+struct ResultItems {
+    pub command_result: Rc<CommandResult>,
+    pub summary: HistorySummary,
+}
+
 /// Struct at watch view window.
 pub struct App<'a> {
+    ///
+    keymap: Keymap,
+
     ///
     area: ActiveArea,
 
@@ -70,6 +86,9 @@ pub struct App<'a> {
 
     ///
     after_command: String,
+
+    ///
+    limit: u32,
 
     ///
     ansi_color: bool,
@@ -81,12 +100,24 @@ pub struct App<'a> {
     reverse: bool,
 
     ///
+    disable_exit_dialog: bool,
+
+    ///
     is_beep: bool,
 
     ///
-    is_filtered: bool,
+    is_border: bool,
 
     ///
+    is_history_summary: bool,
+
+    ///
+    is_scroll_bar: bool,
+
+    /// If text search filtering is enabled.
+    is_filtered: bool,
+
+    /// If regex search filtering is enabled.
     is_regex_filter: bool,
 
     ///
@@ -112,15 +143,17 @@ pub struct App<'a> {
 
     /// result at output.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results: HashMap<usize, CommandResult>,
+    results: HashMap<usize, ResultItems>,
 
+    // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stdout.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stdout: HashMap<usize, CommandResult>,
+    results_stdout: HashMap<usize, ResultItems>,
 
+    // @TODO: resultsのメモリ位置を参照させるように変更
     /// result at output only stderr.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
-    results_stderr: HashMap<usize, CommandResult>,
+    results_stderr: HashMap<usize, ResultItems>,
 
     ///
     interval: Interval,
@@ -139,6 +172,9 @@ pub struct App<'a> {
 
     ///
     help_window: HelpWindow<'a>,
+
+    ///
+    exit_window: ExitWindow<'a>,
 
     /// Enable mouse wheel support.
     mouse_events: bool,
@@ -171,17 +207,25 @@ impl<'a> App<'a> {
     ) -> Self {
         // method at create new view trail.
         Self {
+            keymap: default_keymap(),
+
             area: ActiveArea::History,
             window: ActiveWindow::Normal,
+
+            limit: 0,
 
             after_command: "".to_string(),
             ansi_color: false,
             line_number: false,
             reverse: false,
+            disable_exit_dialog: false,
             show_history: true,
             show_header: true,
 
             is_beep: false,
+            is_border: false,
+            is_history_summary: false,
+            is_scroll_bar: false,
             is_filtered: false,
             is_regex_filter: false,
             filtered_text: "".to_string(),
@@ -202,7 +246,8 @@ impl<'a> App<'a> {
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
-            help_window: HelpWindow::new(),
+            help_window: HelpWindow::new(default_keymap()),
+            exit_window: ExitWindow::new(),
 
             mouse_events,
 
@@ -303,6 +348,13 @@ impl<'a> App<'a> {
         // match help mode
         if let ActiveWindow::Help = self.window {
             self.help_window.draw(f);
+        }
+
+        if let ActiveWindow::Exit = self.window {
+            self.exit_window.draw(f);
+        }
+
+        if self.window != ActiveWindow::Normal {
             return;
         }
 
@@ -378,9 +430,9 @@ impl<'a> App<'a> {
     fn set_output_data(&mut self, num: usize) {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
         // check result size.
@@ -394,17 +446,19 @@ impl<'a> App<'a> {
 
         // check results over target...
         if target_dst == 0 {
-            target_dst = get_results_latest_index(&results);
+            target_dst = get_results_latest_index(results);
+        } else {
+            target_dst = get_near_index(results, target_dst);
         }
-        let previous_dst = get_results_previous_index(&results, target_dst);
+        let previous_dst = get_results_previous_index(results, target_dst);
 
         // set new text(text_dst)
-        let dest = results[&target_dst].clone();
+        let dest: &CommandResult = &results[&target_dst].command_result;
 
         // set old text(text_src)
-        let mut src = CommandResult::default();
+        let mut src = &CommandResult::default();
         if previous_dst > 0 {
-            src = results[&previous_dst].clone();
+            src = &results[&previous_dst].command_result;
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
@@ -412,6 +466,12 @@ impl<'a> App<'a> {
         // TODO: output_dataのtabをスペース展開する処理を追加
 
         self.watch_area.update_output(output_data);
+    }
+
+    ///
+    pub fn set_keymap(&mut self,keymap: Keymap) {
+        self.keymap = keymap.clone();
+        self.help_window = HelpWindow::new(self.keymap.clone());
     }
 
     ///
@@ -426,15 +486,16 @@ impl<'a> App<'a> {
         self.header_area.set_output_mode(mode);
         self.header_area.update();
 
+        // set output mode
         self.printer.set_output_mode(mode);
 
-        //
+        // set output data
         if self.results.len() > 0 {
             // Switch the result depending on the output mode.
             let results = match self.output_mode {
-                OutputMode::Output => self.results.clone(),
-                OutputMode::Stdout => self.results_stdout.clone(),
-                OutputMode::Stderr => self.results_stderr.clone(),
+                OutputMode::Output => &self.results,
+                OutputMode::Stdout => &self.results_stdout,
+                OutputMode::Stderr => &self.results_stderr,
             };
 
             let selected: usize = self.history_area.get_state_select();
@@ -460,6 +521,46 @@ impl<'a> App<'a> {
     ///
     pub fn set_beep(&mut self, beep: bool) {
         self.is_beep = beep;
+    }
+
+    ///
+    pub fn set_border(&mut self, border: bool) {
+        self.is_border = border;
+
+        // set border
+        self.history_area.set_border(border);
+        self.watch_area.set_border(border);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    pub fn set_limit(&mut self, limit: u32) {
+        self.limit = limit;
+    }
+
+    ///
+    pub fn set_history_summary(&mut self, history_summary: bool) {
+        self.is_history_summary = history_summary;
+
+        // set history_summary
+        self.history_area.set_summary(history_summary);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
+        self.is_scroll_bar = scroll_bar;
+
+        // set scroll_bar
+        self.history_area.set_scroll_bar(scroll_bar);
+        self.watch_area.set_scroll_bar(scroll_bar);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     ///
@@ -557,40 +658,39 @@ impl<'a> App<'a> {
 
     ///
     fn reset_history(&mut self, selected: usize) {
-        // @TODO: output modeでの切り替えに使うのかも？？(多分使う？)
-        // @NOTE: まだ作成中(output modeでの切り替えにhistoryを追随させる機能)
-
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
-        // unlock self.results
-        // let counter = results.len();
-        let mut tmp_history = vec![];
-
         // append result.
+        let mut tmp_history = vec![];
         let latest_num: usize = get_results_latest_index(&results);
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
-            status: results[&latest_num].status,
+            status: results[&latest_num].command_result.status,
             num: 0,
+            summary: HistorySummary::init(),
         });
 
         let mut new_select: Option<usize> = None;
-        for result in results.clone().into_iter() {
-            if result.0 == 0 {
+        // let mut previous_result: String = "".to_string();
+        let mut results_vec = results.iter().collect::<Vec<(&usize, &ResultItems)>>();
+        results_vec.sort_by_key(|&(key, _)| key);
+
+        for (key, result) in results_vec {
+            if key == &0 {
                 continue;
             }
 
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match self.output_mode {
-                    OutputMode::Output => result.1.output.clone(),
-                    OutputMode::Stdout => result.1.stdout.clone(),
-                    OutputMode::Stderr => result.1.stderr.clone(),
+                    OutputMode::Output => result.command_result.get_output(),
+                    OutputMode::Stdout => result.command_result.get_stdout(),
+                    OutputMode::Stderr => result.command_result.get_stderr(),
                 };
 
                 match self.is_regex_filter {
@@ -608,19 +708,18 @@ impl<'a> App<'a> {
                         }
                     }
                 }
-
-
             }
 
-            if selected == result.0 {
+            if &selected == key {
                 new_select = Some(selected);
             }
 
             if is_push {
                 tmp_history.push(History {
-                    timestamp: result.1.timestamp.clone(),
-                    status: result.1.status,
-                    num: result.0 as u16,
+                    timestamp: result.command_result.timestamp.clone(),
+                    status: result.command_result.status,
+                    num: *key as u16,
+                    summary: result.summary.clone(),
                 });
             }
         }
@@ -653,7 +752,10 @@ impl<'a> App<'a> {
     ///
     fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
-        let mut latest_result = CommandResult::default();
+        let mut latest_result = ResultItems {
+            command_result: Rc::new(CommandResult::default()),
+            summary: HistorySummary::init(),
+        };
 
         if self.results.is_empty() {
             // diff output data.
@@ -661,7 +763,7 @@ impl<'a> App<'a> {
             self.results_stdout.insert(0, latest_result.clone());
             self.results_stderr.insert(0, latest_result.clone());
         } else {
-            let latest_num = self.results.len() - 1;
+            let latest_num = get_results_latest_index(&self.results);
             latest_result = self.results[&latest_num].clone();
         }
 
@@ -671,7 +773,7 @@ impl<'a> App<'a> {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result == _result {
+        if latest_result.command_result == Rc::new(_result.clone()) {
             return false;
         }
 
@@ -681,7 +783,7 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result = results[&latest_num].clone();
+            let before_result:CommandResult = (*results[&latest_num].command_result).clone();
             let after_result = _result.clone();
 
             {
@@ -696,30 +798,30 @@ impl<'a> App<'a> {
             }
         }
 
-        // NOTE: resultをoutput/stdout/stderrで分けて登録させる？
         // append results
-        let insert_result = self.insert_result(_result.clone());
+        let insert_result = self.insert_result(_result);
         let result_index = insert_result.0;
-        let is_update_stdout = insert_result.1;
-        let is_update_stderr = insert_result.2;
+        let is_limit_over = insert_result.1;
+        let is_update_stdout = insert_result.2;
+        let is_update_stderr = insert_result.3;
 
         // logging result.
         if !self.logfile.is_empty() {
-            let _ = logging_result(&self.logfile, &self.results[&result_index]);
+            let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
-                OutputMode::Output => self.results[&result_index].output.clone(),
-                OutputMode::Stdout => self.results_stdout[&result_index].stdout.clone(),
-                OutputMode::Stderr => self.results_stderr[&result_index].stderr.clone(),
+                OutputMode::Output => self.results[&result_index].command_result.get_output(),
+                OutputMode::Stdout => self.results_stdout[&result_index].command_result.get_stdout(),
+                OutputMode::Stderr => self.results_stderr[&result_index].command_result.get_stderr(),
             };
 
             match self.is_regex_filter {
                 true => {
-                    let re = Regex::new(&self.filtered_text.clone()).unwrap();
+                    let re = Regex::new(&self.filtered_text).unwrap();
                     let regex_match = re.is_match(&result_text);
                     if !regex_match {
                         is_push = false;
@@ -754,6 +856,11 @@ impl<'a> App<'a> {
         }
         selected = self.history_area.get_state_select();
 
+        // update hisotry area
+        if is_limit_over {
+            self.reset_history(selected);
+        }
+
         // update WatchArea
         self.set_output_data(selected);
 
@@ -763,288 +870,306 @@ impl<'a> App<'a> {
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
-    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool) {
-        let result_index = self.results.len();
-        self.results.insert(result_index, result.clone());
+    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool, bool) {
+        let rc_result = Rc::new(result);
+        let mut rc_output_result = ResultItems {
+            command_result: Rc::clone(&rc_result),
+            summary: HistorySummary::init(),
+        };
+
+        let result_index = self.results.keys().max().unwrap_or(&0) + 1;
+        if result_index > 0 {
+            let latest_num = result_index - 1;
+            let latest_result = self.results[&latest_num].clone();
+            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output());
+        }
+        self.results.insert(result_index, rc_output_result.clone());
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = self.results_stdout[&stdout_latest_index].stdout.clone();
-        let result_stdout = result.stdout.clone();
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
+        let result_stdout = &rc_result.get_stdout();
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = self.results_stderr[&stderr_latest_index].stderr.clone();
-        let result_stderr = result.stderr.clone();
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
+        let result_stderr = &rc_result.get_stderr();
 
         // append results_stdout
         let mut is_stdout_update = false;
         if before_result_stdout != result_stdout {
             is_stdout_update = true;
-            self.results_stdout.insert(result_index, result.clone());
+            let mut rc_stdout_result = ResultItems {
+                command_result: Rc::clone(&rc_result),
+                summary: HistorySummary::init(),
+            };
+            rc_stdout_result.summary.calc(before_result_stdout, result_stdout);
+            self.results_stdout.insert(result_index, rc_stdout_result);
         }
 
         // append results_stderr
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            self.results_stderr.insert(result_index, result.clone());
+            let mut rc_stderr_result = ResultItems {
+                command_result: Rc::clone(&rc_result),
+                summary: HistorySummary::init(),
+            };
+            rc_stderr_result.summary.calc(before_result_stderr, result_stderr);
+            self.results_stderr.insert(result_index, rc_stderr_result);
         }
 
-        return (result_index, is_stdout_update, is_stderr_update);
+        // limit check
+        let mut is_limit_over = false;
+        if self.limit > 0 {
+            let limit = self.limit as usize;
+            if self.results.len() > limit {
+                let mut keys: Vec<_> = self.results.keys().cloned().collect();
+                keys.sort();
+
+                let remove_count = self.results.len() - limit;
+
+                for key in keys.iter().take(remove_count) {
+                    self.results.remove(key);
+                }
+
+                is_limit_over = true;
+            }
+
+            if self.results_stdout.len() > limit {
+                let mut keys: Vec<_> = self.results_stdout.keys().cloned().collect();
+                keys.sort();
+
+                let remove_count = self.results_stdout.len() - limit;
+
+                for key in keys.iter().take(remove_count) {
+                    self.results_stdout.remove(key);
+                }
+
+                is_limit_over = true;
+            }
+
+            if self.results_stderr.len() > limit {
+                let mut keys: Vec<_> = self.results_stderr.keys().cloned().collect();
+                keys.sort();
+
+                let remove_count = self.results_stderr.len() - limit;
+
+                for key in keys.iter().take(remove_count) {
+                    self.results_stderr.remove(key);
+                }
+
+                is_limit_over = true;
+            }
+        }
+
+        return (result_index, is_limit_over,  is_stdout_update, is_stderr_update);
     }
 
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
-        match self.window {
-            ActiveWindow::Normal => {
-                match terminal_event {
-                    // up
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_up(),
+        // if exit window
+        if self.window == ActiveWindow::Exit {
+            // match key event
+            match terminal_event {
+                Event::Key(key) => {
+                    if key.kind == KeyEventKind::Press {
+                        match key.code {
+                            KeyCode::Char('y') => {
+                                self.exit();
+                                return;
+                            },
+                            KeyCode::Char('n') => {
+                                self.window = ActiveWindow::Normal;
+                                return;
+                            },
+                            KeyCode::Char('h') => {
+                                self.window = ActiveWindow::Help;
+                                return;
+                            },
+                            // default
+                            _ => {}
+                        }
+                    }
+                },
+                _ => {},
+            }
+        }
 
-                    // down
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_down(),
+        if let Some(event_content) = self.keymap.get(&terminal_event) {
+            let action = event_content.action;
+            match self.window {
+                ActiveWindow::Normal => {
+                    match action {
+                        InputAction::Up => self.action_up(), // Up
+                        InputAction::WatchPaneUp => self.action_watch_up(), // Watch Pane Up
+                        InputAction::HistoryPaneUp => self.action_history_up(), // History Pane Up
+                        InputAction::Down => self.action_down(), // Dow
+                        InputAction::WatchPaneDown => self.action_watch_down(), // Watch Pane Down
+                        InputAction::HistoryPaneDown => self.action_history_down(), // History Pane Down
+                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::WatchPanePageUp => self.action_watch_pgup(), // Watch Pane PageUp
+                        InputAction::HistoryPanePageUp => self.action_history_pgup(), // History Pane PageUp
+                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::WatchPanePageDown => self.action_watch_pgdn(), // Watch Pane PageDown
+                        InputAction::HistoryPanePageDown => self.action_history_pgdn(), // History Pane PageDown
+                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::WatchPaneMoveTop => self.watch_area.scroll_home(), // Watch Pane MoveTop
+                        InputAction::HistoryPaneMoveTop => self.action_history_top(), // History Pane MoveTop
+                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::WatchPaneMoveEnd => self.watch_area.scroll_end(), // Watch Pane MoveEnd
+                        InputAction::HistoryPaneMoveEnd => self.action_history_end(), // History Pane MoveEnd
+                        InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
+                        InputAction::ForcusWatchPane => self.select_watch_pane(), // ForcusWatchPane
+                        InputAction::ForcusHistoryPane => self.select_history_pane(), // ForcusHistoryPane
+                        InputAction::Quit => {
+                            if self.disable_exit_dialog {
+                                self.exit();
+                            } else {
+                                self.show_exit_popup();
+                            }
+                        }, // Quit
+                        InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
+                        // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
+                        InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
+                        InputAction::ToggleReverse => self.set_reverse(!self.reverse), // ToggleReverse
+                        InputAction::ToggleMouseSupport => self.toggle_mouse_events(), // ToggleMouseSupport
+                        InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header), // ToggleViewPaneUI
+                        InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
+                        InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
+                        InputAction::ToggleScrollBar => self.set_scroll_bar(!self.is_scroll_bar), // ToggleScrollBar
+                        InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
+                        InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
+                        InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
+                        InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
+                        InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
+                        InputAction::SetDiffOnly => self.set_is_only_diffline(!self.is_only_diffline), // SetOnlyDiffLine
+                        InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
+                        InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
+                        InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
+                        InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
+                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
+                        InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
+                        InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
 
-                    // pgup
-                    Event::Key(KeyEvent {
-                        code: KeyCode::PageUp,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_pgup(),
+                        // default
+                        _ => {}
+                    }
 
-                    // pgdn
-                    Event::Key(KeyEvent {
-                        code: KeyCode::PageDown,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_pgdn(),
+                    // match mouse event
+                    match terminal_event {
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::ScrollUp,
+                            ..
+                        }) => self.mouse_scroll_up(),
 
-                    // Home
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Home,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_home(),
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::ScrollDown,
+                            ..
+                        }) => self.mouse_scroll_down(),
 
-                    // End
-                    Event::Key(KeyEvent {
-                        code: KeyCode::End,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_end(),
+                        Event::Mouse(MouseEvent {
+                            kind: MouseEventKind::Down(MouseButton::Left),
+                            column, row,
+                            ..
+                        }) => self.mouse_click_left(column, row),
 
-                    // mouse wheel up
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::ScrollUp,
-                        modifiers: KeyModifiers::NONE,
-                        ..
-                    }) => self.mouse_scroll_up(),
+                        // default
+                        _ => {}
+                    }
 
-                    // mouse wheel down
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::ScrollDown,
-                        modifiers: KeyModifiers::NONE,
-                        ..
-                    }) => self.mouse_scroll_down(),
+                }
+                ActiveWindow::Help => {
+                    match action {
+                        // Common input key
+                        InputAction::Up => self.action_up(), // Up
+                        InputAction::Down => self.action_down(), // Down
+                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::Quit => {
+                            if self.disable_exit_dialog {
+                                self.exit();
+                            } else {
+                                self.show_exit_popup();
+                            }
+                        },
+                        InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::Down(MouseButton::Left),
-                        column,
-                        row,
-                        modifiers: KeyModifiers::NONE,
-                        ..
-                    }) => self.mouse_click_left(column, row),
+                        // default
+                        _ => {}
+                    }
+                },
+                ActiveWindow::Exit => {
+                    match action {
+                        InputAction::Quit => self.exit(), // Quit
+                        InputAction::Cancel => self.window = ActiveWindow::Normal, // Cancel
+                        _ => {}
+                    }
+                }
+            }
 
-                    // left
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Left,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_left(),
+            return
+        }
+    }
 
-                    // right
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Right,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_right(),
+    ///
+    fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+        if let Some(event_content) = self.keymap.get(&terminal_event) {
+            let action = event_content.action;
+            match action {
+                InputAction::Cancel => self.action_input_reset(),
+                _ => self.get_default_filter_input_key(is_regex, terminal_event),
+            }
+        } else {
+            self.get_default_filter_input_key(is_regex, terminal_event)
+        }
+    }
 
-                    // c
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_ansi_color(!self.ansi_color),
+    ///
+    fn get_default_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+        if let Event::Key(key) = terminal_event {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char(c) => {
+                        // add header input_text;
+                        self.header_area.input_text.push(c);
+                        self.header_area.update();
+                    }
 
-                    // d ... toggle diff mode.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('d'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_diff_mode(),
+                    KeyCode::Backspace => {
+                        // remove header input_text;
+                        self.header_area.input_text.pop();
+                        self.header_area.update();
+                    }
 
-                    // n
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('n'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_line_number(!self.line_number),
+                    KeyCode::Enter => {
+                        // check regex error...
+                        if is_regex {
+                            let input_text = self.header_area.input_text.clone();
+                            let re_result = Regex::new(&input_text);
+                            if re_result.is_err() {
+                                // TODO: create print message method.
+                                return;
+                            }
+                        }
 
-                    // r
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('r'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_reverse(!self.reverse),
-
-                    // o(lower o)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('o'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_output(),
-
-                    // O(upper o). shift + o
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('O'),
-                        modifiers: KeyModifiers::SHIFT,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_is_only_diffline(!self.is_only_diffline),
-
-                    // 0 (DiffMode::Disable)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('0'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Disable),
-
-                    // 1 (DiffMode::Watch)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('1'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Watch),
-
-                    // 2 (DiffMode::Line)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('2'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Line),
-
-                    // 3 (DiffMode::Word)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('3'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_diff_mode(DiffMode::Word),
-
-                    // F1 (OutputMode::Stdout)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(1),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Stdout),
-
-                    // F2 (OutputMode::Stderr)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(2),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Stderr),
-
-                    // F3 (OutputMode::Output)
-                    Event::Key(KeyEvent {
-                        code: KeyCode::F(3),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_output_mode(OutputMode::Output),
-
-                    // + Increase interval
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('+'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.increase_interval(),
-
-                    // - Decrease interval
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('-'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.decrease_interval(),
-
-                    // Tab ... Toggle Area(Watch or History).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Tab,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_area(),
-
-                    // / ... Change Filter Mode(plane text).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('/'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_input_mode(InputMode::Filter),
-
-                    // * ... Change Filter Mode(regex text).
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('*'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.set_input_mode(InputMode::RegexFilter),
-
-                    // ESC ... Reset.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Esc,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => {
-                        self.is_filtered = false;
-                        self.is_regex_filter = false;
-                        self.filtered_text = "".to_string();
-                        self.header_area.input_text = self.filtered_text.clone();
+                        // set filtered mode enable
+                        self.is_filtered = true;
+                        self.is_regex_filter = is_regex;
+                        self.filtered_text = self.header_area.input_text.clone();
                         self.set_input_mode(InputMode::None);
 
                         self.printer.set_filter(self.is_filtered);
                         self.printer.set_regex_filter(self.is_regex_filter);
-                        self.printer.set_filter_text("".to_string());
+                        self.printer.set_filter_text(self.filtered_text.clone());
 
                         let selected = self.history_area.get_state_select();
                         self.reset_history(selected);
@@ -1053,180 +1178,9 @@ impl<'a> App<'a> {
                         self.set_output_data(selected);
                     }
 
-                    // Common input key
-                    // Backspace ... toggle history panel.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Backspace,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.show_history(!self.show_history),
-
-                    // Common input key
-                    // t ... toggle ui
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('t'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.show_ui(!self.show_header),
-
-                    // Common input key
-                    // h ... toggle help window.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('h'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_window(),
-
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('m'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_mouse_events(),
-
-                    // q ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    // Ctrl + C ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
+                    // default
                     _ => {}
                 }
-            }
-            ActiveWindow::Help => {
-                match terminal_event {
-                    // Common input key
-                    // up
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_up(),
-
-                    // down
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.input_key_down(),
-
-                    // h ... toggle help window.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('h'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self.toggle_window(),
-
-                    // q ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::NONE,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    // Ctrl + C ... exit hwatch.
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: KeyEventState::NONE,
-                    }) => self
-                        .tx
-                        .send(AppEvent::Exit)
-                        .expect("send error hwatch exit."),
-
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    ///
-    fn get_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
-        if let Event::Key(key) = terminal_event {
-            match key.code {
-                KeyCode::Char(c) => {
-                    // add header input_text;
-                    self.header_area.input_text.push(c);
-                    self.header_area.update();
-                }
-
-                KeyCode::Backspace => {
-                    // remove header input_text;
-                    self.header_area.input_text.pop();
-                    self.header_area.update();
-                }
-
-                KeyCode::Enter => {
-                    // check regex error...
-                    if is_regex {
-                        let input_text = self.header_area.input_text.clone();
-                        let re_result = Regex::new(&input_text);
-                        if re_result.is_err() {
-                            // TODO: create print message method.
-                            return;
-                        }
-                    }
-
-                    // set filtered mode enable
-                    self.is_filtered = true;
-                    self.is_regex_filter = is_regex;
-                    self.filtered_text = self.header_area.input_text.clone();
-                    self.set_input_mode(InputMode::None);
-
-                    self.printer.set_filter(self.is_filtered);
-                    self.printer.set_regex_filter(self.is_regex_filter);
-                    self.printer.set_filter_text(self.filtered_text.clone());
-
-                    let selected = self.history_area.get_state_select();
-                    self.reset_history(selected);
-
-                    // update WatchArea
-                    self.set_output_data(selected);
-                }
-
-                KeyCode::Esc => {
-                    self.header_area.input_text = self.filtered_text.clone();
-                    self.set_input_mode(InputMode::None);
-                    self.is_filtered = false;
-
-                    self.printer.set_filter(self.is_filtered);
-                    self.printer.set_regex_filter(self.is_regex_filter);
-
-                    let selected = self.history_area.get_state_select();
-                    self.reset_history(selected);
-
-                    // update WatchArea
-                    self.set_output_data(selected);
-                }
-
-                _ => {}
             }
         }
     }
@@ -1273,7 +1227,13 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
+            _ => {},
         }
+    }
+
+    ///
+    fn show_exit_popup(&mut self) {
+        self.window = ActiveWindow::Exit;
     }
 
     ///
@@ -1289,15 +1249,23 @@ impl<'a> App<'a> {
     fn add_history(&mut self, result_index: usize, selected: usize) {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
-            OutputMode::Output => self.results.clone(),
-            OutputMode::Stdout => self.results_stdout.clone(),
-            OutputMode::Stderr => self.results_stderr.clone(),
+            OutputMode::Output => &self.results,
+            OutputMode::Stdout => &self.results_stdout,
+            OutputMode::Stderr => &self.results_stderr,
         };
 
-        let _timestamp = &results[&result_index].timestamp;
-        let _status = &results[&result_index].status;
-        self.history_area
-            .update(_timestamp.to_string(), *_status, result_index as u16);
+        // update history
+        let timestamp = &results[&result_index].command_result.timestamp;
+        let status = &results[&result_index].command_result.status;
+
+        let history_summary = results[&result_index].summary.clone();
+
+        self.history_area.update(
+            timestamp.to_string(),
+            *status,
+            result_index as u16,
+            history_summary
+        );
 
         // update selected
         if selected != 0 {
@@ -1314,6 +1282,10 @@ impl<'a> App<'a> {
     pub fn show_ui(&mut self, visible: bool) {
         self.show_header = visible;
         self.show_history = visible;
+
+        self.history_area.set_hide_header(!visible);
+        self.watch_area.set_hide_header(!visible);
+
         let _ = self.tx.send(AppEvent::Redraw);
     }
 
@@ -1331,162 +1303,275 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_up(&mut self) {
+    fn action_normal_reset(&mut self) {
+        if self.is_filtered {
+            // unset filter
+            self.is_filtered = false;
+            self.is_regex_filter = false;
+            self.filtered_text = "".to_string();
+            self.header_area.input_text = self.filtered_text.clone();
+            self.set_input_mode(InputMode::None);
+
+            self.printer.set_filter(self.is_filtered);
+            self.printer.set_regex_filter(self.is_regex_filter);
+            self.printer.set_filter_text("".to_string());
+
+            let selected = self.history_area.get_state_select();
+            self.reset_history(selected);
+
+            // update WatchArea
+            self.set_output_data(selected);
+        } else if 0 != self.history_area.get_state_select() {
+            // set latest history
+            self.reset_history(0);
+            self.set_output_data(0);
+        } else {
+            // exit popup
+            self.show_exit_popup()
+        }
+    }
+
+    ///
+    fn action_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
-                    // scroll up watch
-                    self.watch_area.scroll_up(1);
+                    self.action_watch_up()
                 }
                 ActiveArea::History => {
-                    // move next history
-                    self.history_area.next(1);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_up()
                 }
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_up(1);
             }
+            _ => {},
         }
     }
 
     ///
-    fn input_key_down(&mut self) {
+    fn action_watch_up(&mut self) {
+        // scroll up watch
+        self.watch_area.scroll_up(1);
+    }
+
+    ///
+    fn action_history_up(&mut self) {
+        // move next history
+        self.history_area.next(1);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => {
-                    // scroll up watch
-                    self.watch_area.scroll_down(1);
+                    self.action_watch_down()
                 }
                 ActiveArea::History => {
-                    // move previous history
-                    self.history_area.previous(1);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                    self.action_history_down()
                 }
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_down(1);
             }
+            _ => {},
         }
     }
 
     ///
-    fn input_key_pgup(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => {
-                    let mut page_height = self.watch_area.get_area_size();
-                    if page_height > 1 {
-                        page_height = page_height - 1
+    fn action_watch_down(&mut self) {
+        // scroll up watch
+        self.watch_area.scroll_down(1);
+    }
+
+    ///
+    fn action_history_down(&mut self) {
+        // move previous history
+        self.history_area.previous(1);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_pgup(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => {
+                        self.action_watch_pgup();
+                    },
+                    ActiveArea::History => {
+                        self.action_history_pgup();
                     }
-
-                    // scroll up watch
-                    self.watch_area.scroll_up(page_height);
                 },
-                ActiveArea::History => {
-                    // move next history
-                    let area_size = self.history_area.area.height;
-                    let move_size = if area_size > 1 {
-                        area_size - 1
-                    } else {
-                        1
-                    };
-
-                    // up
-                    self.history_area.next(move_size as usize);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                }
+            ActiveWindow::Help => {
+                self.help_window.page_up();
             }
+            _ => {},
         }
     }
 
     ///
-    fn input_key_pgdn(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => {
-                    let mut page_height = self.watch_area.get_area_size();
-                    if page_height > 1 {
-                        page_height = page_height - 1
-                    }
+    fn action_watch_pgup(&mut self) {
+        let mut page_height = self.watch_area.get_area_size();
+        if page_height > 1 {
+            page_height = page_height - 1
+        }
 
-                    // scroll up watch
-                    self.watch_area.scroll_down(page_height);
+        // scroll up watch
+        self.watch_area.scroll_up(page_height);
+    }
+
+    ///
+    fn action_history_pgup(&mut self) {
+        // move next history
+        let area_size = self.history_area.area.height;
+        let move_size = if area_size > 1 {
+            area_size - 1
+        } else {
+            1
+        };
+
+        // up
+        self.history_area.next(move_size as usize);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_pgdn(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => {
+                        self.action_watch_pgdn();
+                    },
+                    ActiveArea::History => {
+
+                        self.action_history_pgdn();
+                    },
                 },
-                ActiveArea::History => {
-                    // move previous history
-                    let area_size = self.history_area.area.height;
-                    let move_size = if area_size > 1 {
-                        area_size - 1
-                    } else {
-                        1
-                    };
-
-                    // down
-                    self.history_area.previous(move_size as usize);
-
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                },
+            ActiveWindow::Help => {
+                self.help_window.page_down();
             }
+            _ => {},
         }
     }
 
     ///
-    fn input_key_home(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
+    fn action_watch_pgdn(&mut self) {
+        let mut page_height = self.watch_area.get_area_size();
+        if page_height > 1 {
+            page_height = page_height - 1
+        }
+
+        // scroll up watch
+        self.watch_area.scroll_down(page_height);
+    }
+
+    ///
+    fn action_history_pgdn(&mut self) {
+        // move previous history
+        let area_size = self.history_area.area.height;
+        let move_size = if area_size > 1 {
+            area_size - 1
+        } else {
+            1
+        };
+
+        // down
+        self.history_area.previous(move_size as usize);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_top(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_home(),
-                ActiveArea::History => {
-                    // move latest history move size
-                    let hisotory_size = self.history_area.get_history_size();
-                    self.history_area.next(hisotory_size);
-
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-                }
+                ActiveArea::History => self.action_history_top(),
+            },
+            ActiveWindow::Help => {
+                self.help_window.scroll_top();
             }
+            _ => {},
         }
     }
 
     ///
-    fn input_key_end(&mut self) {
-        if self.window == ActiveWindow::Normal {
-            match self.area {
-                ActiveArea::Watch => self.watch_area.scroll_end(),
-                ActiveArea::History => {
-                    // get end history move size
-                    let hisotory_size = self.history_area.get_history_size();
-                    let move_size = if hisotory_size > 1 {
-                        hisotory_size - 1
-                    } else {
-                        1
-                    };
+    fn action_history_top(&mut self) {
+        // move latest history move size
+        let hisotory_size = self.history_area.get_history_size();
+        self.history_area.next(hisotory_size);
 
-                    // move end
-                    self.history_area.previous(move_size);
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
 
-                    // get now selected history
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
-
+    ///
+    fn action_end(&mut self) {
+        match self.window {
+            ActiveWindow::Normal =>
+                match self.area {
+                    ActiveArea::Watch => self.watch_area.scroll_end(),
+                    ActiveArea::History => self.action_history_end(),
                 },
+            ActiveWindow::Help => {
+                self.help_window.scroll_end();
             }
+            _ => {},
         }
     }
 
     ///
-    fn input_key_left(&mut self) {
+    fn action_history_end(&mut self) {
+        // get end history move size
+        let hisotory_size = self.history_area.get_history_size();
+        let move_size = if hisotory_size > 1 {
+            hisotory_size - 1
+        } else {
+            1
+        };
+
+        // move end
+        self.history_area.previous(move_size);
+
+        // get now selected history
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn action_input_reset(&mut self) {
+        self.header_area.input_text = self.filtered_text.clone();
+        self.set_input_mode(InputMode::None);
+        self.is_filtered = false;
+
+        self.printer.set_filter(self.is_filtered);
+        self.printer.set_regex_filter(self.is_regex_filter);
+
+        let selected = self.history_area.get_state_select();
+        self.reset_history(selected);
+
+        // update WatchArea
+        self.set_output_data(selected);
+    }
+
+    ///
+    fn select_watch_pane(&mut self) {
         if let ActiveWindow::Normal = self.window {
             self.area = ActiveArea::Watch;
 
@@ -1497,7 +1582,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn input_key_right(&mut self) {
+    fn select_history_pane(&mut self) {
         if let ActiveWindow::Normal = self.window {
             self.area = ActiveArea::History;
 
@@ -1538,6 +1623,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
+            _ => {},
         }
     }
 
@@ -1558,9 +1644,14 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
+            _ => {},
         }
     }
 
+    fn exit(&mut self) {
+        self.tx.send(AppEvent::Exit)
+            .expect("send error hwatch exit.");
+    }
 }
 
 /// Checks whether the area where the mouse cursor is currently located is within the specified area.
@@ -1586,18 +1677,25 @@ fn check_in_area(area: Rect, column: u16, row: u16) -> bool {
     result
 }
 
-fn get_near_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     if keys.contains(&index) {
         return index;
+    } else if index == 0 {
+        return index;
     } else {
+        let min = keys.iter().min().unwrap();
+        if *min >= index {
+            // return get_results_previous_index(results, index);
+            return get_results_next_index(results, index);
+        }
         // return get_results_next_index(results, index)
         return get_results_previous_index(results, index)
     }
 }
 
-fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
+fn get_results_latest_index(results: &HashMap<usize, ResultItems>) -> usize {
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     // return keys.iter().max().unwrap();
@@ -1609,7 +1707,7 @@ fn get_results_latest_index(results: &HashMap<usize, CommandResult>) -> usize {
     return max;
 }
 
-fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();
@@ -1619,7 +1717,6 @@ fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: us
         if index == k {
             break;
         }
-
         previous_index = k;
     }
 
@@ -1627,7 +1724,7 @@ fn get_results_previous_index(results: &HashMap<usize, CommandResult>, index: us
 
 }
 
-fn get_results_next_index(results: &HashMap<usize, CommandResult>, index: usize) -> usize {
+fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
     // get keys
     let mut keys: Vec<_> = results.keys().cloned().collect();
     keys.sort();

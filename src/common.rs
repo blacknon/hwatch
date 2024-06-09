@@ -8,6 +8,8 @@ use std::error::Error;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 
+use tui::layout::{Constraint, Direction, Layout, Rect};
+
 // local module
 use crate::exec::CommandResult;
 
@@ -35,7 +37,7 @@ pub fn now_str() -> String {
 }
 
 /// logging result data to log file(_logpath).
-pub fn logging_result(_logpath: &str, _result: &CommandResult) -> Result<(), Box<dyn Error>> {
+pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<dyn Error>> {
     // try open logfile
     let mut logfile = match OpenOptions::new()
         .write(true)
@@ -48,11 +50,62 @@ pub fn logging_result(_logpath: &str, _result: &CommandResult) -> Result<(), Box
     };
 
     // create logline
-    let logdata = serde_json::to_string(&_result)?;
+    let logdata = serde_json::to_string(&result.export_data())?;
 
     // write log
     // TODO(blacknon): warning出てるので対応
     _ = writeln!(logfile, "{logdata}");
 
     Ok(())
+}
+
+///
+pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
+}
+
+pub fn centered_rect_with_size(height: u16, width: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length((r.height - height) / 2),
+                Constraint::Length(height),
+                Constraint::Length((r.height - height) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Length((r.width - width) / 2),
+                Constraint::Length(width),
+                Constraint::Length((r.width - width) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
