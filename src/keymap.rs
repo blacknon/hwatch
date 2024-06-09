@@ -203,6 +203,7 @@ impl<'de> Deserialize<'de> for Key {
             "plus" => KeyCode::Char('+'),
             "minus" => KeyCode::Char('-'),
             "hyphen" => KeyCode::Char('-'),
+            "equal" => KeyCode::Char('='),
             "tab" => KeyCode::Tab,
             c if c.len() == 1 => KeyCode::Char(c.chars().next().unwrap()),
             _ => {
