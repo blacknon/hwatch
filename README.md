@@ -4,7 +4,7 @@ hwatch
 hwatch - alternative watch command.
 
 <p align="center">
-<img src="./img/tty.gif" />
+<img src="./img/hwatch.gif" />
 </p>
 
 ## Description
