@@ -2,21 +2,23 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO(blacknon): keyのhelpをテキストからテーブルにする?
-// TODO(blacknon): keyの内容をカスタムし、それをhelpで出せるようにする
-// TODO(blacknon): keyの内容をvecで渡してやるようにする
-// TODO(blacknon): keyの内容を折り返して表示させるようにする
-
 use ratatui::text::Span;
 use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Style},
     prelude::Line,
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 
-use crate::keys::{self, KeyData};
+use crate::keymap::{get_input_action_description, InputAction, Keymap};
+use crate::common::centered_rect;
+
+pub struct KeyData {
+    pub key: String,
+    pub description: String,
+    pub action: InputAction,
+}
 
 pub struct HelpWindow<'a> {
     ///
@@ -27,17 +29,21 @@ pub struct HelpWindow<'a> {
 
     ///
     position: i16,
+
+    ///
+    lines: i16,
 }
 
 /// History Area Object Trait
 impl<'a> HelpWindow<'a> {
-    pub fn new() -> Self {
-        let text = gen_help_text();
+    pub fn new(keymap: Keymap) -> Self {
+        let text = gen_help_text(keymap);
 
         Self {
             text,
             area: Rect::new(0, 0, 0, 0),
-            position: 0
+            position: 0,
+            lines: 0,
         }
     }
 
@@ -46,7 +52,9 @@ impl<'a> HelpWindow<'a> {
         let title = " [help] ";
 
         let size = f.size();
-        let area = centered_rect(80, 70, size);
+        self.area = centered_rect(80, 70, size);
+
+        let width = self.area.width;
 
         // create block.
         let block = Paragraph::new(self.text.clone())
@@ -60,8 +68,10 @@ impl<'a> HelpWindow<'a> {
             .wrap(Wrap { trim: false })
             .scroll((self.position as u16, 0));
 
-        f.render_widget(Clear, area);
-        f.render_widget(block, area);
+        self.lines = block.line_count(width) as i16;
+
+        f.render_widget(Clear, self.area);
+        f.render_widget(block, self.area);
     }
 
     ///
@@ -71,20 +81,41 @@ impl<'a> HelpWindow<'a> {
 
     ///
     pub fn scroll_down(&mut self, num: i16) {
-        // get area data size
-        let data_size = self.text.len() as i16;
-
-        if data_size > self.position + num {
-            self.position += num
-        }
-
-        if self.text.len() as i16 > self.area.height as i16 {
-            self.position = std::cmp::min(self.position + num, self.text.len() as i16 - self.area.height as i16);
+        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        if self.lines > height as i16 {
+            self.position = std::cmp::min(self.position + num, self.lines - height as i16);
         }
     }
+
+    pub fn page_up(&mut self) {
+        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        if self.lines > height as i16 {
+            self.position = std::cmp::max(0, self.position - height as i16);
+        }
+    }
+
+    pub fn page_down(&mut self) {
+        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        if self.lines > height as i16 {
+            self.position = std::cmp::min(self.position + height as i16, self.lines - height as i16);
+        }
+    }
+
+    pub fn scroll_top(&mut self) {
+        self.position = 0;
+    }
+
+    pub fn scroll_end(&mut self) {
+        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        if self.lines > height as i16 {
+            self.position = self.lines - height as i16;
+        }
+    }
+
+
 }
 
-fn gen_help_text_from_key_data<'a>(data: Vec<keys::KeyData>) -> Vec<Line<'a>> {
+fn gen_help_text_from_key_data<'a>(data: Vec<KeyData>) -> Vec<Line<'a>> {
     let mut text = vec![];
 
     for key_data in data {
@@ -124,69 +155,20 @@ fn gen_help_text_from_key_data<'a>(data: Vec<keys::KeyData>) -> Vec<Line<'a>> {
 }
 
 ///
-fn gen_help_text<'a>() -> Vec<Line<'a>> {
-    let keydata_list = vec![
-        KeyData { key: "h".to_string(), description: "show this help message.".to_string() },
-        KeyData { key: "q".to_string(), description: "exit.".to_string() },
-        // toggle
-        KeyData { key: "c".to_string(), description: "toggle color mode.".to_string() },
-        KeyData { key: "n".to_string(), description: "toggle line number.".to_string() },
-        KeyData { key: "r".to_string(), description: "toggle reverse mode.".to_string() },
-        KeyData { key: "d".to_string(), description: "switch diff mode at None, Watch, Line, and Word mode.".to_string() },
-        KeyData { key: "o".to_string(), description: "switch output mode at stdout, stderr, and output.".to_string() },
-        KeyData { key: "O".to_string(), description: "toggle change only the lines with differences during `line` diff and `word` diff.".to_string() },
-        KeyData { key: "t".to_string(), description: "toggle ui (history pane & header both on/off).".to_string() },
-        KeyData { key: "Bkspace".to_string(), description: "toggle history pane.".to_string() },
-        KeyData { key: "m".to_string(), description: "toggle mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.".to_string() },
-        // exit hwatch
-        KeyData { key: "q".to_string(), description: "exit hwatch.".to_string() },
-        // change diff
-        KeyData { key: "0".to_string(), description: "disable diff.".to_string() },
-        KeyData { key: "1".to_string(), description: "switch Watch type diff.".to_string() },
-        KeyData { key: "2".to_string(), description: "switch Line type diff.".to_string() },
-        KeyData { key: "3".to_string(), description: "switch Word type diff.".to_string() },
-        // change output
-        KeyData { key: "F1".to_string(), description: "change output mode as stdout.".to_string() },
-        KeyData { key: "F2".to_string(), description: "change output mode as stderr.".to_string() },
-        KeyData { key: "F3".to_string(), description: "change output mode as output(stdout/stderr set.).".to_string() },
-        // change interval
-        KeyData { key: "+".to_string(), description: "Increase interval by .5 seconds.".to_string() },
-        KeyData { key: "-".to_string(), description: "Decrease interval by .5 seconds.".to_string() },
-        // change use area
-        KeyData { key: "Tab".to_string(), description: "toggle current area at history or watch.".to_string() },
-        // filter text input
-        KeyData { key: "/".to_string(), description: "filter history by string.".to_string() },
-        KeyData { key: "*".to_string(), description: "filter history by regex.".to_string() },
-        KeyData { key: "ESC".to_string(), description: "unfiltering.".to_string() },
-    ];
+fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
+    let mut keydata_list = vec![];
+
+    for (_, input_event_content) in &keymap {
+        let key = input_event_content.key.to_str();
+        let description = get_input_action_description(input_event_content.action);
+
+        keydata_list.push(KeyData { key: key, description: description, action: input_event_content.action});
+    };
+
+    // sort
+    keydata_list.sort_by(|a, b| a.action.cmp(&b.action));
 
     let text = gen_help_text_from_key_data(keydata_list);
 
     text
-}
-
-///
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(popup_layout[1])[1]
 }

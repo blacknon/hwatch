@@ -21,8 +21,8 @@ use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
 
 //const
-const POSITION_X_HELP_TEXT: usize = 53;
-const WIDTH_TEXT_INTERVAL: usize = 19;
+const POSITION_X_HELP_TEXT: usize = 47;
+const WIDTH_TEXT_INTERVAL: usize = 15;
 
 #[derive(Clone)]
 pub struct HeaderArea<'a> {
@@ -183,7 +183,7 @@ impl<'a> HeaderArea<'a> {
             // width - POSITION_X_HELP_TEXT - 2 - 14
             // length("[Number] [Color] [Output] [history] [Line(Only)]") = 48
             // length("[Number] [Color] [Reverse] [Output] [history] [Line(Only)]") = 58
-            width - 58
+            width - 59
         } else {
             0
         };
@@ -195,7 +195,7 @@ impl<'a> HeaderArea<'a> {
                 InputMode::Filter => self.input_prompt = "/".to_string(),
                 InputMode::RegexFilter => self.input_prompt = "*".to_string(),
 
-                _ => self.input_prompt = "".to_string(),
+                _ => self.input_prompt = " ".to_string(),
             }
 
             filter_keyword_style = Style::default().fg(Color::Gray);

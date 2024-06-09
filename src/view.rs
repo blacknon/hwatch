@@ -20,6 +20,7 @@ use tui::{backend::CrosstermBackend, Terminal};
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
+use crate::keymap::{Keymap, default_keymap};
 
 // local const
 use crate::Interval;
@@ -31,7 +32,11 @@ pub struct View {
     after_command: String,
     interval: Interval,
     tab_size: u16,
+    limit: u32,
+    keymap: Keymap,
     beep: bool,
+    border: bool,
+    scroll_bar: bool,
     mouse_events: bool,
     color: bool,
     show_ui: bool,
@@ -51,7 +56,11 @@ impl View {
             after_command: "".to_string(),
             interval,
             tab_size: DEFAULT_TAB_SIZE,
+            limit: 0,
+            keymap: default_keymap(),
             beep: false,
+            border: false,
+            scroll_bar: false,
             mouse_events: false,
             color: false,
             show_ui: true,
@@ -80,8 +89,28 @@ impl View {
         self
     }
 
+    pub fn set_limit(mut self, limit: u32) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    pub fn set_keymap(mut self, keymap: Keymap) -> Self {
+        self.keymap = keymap;
+        self
+    }
+
     pub fn set_beep(mut self, beep: bool) -> Self {
         self.beep = beep;
+        self
+    }
+
+    pub fn set_border(mut self, border: bool) -> Self {
+        self.border = border;
+        self
+    }
+
+    pub fn set_scroll_bar(mut self, scroll_bar: bool) -> Self {
+        self.scroll_bar = scroll_bar;
         self
     }
 
@@ -168,11 +197,21 @@ impl View {
         // Create App
         let mut app = App::new(tx, rx, self.interval.clone(), self.mouse_events);
 
+        // set keymap
+        app.set_keymap(self.keymap.clone());
+
         // set after command
         app.set_after_command(self.after_command.clone());
 
+        // set limit
+        app.set_limit(self.limit);
+
         // set beep
         app.set_beep(self.beep);
+
+        // set border
+        app.set_border(self.border);
+        app.set_scroll_bar(self.scroll_bar);
 
         // set logfile path.
         app.set_logpath(self.log_path.clone());
