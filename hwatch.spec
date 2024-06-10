@@ -1,7 +1,7 @@
 Name:           hwatch
 Version:        0.3.14
 Release:        2%{?dist}
-Summary:        A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
+Summary:        A modern alternative to the 'watch' command, it records differences in execution results and allows for examination of these differences afterward.
 URL:            https://github.com/blacknon/hwatch/
 License:        MIT
 Source0:        https://github.com/blacknon/hwatch/archive/refs/tags/%{version}.tar.gz
@@ -14,7 +14,7 @@ BuildRequires:  gcc
 %define debug_package %{nil}
 
 %description
-hwatch is a alternative watch command. That records the result of command execution and can display it history and diffs.
+hwatch is a alternative watch command. Records the results of command execution that can display its history and differences.
 
 Features:
 * Can keep the history when the difference, occurs and check it later.
@@ -37,7 +37,7 @@ $HOME/.cargo/bin/cargo build --release --all-features
 strip target/release/%{name} 
 
 %install
-install -D -m 644 completion/bash/hwatch-completion.bash %{buildroot}/etc/bash_completion.d/%{name}.bash
+install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}/etc/bash_completion.d/%{name}.bash
 install -D -m 755 target/release/%{name} %{buildroot}/usr/bin/%{name}
 install -D -m 644 LICENSE %{buildroot}/usr/share/licenses/%{name}/LICENSE
 install -D -m 644 README.md %{buildroot}/usr/share/doc/%{name}/README.md
