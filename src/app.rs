@@ -1044,6 +1044,10 @@ impl<'a> App<'a> {
                         InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
                         InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
                         InputAction::ToggleScrollBar => self.set_scroll_bar(!self.is_scroll_bar), // ToggleScrollBar
+                        InputAction::ToggleBorderWithScrollBar => {
+                            self.set_border(!self.is_border);
+                            self.set_scroll_bar(!self.is_scroll_bar);
+                        }, // ToggleBorderWithScrollBar
                         InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
                         InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
                         InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
