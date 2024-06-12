@@ -2,6 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// v0.3.15
+// TODO(blacknon): line/word diffでansi対応がうまくいかなくなっちゃったので、修正する
+// TODO(blacknon): mouse flagがうまく動かないので、修正する
+
 // v0.3.16
 // TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
