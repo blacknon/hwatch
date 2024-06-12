@@ -34,7 +34,7 @@ impl Key {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 36] = [
+const DEFAULT_KEYMAP: [&str; 35] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -48,8 +48,7 @@ const DEFAULT_KEYMAP: [&str; 36] = [
     "esc=reset", // Reset: ESC
     "ctrl-c=cancel", // Cancel: Ctrl + c
     "h=help", // Help: h
-    "b=toggle_border", // Toggle Border: b
-    "s=toggle_scroll_bar", // Toggle Scroll Bar: s
+    "b=toggle_border_with_scroll_bar", // Toggle Border: b
     "c=toggle_color", // Toggle Color: c
     "n=toggle_line_number", // Toggle Line Number: n
     "r=toggle_reverse", // Toggle Reverse: r
@@ -404,6 +403,8 @@ pub enum InputAction {
     ToggleBorder,
     #[serde(rename = "toggle_scroll_bar")]
     ToggleScrollBar,
+    #[serde(rename = "toggle_border_with_scroll_bar")]
+    ToggleBorderWithScrollBar,
 
     // Diff Mode
     // ==========
@@ -522,6 +523,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Border
         InputAction::ToggleBorder => "Toggle enable/disable border".to_string(),
         InputAction::ToggleScrollBar => "Toggle enable/disable scroll bar".to_string(),
+        InputAction::ToggleBorderWithScrollBar => "Toggle enable/disable border and scroll bar".to_string(),
 
         // Diff Mode
         InputAction::ToggleDiffMode => "Toggle diff mode".to_string(),
