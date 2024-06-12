@@ -5,7 +5,7 @@
 use crossbeam_channel::{Receiver, Sender};
 // module
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -180,9 +180,9 @@ impl View {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
-        if self.mouse_events {
-            execute!(stdout, EnableMouseCapture)?;
-        }
+        // if self.mouse_events {
+        //     execute!(stdout, EnableMouseCapture)?;
+        // }
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         let _ = terminal.clear();
@@ -195,13 +195,16 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone(), self.mouse_events);
+        let mut app = App::new(tx, rx, self.interval.clone());
 
         // set keymap
         app.set_keymap(self.keymap.clone());
 
         // set after command
         app.set_after_command(self.after_command.clone());
+
+        // set mouse events
+        app.set_mouse_events(self.mouse_events);
 
         // set limit
         app.set_limit(self.limit);
@@ -257,6 +260,7 @@ fn restore_terminal() {
         Ok(t) => t,
         _ => return,
     };
+
     let _ = execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,

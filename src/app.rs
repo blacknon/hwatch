@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る)
+// TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る?)
 
 // module
 use crossbeam_channel::{Receiver, Sender};
@@ -203,7 +203,6 @@ impl<'a> App<'a> {
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
         interval: Interval,
-        mouse_events: bool,
     ) -> Self {
         // method at create new view trail.
         Self {
@@ -249,7 +248,7 @@ impl<'a> App<'a> {
             help_window: HelpWindow::new(default_keymap()),
             exit_window: ExitWindow::new(),
 
-            mouse_events,
+            mouse_events: false,
 
             printer: output::Printer::new(),
 
@@ -311,14 +310,12 @@ impl<'a> App<'a> {
                 }
 
                 //
-                Ok(AppEvent::ToggleMouseEvents) => {
+                Ok(AppEvent::ChangeFlagMouseEvent) => {
                     if self.mouse_events {
                         execute!(terminal.backend_mut(), DisableMouseCapture)?;
                     } else {
                         execute!(terminal.backend_mut(), EnableMouseCapture)?;
                     }
-
-                    self.mouse_events = !self.mouse_events;
                 }
 
                 // get exit event
@@ -601,6 +598,12 @@ impl<'a> App<'a> {
         *cur_interval = interval;
         self.header_area.set_interval(*cur_interval);
         self.header_area.update();
+    }
+
+    ///
+    pub fn set_mouse_events(&mut self, mouse_events: bool) {
+        self.mouse_events = mouse_events;
+        self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
     }
 
     ///
@@ -1036,7 +1039,7 @@ impl<'a> App<'a> {
                         InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
                         InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
                         InputAction::ToggleReverse => self.set_reverse(!self.reverse), // ToggleReverse
-                        InputAction::ToggleMouseSupport => self.toggle_mouse_events(), // ToggleMouseSupport
+                        InputAction::ToggleMouseSupport => self.set_mouse_events(!self.mouse_events), // ToggleMouseSupport
                         InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header), // ToggleViewPaneUI
                         InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
                         InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
@@ -1271,11 +1274,6 @@ impl<'a> App<'a> {
         if selected != 0 {
             self.history_area.previous(1);
         }
-    }
-
-    ///
-    pub fn toggle_mouse_events(&mut self) {
-        let _ = self.tx.send(AppEvent::ToggleMouseEvents);
     }
 
     ///
