@@ -2,10 +2,11 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossbeam_channel::{Receiver, Sender};
 // module
+use crossbeam_channel::{Receiver, Sender};
+use std::time::Duration;
 use crossterm::{
-    event::{DisableMouseCapture},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -177,12 +178,12 @@ impl View {
             // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
             std::process::exit(128 + 15)
         })?;
+
         enable_raw_mode()?;
+
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
-        // if self.mouse_events {
-        //     execute!(stdout, EnableMouseCapture)?;
-        // }
+
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         let _ = terminal.clear();
@@ -270,7 +271,9 @@ fn restore_terminal() {
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
-    let event = crossterm::event::read().expect("failed to read crossterm event");
-    let _ = tx.send(AppEvent::TerminalEvent(event));
+    if crossterm::event::poll(Duration::from_millis(100))? {
+        let event = crossterm::event::read()?;
+        let _ = tx.send(AppEvent::TerminalEvent(event));
+    }
     Ok(())
 }
