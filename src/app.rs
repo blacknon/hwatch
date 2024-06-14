@@ -8,7 +8,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind,
     },
     execute,
 };
@@ -312,9 +312,9 @@ impl<'a> App<'a> {
                 //
                 Ok(AppEvent::ChangeFlagMouseEvent) => {
                     if self.mouse_events {
-                        execute!(terminal.backend_mut(), DisableMouseCapture)?;
-                    } else {
                         execute!(terminal.backend_mut(), EnableMouseCapture)?;
+                    } else {
+                        execute!(terminal.backend_mut(), DisableMouseCapture)?;
                     }
                 }
 
@@ -972,31 +972,75 @@ impl<'a> App<'a> {
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
         // if exit window
-        if self.window == ActiveWindow::Exit {
-            // match key event
-            match terminal_event {
-                Event::Key(key) => {
-                    if key.kind == KeyEventKind::Press {
-                        match key.code {
-                            KeyCode::Char('y') => {
-                                self.exit();
-                                return;
-                            },
-                            KeyCode::Char('n') => {
-                                self.window = ActiveWindow::Normal;
-                                return;
-                            },
-                            KeyCode::Char('h') => {
-                                self.window = ActiveWindow::Help;
-                                return;
-                            },
-                            // default
-                            _ => {}
+        match self.window {
+            ActiveWindow::Exit => {
+                // match key event
+                match terminal_event {
+                    Event::Key(key) => {
+                        if key.kind == KeyEventKind::Press {
+                            match key.code {
+                                KeyCode::Char('y') => {
+                                    self.exit();
+                                    return;
+                                },
+                                KeyCode::Char('n') => {
+                                    self.window = ActiveWindow::Normal;
+                                    return;
+                                },
+                                KeyCode::Char('h') => {
+                                    self.window = ActiveWindow::Help;
+                                    return;
+                                },
+                                // default
+                                _ => {}
+                            }
                         }
+                    },
+                    _ => {},
+                }
+            },
+            ActiveWindow::Help => {
+                if let Event::Mouse(mouse) = terminal_event {
+                    match mouse.kind {
+                        MouseEventKind::ScrollUp => {
+                            self.mouse_scroll_up();
+                            return;
+                        },
+                        MouseEventKind::ScrollDown => {
+                            self.mouse_scroll_down();
+                            return;
+                        },
+
+                        MouseEventKind::Down(MouseButton::Left) => {
+                            self.mouse_click_left(mouse.column, mouse.row);
+                            return;
+                        },
+                        // default
+                        _ => {}
                     }
-                },
-                _ => {},
-            }
+                }
+            },
+            ActiveWindow::Normal => {
+                if let Event::Mouse(mouse) = terminal_event {
+                    match mouse.kind {
+                        MouseEventKind::ScrollUp => {
+                            self.mouse_scroll_up();
+                            return;
+                        },
+                        MouseEventKind::ScrollDown => {
+                            self.mouse_scroll_down();
+                            return;
+                        },
+
+                        MouseEventKind::Down(MouseButton::Left) => {
+                            self.mouse_click_left(mouse.column, mouse.row);
+                            return;
+                        },
+                        // default
+                        _ => {}
+                    }
+                }
+            },
         }
 
         if let Some(event_content) = self.keymap.get(&terminal_event) {
@@ -1063,29 +1107,6 @@ impl<'a> App<'a> {
                         // default
                         _ => {}
                     }
-
-                    // match mouse event
-                    match terminal_event {
-                        Event::Mouse(MouseEvent {
-                            kind: MouseEventKind::ScrollUp,
-                            ..
-                        }) => self.mouse_scroll_up(),
-
-                        Event::Mouse(MouseEvent {
-                            kind: MouseEventKind::ScrollDown,
-                            ..
-                        }) => self.mouse_scroll_down(),
-
-                        Event::Mouse(MouseEvent {
-                            kind: MouseEventKind::Down(MouseButton::Left),
-                            column, row,
-                            ..
-                        }) => self.mouse_click_left(column, row),
-
-                        // default
-                        _ => {}
-                    }
-
                 }
                 ActiveWindow::Help => {
                     match action {
@@ -1621,7 +1642,9 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
-            _ => {},
+            ActiveWindow::Exit => {
+                println!("exit");
+            },
         }
     }
 
@@ -1642,7 +1665,9 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
-            _ => {},
+            ActiveWindow::Exit => {
+                println!("exit");
+            },
         }
     }
 
