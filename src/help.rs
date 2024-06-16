@@ -159,7 +159,7 @@ fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
     let mut keydata_list = vec![];
 
     for (_, input_event_content) in &keymap {
-        let key = input_event_content.key.to_str();
+        let key = input_event_content.input.to_str();
         let description = get_input_action_description(input_event_content.action);
 
         keydata_list.push(KeyData { key: key, description: description, action: input_event_content.action});
