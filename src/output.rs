@@ -258,6 +258,10 @@ impl Printer {
         let mut text = dest.to_string();
         if !self.is_batch {
             text = expand_line_tab(dest, self.tab_size);
+
+            if !self.is_color {
+                text = ansi::escape_ansi(&text);
+            }
         }
 
         if self.is_batch {
@@ -486,12 +490,20 @@ impl Printer {
         let mut text_dest = dest.to_string();
         if !self.is_batch {
             text_dest = expand_line_tab(dest, self.tab_size);
+
+            if !self.is_color {
+                text_dest = ansi::escape_ansi(&text_dest);
+            }
         }
 
         // tab expand src
         let mut text_src = src.to_string();
         if !self.is_batch {
             text_src = expand_line_tab(src, self.tab_size);
+
+            if !self.is_color {
+                text_src = ansi::escape_ansi(&text_src);
+            }
         }
 
         // create text vector
@@ -723,6 +735,10 @@ impl Printer {
         let mut text_dest = dest.to_string();
         if !self.is_batch {
             text_dest = expand_line_tab(dest, self.tab_size);
+
+            if !self.is_color {
+                text_dest = ansi::escape_ansi(&text_dest);
+            }
         }
         let text_dest_bytes = text_dest.as_bytes().to_vec();
 
@@ -730,6 +746,10 @@ impl Printer {
         let mut text_src = src.to_string();
         if !self.is_batch {
             text_src = expand_line_tab(src, self.tab_size);
+
+            if !self.is_color {
+                text_src = ansi::escape_ansi(&text_src);
+            }
         }
         let text_src_bytes = text_src.as_bytes().to_vec();
 

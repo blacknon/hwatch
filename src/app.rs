@@ -8,7 +8,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEvent, KeyModifiers,
     },
     execute,
 };
@@ -26,7 +26,7 @@ use tui::{
 use std::thread;
 
 // local module
-use crate::common::{logging_result, DiffMode, OutputMode};
+use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
@@ -312,9 +312,9 @@ impl<'a> App<'a> {
                 //
                 Ok(AppEvent::ChangeFlagMouseEvent) => {
                     if self.mouse_events {
-                        execute!(terminal.backend_mut(), DisableMouseCapture)?;
-                    } else {
                         execute!(terminal.backend_mut(), EnableMouseCapture)?;
+                    } else {
+                        execute!(terminal.backend_mut(), DisableMouseCapture)?;
                     }
                 }
 
@@ -420,6 +420,28 @@ impl<'a> App<'a> {
             InputMode::None => self.get_normal_input_key(terminal_event),
             InputMode::Filter => self.get_filter_input_key(false, terminal_event),
             InputMode::RegexFilter => self.get_filter_input_key(true, terminal_event),
+        }
+    }
+
+    ///
+    fn get_input_action(&self, terminal_event: &crossterm::event::Event) -> Option<&InputEventContents> {
+        match terminal_event {
+            &Event::Key(_) => {
+                return self.keymap.get(terminal_event);
+            },
+            &Event::Mouse(mouse) => {
+                let mouse_event = MouseEvent {
+                    kind: mouse.kind,
+                    column: 0,
+                    row: 0,
+                    modifiers: KeyModifiers::empty(),
+                };
+                return self.keymap.get(&Event::Mouse(mouse_event));
+
+            },
+            _ => {
+                return None;
+            }
         }
     }
 
@@ -972,34 +994,37 @@ impl<'a> App<'a> {
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
         // if exit window
-        if self.window == ActiveWindow::Exit {
-            // match key event
-            match terminal_event {
-                Event::Key(key) => {
-                    if key.kind == KeyEventKind::Press {
-                        match key.code {
-                            KeyCode::Char('y') => {
-                                self.exit();
-                                return;
-                            },
-                            KeyCode::Char('n') => {
-                                self.window = ActiveWindow::Normal;
-                                return;
-                            },
-                            KeyCode::Char('h') => {
-                                self.window = ActiveWindow::Help;
-                                return;
-                            },
-                            // default
-                            _ => {}
+        match self.window {
+            ActiveWindow::Exit => {
+                // match key event
+                match terminal_event {
+                    Event::Key(key) => {
+                        if key.kind == KeyEventKind::Press {
+                            match key.code {
+                                KeyCode::Char('y') => {
+                                    self.exit();
+                                    return;
+                                },
+                                KeyCode::Char('n') => {
+                                    self.window = ActiveWindow::Normal;
+                                    return;
+                                },
+                                KeyCode::Char('h') => {
+                                    self.window = ActiveWindow::Help;
+                                    return;
+                                },
+                                // default
+                                _ => {}
+                            }
                         }
-                    }
-                },
-                _ => {},
-            }
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
         }
 
-        if let Some(event_content) = self.keymap.get(&terminal_event) {
+        if let Some(event_content) = self.get_input_action(&terminal_event) {
             let action = event_content.action;
             match self.window {
                 ActiveWindow::Normal => {
@@ -1064,32 +1089,36 @@ impl<'a> App<'a> {
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
                         InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
 
+                        // MouseScrollDown
+                        InputAction::MouseScrollDown => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_scroll_down(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_scroll_down(0, 0)
+                            }
+                        },
+
+                        // MouseScrollUp
+                        InputAction::MouseScrollUp => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_scroll_up(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_scroll_up(0, 0)
+                            }
+                        },
+
+                        // MouseButtonLeft
+                        InputAction::MouseButtonLeft => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_click_left(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_click_left(0, 0)
+                            }
+                        },
+
                         // default
                         _ => {}
                     }
-
-                    // match mouse event
-                    match terminal_event {
-                        Event::Mouse(MouseEvent {
-                            kind: MouseEventKind::ScrollUp,
-                            ..
-                        }) => self.mouse_scroll_up(),
-
-                        Event::Mouse(MouseEvent {
-                            kind: MouseEventKind::ScrollDown,
-                            ..
-                        }) => self.mouse_scroll_down(),
-
-                        Event::Mouse(MouseEvent {
-                            kind: MouseEventKind::Down(MouseButton::Left),
-                            column, row,
-                            ..
-                        }) => self.mouse_click_left(column, row),
-
-                        // default
-                        _ => {}
-                    }
-
                 }
                 ActiveWindow::Help => {
                     match action {
@@ -1109,6 +1138,24 @@ impl<'a> App<'a> {
                             }
                         },
                         InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
+
+                        // MouseScrollDown
+                        InputAction::MouseScrollDown => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_scroll_down(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_scroll_down(0, 0)
+                            }
+                        },
+
+                        // MouseScrollUp
+                        InputAction::MouseScrollUp => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_scroll_up(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_scroll_up(0, 0)
+                            }
+                        },
 
                         // default
                         _ => {}
@@ -1601,7 +1648,6 @@ impl<'a> App<'a> {
         if is_history_area {
             let headline_count = self.history_area.area.y;
             self.history_area.click_row(row - headline_count);
-             //    self.history_area.previous(1);
 
             let selected = self.history_area.get_state_select();
             self.set_output_data(selected);
@@ -1609,18 +1655,33 @@ impl<'a> App<'a> {
     }
 
     /// Mouse wheel always scroll up 2 lines.
-    fn mouse_scroll_up(&mut self) {
+    fn mouse_scroll_up(&mut self, column: u16, row: u16) {
         match self.window {
-            ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {
-                    self.watch_area.scroll_up(2);
-                },
-                ActiveArea::History => {
-                    self.history_area.next(2);
+            ActiveWindow::Normal => {
+                if column == 0 && row == 0 {
+                    match self.area {
+                        ActiveArea::Watch => {
+                            self.watch_area.scroll_up(2);
+                        },
+                        ActiveArea::History => {
+                            self.history_area.next(2);
 
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                            let selected = self.history_area.get_state_select();
+                            self.set_output_data(selected);
+                        }
+                    }
+                } else {
+                    let is_history_area = check_in_area(self.history_area.area, column, row);
+                    if is_history_area {
+                        self.history_area.next(2);
+
+                        let selected = self.history_area.get_state_select();
+                        self.set_output_data(selected);
+                    } else {
+                        self.watch_area.scroll_up(2);
+                    }
                 }
+
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
@@ -1630,17 +1691,31 @@ impl<'a> App<'a> {
     }
 
     /// Mouse wheel always scroll down 2 lines.
-    fn mouse_scroll_down(&mut self) {
+    fn mouse_scroll_down(&mut self, column: u16, row: u16) {
         match self.window {
-            ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {
-                    self.watch_area.scroll_down(2);
-                },
-                ActiveArea::History => {
-                    self.history_area.previous(2);
+            ActiveWindow::Normal => {
+                if column == 0 && row == 0 {
+                    match self.area {
+                        ActiveArea::Watch => {
+                            self.watch_area.scroll_down(2);
+                        },
+                        ActiveArea::History => {
+                            self.history_area.previous(2);
 
-                    let selected = self.history_area.get_state_select();
-                    self.set_output_data(selected);
+                            let selected = self.history_area.get_state_select();
+                            self.set_output_data(selected);
+                        }
+                    }
+                } else {
+                    let is_history_area = check_in_area(self.history_area.area, column, row);
+                    if is_history_area {
+                        self.history_area.previous(2);
+
+                        let selected = self.history_area.get_state_select();
+                        self.set_output_data(selected);
+                    } else {
+                        self.watch_area.scroll_down(2);
+                    }
                 }
             },
             ActiveWindow::Help => {
@@ -1650,6 +1725,7 @@ impl<'a> App<'a> {
         }
     }
 
+    ///
     fn exit(&mut self) {
         self.tx.send(AppEvent::Exit)
             .expect("send error hwatch exit.");

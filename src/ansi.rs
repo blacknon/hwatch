@@ -206,3 +206,32 @@ pub fn get_ansi_strip_str(text: &str) -> String {
 
     line_str
 }
+
+///
+pub fn escape_ansi(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            if let Some('[') = chars.peek() {
+                result.push_str("\\x1b[");
+                chars.next(); // Consume '['
+                while let Some(ch) = chars.peek() {
+                    result.push(*ch);
+                    if ch.is_alphabetic() {
+                        chars.next(); // Consume the letter
+                        break;
+                    }
+                    chars.next(); // Consume the number or ';'
+                }
+            } else {
+                result.push(ch);
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
