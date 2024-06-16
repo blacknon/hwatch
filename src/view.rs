@@ -6,7 +6,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use std::time::Duration;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::DisableMouseCapture,
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -171,14 +171,6 @@ impl View {
         rx: Receiver<AppEvent>,
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
-        ctrlc::set_handler(|| {
-            // Runs on SIGINT, SIGTERM (kill), SIGHUP
-            restore_terminal();
-
-            // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
-            std::process::exit(128 + 15)
-        })?;
-
         enable_raw_mode()?;
 
         let mut stdout = io::stdout();
@@ -244,8 +236,9 @@ impl View {
 
         // Run App
         let res = app.run(&mut terminal);
-        restore_terminal();
 
+        // exit app and restore terminal
+        restore_terminal();
         if let Err(err) = res {
             println!("{err:?}")
         }

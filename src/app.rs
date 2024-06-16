@@ -8,11 +8,10 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind, MouseEvent, KeyModifiers,
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEvent, KeyModifiers,
     },
     execute,
 };
-use heapless::binary_heap::Kind;
 use regex::Regex;
 use std::{
     collections::HashMap,
@@ -1136,6 +1135,24 @@ impl<'a> App<'a> {
                         },
                         InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
+                        // MouseScrollDown
+                        InputAction::MouseScrollDown => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_scroll_down(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_scroll_down(0, 0)
+                            }
+                        },
+
+                        // MouseScrollUp
+                        InputAction::MouseScrollUp => {
+                            if let Event::Mouse(mouse) = terminal_event {
+                                self.mouse_scroll_up(mouse.column, mouse.row)
+                            } else {
+                                self.mouse_scroll_up(0, 0)
+                            }
+                        },
+
                         // default
                         _ => {}
                     }
@@ -1665,9 +1682,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
-            ActiveWindow::Exit => {
-                println!("exit");
-            },
+            _ => {},
         }
     }
 
@@ -1702,9 +1717,7 @@ impl<'a> App<'a> {
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
             },
-            ActiveWindow::Exit => {
-                println!("exit");
-            },
+            _ => {},
         }
     }
 
