@@ -1005,6 +1005,10 @@ impl<'a> App<'a> {
                                     self.exit();
                                     return;
                                 },
+                                KeyCode::Char('q') => {
+                                    self.exit();
+                                    return;
+                                },
                                 KeyCode::Char('n') => {
                                     self.window = ActiveWindow::Normal;
                                     return;
@@ -1164,7 +1168,8 @@ impl<'a> App<'a> {
                 ActiveWindow::Exit => {
                     match action {
                         InputAction::Quit => self.exit(), // Quit
-                        InputAction::Cancel => self.window = ActiveWindow::Normal, // Cancel
+                        InputAction::Cancel => self.exit(), // Cancel
+                        InputAction::Reset => self.window = ActiveWindow::Normal, // Reset
                         _ => {}
                     }
                 }

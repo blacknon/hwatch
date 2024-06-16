@@ -24,7 +24,9 @@ pub struct ExitWindow<'a> {
 impl<'a> ExitWindow<'a> {
     pub fn new() -> Self {
         let text = vec![
-            Line::from(" Exit hwatch? (Y/N)"),
+            Line::from(" Exit hwatch?"),
+            Line::from("   Press 'Y' or 'Q'  : Quit."),
+            Line::from("   Press 'N' or 'Esc': Stay."),
         ];
 
         Self {
@@ -39,7 +41,7 @@ impl<'a> ExitWindow<'a> {
 
         // TODO: 枠を含めて3行にする
         let size = f.size();
-        self.area = centered_rect_with_size(4, 32, size);
+        self.area = centered_rect_with_size(5, 32, size);
 
         // create block.
         let block = Paragraph::new(self.text.clone())
