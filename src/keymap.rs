@@ -465,6 +465,11 @@ pub fn default_keymap() -> Keymap {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum InputAction {
+    // None
+    // ==========
+    #[serde(rename = "none")]
+    None,
+
     // Up
     // ==========
     #[serde(rename = "up")]
@@ -650,6 +655,9 @@ pub enum InputAction {
 
 pub fn get_input_action_description(input_action: InputAction) -> String {
     match input_action {
+        // None
+        InputAction::None => "No action".to_string(),
+
         // Up
         InputAction::Up => "Move up".to_string(),
         InputAction::WatchPaneUp => "Move up in watch pane".to_string(),
