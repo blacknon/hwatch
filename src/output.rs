@@ -845,10 +845,6 @@ impl Printer {
         result_str_elements.push(str_line_style.paint(format!("{line_header}").to_string()).to_string());
         for (emphasized, value) in change.iter_strings_lossy() {
             let mut line_data = value.to_string();
-            if self.is_color {
-                line_data = get_ansi_strip_str(&value);
-            }
-
             if self.is_word_highlight && emphasized { // word highlight
                 // line push
                 result_line_spans.push(
@@ -885,6 +881,7 @@ impl Printer {
                         }
                     },
                     _ => {
+                        line_data = ansi::get_ansi_strip_str(&value);
                         let color_strip_data = get_ansi_strip_str(&line_data).trim_end_matches('\n').to_string();
                         result_line_spans.push(Span::styled(format!("{line_data}"), tui_line_style));
                         result_str_elements.push(str_line_style.paint(format!("{color_strip_data}").to_string()).to_string());

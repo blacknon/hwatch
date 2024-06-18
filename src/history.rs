@@ -30,10 +30,10 @@ pub struct History {
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct HistorySummary {
-    pub line_add: u16,
-    pub line_rem: u16,
-    pub char_add: u16,
-    pub char_rem: u16,
+    pub line_add: u64,
+    pub line_rem: u64,
+    pub char_add: u64,
+    pub char_rem: u64,
 }
 
 impl HistorySummary {
