@@ -380,7 +380,18 @@ impl HistoryArea {
     ///
     pub fn click_row(&mut self, row: u16) {
         let first_row = self.state.offset();
-        let select_num = row as usize;
+
+        let select_num: usize;
+        if self.summary {
+            if row == 0 {
+                select_num = row as usize;
+            } else {
+                select_num = ((row - 1) / 3 + 1) as usize;
+            }
+        } else {
+            select_num = row as usize;
+        }
+
         if select_num < self.data.len() {
             self.state.select(Some(select_num + first_row));
         }
