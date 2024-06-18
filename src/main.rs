@@ -15,6 +15,7 @@
 // TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
 //                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
+// TODO(blacknon): key入力の処理をcrosstermからtermwizに変更した場合、Macだとマウス操作時にコントロールキャラが入力されてしまう問題が解決するか検証
 
 // v0.3.17
 // TODO(blacknon): ...
