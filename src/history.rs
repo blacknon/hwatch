@@ -30,10 +30,10 @@ pub struct History {
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct HistorySummary {
-    pub line_add: u16,
-    pub line_rem: u16,
-    pub char_add: u16,
-    pub char_rem: u16,
+    pub line_add: u64,
+    pub line_rem: u64,
+    pub char_add: u64,
+    pub char_rem: u64,
 }
 
 impl HistorySummary {
@@ -380,7 +380,30 @@ impl HistoryArea {
     ///
     pub fn click_row(&mut self, row: u16) {
         let first_row = self.state.offset();
-        let select_num = row as usize;
+
+        let mut select_num: usize;
+
+        let border_row_num: usize = if self.border { 1 } else { 0 };
+
+        if self.summary {
+            if row == (0 + border_row_num as u16) {
+                select_num = row as usize - border_row_num;
+            } else if row < border_row_num as u16 {
+                select_num = 0;
+            } else {
+                if first_row == 0 {
+                    select_num = ((row - 1 - border_row_num as u16) / 3 + 1) as usize;
+                } else {
+                    select_num = ((row - border_row_num as u16) / 3) as usize;
+                }
+            }
+        } else {
+            select_num = row as usize;
+            if row > 0 {
+                select_num -= border_row_num;
+            }
+        }
+
         if select_num < self.data.len() {
             self.state.select(Some(select_num + first_row));
         }
