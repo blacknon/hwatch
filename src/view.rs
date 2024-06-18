@@ -2,10 +2,11 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossbeam_channel::{Receiver, Sender};
 // module
+use crossbeam_channel::{Receiver, Sender};
+use std::time::Duration;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::DisableMouseCapture,
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -170,19 +171,11 @@ impl View {
         rx: Receiver<AppEvent>,
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
-        ctrlc::set_handler(|| {
-            // Runs on SIGINT, SIGTERM (kill), SIGHUP
-            restore_terminal();
-
-            // Exit code for SIGTERM (signal 15), not quite right if another signal is the cause.
-            std::process::exit(128 + 15)
-        })?;
         enable_raw_mode()?;
+
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
-        if self.mouse_events {
-            execute!(stdout, EnableMouseCapture)?;
-        }
+
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         let _ = terminal.clear();
@@ -195,13 +188,16 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone(), self.mouse_events);
+        let mut app = App::new(tx, rx, self.interval.clone());
 
         // set keymap
         app.set_keymap(self.keymap.clone());
 
         // set after command
         app.set_after_command(self.after_command.clone());
+
+        // set mouse events
+        app.set_mouse_events(self.mouse_events);
 
         // set limit
         app.set_limit(self.limit);
@@ -240,8 +236,9 @@ impl View {
 
         // Run App
         let res = app.run(&mut terminal);
-        restore_terminal();
 
+        // exit app and restore terminal
+        restore_terminal();
         if let Err(err) = res {
             println!("{err:?}")
         }
@@ -257,6 +254,7 @@ fn restore_terminal() {
         Ok(t) => t,
         _ => return,
     };
+
     let _ = execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
@@ -266,7 +264,9 @@ fn restore_terminal() {
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
-    let event = crossterm::event::read().expect("failed to read crossterm event");
-    let _ = tx.send(AppEvent::TerminalEvent(event));
+    if crossterm::event::poll(Duration::from_millis(100))? {
+        let event = crossterm::event::read()?;
+        let _ = tx.send(AppEvent::TerminalEvent(event));
+    }
     Ok(())
 }

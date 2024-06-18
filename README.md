@@ -229,10 +229,6 @@ hwatch -n 3 -s 'bash -c "source ~/.bashrc"; {COMMAND}' command...
 hwatch -n 3 -s 'zsh -c "source ~/.zshrc"; {COMMAND}' command...
 ```
 
-<p align="center">
-<img src="./img/shell_function.gif" />
-</p>
-
 ### ANSI Color code
 
 If you want to see output colored with ANSI color code, enable color mode.
@@ -243,10 +239,6 @@ Alternatively, you can enable / disable the color mode with the <kbd>C</kbd> key
 ```bash
 hwatch -n 3 -c command...
 ```
-
-<p align="center">
-<img src="./img/ansi_color.gif" />
-</p>
 
 ### diff view
 

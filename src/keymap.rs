@@ -3,10 +3,10 @@
 // that can be found in the LICENSE file.
 
 use std::{collections::HashMap, fmt::Debug};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState, MouseEvent, MouseButton, MouseEventKind};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de};
 use config::{Config, ConfigError, FileFormat};
 
 use crate::errors::HwatchError;
@@ -17,24 +17,68 @@ pub struct Key {
     modifiers: KeyModifiers,
 }
 
-impl Key {
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
+pub struct Mouse {
+    action: MouseEventKind,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
+enum InputType {
+    Key(Key),
+    Mouse(Mouse),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
+pub struct Input {
+    input: InputType
+}
+
+impl Input {
     pub fn to_str(&self) -> String {
-        let modifiers = self
-            .modifiers
-            .iter()
-            .filter_map(modifier_to_string)
-            .collect::<Vec<&str>>()
-            .join("-");
-        let code = keycode_to_string(self.code).unwrap();
-        if modifiers.is_empty() {
-            code
-        } else {
-            format!("{}-{}", modifiers, code)
-        }
+        let result = match &self.input {
+            // keyboard
+            InputType::Key(key) => {
+                let modifiers = key
+                    .modifiers
+                    .iter()
+                    .filter_map(modifier_to_string)
+                    .collect::<Vec<&str>>()
+                    .join("-");
+                let code = keycode_to_string(key.code).unwrap();
+                if modifiers.is_empty() {
+                    code
+                } else {
+                    format!("{}-{}", modifiers, code)
+                }
+            },
+
+            // mouse
+            InputType::Mouse(mouse) => {
+                let action = match mouse.action {
+                    // MouseButton
+                    MouseEventKind::Down(MouseButton::Left) => "button_down_left",
+                    MouseEventKind::Down(MouseButton::Right) => "button_down_right",
+                    MouseEventKind::Up(MouseButton::Left) => "button_up_left",
+                    MouseEventKind::Up(MouseButton::Right) => "button_up_right",
+
+                    // MouseScroll
+                    MouseEventKind::ScrollUp => "scroll_up",
+                    MouseEventKind::ScrollDown => "scroll_down",
+                    MouseEventKind::ScrollLeft => "scroll_left",
+                    MouseEventKind::ScrollRight => "scroll_right",
+
+                    _ => "other",
+                };
+
+                format!("mouse-{}", action)
+            },
+        };
+
+        return result
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 36] = [
+const DEFAULT_KEYMAP: [&str; 38] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -48,8 +92,7 @@ const DEFAULT_KEYMAP: [&str; 36] = [
     "esc=reset", // Reset: ESC
     "ctrl-c=cancel", // Cancel: Ctrl + c
     "h=help", // Help: h
-    "b=toggle_border", // Toggle Border: b
-    "s=toggle_scroll_bar", // Toggle Scroll Bar: s
+    "b=toggle_border_with_scroll_bar", // Toggle Border: b
     "c=toggle_color", // Toggle Color: c
     "n=toggle_line_number", // Toggle Line Number: n
     "r=toggle_reverse", // Toggle Reverse: r
@@ -71,7 +114,22 @@ const DEFAULT_KEYMAP: [&str; 36] = [
     "minus=interval_minus", // Interval Minus: -
     "/=change_filter_mode", // Change Filter Mode: /
     "*=change_regex_filter_mode", // Change Regex Filter Mode: *
+    "mouse-scroll_up=mouse_scroll_up", // Mouse Scroll Up: Mouse Scroll Up
+    "mouse-scroll_down=mouse_scroll_down", // Mouse Scroll Down: Mouse Scroll Down
+    "mouse-button_down_left=mouse_button_left", // Mouse Button Left: Mouse Button Left
 ];
+
+impl Serialize for Input {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match &self.input {
+            InputType::Key(key) => key.serialize(serializer),
+            InputType::Mouse(mouse) => mouse.serialize(serializer),
+        }
+    }
+}
 
 impl Serialize for Key {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -92,6 +150,32 @@ impl Serialize for Key {
         } else {
             format!("{}-{}", modifiers, code)
         };
+        serializer.serialize_str(&formatted)
+    }
+}
+
+impl Serialize for Mouse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let action = match self.action {
+            // MouseButton
+            MouseEventKind::Down(MouseButton::Left) => "button_down_left",
+            MouseEventKind::Down(MouseButton::Right) => "button_down_right",
+            MouseEventKind::Up(MouseButton::Left) => "button_up_left",
+            MouseEventKind::Up(MouseButton::Right) => "button_up_right",
+
+            // MouseScroll
+            MouseEventKind::ScrollUp => "scroll_up",
+            MouseEventKind::ScrollDown => "scroll_down",
+            MouseEventKind::ScrollLeft => "scroll_left",
+            MouseEventKind::ScrollRight => "scroll_right",
+
+            _ => "other",
+        };
+
+        let formatted = format!("mouse-{}", action);
         serializer.serialize_str(&formatted)
     }
 }
@@ -142,6 +226,34 @@ fn keycode_to_string(code: KeyCode) -> Option<String> {
         _ => None,
     }
 }
+
+impl<'de> Deserialize<'de> for Input {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value: String = Deserialize::deserialize(deserializer)?;
+        let tokens = value.split('-').collect::<Vec<&str>>();
+        let input = match tokens[0] {
+            "mouse" => {
+                let mouse = Mouse::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
+                Input {
+                    input: InputType::Mouse(mouse),
+                }
+            },
+            _ => {
+                let key = Key::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
+                Input {
+                    input: InputType::Key(key),
+                }
+            },
+        };
+
+        Ok(input)
+    }
+}
+
+
 
 impl<'de> Deserialize<'de> for Key {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -203,6 +315,7 @@ impl<'de> Deserialize<'de> for Key {
             "plus" => KeyCode::Char('+'),
             "minus" => KeyCode::Char('-'),
             "hyphen" => KeyCode::Char('-'),
+            "equal" => KeyCode::Char('='),
             "tab" => KeyCode::Tab,
             c if c.len() == 1 => KeyCode::Char(c.chars().next().unwrap()),
             _ => {
@@ -210,6 +323,57 @@ impl<'de> Deserialize<'de> for Key {
             }
         };
         Ok(Key { code, modifiers })
+    }
+}
+
+impl<'de> Deserialize<'de> for Mouse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value: String = Deserialize::deserialize(deserializer)?;
+        let tokens = value.split('-').collect::<Vec<&str>>();
+        let last = tokens
+            .last()
+            .ok_or(HwatchError::ConfigError)
+            .map_err(D::Error::custom)?;
+
+        let action = match last.to_ascii_lowercase().as_ref() {
+            "button_down_left" => MouseEventKind::Down(MouseButton::Left),
+            "button_down_right" => MouseEventKind::Down(MouseButton::Right),
+            "button_up_left" => MouseEventKind::Up(MouseButton::Left),
+            "button_up_right" => MouseEventKind::Up(MouseButton::Right),
+            "scroll_up" => MouseEventKind::ScrollUp,
+            "scroll_down" => MouseEventKind::ScrollDown,
+            "scroll_left" => MouseEventKind::ScrollLeft,
+            "scroll_right" => MouseEventKind::ScrollRight,
+            _ => {
+                return Err(D::Error::custom(HwatchError::ConfigError));
+            }
+        };
+
+        Ok(Mouse {action})
+    }
+}
+
+impl From<MouseEvent> for Input {
+    fn from(value: MouseEvent) -> Self {
+        Self {
+            input: InputType::Mouse(Mouse {
+                action: value.kind,
+            }),
+        }
+    }
+}
+
+impl From<KeyEvent> for Input {
+    fn from(value: KeyEvent) -> Self {
+        Self {
+            input: InputType::Key(Key {
+                code: value.code,
+                modifiers: value.modifiers,
+            }),
+        }
     }
 }
 
@@ -224,7 +388,7 @@ impl From<KeyEvent> for Key {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
 pub struct InputEventContents {
-    pub key: Key,
+    pub input: Input,
     pub action: InputAction,
 }
 
@@ -250,27 +414,42 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
 
     let config = builder
         .build()?;
+    let inputs = config
+        .try_deserialize::<HashMap<Input, InputAction>>()?;
 
-    let keys = config
-        .try_deserialize::<HashMap<Key, InputAction>>()?;
-
-    for (k, a) in keys {
-        // Create KeyEvent
-        let key_event = KeyEvent {
-            code: k.code,
-            modifiers: k.modifiers,
-            kind: KeyEventKind::Press,
-            state: KeyEventState::NONE,
-        };
-
-        // Insert InputEventContents
-        keymap.insert(
-            Event::Key(key_event),
-            InputEventContents {
-                key: k,
-                action: a,
+    for (k, a) in inputs {
+        match k.input {
+            InputType::Key(key) => {
+                let key_event = KeyEvent {
+                    code: key.code,
+                    modifiers: key.modifiers,
+                    kind: KeyEventKind::Press,
+                    state: KeyEventState::NONE,
+                };
+                keymap.insert(
+                    Event::Key(key_event),
+                    InputEventContents {
+                        input: k,
+                        action: a,
+                    },
+                );
             },
-        );
+            InputType::Mouse(mouse) => {
+                let mouse_event = MouseEvent {
+                    kind: mouse.action,
+                    column: 0,
+                    row: 0,
+                    modifiers: KeyModifiers::empty(),
+                };
+                keymap.insert(
+                    Event::Mouse(mouse_event),
+                    InputEventContents {
+                        input: k,
+                        action: a,
+                    },
+                );
+            },
+        }
     }
 
     Ok(keymap)
@@ -285,6 +464,11 @@ pub fn default_keymap() -> Keymap {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum InputAction {
+    // None
+    // ==========
+    #[serde(rename = "none")]
+    None,
+
     // Up
     // ==========
     #[serde(rename = "up")]
@@ -403,6 +587,8 @@ pub enum InputAction {
     ToggleBorder,
     #[serde(rename = "toggle_scroll_bar")]
     ToggleScrollBar,
+    #[serde(rename = "toggle_border_with_scroll_bar")]
+    ToggleBorderWithScrollBar,
 
     // Diff Mode
     // ==========
@@ -441,19 +627,38 @@ pub enum InputAction {
     #[serde(rename = "interval_minus")]
     IntervalMinus,
 
-    // Command
+    // Command/Filter
     // ==========
     #[serde(rename = "change_filter_mode")]
     ChangeFilterMode,
     #[serde(rename = "change_regex_filter_mode")]
     ChangeRegexFilterMode,
 
-    // Input
+    // Mouse
     // ==========
+    #[serde(rename = "mouse_scroll_up")]
+    MouseScrollUp,
+    #[serde(rename = "mouse_scroll_down")]
+    MouseScrollDown,
+    #[serde(rename = "mouse_button_left")]
+    MouseButtonLeft,
+    #[serde(rename = "mouse_button_right")]
+    MouseButtonRight,
+    #[serde(rename = "mouse_move_left")]
+    MouseMoveLeft,
+    #[serde(rename = "mouse_move_right")]
+    MouseMoveRight,
+    #[serde(rename = "mouse_move_up")]
+    MouseMoveUp,
+    #[serde(rename = "mouse_move_down")]
+    MouseMoveDown,
 }
 
 pub fn get_input_action_description(input_action: InputAction) -> String {
     match input_action {
+        // None
+        InputAction::None => "No action".to_string(),
+
         // Up
         InputAction::Up => "Move up".to_string(),
         InputAction::WatchPaneUp => "Move up in watch pane".to_string(),
@@ -521,6 +726,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Border
         InputAction::ToggleBorder => "Toggle enable/disable border".to_string(),
         InputAction::ToggleScrollBar => "Toggle enable/disable scroll bar".to_string(),
+        InputAction::ToggleBorderWithScrollBar => "Toggle enable/disable border and scroll bar".to_string(),
 
         // Diff Mode
         InputAction::ToggleDiffMode => "Toggle diff mode".to_string(),
@@ -543,11 +749,19 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::IntervalPlus => "Interval +0.5sec".to_string(),
         InputAction::IntervalMinus => "Interval -0.5sec".to_string(),
 
-        // Command
+        // Command/Filter
         InputAction::ChangeFilterMode => "Change filter mode".to_string(),
         InputAction::ChangeRegexFilterMode => "Change regex filter mode".to_string(),
 
-        // Input
+        // Mouse
+        InputAction::MouseScrollUp => "Mouse Scroll Up".to_string(),
+        InputAction::MouseScrollDown => "Mouse Scroll Down".to_string(),
+        InputAction::MouseButtonLeft => "Mouse Button Left".to_string(),
+        InputAction::MouseButtonRight => "Mouse Button Right".to_string(),
+        InputAction::MouseMoveLeft => "Mouse Move Left".to_string(),
+        InputAction::MouseMoveRight => "Mouse Move Right".to_string(),
+        InputAction::MouseMoveUp => "Mouse Move Up".to_string(),
+        InputAction::MouseMoveDown => "Mouse Move Down".to_string(),
     }
 
 }

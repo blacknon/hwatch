@@ -258,6 +258,10 @@ impl Printer {
         let mut text = dest.to_string();
         if !self.is_batch {
             text = expand_line_tab(dest, self.tab_size);
+
+            if !self.is_color {
+                text = ansi::escape_ansi(&text);
+            }
         }
 
         if self.is_batch {
@@ -486,12 +490,20 @@ impl Printer {
         let mut text_dest = dest.to_string();
         if !self.is_batch {
             text_dest = expand_line_tab(dest, self.tab_size);
+
+            if !self.is_color {
+                text_dest = ansi::escape_ansi(&text_dest);
+            }
         }
 
         // tab expand src
         let mut text_src = src.to_string();
         if !self.is_batch {
             text_src = expand_line_tab(src, self.tab_size);
+
+            if !self.is_color {
+                text_src = ansi::escape_ansi(&text_src);
+            }
         }
 
         // create text vector
@@ -723,6 +735,10 @@ impl Printer {
         let mut text_dest = dest.to_string();
         if !self.is_batch {
             text_dest = expand_line_tab(dest, self.tab_size);
+
+            if !self.is_color {
+                text_dest = ansi::escape_ansi(&text_dest);
+            }
         }
         let text_dest_bytes = text_dest.as_bytes().to_vec();
 
@@ -730,6 +746,10 @@ impl Printer {
         let mut text_src = src.to_string();
         if !self.is_batch {
             text_src = expand_line_tab(src, self.tab_size);
+
+            if !self.is_color {
+                text_src = ansi::escape_ansi(&text_src);
+            }
         }
         let text_src_bytes = text_src.as_bytes().to_vec();
 
@@ -825,10 +845,6 @@ impl Printer {
         result_str_elements.push(str_line_style.paint(format!("{line_header}").to_string()).to_string());
         for (emphasized, value) in change.iter_strings_lossy() {
             let mut line_data = value.to_string();
-            if self.is_color {
-                line_data = get_ansi_strip_str(&value);
-            }
-
             if self.is_word_highlight && emphasized { // word highlight
                 // line push
                 result_line_spans.push(
@@ -865,6 +881,7 @@ impl Printer {
                         }
                     },
                     _ => {
+                        line_data = ansi::get_ansi_strip_str(&value);
                         let color_strip_data = get_ansi_strip_str(&line_data).trim_end_matches('\n').to_string();
                         result_line_spans.push(Span::styled(format!("{line_data}"), tui_line_style));
                         result_str_elements.push(str_line_style.paint(format!("{color_strip_data}").to_string()).to_string());

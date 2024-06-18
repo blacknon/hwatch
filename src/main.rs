@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.15
+// v0.3.16
 // TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
@@ -12,11 +12,12 @@
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
-// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する
-
-// v0.3.16
+// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
 //                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
+
+// v0.3.17
+// TODO(blacknon): ...
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
