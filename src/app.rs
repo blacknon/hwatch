@@ -1669,7 +1669,7 @@ impl<'a> App<'a> {
                             self.watch_area.scroll_up(2);
                         },
                         ActiveArea::History => {
-                            self.history_area.next(2);
+                            self.history_area.next(1);
 
                             let selected = self.history_area.get_state_select();
                             self.set_output_data(selected);
@@ -1678,7 +1678,7 @@ impl<'a> App<'a> {
                 } else {
                     let is_history_area = check_in_area(self.history_area.area, column, row);
                     if is_history_area {
-                        self.history_area.next(2);
+                        self.history_area.next(1);
 
                         let selected = self.history_area.get_state_select();
                         self.set_output_data(selected);
@@ -1705,7 +1705,7 @@ impl<'a> App<'a> {
                             self.watch_area.scroll_down(2);
                         },
                         ActiveArea::History => {
-                            self.history_area.previous(2);
+                            self.history_area.previous(1);
 
                             let selected = self.history_area.get_state_select();
                             self.set_output_data(selected);
@@ -1714,7 +1714,7 @@ impl<'a> App<'a> {
                 } else {
                     let is_history_area = check_in_area(self.history_area.area, column, row);
                     if is_history_area {
-                        self.history_area.previous(2);
+                        self.history_area.previous(1);
 
                         let selected = self.history_area.get_state_select();
                         self.set_output_data(selected);
