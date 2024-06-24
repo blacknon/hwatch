@@ -475,7 +475,7 @@ impl<'a> App<'a> {
         let dest: &CommandResult = &results[&target_dst].command_result;
 
         // set old text(text_src)
-        let mut src = &CommandResult::default();
+        let mut src = dest;
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
         }
