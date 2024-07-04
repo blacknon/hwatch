@@ -69,6 +69,14 @@ impl<'a> WatchArea<'a> {
         return height;
     }
 
+    pub fn get_pane_width(&mut self) -> u16 {
+        let mut pane_width: u16 = self.area.width;
+        if self.border && pane_width > 0 {
+            pane_width -= 1;
+        }
+        pane_width
+    }
+
     ///
     pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         self.data = data;
@@ -125,12 +133,7 @@ impl<'a> WatchArea<'a> {
             .scroll((self.position as u16, 0));
 
         // get self.lines
-        let mut pane_width: u16 = self.area.width as u16;
-        if self.border {
-            pane_width = pane_width - 1;
-        }
-
-        self.lines = block.line_count(pane_width) as i16;
+        self.lines = block.line_count(self.get_pane_width()) as i16;
 
         frame.render_widget(block, self.area);
 
