@@ -171,6 +171,7 @@ pub struct ExecuteCommand {
     pub command: Vec<String>,
     pub is_exec: bool,
     pub is_compress: bool,
+    pub output_width: Option<usize>,
     pub tx: Sender<AppEvent>,
 }
 
@@ -182,6 +183,7 @@ impl ExecuteCommand {
             command: vec![],
             is_exec: false,
             is_compress: false,
+            output_width: None,
             tx,
         }
     }
@@ -201,11 +203,17 @@ impl ExecuteCommand {
 
         // exec command...
         let length = exec_commands.len();
-        let child_result = Command::new(&exec_commands[0])
+        let mut child_command = Command::new(&exec_commands[0]);
+        child_command
             .args(&exec_commands[1..length])
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn();
+            .stderr(Stdio::piped());
+        if let Some(cols) = self.output_width {
+            child_command
+                .env("COLUMNS", cols.to_string())
+                .env("HWATCH_COLUMNS", cols.to_string());
+        }
+        let child_result = child_command.spawn();
 
         // merge stdout and stderr
         let mut vec_output = Vec::new();

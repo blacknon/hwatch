@@ -52,6 +52,7 @@ use crate::{
 use crate::SharedInterval;
 use crate::DEFAULT_TAB_SIZE;
 use crate::HISTORY_WIDTH;
+use crate::OutputWidthShared;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -197,6 +198,9 @@ pub struct App<'a> {
     interval: SharedInterval,
 
     ///
+    output_width: OutputWidthShared,
+
+    ///
     tab_size: u16,
 
     ///
@@ -237,7 +241,12 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl App<'_> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: SharedInterval) -> Self {
+    pub fn new(
+        tx: Sender<AppEvent>,
+        rx: Receiver<AppEvent>,
+        interval: SharedInterval,
+        output_width: OutputWidthShared,
+    ) -> Self {
         // method at create new view trail.
         Self {
             keymap: default_keymap(),
@@ -275,6 +284,7 @@ impl App<'_> {
             enable_summary_char: false,
 
             interval: interval.clone(),
+            output_width,
             tab_size: DEFAULT_TAB_SIZE,
 
             header_area: HeaderArea::new(interval.clone()),
@@ -388,7 +398,14 @@ impl App<'_> {
 
     ///
     pub fn draw(&mut self, f: &mut Frame) {
+        // !!
         self.define_subareas(f.area());
+
+        {
+            let mut cur_output_width = self.output_width.write().unwrap();
+            // TODO: Account for the border
+            *cur_output_width = Some(self.watch_area.get_pane_width() as usize);
+        }
 
         if self.show_header {
             // Draw header area.

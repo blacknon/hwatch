@@ -208,6 +208,16 @@ the following to your `.bashrc`:
 export HWATCH="--no-title --color --no-help-banner --border --with-scrollbar"
 ```
 
+## Execution environment
+
+When running a command, `hwatch` sets the `COLUMNS`. Many commands recognize it
+automatically (try `git diff --stat`), some others accept column width as a
+command-line argument.
+
+TODO: Link to standard.
+
+Some versions of `bash` might reset the value of `COLUMNS`; for this reason the `HWATCH_COLUMNS` environment variable is set to the same value.
+
 ## Example
 
 ### interval 3 second
