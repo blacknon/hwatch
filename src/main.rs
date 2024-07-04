@@ -92,7 +92,9 @@ pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
+// TODO: Change to mutex? Rename to ...Mutex?
 type Interval = Arc<RwLock<f64>>;
+type OutputWidthShared = Arc<RwLock<Option<usize>>>;
 
 // const at Windows
 #[cfg(windows)]
@@ -417,6 +419,7 @@ fn main() {
         .get_one::<f64>("interval")
         .unwrap_or(&DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
+    let output_width = OutputWidthShared::new(None.into());
 
     // history limit
     let default_limit: u32 = HISTORY_LIMIT.parse().unwrap();
@@ -477,6 +480,7 @@ fn main() {
             .collect();
         let is_exec = m.get_flag("exec");
         let interval = interval.clone();
+        let output_width = output_width.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
@@ -493,9 +497,12 @@ fn main() {
             // Set is exec flag.
             exe.is_exec = is_exec;
 
+            exe.output_width = *output_width.read().unwrap();
+
             // Exec command
             exe.exec_command();
 
+            // !
             let sleep_interval = *interval.read().unwrap();
             std::thread::sleep(Duration::from_secs_f64(sleep_interval));
         });
@@ -505,7 +512,7 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new(interval.clone())
+        let mut view = view::View::new(interval.clone(), output_width)
             // Set interval on view.header
             .set_interval(interval)
             .set_tab_size(tab_size)

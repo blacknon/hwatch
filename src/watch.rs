@@ -63,6 +63,7 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    // TODO: Rename to get_area_height?
     pub fn get_area_size(&mut self) -> i16 {
         let height = self.area.height as i16;
 
