@@ -1689,7 +1689,7 @@ impl<'a> App<'a> {
 
             },
             ActiveWindow::Help => {
-                self.help_window.scroll_down(2);
+                self.help_window.scroll_up(2);
             },
             _ => {},
         }
