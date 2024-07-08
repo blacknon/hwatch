@@ -280,3 +280,9 @@ You can have command diffs output directly to stdout instead with `-b` option of
 ```bash
 hwatch -b command...
 ```
+
+## Alternatives
+- The original [`watch`](https://man7.org/linux/man-pages/man1/watch.1.html);
+  the newest version seems to be distributed as a part of
+  [`procps`](https://gitlab.com/procps-ng/procps).
+- [Viddy](https://github.com/sachaos/viddy).
