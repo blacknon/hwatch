@@ -6,7 +6,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use std::time::Duration;
 use crossterm::{
-    event::DisableMouseCapture,
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -197,6 +197,11 @@ impl View {
         app.set_after_command(self.after_command.clone());
 
         // set mouse events
+        // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCatpure can be used
+        // https://github.com/crossterm-rs/crossterm/issues/660
+        if cfg!(target_os = "windows") {
+            execute!(terminal.backend_mut(), EnableMouseCapture)?;
+        }
         app.set_mouse_events(self.mouse_events);
 
         // set limit
