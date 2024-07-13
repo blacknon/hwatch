@@ -32,9 +32,9 @@
 extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
-extern crate config;
-extern crate chrono;
 extern crate chardetng;
+extern crate chrono;
+extern crate config;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
@@ -43,12 +43,12 @@ extern crate flate2;
 extern crate futures;
 extern crate heapless;
 extern crate question;
+extern crate ratatui as tui;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
 extern crate termwiz;
-extern crate ratatui as tui;
 
 // macro crate
 #[macro_use]
@@ -59,15 +59,15 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{Arg, ArgAction, Command, ValueHint, builder::ArgPredicate};
+use clap::{builder::ArgPredicate, Arg, ArgAction, Command, ValueHint};
+use common::DiffMode;
+use crossbeam_channel::unbounded;
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
-use common::DiffMode;
 
 // local modules
 mod ansi;
@@ -92,7 +92,9 @@ pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
+// TODO: Change to mutex? Rename to ...Mutex?
 type Interval = Arc<RwLock<f64>>;
+type OutputWidthShared = Arc<RwLock<Option<usize>>>;
 
 // const at Windows
 #[cfg(windows)]
@@ -345,7 +347,6 @@ fn build_app() -> clap::Command {
                 .long("keymap")
                 .action(ArgAction::Append),
         )
-
 }
 
 fn get_clap_matcher() -> clap::ArgMatches {
@@ -414,15 +415,20 @@ fn main() {
     let (tx, rx) = unbounded();
 
     // interval
-    let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
+    let override_interval: f64 = *matcher
+        .get_one::<f64>("interval")
+        .unwrap_or(&DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
+    let output_width = OutputWidthShared::new(None.into());
 
     // history limit
-    let default_limit:u32 = HISTORY_LIMIT.parse().unwrap();
+    let default_limit: u32 = HISTORY_LIMIT.parse().unwrap();
     let limit = matcher.get_one::<u32>("limit").unwrap_or(&default_limit);
 
     // tab size
-    let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
+    let tab_size = *matcher
+        .get_one::<u16>("tab_size")
+        .unwrap_or(&DEFAULT_TAB_SIZE);
 
     // output mode
     let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
@@ -446,7 +452,8 @@ fn main() {
     };
 
     // Get Add keymap
-    let keymap_options: Vec<&str> = matcher.get_many::<String>("keymap")
+    let keymap_options: Vec<&str> = matcher
+        .get_many::<String>("keymap")
         .unwrap_or_default()
         .map(|s| s.as_str())
         .collect();
@@ -465,9 +472,15 @@ fn main() {
         let m = matcher.clone();
         let tx = tx.clone();
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
-        let command: Vec<_> = m.get_many::<String>("command").unwrap().into_iter().map(|s| s.clone()).collect();
+        let command: Vec<_> = m
+            .get_many::<String>("command")
+            .unwrap()
+            .into_iter()
+            .map(|s| s.clone())
+            .collect();
         let is_exec = m.get_flag("exec");
         let interval = interval.clone();
+        let output_width = output_width.clone();
         let _ = thread::spawn(move || loop {
             // Create cmd..
             let mut exe = exec::ExecuteCommand::new(tx.clone());
@@ -484,9 +497,12 @@ fn main() {
             // Set is exec flag.
             exe.is_exec = is_exec;
 
+            exe.output_width = *output_width.read().unwrap();
+
             // Exec command
             exe.exec_command();
 
+            // !
             let sleep_interval = *interval.read().unwrap();
             std::thread::sleep(Duration::from_secs_f64(sleep_interval));
         });
@@ -496,7 +512,7 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new(interval.clone())
+        let mut view = view::View::new(interval.clone(), output_width)
             // Set interval on view.header
             .set_interval(interval)
             .set_tab_size(tab_size)
@@ -505,26 +521,19 @@ fn main() {
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
-
             // set keymap
             .set_keymap(keymap)
-
             // Set color in view
             .set_color(matcher.get_flag("color"))
-
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
-
             // Set reverse mode in view
             .set_reverse(matcher.get_flag("reverse"))
-
             // Set output in view
             .set_output_mode(output_mode)
-
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
-
             .set_show_ui(!matcher.get_flag("no_title"))
             .set_show_help_banner(!matcher.get_flag("no_help_banner"));
 

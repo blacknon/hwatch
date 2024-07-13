@@ -2,15 +2,15 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use similar::{ChangeTag, TextDiff};
 use tui::{
     layout::Constraint,
     style::{Color, Modifier, Style},
-    text::{Text, Line, Span},
     symbols,
-    widgets::{Block, Cell, Row, Table, TableState, Borders},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Cell, Row, Table, TableState},
     Frame,
 };
-use similar::{TextDiff, ChangeTag};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
@@ -60,9 +60,9 @@ impl HistorySummary {
         for l_op in line_diff.ops().iter() {
             for change in line_diff.iter_inline_changes(l_op) {
                 match change.tag() {
-                    ChangeTag::Insert => {self.line_add += 1},
-                    ChangeTag::Delete => {self.line_rem += 1},
-                    _ => {},
+                    ChangeTag::Insert => self.line_add += 1,
+                    ChangeTag::Delete => self.line_rem += 1,
+                    _ => {}
                 }
             }
         }
@@ -71,9 +71,9 @@ impl HistorySummary {
         for c_op in char_diff.ops().iter() {
             for change in char_diff.iter_inline_changes(c_op) {
                 match change.tag() {
-                    ChangeTag::Insert => {self.char_add += 1},
-                    ChangeTag::Delete => {self.char_rem += 1},
-                    _ => {},
+                    ChangeTag::Insert => self.char_add += 1,
+                    ChangeTag::Delete => self.char_rem += 1,
+                    _ => {}
                 }
             }
         }
@@ -167,7 +167,13 @@ impl HistoryArea {
     }
 
     ///
-    pub fn update(&mut self, timestamp: String, status: bool, num: u16, history_summary: HistorySummary) {
+    pub fn update(
+        &mut self,
+        timestamp: String,
+        status: bool,
+        num: u16,
+        history_summary: HistorySummary,
+    ) {
         // set result statu to latest
         self.set_latest_status(status);
 
@@ -209,7 +215,7 @@ impl HistoryArea {
                     } else {
                         1
                     }
-                },
+                }
             };
 
             // set cell data
@@ -224,31 +230,35 @@ impl HistoryArea {
                 });
 
                 // line1: timestamp
-                let line1 = Line::from(
-                    vec![
-                        Span::styled(c.timestamp.as_str(), cell_style)
-                    ]
-                );
+                let line1 = Line::from(vec![Span::styled(c.timestamp.as_str(), cell_style)]);
 
                 // line2: line summary
-                let line2 = Line::from(
-                    vec![
-                        Span::styled("Line: ", Color::Reset),
-                        Span::styled(format!("+{:>7}" ,c.summary.line_add.to_string()), Color::Green),
-                        Span::styled(" ", Color::Reset),
-                        Span::styled(format!("-{:>7}" ,c.summary.line_rem.to_string()), Color::Red),
-                    ]
-                );
+                let line2 = Line::from(vec![
+                    Span::styled("Line: ", Color::Reset),
+                    Span::styled(
+                        format!("+{:>7}", c.summary.line_add.to_string()),
+                        Color::Green,
+                    ),
+                    Span::styled(" ", Color::Reset),
+                    Span::styled(
+                        format!("-{:>7}", c.summary.line_rem.to_string()),
+                        Color::Red,
+                    ),
+                ]);
 
                 // line3: char summary
-                let line3 = Line::from(
-                    vec![
-                        Span::styled("Char: ", Color::Reset),
-                        Span::styled(format!("+{:>7}" ,c.summary.char_add.to_string()), Color::Green),
-                        Span::styled(" ", Color::Reset),
-                        Span::styled(format!("-{:>7}" ,c.summary.char_rem.to_string()), Color::Red),
-                    ]
-                );
+                let line3 = Line::from(vec![
+                    Span::styled("Char: ", Color::Reset),
+                    Span::styled(
+                        format!("+{:>7}", c.summary.char_add.to_string()),
+                        Color::Green,
+                    ),
+                    Span::styled(" ", Color::Reset),
+                    Span::styled(
+                        format!("-{:>7}", c.summary.char_rem.to_string()),
+                        Color::Red,
+                    ),
+                ]);
 
                 // set text
                 let text = match self.summary {
@@ -263,7 +273,9 @@ impl HistoryArea {
             Row::new(cells).height(height as u16)
         });
 
-        let base_selected_style = Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD);
+        let base_selected_style = Style::default()
+            .bg(Color::DarkGray)
+            .add_modifier(Modifier::BOLD);
         let selected_style = match self.active {
             true => match self.get_state_select() == 0 {
                 true => base_selected_style.fg(Color::Gray).bg(LATEST_COLOR), // Necessary to make >> blue
@@ -282,12 +294,10 @@ impl HistoryArea {
                 pane_block = Block::default()
                     .borders(Borders::TOP)
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(
-                        symbols::border::Set {
-                            top_left: symbols::line::NORMAL.horizontal_down,
-                            ..symbols::border::PLAIN
-                        }
-                    );
+                    .border_set(symbols::border::Set {
+                        top_left: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    });
             }
         } else {
             history_width = crate::HISTORY_WIDTH;
@@ -350,13 +360,13 @@ impl HistoryArea {
     ///
     pub fn next(&mut self, num: usize) {
         let i = match self.state.selected() {
-            Some(i) =>{
-            if i > num {
+            Some(i) => {
+                if i > num {
                     i - num
                 } else {
                     0
                 }
-            },
+            }
             None => 0,
         };
         self.state.select(Some(i));
@@ -364,14 +374,14 @@ impl HistoryArea {
 
     ///
     pub fn previous(&mut self, num: usize) {
-        let i= match self.state.selected() {
+        let i = match self.state.selected() {
             Some(i) => {
                 if i + num < self.data.len() - 1 {
                     i + num
                 } else {
                     self.data.len() - 1
                 }
-            },
+            }
             None => 0,
         };
         self.state.select(Some(i));

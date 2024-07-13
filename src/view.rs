@@ -4,12 +4,12 @@
 
 // module
 use crossbeam_channel::{Receiver, Sender};
-use std::time::Duration;
 use crossterm::{
     event::DisableMouseCapture,
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::time::Duration;
 use std::{
     error::Error,
     io,
@@ -21,7 +21,7 @@ use tui::{backend::CrosstermBackend, Terminal};
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
-use crate::keymap::{Keymap, default_keymap};
+use crate::keymap::{default_keymap, Keymap};
 
 // local const
 use crate::Interval;
@@ -32,6 +32,7 @@ use crate::DEFAULT_TAB_SIZE;
 pub struct View {
     after_command: String,
     interval: Interval,
+    output_width: Arc<RwLock<Option<usize>>>,
     tab_size: u16,
     limit: u32,
     keymap: Keymap,
@@ -52,10 +53,11 @@ pub struct View {
 
 ///
 impl View {
-    pub fn new(interval: Interval) -> Self {
+    pub fn new(interval: Interval, output_width: Arc<RwLock<Option<usize>>>) -> Self {
         Self {
             after_command: "".to_string(),
             interval,
+            output_width,
             tab_size: DEFAULT_TAB_SIZE,
             limit: 0,
             keymap: default_keymap(),
@@ -188,7 +190,7 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone());
+        let mut app = App::new(tx, rx, self.interval.clone(), self.output_width.clone());
 
         // set keymap
         app.set_keymap(self.keymap.clone());

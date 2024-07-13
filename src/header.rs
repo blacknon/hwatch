@@ -7,12 +7,11 @@
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
 use tui::{
+    prelude::Line,
     style::{Color, Modifier, Style},
     text::Span,
-
     widgets::Paragraph,
     Frame,
-    prelude::Line,
 };
 
 // local module
