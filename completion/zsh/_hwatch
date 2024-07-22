@@ -1,12 +1,75 @@
 #compdef hwatch
+
+autoload -U is-at-least
+
 _hwatch() {
-    _arguments -s \
-        '(-h --help)'{-h,--help}'[show help]' \
-        '(-V --version)'{-V,--version}'[show version]' \
-        '(-c --color)'{-c,--color}'[interpret ANSI color and style sequences]' \
-        '(-d --differences)'{-d,--differences}'[highlight changes between updates]' \
-        '(-l --logfile)'{-l,--logfile}'+[logging file]:include file:_files' \
-        '(-n --interval)'{-n,--interval}'[seconds to wait between updates]:num:_values num 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20' \
-        '(-):command: _command_names' \
-        '*::args: _normal'
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'*-A+[Executes the specified command if the output changes. Information about changes is stored in json format in environment variable \${HWATCH_DATA}.]: :_cmdstring' \
+'*--aftercommand=[Executes the specified command if the output changes. Information about changes is stored in json format in environment variable \${HWATCH_DATA}.]: :_cmdstring' \
+'*-l+[logging file]' \
+'*--logfile=[logging file]' \
+'*-s+[shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.]: :_cmdstring' \
+'*--shell=[shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.]: :_cmdstring' \
+'*-n+[seconds to wait between updates]: : ' \
+'*--interval=[seconds to wait between updates]: : ' \
+'-L+[Set the number of history records to keep. only work in watch mode. Set \`0\` for unlimited recording. (default\: 5000)]: : ' \
+'--limit=[Set the number of history records to keep. only work in watch mode. Set \`0\` for unlimited recording. (default\: 5000)]: : ' \
+'*--tab-size=[Specifying tab display size]: : ' \
+'*-d+[highlight changes between updates]' \
+'*--differences=[highlight changes between updates]' \
+'*-o+[Select command output.]' \
+'*--output=[Select command output.]' \
+'*-K+[Add keymap]: : ' \
+'*--keymap=[Add keymap]: : ' \
+'-b[output exection results to stdout]' \
+'--batch[output exection results to stdout]' \
+'-B[beep if command has a change result]' \
+'--beep[beep if command has a change result]' \
+'--border[Surround each pane with a border frame]' \
+'--with-scrollbar[When the border option is enabled, display scrollbar on the right side of watch pane.]' \
+'--mouse[enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.]' \
+'-c[interpret ANSI color and style sequences]' \
+'--color[interpret ANSI color and style sequences]' \
+'-r[display text upside down.]' \
+'--reverse[display text upside down.]' \
+'-C[Compress data in memory. Note\: If the output of the command is small, you may not get the desired effect.]' \
+'--compress[Compress data in memory. Note\: If the output of the command is small, you may not get the desired effect.]' \
+'-t[hide the UI on start. Use \`t\` to toggle it.]' \
+'--no-title[hide the UI on start. Use \`t\` to toggle it.]' \
+'-N[show line number]' \
+'--line-number[show line number]' \
+'--no-help-banner[hide the "Display help with h key" message]' \
+'-x[Run the command directly, not through the shell. Much like the \`-x\` option of the watch command.]' \
+'--exec[Run the command directly, not through the shell. Much like the \`-x\` option of the watch command.]' \
+'-O[Display only the lines with differences during \`line\` diff and \`word\` diff.]' \
+'--diff-output-only[Display only the lines with differences during \`line\` diff and \`word\` diff.]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+'*::command:_cmdambivalent' \
+&& ret=0
 }
+
+(( $+functions[_hwatch_commands] )) ||
+_hwatch_commands() {
+    local commands; commands=()
+    _describe -t commands 'hwatch commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_hwatch" ]; then
+    _hwatch "$@"
+else
+    compdef _hwatch hwatch
+fi
