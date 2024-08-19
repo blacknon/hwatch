@@ -4,9 +4,9 @@
 
 // module
 use crossbeam_channel::{Receiver, Sender};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{Event, DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,12 +16,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tui::{backend::CrosstermBackend, Terminal};
+use std::os::unix::io::AsRawFd; // 追加
 
 // local module
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::keymap::{Keymap, default_keymap};
+use termios::*;
 
 // local const
 use crate::Interval;
@@ -172,6 +174,7 @@ impl View {
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
         enable_raw_mode()?;
+        // set_noncanonical_mode()?;
 
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
@@ -182,8 +185,13 @@ impl View {
 
         {
             let input_tx = tx.clone();
+            let mut last_event_time = Instant::now();
             let _ = std::thread::spawn(move || loop {
-                let _ = send_input(input_tx.clone());
+                match send_input(input_tx.clone(), &last_event_time) {
+                    Ok(true) => last_event_time = Instant::now(),
+                    Ok(false) => {}
+                    Err(_) => {},
+                }
             });
         }
 
@@ -243,6 +251,7 @@ impl View {
         let res = app.run(&mut terminal);
 
         // exit app and restore terminal
+        // reset_terminal_mode()?;
         restore_terminal();
         if let Err(err) = res {
             println!("{err:?}")
@@ -268,10 +277,70 @@ fn restore_terminal() {
     let _ = terminal.show_cursor();
 }
 
-fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
+fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
     if crossterm::event::poll(Duration::from_millis(100))? {
+        let now = Instant::now();
+
+        // read event
         let event = crossterm::event::read()?;
-        let _ = tx.send(AppEvent::TerminalEvent(event));
+
+        let mut is_mouse_event = false;
+        if let Event::Mouse(_) = event {
+            is_mouse_event = true;
+        }
+
+        // check if 100ms has passed since the last event
+        if now.duration_since(*last_event_time) >= Duration::from_millis(5) {
+            match event {
+                Event::Key(key) => {
+                    if key.code != crossterm::event::KeyCode::Esc || now.duration_since(*last_event_time) >= Duration::from_millis(500) {
+                        let _ = tx.send(AppEvent::TerminalEvent(event));
+                    }
+                },
+
+                _ => {
+                    let _ = tx.send(AppEvent::TerminalEvent(event));
+                },
+            }
+
+            // buffer clearing
+            while crossterm::event::poll(Duration::from_millis(0))? {
+                let _ = crossterm::event::read()?;
+            }
+
+            return Ok(is_mouse_event);
+        } else {
+            // buffer clearing
+            while crossterm::event::poll(Duration::from_millis(0))? {
+                let _ = crossterm::event::read()?;
+            }
+
+            return Ok(is_mouse_event);
+        }
     }
-    Ok(())
+    Ok(false)
 }
+
+// fn set_noncanonical_mode() -> io::Result<()> {
+//     let stdin_fd = io::stdin().as_raw_fd();
+//     let mut termios = Termios::from_fd(stdin_fd)?;
+
+//     // 非カノニカルモードを設定（ICANONを無効化）
+//     termios.c_lflag &= !(ICANON | ECHO); // ICANONとECHOを無効化して即時入力を有効にする
+//     termios.c_cc[VMIN] = 1; // 最低1文字の入力で処理する
+//     termios.c_cc[VTIME] = 0; // タイムアウトはなし
+
+//     // 設定を適用
+//     tcsetattr(stdin_fd, TCSANOW, &termios)?;
+//     Ok(())
+// }
+
+// fn reset_terminal_mode() -> io::Result<()> {
+//     let stdin_fd = io::stdin().as_raw_fd();
+//     let mut termios = Termios::from_fd(stdin_fd)?;
+
+//     // ターミナルの設定をリセット
+//     termios.c_lflag |= ICANON | ECHO; // カノニカルモードとエコーを再有効化
+//     tcsetattr(stdin_fd, TCSANOW, &termios)?;
+//     Ok(())
+// }
