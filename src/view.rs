@@ -16,14 +16,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tui::{backend::CrosstermBackend, Terminal};
-use std::os::unix::io::AsRawFd; // 追加
 
 // local module
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::keymap::{Keymap, default_keymap};
-use termios::*;
 
 // local const
 use crate::Interval;
@@ -277,6 +275,7 @@ fn restore_terminal() {
     let _ = terminal.show_cursor();
 }
 
+#[cfg(target_os = "macos")]
 fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
     if crossterm::event::poll(Duration::from_millis(100))? {
         let now = Instant::now();
@@ -321,26 +320,12 @@ fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<boo
     Ok(false)
 }
 
-// fn set_noncanonical_mode() -> io::Result<()> {
-//     let stdin_fd = io::stdin().as_raw_fd();
-//     let mut termios = Termios::from_fd(stdin_fd)?;
-
-//     // 非カノニカルモードを設定（ICANONを無効化）
-//     termios.c_lflag &= !(ICANON | ECHO); // ICANONとECHOを無効化して即時入力を有効にする
-//     termios.c_cc[VMIN] = 1; // 最低1文字の入力で処理する
-//     termios.c_cc[VTIME] = 0; // タイムアウトはなし
-
-//     // 設定を適用
-//     tcsetattr(stdin_fd, TCSANOW, &termios)?;
-//     Ok(())
-// }
-
-// fn reset_terminal_mode() -> io::Result<()> {
-//     let stdin_fd = io::stdin().as_raw_fd();
-//     let mut termios = Termios::from_fd(stdin_fd)?;
-
-//     // ターミナルの設定をリセット
-//     termios.c_lflag |= ICANON | ECHO; // カノニカルモードとエコーを再有効化
-//     tcsetattr(stdin_fd, TCSANOW, &termios)?;
-//     Ok(())
-// }
+#[cfg(not(target_os = "macos"))]
+fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
+    if crossterm::event::poll(Duration::from_millis(100))? {
+        // read event
+        let event = crossterm::event::read()?;
+        let _ = tx.send(AppEvent::TerminalEvent(event));
+    }
+    Ok(false)
+}

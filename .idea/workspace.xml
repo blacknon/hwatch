@@ -4,7 +4,18 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="beda9063-2ad7-4e69-aa18-ae03d002e63f" name="Changes" comment="" />
+    <list default="true" id="beda9063-2ad7-4e69-aa18-ae03d002e63f" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/hwatch.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/material_theme_project_new.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/help.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/help.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/keymap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/keymap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/view.rs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -28,7 +39,7 @@
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.rust.reset.selective.auto.import": "true",
-    "git-widget-placeholder": "topic/change__keyinput__crossterm__to__termwiz",
+    "git-widget-placeholder": "topic/mouse__bug__poc",
     "last_opened_file_path": "/Users/uesugi/_rust/hwatch",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -49,7 +60,7 @@
       <updated>1722958907656</updated>
       <workItem from="1722958908934" duration="1566000" />
       <workItem from="1723277439421" duration="2538000" />
-      <workItem from="1723513592153" duration="13180000" />
+      <workItem from="1723513592153" duration="13780000" />
     </task>
     <servers />
   </component>
