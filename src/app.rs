@@ -8,11 +8,13 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEvent, KeyModifiers,
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
+        MouseEvent,
     },
     execute,
 };
 use regex::Regex;
+use std::thread;
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -23,24 +25,26 @@ use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame, Terminal,
 };
-use std::thread;
 
 // local module
-use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
-use crate::history::{History, HistorySummary, HistoryArea};
-use crate::keymap::{Keymap, default_keymap, InputAction};
+use crate::history::{History, HistoryArea, HistorySummary};
+use crate::keymap::{default_keymap, InputAction, Keymap};
 use crate::output;
 use crate::watch::WatchArea;
+use crate::{
+    common::{logging_result, DiffMode, OutputMode},
+    keymap::InputEventContents,
+};
 
 // local const
-use crate::HISTORY_WIDTH;
 use crate::DEFAULT_TAB_SIZE;
-use crate::Interval;
+use crate::HISTORY_WIDTH;
+use crate::{Interval, OutputWidthShared};
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -159,6 +163,9 @@ pub struct App<'a> {
     interval: Interval,
 
     ///
+    output_width: OutputWidthShared,
+
+    ///
     tab_size: u16,
 
     ///
@@ -203,6 +210,7 @@ impl<'a> App<'a> {
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
         interval: Interval,
+        output_width: OutputWidthShared,
     ) -> Self {
         // method at create new view trail.
         Self {
@@ -239,6 +247,7 @@ impl<'a> App<'a> {
             results_stderr: HashMap::new(),
 
             interval: interval.clone(),
+            output_width,
             tab_size: DEFAULT_TAB_SIZE,
 
             header_area: HeaderArea::new(*interval.read().unwrap()),
@@ -328,7 +337,14 @@ impl<'a> App<'a> {
 
     ///
     pub fn draw(&mut self, f: &mut Frame) {
+        // !!
         self.define_subareas(f.size());
+
+        {
+            let mut cur_output_width = self.output_width.write().unwrap();
+            // TODO: Account for the border
+            *cur_output_width = Some(self.watch_area.get_pane_width() as usize);
+        }
 
         if self.show_header {
             // Draw header area.
@@ -424,11 +440,14 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_input_action(&self, terminal_event: &crossterm::event::Event) -> Option<&InputEventContents> {
+    fn get_input_action(
+        &self,
+        terminal_event: &crossterm::event::Event,
+    ) -> Option<&InputEventContents> {
         match terminal_event {
             &Event::Key(_) => {
                 return self.keymap.get(terminal_event);
-            },
+            }
             &Event::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.kind,
@@ -437,8 +456,7 @@ impl<'a> App<'a> {
                     modifiers: KeyModifiers::empty(),
                 };
                 return self.keymap.get(&Event::Mouse(mouse_event));
-
-            },
+            }
             _ => {
                 return None;
             }
@@ -488,7 +506,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn set_keymap(&mut self,keymap: Keymap) {
+    pub fn set_keymap(&mut self, keymap: Keymap) {
         self.keymap = keymap.clone();
         self.help_window = HelpWindow::new(self.keymap.clone());
     }
@@ -753,7 +771,6 @@ impl<'a> App<'a> {
             new_select = Some(get_near_index(&results, selected));
         }
 
-
         // sort tmp_history, to push history
         let mut history = vec![];
         tmp_history.sort_by(|a, b| b.num.cmp(&a.num));
@@ -771,7 +788,6 @@ impl<'a> App<'a> {
         // reset data.
         self.history_area.reset_history_data(history);
         self.history_area.set_state_select(new_select.unwrap());
-
     }
 
     ///
@@ -808,7 +824,7 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result:CommandResult = (*results[&latest_num].command_result).clone();
+            let before_result: CommandResult = (*results[&latest_num].command_result).clone();
             let after_result = _result.clone();
 
             {
@@ -840,8 +856,12 @@ impl<'a> App<'a> {
         if self.is_filtered {
             let result_text = match self.output_mode {
                 OutputMode::Output => self.results[&result_index].command_result.get_output(),
-                OutputMode::Stdout => self.results_stdout[&result_index].command_result.get_stdout(),
-                OutputMode::Stderr => self.results_stderr[&result_index].command_result.get_stderr(),
+                OutputMode::Stdout => self.results_stdout[&result_index]
+                    .command_result
+                    .get_stdout(),
+                OutputMode::Stderr => self.results_stderr[&result_index]
+                    .command_result
+                    .get_stderr(),
             };
 
             match self.is_regex_filter {
@@ -864,19 +884,17 @@ impl<'a> App<'a> {
         let mut selected = self.history_area.get_state_select();
         if is_push {
             match self.output_mode {
-                OutputMode::Output => {
-                    self.add_history(result_index, selected)
-                },
+                OutputMode::Output => self.add_history(result_index, selected),
                 OutputMode::Stdout => {
                     if is_update_stdout {
                         self.add_history(result_index, selected)
                     }
-                },
+                }
                 OutputMode::Stderr => {
                     if is_update_stderr {
                         self.add_history(result_index, selected)
                     }
-                },
+                }
             }
         }
         selected = self.history_area.get_state_select();
@@ -906,18 +924,25 @@ impl<'a> App<'a> {
         if result_index > 0 {
             let latest_num = result_index - 1;
             let latest_result = self.results[&latest_num].clone();
-            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output());
+            rc_output_result.summary.calc(
+                &latest_result.command_result.get_output(),
+                &rc_output_result.command_result.get_output(),
+            );
         }
         self.results.insert(result_index, rc_output_result.clone());
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index]
+            .command_result
+            .get_stdout();
         let result_stdout = &rc_result.get_stdout();
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index]
+            .command_result
+            .get_stderr();
         let result_stderr = &rc_result.get_stderr();
 
         // append results_stdout
@@ -928,7 +953,9 @@ impl<'a> App<'a> {
                 command_result: Rc::clone(&rc_result),
                 summary: HistorySummary::init(),
             };
-            rc_stdout_result.summary.calc(before_result_stdout, result_stdout);
+            rc_stdout_result
+                .summary
+                .calc(before_result_stdout, result_stdout);
             self.results_stdout.insert(result_index, rc_stdout_result);
         }
 
@@ -940,7 +967,9 @@ impl<'a> App<'a> {
                 command_result: Rc::clone(&rc_result),
                 summary: HistorySummary::init(),
             };
-            rc_stderr_result.summary.calc(before_result_stderr, result_stderr);
+            rc_stderr_result
+                .summary
+                .calc(before_result_stderr, result_stderr);
             self.results_stderr.insert(result_index, rc_stderr_result);
         }
 
@@ -988,7 +1017,12 @@ impl<'a> App<'a> {
             }
         }
 
-        return (result_index, is_limit_over,  is_stdout_update, is_stderr_update);
+        return (
+            result_index,
+            is_limit_over,
+            is_stdout_update,
+            is_stderr_update,
+        );
     }
 
     ///
@@ -1004,28 +1038,28 @@ impl<'a> App<'a> {
                                 KeyCode::Char('y') => {
                                     self.exit();
                                     return;
-                                },
+                                }
                                 KeyCode::Char('q') => {
                                     self.exit();
                                     return;
-                                },
+                                }
                                 KeyCode::Char('n') => {
                                     self.window = ActiveWindow::Normal;
                                     return;
-                                },
+                                }
                                 KeyCode::Char('h') => {
                                     self.window = ActiveWindow::Help;
                                     return;
-                                },
+                                }
                                 // default
                                 _ => {}
                             }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         if let Some(event_content) = self.get_input_action(&terminal_event) {
@@ -1033,22 +1067,22 @@ impl<'a> App<'a> {
             match self.window {
                 ActiveWindow::Normal => {
                     match action {
-                        InputAction::Up => self.action_up(), // Up
-                        InputAction::WatchPaneUp => self.action_watch_up(), // Watch Pane Up
+                        InputAction::Up => self.action_up(),                        // Up
+                        InputAction::WatchPaneUp => self.action_watch_up(),         // Watch Pane Up
                         InputAction::HistoryPaneUp => self.action_history_up(), // History Pane Up
-                        InputAction::Down => self.action_down(), // Dow
+                        InputAction::Down => self.action_down(),                // Dow
                         InputAction::WatchPaneDown => self.action_watch_down(), // Watch Pane Down
                         InputAction::HistoryPaneDown => self.action_history_down(), // History Pane Down
-                        InputAction::PageUp => self.action_pgup(), // PageUp
+                        InputAction::PageUp => self.action_pgup(),                  // PageUp
                         InputAction::WatchPanePageUp => self.action_watch_pgup(), // Watch Pane PageUp
                         InputAction::HistoryPanePageUp => self.action_history_pgup(), // History Pane PageUp
-                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::PageDown => self.action_pgdn(),                  // PageDown
                         InputAction::WatchPanePageDown => self.action_watch_pgdn(), // Watch Pane PageDown
                         InputAction::HistoryPanePageDown => self.action_history_pgdn(), // History Pane PageDown
-                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::MoveTop => self.action_top(),                      // MoveTop
                         InputAction::WatchPaneMoveTop => self.watch_area.scroll_home(), // Watch Pane MoveTop
                         InputAction::HistoryPaneMoveTop => self.action_history_top(), // History Pane MoveTop
-                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::MoveEnd => self.action_end(),                    // MoveEnd
                         InputAction::WatchPaneMoveEnd => self.watch_area.scroll_end(), // Watch Pane MoveEnd
                         InputAction::HistoryPaneMoveEnd => self.action_history_end(), // History Pane MoveEnd
                         InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
@@ -1060,15 +1094,17 @@ impl<'a> App<'a> {
                             } else {
                                 self.show_exit_popup();
                             }
-                        }, // Quit
+                        } // Quit
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
                         // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
-                        InputAction::Help => self.toggle_window(), // Help
+                        InputAction::Help => self.toggle_window(),         // Help
                         InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
                         InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
                         InputAction::ToggleReverse => self.set_reverse(!self.reverse), // ToggleReverse
-                        InputAction::ToggleMouseSupport => self.set_mouse_events(!self.mouse_events), // ToggleMouseSupport
+                        InputAction::ToggleMouseSupport => {
+                            self.set_mouse_events(!self.mouse_events)
+                        } // ToggleMouseSupport
                         InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header), // ToggleViewPaneUI
                         InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
                         InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
@@ -1076,22 +1112,34 @@ impl<'a> App<'a> {
                         InputAction::ToggleBorderWithScrollBar => {
                             self.set_border(!self.is_border);
                             self.set_scroll_bar(!self.is_scroll_bar);
-                        }, // ToggleBorderWithScrollBar
+                        } // ToggleBorderWithScrollBar
                         InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
                         InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
                         InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
                         InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
                         InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
-                        InputAction::SetDiffOnly => self.set_is_only_diffline(!self.is_only_diffline), // SetOnlyDiffLine
+                        InputAction::SetDiffOnly => {
+                            self.set_is_only_diffline(!self.is_only_diffline)
+                        } // SetOnlyDiffLine
                         InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
-                        InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
-                        InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
-                        InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
-                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
+                        InputAction::SetOutputModeOutput => {
+                            self.set_output_mode(OutputMode::Output)
+                        } // SetOutputModeOutput
+                        InputAction::SetOutputModeStdout => {
+                            self.set_output_mode(OutputMode::Stdout)
+                        } // SetOutputModeStdout
+                        InputAction::SetOutputModeStderr => {
+                            self.set_output_mode(OutputMode::Stderr)
+                        } // SetOutputModeStderr
+                        InputAction::ToggleHistorySummary => {
+                            self.set_history_summary(!self.is_history_summary)
+                        } // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
-                        InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
+                        InputAction::ChangeRegexFilterMode => {
+                            self.set_input_mode(InputMode::RegexFilter)
+                        } // Change Filter Mode(regex text).
 
                         // MouseScrollDown
                         InputAction::MouseScrollDown => {
@@ -1100,7 +1148,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_down(0, 0)
                             }
-                        },
+                        }
 
                         // MouseScrollUp
                         InputAction::MouseScrollUp => {
@@ -1109,7 +1157,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_up(0, 0)
                             }
-                        },
+                        }
 
                         // MouseButtonLeft
                         InputAction::MouseButtonLeft => {
@@ -1118,7 +1166,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_click_left(0, 0)
                             }
-                        },
+                        }
 
                         // default
                         _ => {}
@@ -1140,7 +1188,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.show_exit_popup();
                             }
-                        },
+                        }
                         InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
                         // MouseScrollDown
@@ -1150,7 +1198,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_down(0, 0)
                             }
-                        },
+                        }
 
                         // MouseScrollUp
                         InputAction::MouseScrollUp => {
@@ -1159,23 +1207,23 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_up(0, 0)
                             }
-                        },
+                        }
 
                         // default
                         _ => {}
                     }
-                },
+                }
                 ActiveWindow::Exit => {
                     match action {
-                        InputAction::Quit => self.exit(), // Quit
-                        InputAction::Cancel => self.exit(), // Cancel
+                        InputAction::Quit => self.exit(),                         // Quit
+                        InputAction::Cancel => self.exit(),                       // Cancel
                         InputAction::Reset => self.window = ActiveWindow::Normal, // Reset
                         _ => {}
                     }
                 }
             }
 
-            return
+            return;
         }
     }
 
@@ -1193,7 +1241,11 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_default_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+    fn get_default_filter_input_key(
+        &mut self,
+        is_regex: bool,
+        terminal_event: crossterm::event::Event,
+    ) {
         if let Event::Key(key) = terminal_event {
             if key.kind == KeyEventKind::Press {
                 match key.code {
@@ -1286,7 +1338,7 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1323,7 +1375,7 @@ impl<'a> App<'a> {
             timestamp.to_string(),
             *status,
             result_index as u16,
-            history_summary
+            history_summary,
         );
 
         // update selected
@@ -1389,17 +1441,13 @@ impl<'a> App<'a> {
     fn action_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {
-                    self.action_watch_up()
-                }
-                ActiveArea::History => {
-                    self.action_history_up()
-                }
+                ActiveArea::Watch => self.action_watch_up(),
+                ActiveArea::History => self.action_history_up(),
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_up(1);
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1423,17 +1471,13 @@ impl<'a> App<'a> {
     fn action_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {
-                    self.action_watch_down()
-                }
-                ActiveArea::History => {
-                    self.action_history_down()
-                }
+                ActiveArea::Watch => self.action_watch_down(),
+                ActiveArea::History => self.action_history_down(),
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_down(1);
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1456,19 +1500,18 @@ impl<'a> App<'a> {
     ///
     fn action_pgup(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
-                    ActiveArea::Watch => {
-                        self.action_watch_pgup();
-                    },
-                    ActiveArea::History => {
-                        self.action_history_pgup();
-                    }
-                },
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.action_watch_pgup();
+                }
+                ActiveArea::History => {
+                    self.action_history_pgup();
+                }
+            },
             ActiveWindow::Help => {
                 self.help_window.page_up();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1487,11 +1530,7 @@ impl<'a> App<'a> {
     fn action_history_pgup(&mut self) {
         // move next history
         let area_size = self.history_area.area.height;
-        let move_size = if area_size > 1 {
-            area_size - 1
-        } else {
-            1
-        };
+        let move_size = if area_size > 1 { area_size - 1 } else { 1 };
 
         // up
         self.history_area.next(move_size as usize);
@@ -1504,20 +1543,18 @@ impl<'a> App<'a> {
     ///
     fn action_pgdn(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
-                    ActiveArea::Watch => {
-                        self.action_watch_pgdn();
-                    },
-                    ActiveArea::History => {
-
-                        self.action_history_pgdn();
-                    },
-                },
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.action_watch_pgdn();
+                }
+                ActiveArea::History => {
+                    self.action_history_pgdn();
+                }
+            },
             ActiveWindow::Help => {
                 self.help_window.page_down();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1536,11 +1573,7 @@ impl<'a> App<'a> {
     fn action_history_pgdn(&mut self) {
         // move previous history
         let area_size = self.history_area.area.height;
-        let move_size = if area_size > 1 {
-            area_size - 1
-        } else {
-            1
-        };
+        let move_size = if area_size > 1 { area_size - 1 } else { 1 };
 
         // down
         self.history_area.previous(move_size as usize);
@@ -1553,15 +1586,14 @@ impl<'a> App<'a> {
     ///
     fn action_top(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
+            ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_home(),
                 ActiveArea::History => self.action_history_top(),
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_top();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1578,15 +1610,14 @@ impl<'a> App<'a> {
     ///
     fn action_end(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
-                    ActiveArea::Watch => self.watch_area.scroll_end(),
-                    ActiveArea::History => self.action_history_end(),
-                },
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => self.watch_area.scroll_end(),
+                ActiveArea::History => self.action_history_end(),
+            },
             ActiveWindow::Help => {
                 self.help_window.scroll_end();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1667,7 +1698,7 @@ impl<'a> App<'a> {
                     match self.area {
                         ActiveArea::Watch => {
                             self.watch_area.scroll_up(2);
-                        },
+                        }
                         ActiveArea::History => {
                             self.history_area.next(1);
 
@@ -1686,12 +1717,11 @@ impl<'a> App<'a> {
                         self.watch_area.scroll_up(2);
                     }
                 }
-
-            },
+            }
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
@@ -1703,7 +1733,7 @@ impl<'a> App<'a> {
                     match self.area {
                         ActiveArea::Watch => {
                             self.watch_area.scroll_down(2);
-                        },
+                        }
                         ActiveArea::History => {
                             self.history_area.previous(1);
 
@@ -1722,17 +1752,18 @@ impl<'a> App<'a> {
                         self.watch_area.scroll_down(2);
                     }
                 }
-            },
+            }
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
     ///
     fn exit(&mut self) {
-        self.tx.send(AppEvent::Exit)
+        self.tx
+            .send(AppEvent::Exit)
             .expect("send error hwatch exit.");
     }
 }
@@ -1774,7 +1805,7 @@ fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize 
             return get_results_next_index(results, index);
         }
         // return get_results_next_index(results, index)
-        return get_results_previous_index(results, index)
+        return get_results_previous_index(results, index);
     }
 }
 
@@ -1804,7 +1835,6 @@ fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usiz
     }
 
     return previous_index;
-
 }
 
 fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {

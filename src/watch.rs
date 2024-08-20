@@ -3,11 +3,11 @@
 // that can be found in the LICENSE file.
 
 use tui::{
-    style::{Style, Color},
     prelude::{Line, Margin},
+    style::{Color, Style},
     symbols,
     symbols::scrollbar,
-    widgets::{Paragraph, Wrap, Block, Borders, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
 
@@ -63,10 +63,19 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    // TODO: Rename to get_area_height?
     pub fn get_area_size(&mut self) -> i16 {
         let height = self.area.height as i16;
 
-        return height
+        return height;
+    }
+
+    pub fn get_pane_width(&mut self) -> u16 {
+        let mut pane_width: u16 = self.area.width;
+        if self.border && pane_width > 0 {
+            pane_width -= 1;
+        }
+        pane_width
     }
 
     ///
@@ -100,22 +109,18 @@ impl<'a> WatchArea<'a> {
                 pane_block = Block::default()
                     .borders(Borders::RIGHT)
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(
-                        symbols::border::Set {
-                            top_right: symbols::line::NORMAL.horizontal_down,
-                            ..symbols::border::PLAIN
-                        }
-                    );
+                    .border_set(symbols::border::Set {
+                        top_right: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    });
             } else {
                 pane_block = Block::default()
                     .borders(Borders::TOP | Borders::RIGHT)
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(
-                        symbols::border::Set {
-                            top_right: symbols::line::NORMAL.horizontal_down,
-                            ..symbols::border::PLAIN
-                        }
-                    );
+                    .border_set(symbols::border::Set {
+                        top_right: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    });
             }
         } else {
             pane_block = Block::default()
@@ -129,12 +134,7 @@ impl<'a> WatchArea<'a> {
             .scroll((self.position as u16, 0));
 
         // get self.lines
-        let mut pane_width: u16 = self.area.width as u16;
-        if self.border {
-            pane_width = pane_width - 1;
-        }
-
-        self.lines = block.line_count(pane_width) as i16;
+        self.lines = block.line_count(self.get_pane_width()) as i16;
 
         frame.render_widget(block, self.area);
 
@@ -150,7 +150,7 @@ impl<'a> WatchArea<'a> {
                     .begin_symbol(None)
                     .track_symbol(None)
                     .end_symbol(None),
-            self.area.inner(&Margin {
+                self.area.inner(&Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
@@ -196,5 +196,4 @@ impl<'a> WatchArea<'a> {
             self.position = self.lines - height as i16;
         }
     }
-
 }

@@ -3,10 +3,10 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::{Receiver, Sender};
-use std::{io, collections::HashMap};
 use std::thread;
+use std::{collections::HashMap, io};
 
-use crate::common::{DiffMode, OutputMode, logging_result};
+use crate::common::{logging_result, DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
@@ -93,10 +93,10 @@ impl Batch {
                     if _exec_return && self.is_beep {
                         println!("\x07")
                     }
-                },
+                }
 
                 // Other event
-                Ok(_) => {},
+                Ok(_) => {}
 
                 // Error
                 Err(_) => {}
@@ -172,7 +172,10 @@ impl Batch {
 
         // print split line
         if self.is_color {
-            println!("\x1b[38;5;240m=====[{:}]=========================\x1b[0m", timestamp_dst);
+            println!(
+                "\x1b[38;5;240m=====[{:}]=========================\x1b[0m",
+                timestamp_dst
+            );
         } else {
             println!("=====[{:}]=========================", timestamp_dst);
         }
@@ -228,6 +231,4 @@ impl Batch {
         self.logfile = logfile;
         self
     }
-
-
 }
