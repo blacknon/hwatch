@@ -17,7 +17,7 @@ chrono = "0.4.34"
 clap = {version = "4.5.3", features = ["cargo"]}
 config = {version = "0.14", default-features = false, features = ["ini"]}
 crossbeam-channel = "0.5.12"
-crossterm = "0.27.0"
+crossterm = "0.28.1"
 ctrlc = {version = "3.4.2", features = ["termination"]}
 encoding_rs = "0.8"
 error-stack = "0.4.1"
@@ -25,7 +25,7 @@ flate2 = "1.0.19"
 futures = "0.3.30"
 heapless = "0.8.0"
 question = "0.2.2"
-ratatui = {version = "0.26.3", default-features = false, features = ['crossterm', 'unstable-rendered-line-info']}
+ratatui = {version = "0.28.0", default-features = false, features = ['crossterm', 'unstable-rendered-line-info']}
 regex = "1.10.3"
 serde = "1.0.197"
 serde_derive = "1.0.197"
