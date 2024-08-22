@@ -320,6 +320,18 @@ fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<boo
     Ok(false)
 }
 
+// #[cfg(target_os = "macos")]
+// fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
+//     if crossterm::event::poll(Duration::from_millis(100))? {
+//         // read event
+//         let event = crossterm::event::read()?;
+//         let _ = tx.send(AppEvent::TerminalEvent(event));
+//     }
+//     Ok(false)
+// }
+
+
+
 #[cfg(not(target_os = "macos"))]
 fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
     if crossterm::event::poll(Duration::from_millis(100))? {

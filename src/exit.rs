@@ -40,7 +40,7 @@ impl<'a> ExitWindow<'a> {
         let title = " [exit] ";
 
         // TODO: 枠を含めて3行にする
-        let size = f.size();
+        let size = f.area();
         self.area = centered_rect_with_size(5, 32, size);
 
         // create block.
