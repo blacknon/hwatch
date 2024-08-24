@@ -4,9 +4,9 @@
 
 // module
 use crossbeam_channel::{Receiver, Sender};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use crossterm::{
-    event::{Event, DisableMouseCapture, EnableMouseCapture},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,6 +16,15 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tui::{backend::CrosstermBackend, Terminal};
+
+// non blocking io
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use std::{
+    io::stdin,
+    os::unix::io::AsRawFd,
+};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
 
 // local module
 use crate::app::App;
@@ -172,25 +181,24 @@ impl View {
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
         enable_raw_mode()?;
-        // set_noncanonical_mode()?;
 
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
 
         let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
+        let mut terminal: Terminal<CrosstermBackend<io::Stdout>> = Terminal::new(backend)?;
         let _ = terminal.clear();
 
         {
             let input_tx = tx.clone();
-            let mut last_event_time = Instant::now();
-            let _ = std::thread::spawn(move || loop {
-                match send_input(input_tx.clone(), &last_event_time) {
-                    Ok(true) => last_event_time = Instant::now(),
-                    Ok(false) => {}
-                    Err(_) => {},
+            let _ = std::thread::spawn(move || {
+                    // non blocking io
+                    #[cfg(any(target_os = "linux", target_os = "macos"))]
+                    loop {
+                        let _ = send_input(input_tx.clone());
+                    }
                 }
-            });
+            );
         }
 
         // Create App
@@ -275,69 +283,49 @@ fn restore_terminal() {
     let _ = terminal.show_cursor();
 }
 
-#[cfg(target_os = "macos")]
-fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
+fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
+    // blocking mode
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    set_blocking()?;
+
     if crossterm::event::poll(Duration::from_millis(100))? {
-        let now = Instant::now();
+        // non blocking mode
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        set_non_blocking()?;
 
         // read event
-        let event = crossterm::event::read()?;
-
-        let mut is_mouse_event = false;
-        if let Event::Mouse(_) = event {
-            is_mouse_event = true;
-        }
-
-        // check if 100ms has passed since the last event
-        if now.duration_since(*last_event_time) >= Duration::from_millis(5) {
-            match event {
-                Event::Key(key) => {
-                    if key.code != crossterm::event::KeyCode::Esc || now.duration_since(*last_event_time) >= Duration::from_millis(500) {
-                        let _ = tx.send(AppEvent::TerminalEvent(event));
-                    }
-                },
-
-                _ => {
-                    let _ = tx.send(AppEvent::TerminalEvent(event));
-                },
-            }
-
-            // buffer clearing
-            while crossterm::event::poll(Duration::from_millis(0))? {
-                let _ = crossterm::event::read()?;
-            }
-
-            return Ok(is_mouse_event);
-        } else {
-            // buffer clearing
-            while crossterm::event::poll(Duration::from_millis(0))? {
-                let _ = crossterm::event::read()?;
-            }
-
-            return Ok(is_mouse_event);
+        if let Ok(event) = crossterm::event::read() {
+            let _ = tx.send(AppEvent::TerminalEvent(event));
         }
     }
-    Ok(false)
+    Ok(())
 }
 
-// #[cfg(target_os = "macos")]
-// fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
-//     if crossterm::event::poll(Duration::from_millis(100))? {
-//         // read event
-//         let event = crossterm::event::read()?;
-//         let _ = tx.send(AppEvent::TerminalEvent(event));
-//     }
-//     Ok(false)
-// }
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn set_blocking() -> nix::Result<()> {
+    let stdin_fd = stdin().as_raw_fd();
+
+    // 現在のフラグを取得
+    let flags = fcntl(stdin_fd, F_GETFL)?;
+
+    // O_NONBLOCKフラグを削除
+    let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
+    fcntl(stdin_fd, F_SETFL(new_flags))?;
+
+    Ok(())
+}
 
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn set_non_blocking() -> nix::Result<()> {
+    let stdin_fd = stdin().as_raw_fd();
 
-#[cfg(not(target_os = "macos"))]
-fn send_input(tx: Sender<AppEvent>, last_event_time: &Instant) -> io::Result<bool> {
-    if crossterm::event::poll(Duration::from_millis(100))? {
-        // read event
-        let event = crossterm::event::read()?;
-        let _ = tx.send(AppEvent::TerminalEvent(event));
-    }
-    Ok(false)
+    // 現在のフラグを取得
+    let flags = fcntl(stdin_fd, F_GETFL)?;
+
+    // O_NONBLOCKフラグを設定
+    let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
+    fcntl(stdin_fd, F_SETFL(new_flags))?;
+
+    Ok(())
 }
