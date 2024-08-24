@@ -284,10 +284,6 @@ fn restore_terminal() {
 }
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
-    // blocking mode
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    set_blocking()?;
-
     if crossterm::event::poll(Duration::from_millis(100))? {
         // non blocking mode
         #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -297,6 +293,10 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         if let Ok(event) = crossterm::event::read() {
             let _ = tx.send(AppEvent::TerminalEvent(event));
         }
+
+        // blocking mode
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        set_blocking()?;
     }
     Ok(())
 }
