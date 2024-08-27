@@ -287,45 +287,39 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
         // non blocking mode
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        set_non_blocking()?;
+        set_nonblocking(true)?;
 
-        // read event
-        if let Ok(event) = crossterm::event::read() {
-            let _ = tx.send(AppEvent::TerminalEvent(event));
-        }
+        // get event
+        let result = crossterm::event::read();
 
         // blocking mode
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        set_blocking()?;
+        set_nonblocking(false)?;
+
+        if let Ok(event) = result {
+            let _ = tx.send(AppEvent::TerminalEvent(event));
+        }
+
+        // clearing buffer
+        while crossterm::event::poll(std::time::Duration::from_millis(0)).unwrap() {
+            let _ = crossterm::event::read()?;
+        }
     }
     Ok(())
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-pub fn set_blocking() -> nix::Result<()> {
+pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
     let stdin_fd = stdin().as_raw_fd();
-
-    // 現在のフラグを取得
     let flags = fcntl(stdin_fd, F_GETFL)?;
 
-    // O_NONBLOCKフラグを削除
-    let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
-    fcntl(stdin_fd, F_SETFL(new_flags))?;
-
-    Ok(())
-}
-
-
-#[cfg(any(target_os = "linux", target_os = "macos"))]
-pub fn set_non_blocking() -> nix::Result<()> {
-    let stdin_fd = stdin().as_raw_fd();
-
-    // 現在のフラグを取得
-    let flags = fcntl(stdin_fd, F_GETFL)?;
-
-    // O_NONBLOCKフラグを設定
-    let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
-    fcntl(stdin_fd, F_SETFL(new_flags))?;
+    if is_nonblocking {
+        let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
+        fcntl(stdin_fd, F_SETFL(new_flags))?;
+    } else {
+        let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
+        fcntl(stdin_fd, F_SETFL(new_flags))?;
+    }
 
     Ok(())
 }
