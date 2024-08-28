@@ -6,7 +6,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use std::time::Duration;
 use crossterm::{
-    event::DisableMouseCapture,
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,6 +16,15 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tui::{backend::CrosstermBackend, Terminal};
+
+// non blocking io
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use std::{
+    io::stdin,
+    os::unix::io::AsRawFd,
+};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
 
 // local module
 use crate::app::App;
@@ -177,14 +186,19 @@ impl View {
         execute!(stdout, EnterAlternateScreen)?;
 
         let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
+        let mut terminal: Terminal<CrosstermBackend<io::Stdout>> = Terminal::new(backend)?;
         let _ = terminal.clear();
 
         {
             let input_tx = tx.clone();
-            let _ = std::thread::spawn(move || loop {
-                let _ = send_input(input_tx.clone());
-            });
+            let _ = std::thread::spawn(move || {
+                    // non blocking io
+                    #[cfg(any(target_os = "linux", target_os = "macos"))]
+                    loop {
+                        let _ = send_input(input_tx.clone());
+                    }
+                }
+            );
         }
 
         // Create App
@@ -197,6 +211,11 @@ impl View {
         app.set_after_command(self.after_command.clone());
 
         // set mouse events
+        // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCatpure can be used
+        // https://github.com/crossterm-rs/crossterm/issues/660
+        if cfg!(target_os = "windows") {
+            execute!(terminal.backend_mut(), EnableMouseCapture)?;
+        }
         app.set_mouse_events(self.mouse_events);
 
         // set limit
@@ -238,6 +257,7 @@ impl View {
         let res = app.run(&mut terminal);
 
         // exit app and restore terminal
+        // reset_terminal_mode()?;
         restore_terminal();
         if let Err(err) = res {
             println!("{err:?}")
@@ -265,8 +285,41 @@ fn restore_terminal() {
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
-        let event = crossterm::event::read()?;
-        let _ = tx.send(AppEvent::TerminalEvent(event));
+        // non blocking mode
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        set_nonblocking(true)?;
+
+        // get event
+        let result = crossterm::event::read();
+
+        // blocking mode
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        set_nonblocking(false)?;
+
+        if let Ok(event) = result {
+            let _ = tx.send(AppEvent::TerminalEvent(event));
+        }
+
+        // clearing buffer
+        while crossterm::event::poll(std::time::Duration::from_millis(0)).unwrap() {
+            let _ = crossterm::event::read()?;
+        }
     }
+    Ok(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
+    let stdin_fd = stdin().as_raw_fd();
+    let flags = fcntl(stdin_fd, F_GETFL)?;
+
+    if is_nonblocking {
+        let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
+        fcntl(stdin_fd, F_SETFL(new_flags))?;
+    } else {
+        let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
+        fcntl(stdin_fd, F_SETFL(new_flags))?;
+    }
+
     Ok(())
 }

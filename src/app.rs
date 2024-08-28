@@ -8,7 +8,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEvent, KeyModifiers,
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEvent
     },
     execute,
 };
@@ -20,7 +20,7 @@ use std::{
 };
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect, Position},
     Frame, Terminal,
 };
 use std::thread;
@@ -328,7 +328,7 @@ impl<'a> App<'a> {
 
     ///
     pub fn draw(&mut self, f: &mut Frame) {
-        self.define_subareas(f.size());
+        self.define_subareas(f.area());
 
         if self.show_header {
             // Draw header area.
@@ -363,7 +363,7 @@ impl<'a> App<'a> {
                 let input_text_y = self.header_area.area.y + 1;
 
                 // set cursor
-                f.set_cursor(input_text_x, input_text_y);
+                f.set_cursor_position(Position { x: input_text_x, y: input_text_y });
             }
 
             _ => {}
@@ -475,7 +475,7 @@ impl<'a> App<'a> {
         let dest: &CommandResult = &results[&target_dst].command_result;
 
         // set old text(text_src)
-        let mut src = &CommandResult::default();
+        let mut src = dest;
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
         }
@@ -1689,7 +1689,7 @@ impl<'a> App<'a> {
 
             },
             ActiveWindow::Help => {
-                self.help_window.scroll_down(2);
+                self.help_window.scroll_up(2);
             },
             _ => {},
         }

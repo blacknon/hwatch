@@ -51,7 +51,7 @@ impl<'a> HelpWindow<'a> {
     pub fn draw(&mut self, f: &mut Frame) {
         let title = " [help] ";
 
-        let size = f.size();
+        let size = f.area();
         self.area = centered_rect(80, 70, size);
 
         let width = self.area.width;
