@@ -135,7 +135,7 @@ fn build_app() -> clap::Command {
         //     [-b,--batch]
         .arg(
             Arg::new("batch")
-                .help("output exection results to stdout")
+                .help("output execution results to stdout")
                 .short('b')
                 .action(ArgAction::SetTrue)
                 .long("batch"),

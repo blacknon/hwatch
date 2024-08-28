@@ -54,7 +54,7 @@ That records the result of command execution and can display it history and diff
           [command]...
 
         Options:
-          -b, --batch                         output exection results to stdout
+          -b, --batch                         output execution results to stdout
           -B, --beep                          beep if command has a change result
               --border                        Surround each pane with a border frame
               --with-scrollbar                When the border option is enabled, display scrollbar on the right side of watch pane.
