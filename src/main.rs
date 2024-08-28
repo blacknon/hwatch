@@ -47,7 +47,9 @@ extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
+extern crate termios;
 extern crate termwiz;
+extern crate nix;
 extern crate ratatui as tui;
 
 // macro crate

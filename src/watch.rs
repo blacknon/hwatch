@@ -150,7 +150,7 @@ impl<'a> WatchArea<'a> {
                     .begin_symbol(None)
                     .track_symbol(None)
                     .end_symbol(None),
-            self.area.inner(&Margin {
+            self.area.inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
