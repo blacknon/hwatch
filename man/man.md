@@ -36,7 +36,7 @@ Flags
 
 -b, \--batch
 
-:   Output exection results to stdout. NOTE: Operations with TUI are not possible in batch mode.
+:   Output execution results to stdout. NOTE: Operations with TUI are not possible in batch mode.
 
 
 -B, \--beep
