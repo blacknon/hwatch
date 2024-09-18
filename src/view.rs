@@ -257,7 +257,6 @@ impl View {
         let res = app.run(&mut terminal);
 
         // exit app and restore terminal
-        // reset_terminal_mode()?;
         restore_terminal();
         if let Err(err) = res {
             println!("{err:?}")
