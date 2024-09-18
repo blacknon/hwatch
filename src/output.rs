@@ -7,6 +7,7 @@
 //       => すぐには出来なさそう？なので、0.3.15にて対応とする？
 // TODO: 行・文字差分数の取得を行うための関数を作成する(ここじゃないかも？？)
 
+
 // modules
 use ratatui::style::Stylize;
 use regex::Regex;
