@@ -1037,6 +1037,9 @@ dependencies = [
  "similar",
  "termios",
  "termwiz",
+ "unicode-segmentation",
+ "unicode-truncate",
+ "unicode-width",
 ]
 
 [[package]]

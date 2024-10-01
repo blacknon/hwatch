@@ -1234,6 +1234,7 @@ impl<'a> App<'a> {
                         self.reset_history(selected);
 
                         // update WatchArea
+                        self.watch_area.set_keyword(self.filtered_text.clone(), is_regex);
                         self.set_output_data(selected);
                     }
 
@@ -1621,6 +1622,7 @@ impl<'a> App<'a> {
         self.reset_history(selected);
 
         // update WatchArea
+        self.watch_area.reset_keyword();
         self.set_output_data(selected);
     }
 

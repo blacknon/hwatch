@@ -17,6 +17,7 @@
 // TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
 //                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
+// TODO(blacknon): headerの日付が幅計算間違っている？ような気がするので、修正しておく
 
 // v0.3.17
 // TODO(blacknon): ...
@@ -53,6 +54,9 @@ extern crate termios;
 extern crate termwiz;
 extern crate nix;
 extern crate ratatui as tui;
+extern crate unicode_width;
+extern crate unicode_segmentation;
+
 
 // macro crate
 #[macro_use]
