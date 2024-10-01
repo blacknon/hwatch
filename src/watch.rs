@@ -145,18 +145,18 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn draw(&mut self, frame: &mut Frame) {
-        // check is keyword
-        if self.keyword.len() > 0 {
-            self.keyword_position = get_keyword_positions(&self.data, &self.keyword, self.keyword_is_regex);
-        }
-
         // TODO: ColorをStyleで渡すように変更
         // TODO: 現在選択されているキーワードは別のSytleを指定するよう変更
         // TODO: wrap_utf8_linesかhighlight_textのどちらか、あるいは両方で既存のStyleがリセットされているようなので、修正
         // create highlight data for keyword
+        // check is keyword
+
         let highlight_color = Color::Yellow;
-        let wrapped_data = wrap_utf8_lines(&self.data, self.area.width as usize);
-        let highlight_data = highlight_text(&wrapped_data, self.keyword_position.clone(), highlight_color);
+        let wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
+        if self.keyword.len() > 0 {
+            self.keyword_position = get_keyword_positions(&wrap_data, &self.keyword, self.keyword_is_regex);
+        }
+        let block_data = highlight_text(&wrap_data, self.keyword_position.clone(), highlight_color);
 
         // // create block data
         // let start = self.selected_keyword as usize;
@@ -194,7 +194,7 @@ impl<'a> WatchArea<'a> {
         }
 
         //
-        let block = Paragraph::new(highlight_data)
+        let block = Paragraph::new(block_data)
             .style(Style::default())
             .block(pane_block)
             .scroll((self.position as u16, 0));
