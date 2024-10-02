@@ -9,10 +9,6 @@ use tui::{
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 
-
-// TODO： 検索キーワードの保持とその位置情報の保持を追加
-// TODO: 検索キーワードの指定や削除のmethodを追加
-
 #[derive(Clone)]
 pub struct WatchArea<'a> {
     ///
@@ -22,7 +18,7 @@ pub struct WatchArea<'a> {
     pub data: Vec<Line<'a>>,
 
     ///
-    area_data: Vec<Line<'a>>,
+    wrap_data: Vec<Line<'a>>,
 
     ///
     keyword: String,
@@ -62,7 +58,7 @@ impl<'a> WatchArea<'a> {
 
             data: vec![Line::from("")],
 
-            area_data: vec![Line::from("")],
+            wrap_data: vec![Line::from("")],
 
             keyword: String::from(""),
 
@@ -70,7 +66,7 @@ impl<'a> WatchArea<'a> {
 
             keyword_position: vec![],
 
-            selected_keyword: 0,
+            selected_keyword: -1,
 
             position: 0,
 
@@ -98,7 +94,14 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn update_output(&mut self, data: Vec<Line<'a>>) {
+        // update data
         self.data = data;
+
+        // update wrap data
+        self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
+
+        // update keyword position
+        // self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
     }
 
     ///
@@ -120,48 +123,77 @@ impl<'a> WatchArea<'a> {
     pub fn set_keyword(&mut self, keyword: String, is_regex: bool) {
         self.keyword = keyword;
         self.keyword_is_regex = is_regex;
+
+        if self.keyword_position.len() > self.selected_keyword as usize {
+            self.selected_keyword = -1;
+            self.next_keyword();
+        }
+
+        // update wrap data
+        self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
+
+        // update keyword position
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+
+        self.next_keyword();
     }
 
     pub fn reset_keyword(&mut self) {
         self.keyword = String::from("");
         self.keyword_is_regex = false;
         self.keyword_position = vec![];
-        self.selected_keyword = 0;
+        self.selected_keyword = -1;
     }
 
     ///
     pub fn previous_keyword(&mut self) {
+        // update keyword position
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+
         if self.selected_keyword > 0 {
             self.selected_keyword -= 1;
         }
+
+        if self.keyword_position.len() - 1 < self.selected_keyword as usize {
+            self.selected_keyword = self.keyword_position.len() as i16 - 1;
+        }
+
+        // get selected keyword position
+        let position = self.keyword_position[self.selected_keyword as usize];
+
+        // scroll move
+        self.scroll_move(position.0 as i16);
     }
 
     ///
     pub fn next_keyword(&mut self) {
+        // update keyword position
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+
+        // get selected keyword position
+        if self.keyword_position.len() < self.selected_keyword as usize {
+            self.selected_keyword = 0;
+        }
+
         if self.selected_keyword < self.keyword_position.len() as i16 - 1 {
             self.selected_keyword += 1;
+        }
+
+        if self.keyword_position.len() > 0 {
+            let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
+
+            // scroll move
+            self.scroll_move(position.0 as i16);
         }
     }
 
     ///
     pub fn draw(&mut self, frame: &mut Frame) {
-        // TODO: ColorをStyleで渡すように変更
-        // TODO: 現在選択されているキーワードは別のSytleを指定するよう変更
-        // TODO: wrap_utf8_linesかhighlight_textのどちらか、あるいは両方で既存のStyleがリセットされているようなので、修正
-        // create highlight data for keyword
-        // check is keyword
+        // set highlight style
+        let highlight_style = Style::new().fg(Color::DarkGray).bg(Color::Yellow);
+        let selected_highlight_style = Style::new().fg(Color::Black).bg(Color::Cyan);
 
-        let highlight_color = Color::Yellow;
-        let wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
-        if self.keyword.len() > 0 {
-            self.keyword_position = get_keyword_positions(&wrap_data, &self.keyword, self.keyword_is_regex);
-        }
-        let block_data = highlight_text(&wrap_data, self.keyword_position.clone(), highlight_color);
-
-        // // create block data
-        // let start = self.selected_keyword as usize;
-        // let end: usize = std::cmp::min(start + self.area.height as usize, wrapped_lines.len());
-        // let block_data: Vec<Line> = wrapped_lines[start..end].to_vec();
+        let block_data = highlight_text(&self.wrap_data, self.keyword_position.clone(), self.selected_keyword, selected_highlight_style, highlight_style);
 
         // declare variables
         let pane_block: Block<'_>;
@@ -256,21 +288,43 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn scroll_end(&mut self) {
-        let mut height: u16 = self.area.height;
+        let mut height: i16 = self.area.height as i16;
         if self.border {
             if !self.hide_header {
                 height = height - 1;
             }
         }
 
-        if self.lines > height as i16 {
-            self.position = self.lines - height as i16;
+        if self.lines > height {
+            self.position = self.lines - height;
+        }
+    }
+
+    ///
+    pub fn scroll_move(&mut self, position: i16) {
+        let mut height: i16 = self.area.height as i16;
+        if self.border {
+            if !self.hide_header {
+                height = height - 1;
+            }
+        }
+
+        let start = self.position;
+        let end = std::cmp::min(self.position + height, self.lines - height as i16);
+
+        if start < position && position < end {
+            return
+        } else if start > position {
+            self.position = position;
+        } else if end < position + 1 {
+            self.position = position - height + 1;
         }
     }
 
 }
 
 
+// TODO: 行ナンバーが有効な場合、検索対象として行ナンバー部分を除外するように修正する
 ///
 fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool) -> Vec<(usize, usize, usize)> {
     // 正規表現をコンパイルする（正規表現モードの場合のみ）
@@ -366,8 +420,9 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 
 /// 複数の Span にまたがるキーワードを正しくハイライトするための関数
 /// ハイライトされない部分は既存のスタイルを保持
-fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, highlight_color: Color) -> Vec<Line<'a>> {
+fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line<'a>> {
     let mut new_lines = Vec::new(); // 新しい Vec<Line> を生成
+    let mut current_count:i16 = 0;
 
     for (i, line) in lines.iter().enumerate() {
         let mut new_spans = Vec::new();
@@ -408,10 +463,22 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                     }
 
                     // ハイライト部分
-                    new_spans.push(Span::styled(
-                        span_text[highlight_start..highlight_end].to_string(),
-                        Style::default().bg(highlight_color).fg(Color::Black),
-                    ));
+                    let text_str: String = span_text[highlight_start..highlight_end].to_string();
+
+                    if text_str.len() > 0 {
+                        if current_count == selected_keyword {
+                            new_spans.push(Span::styled(
+                                text_str,
+                                selected_highlight_style,
+                            ));
+                        } else {
+                            new_spans.push(Span::styled(
+                                text_str,
+                                highlight_style,
+                            ));
+                        }
+                        current_count += 1;
+                    }
 
                     // ハイライト後の部分
                     last_pos = highlight_end;

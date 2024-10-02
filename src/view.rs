@@ -282,6 +282,7 @@ fn restore_terminal() {
     let _ = terminal.show_cursor();
 }
 
+// TODO(blacknon): `Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }`で終了してしまう場合があるので、どこで終了されてしまっているかを調査、対処する
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
         // non blocking mode
