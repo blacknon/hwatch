@@ -273,7 +273,6 @@ impl<'a> App<'a> {
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
-            .set_filter_text(self.filtered_text.clone())
             .set_only_diffline(self.is_only_diffline);
 
         loop {
@@ -1087,6 +1086,8 @@ impl<'a> App<'a> {
                         InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
                         InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
                         InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
+                        InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
                         InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
@@ -1228,7 +1229,6 @@ impl<'a> App<'a> {
 
                         self.printer.set_filter(self.is_filtered);
                         self.printer.set_regex_filter(self.is_regex_filter);
-                        self.printer.set_filter_text(self.filtered_text.clone());
 
                         let selected = self.history_area.get_state_select();
                         self.reset_history(selected);
@@ -1369,7 +1369,6 @@ impl<'a> App<'a> {
 
             self.printer.set_filter(self.is_filtered);
             self.printer.set_regex_filter(self.is_regex_filter);
-            self.printer.set_filter_text("".to_string());
 
             let selected = self.history_area.get_state_select();
             self.reset_history(selected);
@@ -1625,6 +1624,14 @@ impl<'a> App<'a> {
         // update WatchArea
         self.watch_area.reset_keyword();
         self.set_output_data(selected);
+    }
+
+    fn action_previous_keyword(&mut self) {
+        self.watch_area.previous_keyword();
+    }
+
+    fn action_next_keyword(&mut self) {
+        self.watch_area.next_keyword();
     }
 
     ///
