@@ -286,3 +286,4 @@ hwatch -b command...
   the newest version seems to be distributed as a part of
   [`procps`](https://gitlab.com/procps-ng/procps).
 - [Viddy](https://github.com/sachaos/viddy).
+- [sasqwatch](https://github.com/fabio42/sasqwatch)
