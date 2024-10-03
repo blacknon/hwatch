@@ -1606,20 +1606,20 @@ impl<'a> App<'a> {
     fn action_input_reset(&mut self) {
         self.header_area.input_text = self.filtered_text.clone();
         self.set_input_mode(InputMode::None);
-        self.is_filtered = false;
 
         let selected = self.history_area.get_state_select();
         self.reset_history(selected);
 
         // update WatchArea
-        self.watch_area.reset_keyword();
         self.set_output_data(selected);
     }
 
+    ///
     fn action_previous_keyword(&mut self) {
         self.watch_area.previous_keyword();
     }
 
+    ///
     fn action_next_keyword(&mut self) {
         self.watch_area.next_keyword();
     }

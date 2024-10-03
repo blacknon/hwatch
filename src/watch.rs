@@ -2,10 +2,15 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// TODO: `/`だけ入れてEnterすると、なんかフリーズしちゃうので修正する
+// TODO: リファクタリング
 
 use tui::{
-    prelude::{Line, Margin}, style::{Color, Style, Styled}, symbols::{self, scrollbar}, text::Span, widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap}, Frame
+    prelude::{Line, Margin},
+    style::{Color, Style, Styled},
+    symbols::{self, scrollbar},
+    text::Span,
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    Frame
 };
 
 use regex::Regex;
@@ -151,6 +156,7 @@ impl<'a> WatchArea<'a> {
         }
     }
 
+    ///
     pub fn reset_keyword(&mut self) {
         self.keyword = String::from("");
         self.keyword_is_regex = false;
@@ -165,6 +171,8 @@ impl<'a> WatchArea<'a> {
 
         if self.selected_keyword > 0 {
             self.selected_keyword -= 1;
+        } else if self.selected_keyword == 0 {
+            self.selected_keyword = self.keyword_position.len() as i16 - 1;
         }
 
         if self.keyword_position.len() - 1 < self.selected_keyword as usize {
@@ -190,9 +198,11 @@ impl<'a> WatchArea<'a> {
 
         if self.selected_keyword < self.keyword_position.len() as i16 - 1 {
             self.selected_keyword += 1;
+        } else if self.selected_keyword == self.keyword_position.len() as i16 - 1 {
+            self.selected_keyword = 0;
         }
 
-        if self.keyword_position.len() > 0 && self.selected_keyword > 0 {
+        if self.keyword_position.len() - 1 >= self.selected_keyword as usize && self.selected_keyword >= 0 {
             let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
 
             // scroll move
@@ -336,8 +346,6 @@ impl<'a> WatchArea<'a> {
 
 }
 
-
-// TODO: 行ナンバーが有効な場合、検索対象として行ナンバー部分を除外するように修正する
 ///
 fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool) -> Vec<(usize, usize, usize)> {
     let mut ignore_head_count = 0;
