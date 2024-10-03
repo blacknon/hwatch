@@ -123,12 +123,6 @@ pub struct Printer {
     // is reverse text.
     is_reverse: bool,
 
-    // is filtered text.
-    is_filter: bool,
-
-    // is regex filter text.
-    is_regex_filter: bool,
-
     // is word highlight at line diff.
     is_word_highlight: bool,
 
@@ -151,8 +145,6 @@ impl Printer {
             is_color: false,
             is_line_number: false,
             is_reverse: false,
-            is_filter: false,
-            is_regex_filter: false,
             is_word_highlight: false,
             is_only_diffline: false,
             tab_size: DEFAULT_TAB_SIZE,
@@ -800,18 +792,6 @@ impl Printer {
     // set is reverse.
     pub fn set_reverse(&mut self, is_reverse: bool) -> &mut Self {
         self.is_reverse = is_reverse;
-        self
-    }
-
-    /// set is_filter.
-    pub fn set_filter(&mut self, is_filter: bool) -> &mut Self {
-        self.is_filter = is_filter;
-        self
-    }
-
-    /// set diff mode.
-    pub fn set_regex_filter(&mut self, is_regex_filter: bool) -> &mut Self {
-        self.is_regex_filter = is_regex_filter;
         self
     }
 

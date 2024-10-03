@@ -2,6 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// TODO: `/`だけ入れてEnterすると、なんかフリーズしちゃうので修正する
+
 use tui::{
     prelude::{Line, Margin}, style::{Color, Style, Styled}, symbols::{self, scrollbar}, text::Span, widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap}, Frame
 };
@@ -31,6 +33,9 @@ pub struct WatchArea<'a> {
 
     ///
     selected_keyword: i16,
+
+    /// line number.
+    pub is_line_number: bool,
 
     ///
     position: i16,
@@ -68,6 +73,8 @@ impl<'a> WatchArea<'a> {
 
             selected_keyword: -1,
 
+            is_line_number: false,
+
             position: 0,
 
             lines: 0,
@@ -100,8 +107,10 @@ impl<'a> WatchArea<'a> {
         // update wrap data
         self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
 
-        // update keyword position
-        // self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+        if self.keyword.len() > 0 {
+            // update keyword position
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+        }
     }
 
     ///
@@ -132,10 +141,14 @@ impl<'a> WatchArea<'a> {
         // update wrap data
         self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
 
-        // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+        if self.keyword.len() > 0 {
+            // update keyword position
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
 
-        self.next_keyword();
+            self.next_keyword();
+        } else {
+            self.keyword_position = vec![];
+        }
     }
 
     pub fn reset_keyword(&mut self) {
@@ -148,7 +161,7 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn previous_keyword(&mut self) {
         // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
 
         if self.selected_keyword > 0 {
             self.selected_keyword -= 1;
@@ -168,7 +181,7 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn next_keyword(&mut self) {
         // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex);
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
 
         // get selected keyword position
         if self.keyword_position.len() < self.selected_keyword as usize {
@@ -326,7 +339,13 @@ impl<'a> WatchArea<'a> {
 
 // TODO: 行ナンバーが有効な場合、検索対象として行ナンバー部分を除外するように修正する
 ///
-fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool) -> Vec<(usize, usize, usize)> {
+fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool) -> Vec<(usize, usize, usize)> {
+    let mut ignore_head_count = 0;
+    if is_line_number {
+        let num_count = lines.len().to_string().len();
+        ignore_head_count = num_count + 3; // ^<number>` | `
+    }
+
     // 正規表現をコンパイルする（正規表現モードの場合のみ）
     let re = if is_regex {
         Some(Regex::new(keyword).expect("Invalid regex pattern"))
@@ -341,11 +360,16 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool) -> Ve
     for (line_index, line) in lines.iter().enumerate() {
         // 各 Line 内のすべての Span を結合して、一つの文字列にする
         let combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
+        let combined_text = if is_line_number {
+            combined_text[ignore_head_count..].to_string()
+        } else {
+            combined_text
+        };
 
         if let Some(re) = &re {
             // 正規表現にマッチする部分を検索
             for mat in re.find_iter(&combined_text) {
-                hits.push((line_index, mat.start(), mat.end()));
+                hits.push((line_index, mat.start() + ignore_head_count, mat.end() + ignore_head_count));
             }
         } else {
             // プレーンテキスト検索の場合
@@ -355,7 +379,7 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool) -> Ve
             while let Some(pos) = combined_text[start_position..].find(keyword) {
                 let match_start = start_position + pos;
                 let match_end = match_start + keyword.len();
-                hits.push((line_index, match_start, match_end));
+                hits.push((line_index, match_start + ignore_head_count, match_end + ignore_head_count));
                 start_position = match_end; // 見つかった位置の次から再検索
             }
         }
