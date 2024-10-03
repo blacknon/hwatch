@@ -268,8 +268,6 @@ impl<'a> App<'a> {
             .set_batch(false)
             .set_color(self.ansi_color)
             .set_diff_mode(self.diff_mode)
-            .set_filter(self.is_filtered)
-            .set_regex_filter(self.is_regex_filter)
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
@@ -483,6 +481,7 @@ impl<'a> App<'a> {
 
         // TODO: output_dataのtabをスペース展開する処理を追加
 
+        self.watch_area.is_line_number = self.line_number;
         self.watch_area.update_output(output_data);
     }
 
@@ -1227,9 +1226,6 @@ impl<'a> App<'a> {
                         self.filtered_text = self.header_area.input_text.clone();
                         self.set_input_mode(InputMode::None);
 
-                        self.printer.set_filter(self.is_filtered);
-                        self.printer.set_regex_filter(self.is_regex_filter);
-
                         let selected = self.history_area.get_state_select();
                         self.reset_history(selected);
 
@@ -1366,9 +1362,6 @@ impl<'a> App<'a> {
             self.filtered_text = "".to_string();
             self.header_area.input_text = self.filtered_text.clone();
             self.set_input_mode(InputMode::None);
-
-            self.printer.set_filter(self.is_filtered);
-            self.printer.set_regex_filter(self.is_regex_filter);
 
             let selected = self.history_area.get_state_select();
             self.reset_history(selected);
@@ -1614,9 +1607,6 @@ impl<'a> App<'a> {
         self.header_area.input_text = self.filtered_text.clone();
         self.set_input_mode(InputMode::None);
         self.is_filtered = false;
-
-        self.printer.set_filter(self.is_filtered);
-        self.printer.set_regex_filter(self.is_regex_filter);
 
         let selected = self.history_area.get_state_select();
         self.reset_history(selected);
