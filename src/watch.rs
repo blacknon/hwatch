@@ -123,10 +123,10 @@ impl<'a> WatchArea<'a> {
     pub fn set_keyword(&mut self, keyword: String, is_regex: bool) {
         self.keyword = keyword;
         self.keyword_is_regex = is_regex;
+        self.selected_keyword = -1;
 
         if self.keyword_position.len() > self.selected_keyword as usize {
             self.selected_keyword = -1;
-            self.next_keyword();
         }
 
         // update wrap data
@@ -172,14 +172,14 @@ impl<'a> WatchArea<'a> {
 
         // get selected keyword position
         if self.keyword_position.len() < self.selected_keyword as usize {
-            self.selected_keyword = 0;
+            self.selected_keyword = -1;
         }
 
         if self.selected_keyword < self.keyword_position.len() as i16 - 1 {
             self.selected_keyword += 1;
         }
 
-        if self.keyword_position.len() > 0 {
+        if self.keyword_position.len() > 0 && self.selected_keyword > 0 {
             let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
 
             // scroll move
