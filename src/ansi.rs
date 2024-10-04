@@ -137,22 +137,13 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
         }
     }
 
+    // push any remaining data
     if !current_line.is_empty() {
         // finish the current span
         current_line.push(Span::styled(span_text, span_style));
         // finish the current line
         spans.push(Line::from(current_line));
     }
-
-    // push any remaining data
-    // if !span_text.is_empty() {
-    //     // finish the current span
-    //     current_line.push(Span::styled(span_text, span_style));
-    //     // finish the current line
-    //     spans.push(Line::from(current_line));
-    // }
-
-    eprintln!("{:?}",spans);
 
     spans.into()
 }
