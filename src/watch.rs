@@ -18,34 +18,34 @@ use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone)]
 pub struct WatchArea<'a> {
-    ///
+    /// ratatui::layout::Rect. The area to draw the widget in.
     area: tui::layout::Rect,
 
-    ///
+    /// Original data.
     pub data: Vec<Line<'a>>,
 
-    ///
+    /// Wrapped data.
     wrap_data: Vec<Line<'a>>,
 
-    ///
+    /// search keyword.
     keyword: String,
 
-    ///
+    /// search keyword is regex flag.
     keyword_is_regex: bool,
 
-    ///
+    /// search keyword positions. (line_number, keyword_start, keyword_end)
     keyword_position: Vec<(usize, usize, usize)>,
 
-    ///
+    /// selected keyword index.
     selected_keyword: i16,
 
     /// line number.
     pub is_line_number: bool,
 
-    ///
+    /// scroll position.
     position: i16,
 
-    ///
+    /// wrap_data line count.
     lines: i16,
 
     /// is enable border
@@ -333,7 +333,7 @@ impl<'a> WatchArea<'a> {
         }
 
         let start = self.position;
-        let end = std::cmp::min(self.position + height, self.lines - height as i16);
+        let end = std::cmp::min(self.position + height, self.lines);
 
         if start < position && position < end {
             return
@@ -354,19 +354,15 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
         ignore_head_count = num_count + 3; // ^<number>` | `
     }
 
-    // 正規表現をコンパイルする（正規表現モードの場合のみ）
     let re = if is_regex {
         Some(Regex::new(keyword).expect("Invalid regex pattern"))
     } else {
         None
     };
 
-    // キーワード検索の結果を格納するVec
     let mut hits = Vec::new();
 
-    // forでLineのチェックをしていく
     for (line_index, line) in lines.iter().enumerate() {
-        // 各 Line 内のすべての Span を結合して、一つの文字列にする
         let combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
         let combined_text = if is_line_number {
             combined_text[ignore_head_count..].to_string()
@@ -375,20 +371,17 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
         };
 
         if let Some(re) = &re {
-            // 正規表現にマッチする部分を検索
             for mat in re.find_iter(&combined_text) {
                 hits.push((line_index, mat.start() + ignore_head_count, mat.end() + ignore_head_count));
             }
         } else {
-            // プレーンテキスト検索の場合
             let mut start_position = 0;
 
-            // テキスト内でキーワードが見つかるたびにその位置を記録
             while let Some(pos) = combined_text[start_position..].find(keyword) {
                 let match_start = start_position + pos;
                 let match_end = match_start + keyword.len();
                 hits.push((line_index, match_start + ignore_head_count, match_end + ignore_head_count));
-                start_position = match_end; // 見つかった位置の次から再検索
+                start_position = match_end;
             }
         }
     }
@@ -404,21 +397,18 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
         let mut current_line = Line::default();
         let mut current_width = 0;
 
-        // 各 Line の Span を処理して、スペースやゼロ幅スペースで分割
         for span in &line.spans {
             let words = span.content.split_inclusive(|c| c == ' ' || c == '\u{00a0}' || c == '\u{200b}');
             for word in words {
                 let word_width = unicode_width::UnicodeWidthStr::width(word);
 
                 if current_width + word_width > width {
-                    // 幅を超えた場合は現在の行を追加し、新しい行を開始
                     if !current_line.spans.is_empty() {
                         wrapped_lines.push(current_line);
                     }
                     current_line = Line::default();
                     current_width = 0;
 
-                    // 単語が幅を超える場合、グラフェム単位で折り返し
                     if word_width > width {
                         let mut grapheme_iter = UnicodeSegmentation::graphemes(word, true);
                         while let Some(grapheme) = grapheme_iter.next() {
@@ -450,43 +440,40 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
     wrapped_lines
 }
 
-/// 複数の Span にまたがるキーワードを正しくハイライトするための関数
-/// ハイライトされない部分は既存のスタイルを保持
 fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line<'a>> {
-    let mut new_lines = Vec::new(); // 新しい Vec<Line> を生成
+    let mut new_lines = Vec::new();
     let mut current_count:i16 = 0;
 
     for (i, line) in lines.iter().enumerate() {
         let mut new_spans = Vec::new();
         let mut current_pos = 0;
 
-        // この行に対する該当するキーワードのハイライト位置を取得
+        // Get the highlighted position of the corresponding keyword for this line
         let line_hits: Vec<(usize, usize, usize)> = positions
             .iter()
             .filter(|(line_index, _, _)| *line_index == i)
             .cloned()
             .collect();
 
-        // 各 Span を処理して、新しい Span を生成
+        // Process each Span to generate a new Span
         for span in &line.spans {
             let span_text = span.content.as_ref().to_string();
             let span_start = current_pos;
             let span_end = current_pos + span_text.len();
 
-            // ハイライト範囲が Span にかかっている場合の処理
+            // Processing when the highlight range spans Span
             if !line_hits.is_empty() {
                 let mut last_pos = 0;
                 for (_, start_position, end_position) in line_hits.iter() {
-                    // ヒット箇所が現在のスパンの後なら無視
+                    // Ignore if the hit is after the current span
                     if *start_position >= span_end {
                         continue;
                     }
 
-                    // highlight_startおよびhighlight_endの計算を実施
+                    // Calculating highlight_start and highlight_end
                     let highlight_start = (*start_position).saturating_sub(span_start); // 値が負にならないように調整
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
 
-                    // ハイライト前の部分（既存のスタイルを適用）
                     if highlight_start > last_pos {
                         new_spans.push(Span::styled(
                             span_text[last_pos..highlight_start].to_string(),
@@ -494,7 +481,6 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                         ));
                     }
 
-                    // ハイライト部分
                     let text_str: String = span_text[highlight_start..highlight_end].to_string();
 
                     if text_str.len() > 0 {
@@ -512,11 +498,9 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                         current_count += 1;
                     }
 
-                    // ハイライト後の部分
                     last_pos = highlight_end;
                 }
 
-                // 残りの部分を処理
                 if last_pos < span_text.len() {
                     new_spans.push(Span::styled(
                         span_text[last_pos..].to_string(),
@@ -524,7 +508,7 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                     ));
                 }
             } else {
-                // ハイライトのない部分（既存のスタイルを適用）
+                // Apply existing style to parts that are not highlights
                 new_spans.push(Span::styled(span_text.clone(), span.style));
             }
 
