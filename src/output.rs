@@ -708,7 +708,6 @@ impl Printer {
                         if self.is_color {
                             result_line_spans = vec![Span::from(line_header)];
                             let colored_data = ansi::bytes_to_text(format!("{line_data}").as_bytes());
-                            // eprintln!("result_line_spans: {:?}", line_data);
 
                             for d in colored_data.lines {
                                 for x in d.spans {
