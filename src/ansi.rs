@@ -34,6 +34,12 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
             // separately rather than assuming linefeed includes cr?
             Action::Print(c) => {
                 span_text.push(c);
+                eprint!("{}", c);
+            }
+            Action::PrintString(s) => {
+                for c in s.chars() {
+                    span_text.push(c);
+                }
             }
             Action::Control(ControlCode::LineFeed) => {
                 // finish the current span
@@ -131,13 +137,22 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
         }
     }
 
-    // push any remaining data
-    if !span_text.is_empty() {
+    if !current_line.is_empty() {
         // finish the current span
         current_line.push(Span::styled(span_text, span_style));
         // finish the current line
         spans.push(Line::from(current_line));
     }
+
+    // push any remaining data
+    // if !span_text.is_empty() {
+    //     // finish the current span
+    //     current_line.push(Span::styled(span_text, span_style));
+    //     // finish the current line
+    //     spans.push(Line::from(current_line));
+    // }
+
+    eprintln!("{:?}",spans);
 
     spans.into()
 }
