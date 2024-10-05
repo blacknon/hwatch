@@ -202,7 +202,7 @@ impl<'a> WatchArea<'a> {
             self.selected_keyword = 0;
         }
 
-        if self.keyword_position.len() - 1 >= self.selected_keyword as usize && self.selected_keyword >= 0 {
+        if self.keyword_position.len() >= self.selected_keyword as usize + 1 && self.selected_keyword >= 0 {
             let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
 
             // scroll move
@@ -213,7 +213,7 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn draw(&mut self, frame: &mut Frame) {
         // set highlight style
-        let highlight_style = Style::new().fg(Color::DarkGray).bg(Color::Yellow);
+        let highlight_style = Style::new().fg(Color::Black).bg(Color::Yellow);
         let selected_highlight_style = Style::new().fg(Color::Black).bg(Color::Cyan);
 
         let block_data = highlight_text(&self.wrap_data, self.keyword_position.clone(), self.selected_keyword, selected_highlight_style, highlight_style);
@@ -440,6 +440,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
     wrapped_lines
 }
 
+///
 fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line<'a>> {
     let mut new_lines = Vec::new();
     let mut current_count:i16 = 0;
