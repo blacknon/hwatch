@@ -34,7 +34,6 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
             // separately rather than assuming linefeed includes cr?
             Action::Print(c) => {
                 span_text.push(c);
-                eprint!("{}", c);
             }
             Action::PrintString(s) => {
                 for c in s.chars() {
