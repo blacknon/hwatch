@@ -300,7 +300,7 @@ impl<'a> WatchArea<'a> {
         }
 
         if self.lines > height as i16 {
-            self.position = std::cmp::min(self.position + num, self.lines - height as i16);
+            self.position = std::cmp::min(self.position + num, self.lines - height as i16 - 1);
         }
     }
 
@@ -319,7 +319,7 @@ impl<'a> WatchArea<'a> {
         }
 
         if self.lines > height {
-            self.position = self.lines - height;
+            self.position = self.lines - height - 1;
         }
     }
 
