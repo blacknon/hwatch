@@ -3,23 +3,27 @@
 // that can be found in the LICENSE file.
 
 // v0.3.16
-// TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
-// TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
-//                 - 検索キーワードの位置情報を取得し、その位置情報を元にハイライト指定をすればANSIとの併用も可能な気がする(ANSIのハイライトがあっても、条件分岐で上書きさせれば良い)
-//                 - すでに`Vec<Line>`になったあとのデータから検索、ハイライトができるとかなり楽なので、その方法を模索してみよう
+// TODO(blacknon): Enterキー or shortcut keyでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
-//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): watchをモダンよりのものに変更する
-// TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
+// TODO(blacknon): headerの日付が幅計算間違っている？ような気がするので、修正しておく
+// TODO(blacknon): `ps aux`で実行すると、なぜか全体的に遅くなるので原因調査をする
+//                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
+//                 - ほかのナニカもありそうなので、調べて対処していく
+//                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
+// TODO(blacknon): line/word diffのとき、最終行の中身がない・・・？
+
+// v0.3.xx
 // TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
 //                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
-
-// v0.3.17
-// TODO(blacknon): ...
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
+//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
+// TODO(blacknon): watchをモダンよりのものに変更する
+// TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
+// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
@@ -53,6 +57,9 @@ extern crate termios;
 extern crate termwiz;
 extern crate nix;
 extern crate ratatui as tui;
+extern crate unicode_width;
+extern crate unicode_segmentation;
+
 
 // macro crate
 #[macro_use]
