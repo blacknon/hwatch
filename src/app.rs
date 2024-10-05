@@ -268,12 +268,9 @@ impl<'a> App<'a> {
             .set_batch(false)
             .set_color(self.ansi_color)
             .set_diff_mode(self.diff_mode)
-            .set_filter(self.is_filtered)
-            .set_regex_filter(self.is_regex_filter)
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
-            .set_filter_text(self.filtered_text.clone())
             .set_only_diffline(self.is_only_diffline);
 
         loop {
@@ -484,6 +481,7 @@ impl<'a> App<'a> {
 
         // TODO: output_dataのtabをスペース展開する処理を追加
 
+        self.watch_area.is_line_number = self.line_number;
         self.watch_area.update_output(output_data);
     }
 
@@ -1087,6 +1085,8 @@ impl<'a> App<'a> {
                         InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
                         InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
                         InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
+                        InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
                         InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
@@ -1226,14 +1226,11 @@ impl<'a> App<'a> {
                         self.filtered_text = self.header_area.input_text.clone();
                         self.set_input_mode(InputMode::None);
 
-                        self.printer.set_filter(self.is_filtered);
-                        self.printer.set_regex_filter(self.is_regex_filter);
-                        self.printer.set_filter_text(self.filtered_text.clone());
-
                         let selected = self.history_area.get_state_select();
                         self.reset_history(selected);
 
                         // update WatchArea
+                        self.watch_area.set_keyword(self.filtered_text.clone(), is_regex);
                         self.set_output_data(selected);
                     }
 
@@ -1366,14 +1363,11 @@ impl<'a> App<'a> {
             self.header_area.input_text = self.filtered_text.clone();
             self.set_input_mode(InputMode::None);
 
-            self.printer.set_filter(self.is_filtered);
-            self.printer.set_regex_filter(self.is_regex_filter);
-            self.printer.set_filter_text("".to_string());
-
             let selected = self.history_area.get_state_select();
             self.reset_history(selected);
 
             // update WatchArea
+            self.watch_area.reset_keyword();
             self.set_output_data(selected);
         } else if 0 != self.history_area.get_state_select() {
             // set latest history
@@ -1612,16 +1606,22 @@ impl<'a> App<'a> {
     fn action_input_reset(&mut self) {
         self.header_area.input_text = self.filtered_text.clone();
         self.set_input_mode(InputMode::None);
-        self.is_filtered = false;
-
-        self.printer.set_filter(self.is_filtered);
-        self.printer.set_regex_filter(self.is_regex_filter);
 
         let selected = self.history_area.get_state_select();
         self.reset_history(selected);
 
         // update WatchArea
         self.set_output_data(selected);
+    }
+
+    ///
+    fn action_previous_keyword(&mut self) {
+        self.watch_area.previous_keyword();
+    }
+
+    ///
+    fn action_next_keyword(&mut self) {
+        self.watch_area.next_keyword();
     }
 
     ///
