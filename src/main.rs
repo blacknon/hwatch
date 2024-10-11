@@ -3,12 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.16
-// TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
-// TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
-//                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
-//                 - logfileが指定されている場合、コマンドの引数は必須ではないようにする
-//                 - commandの指定がある場合はそれを優先的にしようし、指定がない場合はログファイルの一番最後のログに残されているコマンドを実行する
-//                 - logのパースに失敗する、コマンドが存在しないなどの場合、エラーとして対処させる(clapのエラー表示が呼び出せるといいけど・・・？)
 // TODO(blacknon): headerの日付が幅計算間違っている？ような気がするので、修正しておく
 // TODO(blacknon): `ps aux`で実行すると、なぜか全体的に遅くなるので原因調査をする
 //                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
@@ -16,7 +10,8 @@
 //                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
 
 // v0.3.xx
-// TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？)
+// TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
+// TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する

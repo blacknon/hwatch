@@ -21,8 +21,9 @@ use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
 
 //const
-const POSITION_X_HELP_TEXT: usize = 47;
+// const POSITION_X_HELP_TEXT: usize = 47;
 const WIDTH_TEXT_INTERVAL: usize = 15;
+const WIDTH_TIMESTAMP: usize = 23; // "20XX-XX-XX XX:XX:XX.XXX".len() .. 19
 
 #[derive(Clone)]
 pub struct HeaderArea<'a> {
@@ -170,16 +171,16 @@ impl<'a> HeaderArea<'a> {
         // Value for width calculation.
         let command_width: usize;
         let timestamp_width: usize;
-        if WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT < width {
-            command_width = width - (WIDTH_TEXT_INTERVAL + POSITION_X_HELP_TEXT);
-            timestamp_width = width - (WIDTH_TEXT_INTERVAL + command_width + self.banner.len()) + 1;
+        if WIDTH_TEXT_INTERVAL + (1 + self.banner.len() + 1 + WIDTH_TIMESTAMP) < width {
+            command_width = width - 2 - 1 - WIDTH_TEXT_INTERVAL - self.banner.len() - 1 - WIDTH_TIMESTAMP;
+            timestamp_width = WIDTH_TIMESTAMP;
         } else {
             command_width = 0;
             timestamp_width = 0;
         }
 
         // filter keyword.
-        let filter_keyword_width = if width > (POSITION_X_HELP_TEXT + 2 + 14) {
+        let filter_keyword_width = if width > ((self.banner.len() + 20) + 2 + 14) {
             // width - POSITION_X_HELP_TEXT - 2 - 14
             // length("[Number] [Color] [Output] [history] [Line(Only)]") = 48
             // length("[Number] [Color] [Reverse] [Output] [history] [Line(Only)]") = 58
@@ -281,15 +282,17 @@ impl<'a> HeaderArea<'a> {
                 format!("{:>wid$}", interval, wid = 9),
                 Style::default().fg(Color::Cyan),
             ),
-            Span::raw("s: "),
+            Span::raw("s:"),
             Span::styled(
                 format!("{:wid$}", self.command, wid = command_width),
                 Style::default().fg(command_color),
             ),
+            Span::raw(" "),
             Span::styled(
                 self.banner.clone(),
                 Style::default().add_modifier(Modifier::REVERSED),
             ),
+            Span::raw(" "),
             Span::styled(
                 format!("{:>wid$}", self.timestamp, wid = timestamp_width),
                 Style::default().fg(Color::Cyan),
@@ -302,20 +305,11 @@ impl<'a> HeaderArea<'a> {
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
             // Line number flag
-            Span::raw("["),
-            value_number,
-            Span::raw("]"),
-            Span::raw(" "),
+            Span::raw("["), value_number, Span::raw("]"), Span::raw(" "),
             // Color flag
-            Span::raw("["),
-            value_color,
-            Span::raw("]"),
-            Span::raw(" "),
+            Span::raw("["), value_color, Span::raw("]"), Span::raw(" "),
             // Reverse flag
-            Span::raw("["),
-            value_reverse,
-            Span::raw("]"),
-            Span::raw(" "),
+            Span::raw("["), value_reverse, Span::raw("]"), Span::raw(" "),
             // Output Type
             Span::raw("["),
             // Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),
