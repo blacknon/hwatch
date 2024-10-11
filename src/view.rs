@@ -30,6 +30,7 @@ use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
+use crate::exec::CommandResult;
 use crate::keymap::{Keymap, default_keymap};
 
 // local const
@@ -178,6 +179,7 @@ impl View {
         &mut self,
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
+        exist_results: Vec<CommandResult>,
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
         enable_raw_mode()?;
@@ -203,6 +205,9 @@ impl View {
 
         // Create App
         let mut app = App::new(tx, rx, self.interval.clone());
+
+        // set exist results
+        app.add_results(exist_results);
 
         // set keymap
         app.set_keymap(self.keymap.clone());
