@@ -273,6 +273,8 @@ impl<'a> App<'a> {
             .set_tab_size(self.tab_size)
             .set_only_diffline(self.is_only_diffline);
 
+
+
         loop {
             if self.done {
                 return Ok(());
@@ -296,7 +298,7 @@ impl<'a> App<'a> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    let _exec_return = self.update_result(exec_result);
+                    let _exec_return = self.update_result(exec_result, true);
 
                     // beep
                     if _exec_return && self.is_beep {
@@ -319,6 +321,10 @@ impl<'a> App<'a> {
                 Ok(AppEvent::Exit) => self.done = true,
 
                 Err(_) => {}
+            }
+
+            if update_draw {
+                self.watch_area.update_wrap();
             }
         }
     }
@@ -626,6 +632,12 @@ impl<'a> App<'a> {
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
     }
 
+    pub fn add_results(&mut self, results: Vec<CommandResult>) {
+        for result in results {
+            self.update_result(result, false);
+        }
+    }
+
     ///
     fn increase_interval(&mut self) {
         let cur_interval = *self.interval.read().unwrap();
@@ -773,7 +785,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn update_result(&mut self, _result: CommandResult) -> bool {
+    fn update_result(&mut self, _result: CommandResult, is_running_app: bool) -> bool {
         // check results size.
         let mut latest_result = ResultItems {
             command_result: Rc::new(CommandResult::default()),
@@ -800,7 +812,7 @@ impl<'a> App<'a> {
             return false;
         }
 
-        if !self.after_command.is_empty() {
+        if !self.after_command.is_empty() && is_running_app {
             let after_command = self.after_command.clone();
 
             let results = self.results.clone();
@@ -884,8 +896,10 @@ impl<'a> App<'a> {
             self.reset_history(selected);
         }
 
-        // update WatchArea
-        self.set_output_data(selected);
+        if is_running_app{
+            // update WatchArea
+            self.set_output_data(selected);
+        }
 
         true
     }

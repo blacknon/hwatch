@@ -3,21 +3,23 @@
 // that can be found in the LICENSE file.
 
 // v0.3.16
-// TODO(blacknon): Enterキー or shortcut keyでfilter modeのキーワード移動をできるようにする
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
-// TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
+// TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
+//                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
+//                 - logfileが指定されている場合、コマンドの引数は必須ではないようにする
+//                 - commandの指定がある場合はそれを優先的にしようし、指定がない場合はログファイルの一番最後のログに残されているコマンドを実行する
+//                 - logのパースに失敗する、コマンドが存在しないなどの場合、エラーとして対処させる(clapのエラー表示が呼び出せるといいけど・・・？)
 // TODO(blacknon): headerの日付が幅計算間違っている？ような気がするので、修正しておく
 // TODO(blacknon): `ps aux`で実行すると、なぜか全体的に遅くなるので原因調査をする
 //                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
 //                 - ほかのナニカもありそうなので、調べて対処していく
 //                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
-// TODO(blacknon): line/word diffのとき、最終行の中身がない・・・？
 
 // v0.3.xx
+// TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？)
+// TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
-// TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
-//                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
@@ -70,7 +72,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{Arg, ArgAction, Command, ValueHint, builder::ArgPredicate};
+use clap::{Arg, ArgAction, Command, error::ErrorKind, ValueHint, builder::ArgPredicate};
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
@@ -78,7 +80,7 @@ use std::sync::{Arc, RwLock};
 use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
-use common::DiffMode;
+use common::{DiffMode, load_logfile};
 
 // local modules
 mod ansi;
@@ -138,7 +140,6 @@ fn build_app() -> clap::Command {
                 .allow_hyphen_values(true)
                 .num_args(0..)
                 .value_hint(ValueHint::CommandWithArguments)
-                .required(true),
         )
 
         // -- flags --
@@ -274,7 +275,7 @@ fn build_app() -> clap::Command {
         //      {timestamp: "...", command: "....", output: ".....", ...}
         .arg(
             Arg::new("logfile")
-                .help("logging file")
+                .help("logging file. if a log file is already used, its contents will be read and executed.")
                 .short('l')
                 .long("logfile")
                 .num_args(0..=1)
@@ -285,7 +286,7 @@ fn build_app() -> clap::Command {
         //   [--shell,-s] command
         .arg(
             Arg::new("shell_command")
-                .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
+                .help("shell to use at runtime. can also insert the command to the location specified by {COMMAND}.")
                 .short('s')
                 .long("shell")
                 .action(ArgAction::Append)
@@ -348,7 +349,8 @@ fn build_app() -> clap::Command {
                 .default_value("output")
                 .action(ArgAction::Append),
         )
-        //
+        // Set keymap option
+        //   [--keymap,-K] keymap(shortcut=function)
         .arg(
             Arg::new("keymap")
                 .help("Add keymap")
@@ -359,7 +361,7 @@ fn build_app() -> clap::Command {
 
 }
 
-fn get_clap_matcher() -> clap::ArgMatches {
+fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
     let env_config = std::env::var("HWATCH").unwrap_or_default();
     let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
     let mut os_args = std::env::args_os();
@@ -375,12 +377,13 @@ fn get_clap_matcher() -> clap::ArgMatches {
     args.extend(env_args.iter().map(std::ffi::OsString::from));
     args.extend(os_args);
 
-    build_app().get_matches_from(args)
+    cmd_app.get_matches_from(args)
 }
 
 fn main() {
     // Get command args matches
-    let matcher = get_clap_matcher();
+    let mut cmd_app = build_app();
+    let matcher = get_clap_matcher(cmd_app.clone());
 
     // Get options flag
     let batch = matcher.get_flag("batch");
@@ -394,30 +397,64 @@ fn main() {
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
+    let mut load_results = vec![];
     if let Some(logfile) = logfile {
-        let _log_path = Path::new(logfile);
-        let _log_dir = _log_path.parent().unwrap();
-        let _cur_dir = std::env::current_dir().expect("cannot get current directory");
-        let _abs_log_path = _cur_dir.join(_log_path);
-        let _abs_log_dir = _cur_dir.join(_log_dir);
-
-        // check _log_path exist
-        if _abs_log_path.exists() {
-            println!("file {_abs_log_path:?} is exists.");
-            let answer = Question::new("Log to the same file?")
-                .default(Answer::YES)
-                .show_defaults()
-                .confirm();
-
-            if answer != Answer::YES {
-                std::process::exit(1);
-            }
-        }
+        // logging log
+        let log_path = Path::new(logfile);
+        let log_dir = log_path.parent().unwrap();
+        let cur_dir = std::env::current_dir().expect("cannot get current directory");
+        let abs_log_path = cur_dir.join(log_path);
+        let abs_log_dir = cur_dir.join(log_dir);
 
         // check _log_dir exist
-        if !_abs_log_dir.exists() {
-            println!("directory {_abs_log_dir:?} is not exists.");
-            std::process::exit(1);
+        if !abs_log_dir.exists() {
+            let err = cmd_app.error(
+                ErrorKind::ValueValidation,
+                format!("directory {abs_log_dir:?} is not exists."),
+            );
+            err.exit();
+        }
+
+        // load logfile
+        match load_logfile(abs_log_path.to_str().unwrap(), compress) {
+            Ok(results) => {
+                load_results = results;
+            },
+            Err(e) => {
+                let mut is_overwrite_question = false;
+                match e {
+                    common::LoadLogfileError::LogfileEmpty => {
+                        println!("file {abs_log_path:?} is exists and empty.");
+                        is_overwrite_question = true;
+                    },
+                    common::LoadLogfileError::LoadFileError(err) => {
+                        match err.kind() {
+                            std::io::ErrorKind::NotFound => {},
+                            _ => {
+                                println!("file {abs_log_path:?} is exists and load error.");
+                                println!("{err:?}");
+                                is_overwrite_question = true;
+                            },
+                        }
+                    },
+                    common::LoadLogfileError::JsonParseError(err) => {
+                        println!("file {abs_log_path:?} is exists and json parse error.");
+                        println!("{err:?}");
+                        is_overwrite_question = true;
+                    },
+                }
+
+                if is_overwrite_question {
+                    let answer = Question::new("Log to the same file?")
+                        .default(Answer::YES)
+                        .show_defaults()
+                        .confirm();
+
+                    if answer != Answer::YES {
+                        std::process::exit(1);
+                    }
+                }
+            }
         }
     }
 
@@ -471,12 +508,29 @@ fn main() {
         }
     };
 
+    // set command
+    let mut command_line: Vec<_> = matcher.get_many::<String>("command").unwrap().into_iter().map(|s| s.clone()).collect();
+    if command_line.is_empty() {
+        // check load_results
+        if load_results.is_empty() {
+            let err = cmd_app.error(
+                ErrorKind::InvalidValue,
+                format!("command not specified and logfile is empty."),
+            );
+            err.exit();
+        }
+
+        // set command
+        let command = load_results.last().unwrap().command.clone();
+        command_line = shell_words::split(&command).unwrap();
+    }
+
     // Start Command Thread
     {
         let m = matcher.clone();
         let tx = tx.clone();
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
-        let command: Vec<_> = m.get_many::<String>("command").unwrap().into_iter().map(|s| s.clone()).collect();
+        let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
         let interval = interval.clone();
         let _ = thread::spawn(move || loop {
@@ -550,7 +604,7 @@ fn main() {
         }
 
         // start app.
-        let _res = view.start(tx, rx);
+        let _res = view.start(tx, rx, load_results);
     } else {
         // is batch mode
         let mut batch = batch::Batch::new(tx, rx)

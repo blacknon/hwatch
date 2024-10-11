@@ -119,6 +119,17 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    pub fn update_wrap(&mut self) {
+        // update wrap data
+        self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
+
+        if self.keyword.len() > 0 {
+            // update keyword position
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+        }
+    }
+
+    ///
     pub fn set_border(&mut self, border: bool) {
         self.border = border;
     }
