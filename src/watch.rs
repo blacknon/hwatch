@@ -211,6 +211,8 @@ impl<'a> WatchArea<'a> {
             self.selected_keyword += 1;
         } else if self.selected_keyword == self.keyword_position.len() as i16 - 1 {
             self.selected_keyword = 0;
+        } else if self.selected_keyword > self.keyword_position.len() as i16 - 1 {
+            self.selected_keyword = self.keyword_position.len() as i16 - 1;
         }
 
         if self.keyword_position.len() >= self.selected_keyword as usize + 1 && self.selected_keyword >= 0 {
