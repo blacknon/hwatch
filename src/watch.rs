@@ -119,6 +119,17 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    pub fn update_wrap(&mut self) {
+        // update wrap data
+        self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
+
+        if self.keyword.len() > 0 {
+            // update keyword position
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+        }
+    }
+
+    ///
     pub fn set_border(&mut self, border: bool) {
         self.border = border;
     }
@@ -200,6 +211,8 @@ impl<'a> WatchArea<'a> {
             self.selected_keyword += 1;
         } else if self.selected_keyword == self.keyword_position.len() as i16 - 1 {
             self.selected_keyword = 0;
+        } else if self.selected_keyword > self.keyword_position.len() as i16 - 1 {
+            self.selected_keyword = self.keyword_position.len() as i16 - 1;
         }
 
         if self.keyword_position.len() >= self.selected_keyword as usize + 1 && self.selected_keyword >= 0 {
