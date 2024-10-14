@@ -61,15 +61,15 @@ That records the result of command execution and can display it history and diff
               --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
           -c, --color                         interpret ANSI color and style sequences
           -r, --reverse                       display text upside down.
-          -C, --compress                      Compress data in memory.
+          -C, --compress                      Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.
           -t, --no-title                      hide the UI on start. Use `t` to toggle it.
           -N, --line-number                   show line number
               --no-help-banner                hide the "Display help with h key" message
           -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
           -O, --diff-output-only              Display only the lines with differences during `line` diff and `word` diff.
           -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
-          -l, --logfile [<logfile>]           logging file
-          -s, --shell <shell_command>         shell to use at runtime. can  also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
+          -l, --logfile [<logfile>]           logging file. if a log file is already used, its contents will be read and executed.
+          -s, --shell <shell_command>         shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
           -n, --interval <interval>           seconds to wait between updates [default: 2]
           -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000) [default: 5000]
               --tab-size <tab_size>           Specifying tab display size [default: 4]
@@ -107,6 +107,8 @@ Watch mode keybind(Default).
 | <kbd>2</kbd>                         | switch line type diff.                                      |
 | <kbd>3</kbd>                         | switch word type diff.                                      |
 | <kbd>O</kbd>                         | switch output mode(output->stdout->stderr).                 |
+| <kbd>Ctrl</kbd>+<kbd>P</kbd>         | Forcus before keyword.                                      |
+| <kbd>Ctrl</kbd>+<kbd>N</kbd>         | Forcus next keyword.                                        |
 | <kbd>Shift</kbd>+<kbd>O</kbd>        | show only lines with differences(line/word diff mode only). |
 | <kbd>Shift</kbd>+<kbd>S</kbd>        | show summary infomation in history.                         |
 | <kbd>F1</kbd>                        | only stdout print.                                          |
@@ -179,6 +181,8 @@ Keybind functions that can be specified are as follows.
 | togge_history_summary    | Toggle history summary                   |
 | interval_plus            | Interval +0.5sec                         |
 | interval_minus           | Interval -0.5sec                         |
+| prev_keyword             | Forcus previous keyword                  |
+| next_keyword             | Forcus next keyword                      |
 | change_filter_mode       | Change filter mode                       |
 | change_regex_filter_mode | Change regex filter mode                 |
 
@@ -202,10 +206,6 @@ Use the -n option to specify the command execution interval.
 ```bash
 hwatch -n 3 command...
 ```
-
-<p align="center">
-<img src="./img/interval.gif" />
-</p>
 
 ### logging output
 
