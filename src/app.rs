@@ -632,6 +632,7 @@ impl<'a> App<'a> {
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
     }
 
+    ///
     pub fn add_results(&mut self, results: Vec<CommandResult>) {
         for result in results {
             self.update_result(result, false);
@@ -1074,8 +1075,8 @@ impl<'a> App<'a> {
                             }
                         }, // Quit
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
-                        // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::ForceCancel => self.action_force_reset(),
                         InputAction::Help => self.toggle_window(), // Help
                         InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
                         InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
@@ -1392,6 +1393,32 @@ impl<'a> App<'a> {
             self.show_exit_popup()
         }
     }
+
+    ///
+    fn action_force_reset(&mut self) {
+        if self.is_filtered {
+            // unset filter
+            self.is_filtered = false;
+            self.is_regex_filter = false;
+            self.filtered_text = "".to_string();
+            self.header_area.input_text = self.filtered_text.clone();
+            self.set_input_mode(InputMode::None);
+
+            let selected = self.history_area.get_state_select();
+            self.reset_history(selected);
+
+            // update WatchArea
+            self.watch_area.reset_keyword();
+            self.set_output_data(selected);
+        } else if 0 != self.history_area.get_state_select() {
+            // set latest history
+            self.reset_history(0);
+            self.set_output_data(0);
+        } else {
+            self.exit();
+        }
+    }
+
 
     ///
     fn action_up(&mut self) {
