@@ -632,6 +632,7 @@ impl<'a> App<'a> {
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
     }
 
+    ///
     pub fn add_results(&mut self, results: Vec<CommandResult>) {
         for result in results {
             self.update_result(result, false);

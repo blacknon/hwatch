@@ -132,59 +132,60 @@ hwatch -K ctrl-p=history_pane_up -K ctrl-n=history_pane_down command...
 
 Keybind functions that can be specified are as follows.
 
-| function                 | description                              |
-|--------------------------|------------------------------------------|
-| up                       | Move up                                  |
-| watch_pane_up            | Move up in watch pane                    |
-| history_pane_up          | Move up in history pane                  |
-| down                     | Move down                                |
-| watch_pane_down          | Move down in watch pane                  |
-| history_pane_down        | Move down in history pane                |
-| page_up                  | Move page up                             |
-| watch_pane_page_up       | Move page up in watch pane               |
-| history_pane_page_up     | Move page up in history pane             |
-| page_down                | Move page down                           |
-| watch_pane_page_down     | Move page down in watch pane             |
-| history_pane_page_down   | Move page down in history pane           |
-| move_top                 | Move top                                 |
-| watch_pane_move_top      | Move top in watch pane                   |
-| history_pane_move_top    | Move top in history pane                 |
-| move_end                 | Move end                                 |
-| watch_pane_move_end      | Move end in watch pane                   |
-| history_pane_move_end    | Move end in history pane                 |
-| toggle_forcus            | Toggle forcus window                     |
-| forcus_watch_pane        | Forcus watch pane                        |
-| forcus_history_pane      | Forcus history pane                      |
-| quit                     | Quit hwatch                              |
-| reset                    | filter reset                             |
-| cancel                   | Cancel                                   |
-| help                     | Show and hide help window                |
-| toggle_color             | Toggle enable/disable ANSI Color         |
-| toggle_line_number       | Toggle enable/disable Line Number        |
-| toggle_reverse           | Toggle enable/disable text reverse       |
-| toggle_mouse_support     | Toggle enable/disable mouse support      |
-| toggle_view_pane_ui      | Toggle view header/history pane          |
-| toggle_view_header_pane  | Toggle view header pane                  |
-| toggle_view_history_pane | Toggle view history pane                 |
-| toggle_border            | Toggle enable/disable border             |
-| toggle_scroll_bar        | Toggle enable/disable scroll bar         |
-| toggle_diff_mode         | Toggle diff mode                         |
-| set_diff_mode_plane      | Set diff mode plane                      |
-| set_diff_mode_watch      | Set diff mode watch                      |
-| set_diff_mode_line       | Set diff mode line                       |
-| set_diff_mode_word       | Set diff mode word                       |
-| set_diff_only            | Set diff line only (line/word diff only) |
-| toggle_output_mode       | Toggle output mode                       |
-| set_output_mode_output   | Set output mode output                   |
-| set_output_mode_stdout   | Set output mode stdout                   |
-| set_output_mode_stderr   | Set output mode stderr                   |
-| togge_history_summary    | Toggle history summary                   |
-| interval_plus            | Interval +0.5sec                         |
-| interval_minus           | Interval -0.5sec                         |
-| prev_keyword             | Forcus previous keyword                  |
-| next_keyword             | Forcus next keyword                      |
-| change_filter_mode       | Change filter mode                       |
-| change_regex_filter_mode | Change regex filter mode                 |
+| function                 | description                               |
+|--------------------------|-------------------------------------------|
+| up                       | Move up                                   |
+| watch_pane_up            | Move up in watch pane                     |
+| history_pane_up          | Move up in history pane                   |
+| down                     | Move down                                 |
+| watch_pane_down          | Move down in watch pane                   |
+| history_pane_down        | Move down in history pane                 |
+| page_up                  | Move page up                              |
+| watch_pane_page_up       | Move page up in watch pane                |
+| history_pane_page_up     | Move page up in history pane              |
+| page_down                | Move page down                            |
+| watch_pane_page_down     | Move page down in watch pane              |
+| history_pane_page_down   | Move page down in history pane            |
+| move_top                 | Move top                                  |
+| watch_pane_move_top      | Move top in watch pane                    |
+| history_pane_move_top    | Move top in history pane                  |
+| move_end                 | Move end                                  |
+| watch_pane_move_end      | Move end in watch pane                    |
+| history_pane_move_end    | Move end in history pane                  |
+| toggle_forcus            | Toggle forcus window                      |
+| forcus_watch_pane        | Forcus watch pane                         |
+| forcus_history_pane      | Forcus history pane                       |
+| quit                     | Quit hwatch                               |
+| reset                    | filter reset                              |
+| cancel                   | Cancel                                    |
+| force_cancel             | Cancel without displaying the exit dialog |
+| help                     | Show and hide help window                 |
+| toggle_color             | Toggle enable/disable ANSI Color          |
+| toggle_line_number       | Toggle enable/disable Line Number         |
+| toggle_reverse           | Toggle enable/disable text reverse        |
+| toggle_mouse_support     | Toggle enable/disable mouse support       |
+| toggle_view_pane_ui      | Toggle view header/history pane           |
+| toggle_view_header_pane  | Toggle view header pane                   |
+| toggle_view_history_pane | Toggle view history pane                  |
+| toggle_border            | Toggle enable/disable border              |
+| toggle_scroll_bar        | Toggle enable/disable scroll bar          |
+| toggle_diff_mode         | Toggle diff mode                          |
+| set_diff_mode_plane      | Set diff mode plane                       |
+| set_diff_mode_watch      | Set diff mode watch                       |
+| set_diff_mode_line       | Set diff mode line                        |
+| set_diff_mode_word       | Set diff mode word                        |
+| set_diff_only            | Set diff line only (line/word diff only)  |
+| toggle_output_mode       | Toggle output mode                        |
+| set_output_mode_output   | Set output mode output                    |
+| set_output_mode_stdout   | Set output mode stdout                    |
+| set_output_mode_stderr   | Set output mode stderr                    |
+| togge_history_summary    | Toggle history summary                    |
+| interval_plus            | Interval +0.5sec                          |
+| interval_minus           | Interval -0.5sec                          |
+| prev_keyword             | Forcus previous keyword                   |
+| next_keyword             | Forcus next keyword                       |
+| change_filter_mode       | Change filter mode                        |
+| change_regex_filter_mode | Change regex filter mode                  |
 
 
 ## Configuration

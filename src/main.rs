@@ -7,7 +7,6 @@
 //                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
 //                 - ほかのナニカもありそうなので、調べて対処していく
 //                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
-// TODO(blacknon): [Add the ability to force quit using custom keymap](https://github.com/blacknon/hwatch/issues/138)
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 
 // v0.3.xx
