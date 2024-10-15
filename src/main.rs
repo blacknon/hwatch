@@ -7,12 +7,11 @@
 //                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
 //                 - ほかのナニカもありそうなので、調べて対処していく
 //                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
-// TODO(blacknon): [Add the ability to force quit using custom keymap](https://github.com/blacknon/hwatch/issues/138)
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
-// TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
-// TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
 
 // v0.3.xx
+// TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
+// TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
