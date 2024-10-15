@@ -548,6 +548,8 @@ pub enum InputAction {
     // ==========
     #[serde(rename = "cancel")]
     Cancel,
+    #[serde(rename = "force_cancel")]
+    ForceCancel,
 
     // help
     // ==========
@@ -711,6 +713,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
 
         // Cancel
         InputAction::Cancel => "Cancel".to_string(),
+        InputAction::ForceCancel => "Cancel without displaying the exit dialog".to_string(),
 
         // Help
         InputAction::Help => "Show and hide help window".to_string(),
