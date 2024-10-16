@@ -27,6 +27,7 @@ heapless = "0.8.0"
 nix = {version = "0.29", features = ["fs", "term", "process", "signal"]}
 question = "0.2.2"
 ratatui = {version = "0.28.0", default-features = false, features = ['crossterm', 'unstable-rendered-line-info']}
+rayon = "1.10"
 regex = "1.10.3"
 serde = "1.0.197"
 serde_derive = "1.0.197"
