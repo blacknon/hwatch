@@ -11,6 +11,8 @@ use tui::{
     Frame,
 };
 use similar::{TextDiff, ChangeTag};
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
@@ -53,32 +55,73 @@ impl HistorySummary {
         self.char_add = 0;
         self.char_rem = 0;
 
+        // Arc<Mutex<T>> を使ってスレッドセーフな変数を作成
+        let line_add = Arc::new(Mutex::new(0));
+        let line_rem = Arc::new(Mutex::new(0));
+        let char_add = Arc::new(Mutex::new(0));
+        let char_rem = Arc::new(Mutex::new(0));
+
+        // 行単位の差分
         let line_diff = TextDiff::from_lines(src, dest);
-        let char_diff = TextDiff::from_chars(src, dest);
 
-        // line
-        for l_op in line_diff.ops().iter() {
-            for change in line_diff.iter_inline_changes(l_op) {
+        // 行ごとの変更を処理し、変更が発生した行だけ文字単位の差分を計算
+        line_diff.ops().par_iter().for_each(|l_op| {
+            for change in line_diff.iter_changes(l_op) {
+                let mut line_add_lock = line_add.lock().unwrap();
+                let mut line_rem_lock = line_rem.lock().unwrap();
                 match change.tag() {
-                    ChangeTag::Insert => {self.line_add += 1},
-                    ChangeTag::Delete => {self.line_rem += 1},
-                    _ => {},
+                    ChangeTag::Insert => {
+                        *line_add_lock += 1;
+                        // 追加された行に対して文字単位の差分計算
+                        let (line_char_add, line_char_rem) = calc_char_diff("", change.value());
+                        *char_add.lock().unwrap() += line_char_add;
+                        *char_rem.lock().unwrap() += line_char_rem;
+                    },
+                    ChangeTag::Delete => {
+                        *line_rem_lock += 1;
+                        // 削除された行に対して文字単位の差分計算
+                        let (line_char_add, line_char_rem) = calc_char_diff(change.value(), "");
+                        *char_add.lock().unwrap() += line_char_add;
+                        *char_rem.lock().unwrap() += line_char_rem;
+                    },
+                    ChangeTag::Equal => {
+                        // 行が変更されていない場合はスキップ
+                    }
                 }
             }
-        }
+        });
 
-        // char
-        for c_op in char_diff.ops().iter() {
-            for change in char_diff.iter_inline_changes(c_op) {
-                match change.tag() {
-                    ChangeTag::Insert => {self.char_add += 1},
-                    ChangeTag::Delete => {self.char_rem += 1},
-                    _ => {},
-                }
-            }
-        }
+        // 結果を取得
+        self.line_add = *line_add.lock().unwrap();
+        self.line_rem = *line_rem.lock().unwrap();
+        self.char_add = *char_add.lock().unwrap();
+        self.char_rem = *char_rem.lock().unwrap();
+
+        eprint!("line_add: {}, line_rem: {}\n", self.line_add, self.line_rem);
     }
 }
+
+// 文字単位の差分計算を行うヘルパー関数
+fn calc_char_diff(old: &str, new: &str) -> (u64, u64) {
+    let char_diff = TextDiff::from_chars(old, new);
+    let mut char_add: u64 = 0;
+    let mut char_rem: u64 = 0;
+
+    char_diff.ops().iter().for_each(|c_op| {
+        for change in char_diff.iter_inline_changes(c_op) {
+            match change.tag() {
+                ChangeTag::Insert => { char_add += 1 },
+                ChangeTag::Delete => { char_rem += 1 },
+                _ => {},
+            }
+        }
+    });
+
+    return (char_add, char_rem);
+}
+
+
+
 
 pub struct HistoryArea {
     ///

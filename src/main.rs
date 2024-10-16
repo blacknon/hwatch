@@ -7,6 +7,7 @@
 //                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
 //                 - ほかのナニカもありそうなので、調べて対処していく
 //                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
+//                 => 結果としては、summaryのcalcが遅いのが原因。これを改善することに加え、そもそも最初からsummaryを無効化するようなオプション追加の対応が必要そう。
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 
 // v0.3.xx
@@ -223,7 +224,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
-        // exec flag.
+        // help banner disable flag.
         //     [--no-help-banner]
         .arg(
             Arg::new("no_help_banner")
@@ -231,6 +232,15 @@ fn build_app() -> clap::Command {
                 .long("no-help-banner")
                 .action(ArgAction::SetTrue),
         )
+        // summary disable flag.
+        //     [--no-summary]
+        .arg(
+            Arg::new("no_summary")
+                .help("disable the calculation for summary that is running behind the scenes, and disable the summary function in the first place.")
+                .long("no-summary")
+                .action(ArgAction::SetTrue),
+        )
+        //
         // exec flag.
         //     [-x,--exec]
         .arg(
