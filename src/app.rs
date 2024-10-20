@@ -156,6 +156,9 @@ pub struct App<'a> {
     results_stderr: HashMap<usize, ResultItems>,
 
     ///
+    enable_summary_char: bool,
+
+    ///
     interval: Interval,
 
     ///
@@ -238,6 +241,8 @@ impl<'a> App<'a> {
             results_stdout: HashMap::new(),
             results_stderr: HashMap::new(),
 
+            enable_summary_char: false,
+
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
@@ -261,7 +266,10 @@ impl<'a> App<'a> {
 
     ///
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+        // set history setting
+        self.history_area.set_enable_char_diff(self.enable_summary_char);
         self.history_area.next(1);
+
         let mut update_draw = true;
 
         self.printer
@@ -620,6 +628,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_enable_summary_char(&mut self, enable_summary_char: bool) {
+        self.enable_summary_char = enable_summary_char;
+    }
+
+    ///
     pub fn set_interval(&mut self, interval: f64) {
         let mut cur_interval = self.interval.write().unwrap();
         *cur_interval = interval;
@@ -933,7 +946,7 @@ impl<'a> App<'a> {
             let latest_num = result_index - 1;
             let latest_result = self.results[&latest_num].clone();
             eprintln!("insert_result: get result index: before summary.clac"); // Debug
-            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output());
+            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output(), self.enable_summary_char);
             eprintln!("insert_result: get result index: after summary.clac"); // Debug
         }
         self.results.insert(result_index, rc_output_result.clone());
@@ -959,7 +972,7 @@ impl<'a> App<'a> {
                 command_result: Rc::clone(&rc_result),
                 summary: HistorySummary::init(),
             };
-            rc_stdout_result.summary.calc(before_result_stdout, result_stdout);
+            rc_stdout_result.summary.calc(before_result_stdout, result_stdout, self.enable_summary_char);
             self.results_stdout.insert(result_index, rc_stdout_result);
         }
 
@@ -972,7 +985,7 @@ impl<'a> App<'a> {
                 command_result: Rc::clone(&rc_result),
                 summary: HistorySummary::init(),
             };
-            rc_stderr_result.summary.calc(before_result_stderr, result_stderr);
+            rc_stderr_result.summary.calc(before_result_stderr, result_stderr, self.enable_summary_char);
             self.results_stderr.insert(result_index, rc_stderr_result);
         }
 

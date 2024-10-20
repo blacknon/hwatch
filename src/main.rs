@@ -8,6 +8,7 @@
 //                 - ほかのナニカもありそうなので、調べて対処していく
 //                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
 //                 => 結果としては、summaryのcalcが遅いのが原因。これを改善することに加え、そもそも最初からsummaryを無効化するようなオプション追加の対応が必要そう。
+//                 - char diffをオプションにして、デフォルトではsummaryとしては無効化する(実行時に計算させるだけでも影響があるので、基本は無効化して処理させる)
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 
 // v0.3.xx
@@ -159,12 +160,16 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("beep"),
         )
+        // border option
+        //     [--border]
         .arg(
             Arg::new("border")
                 .help("Surround each pane with a border frame")
                 .action(ArgAction::SetTrue)
                 .long("border"),
         )
+        // scrollbar option
+        //     [--with-scrollbar]
         .arg(
             Arg::new("with_scrollbar")
                 .help("When the border option is enabled, display scrollbar on the right side of watch pane.")
@@ -206,7 +211,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("compress"),
         )
-        // exec flag.
+        // no-title flag.
         //     [--no-title]
         .arg(
             Arg::new("no_title")
@@ -214,6 +219,13 @@ fn build_app() -> clap::Command {
                 .long("no-title")
                 .action(ArgAction::SetTrue)
                 .short('t'),
+        )
+        // enable charcter summary option
+        .arg(
+            Arg::new("enable_summary_char")
+                .help("collect character-level diff count in summary.")
+                .long("enable-summary-char")
+                .action(ArgAction::SetTrue),
         )
         // Enable line number mode option
         //   [--line-number,-N]
@@ -479,6 +491,9 @@ fn main() {
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
 
+    // enable summary char
+    let enable_summary_char = matcher.get_flag("enable_summary_char");
+
     // output mode
     let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
         "output" => common::OutputMode::Output,
@@ -598,6 +613,9 @@ fn main() {
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
+
+            // Set enable summary char
+            .set_enable_summary_char(enable_summary_char)
 
             .set_show_ui(!matcher.get_flag("no_title"))
             .set_show_help_banner(!matcher.get_flag("no_help_banner"));

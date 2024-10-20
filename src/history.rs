@@ -10,7 +10,7 @@ use tui::{
     widgets::{Block, Cell, Row, Table, TableState, Borders},
     Frame,
 };
-use similar::{TextDiff, ChangeTag};
+use similar::{TextDiff, Change, ChangeTag};
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 
@@ -48,7 +48,7 @@ impl HistorySummary {
         }
     }
 
-    pub fn calc(&mut self, src: &str, dest: &str) {
+    pub fn calc(&mut self, src: &str, dest: &str, enable_char_diff: bool) {
         // reset
         self.line_add = 0;
         self.line_rem = 0;
@@ -66,61 +66,180 @@ impl HistorySummary {
 
         // 行ごとの変更を処理し、変更が発生した行だけ文字単位の差分を計算
         line_diff.ops().par_iter().for_each(|l_op| {
-            for change in line_diff.iter_changes(l_op) {
+            for change in line_diff.iter_inline_changes(l_op) {
                 let mut line_add_lock = line_add.lock().unwrap();
                 let mut line_rem_lock = line_rem.lock().unwrap();
                 match change.tag() {
                     ChangeTag::Insert => {
                         *line_add_lock += 1;
-                        // 追加された行に対して文字単位の差分計算
-                        let (line_char_add, line_char_rem) = calc_char_diff("", change.value());
-                        *char_add.lock().unwrap() += line_char_add;
-                        *char_rem.lock().unwrap() += line_char_rem;
                     },
                     ChangeTag::Delete => {
                         *line_rem_lock += 1;
-                        // 削除された行に対して文字単位の差分計算
-                        let (line_char_add, line_char_rem) = calc_char_diff(change.value(), "");
-                        *char_add.lock().unwrap() += line_char_add;
-                        *char_rem.lock().unwrap() += line_char_rem;
                     },
                     ChangeTag::Equal => {
                         // 行が変更されていない場合はスキップ
-                    }
+                    },
                 }
             }
         });
+
+        if enable_char_diff {
+            let mut char_add_lock = char_add.lock().unwrap();
+            let mut char_rem_lock = char_rem.lock().unwrap();
+            let (char_add, char_rem) = calc_char_diff(line_diff.iter_all_changes().collect());
+
+            *char_add_lock = char_add as u64;
+            *char_rem_lock = char_rem as u64;
+        }
+
 
         // 結果を取得
         self.line_add = *line_add.lock().unwrap();
         self.line_rem = *line_rem.lock().unwrap();
         self.char_add = *char_add.lock().unwrap();
         self.char_rem = *char_rem.lock().unwrap();
-
-        eprint!("line_add: {}, line_rem: {}\n", self.line_add, self.line_rem);
     }
 }
 
 // 文字単位の差分計算を行うヘルパー関数
-fn calc_char_diff(old: &str, new: &str) -> (u64, u64) {
-    let char_diff = TextDiff::from_chars(old, new);
-    let mut char_add: u64 = 0;
-    let mut char_rem: u64 = 0;
+fn calc_char_diff<'a>(change_set: Vec<Change<&str>>) -> (usize, usize) {
+    let mut char_add: usize = 0;
+    let mut char_rem: usize = 0;
 
-    char_diff.ops().iter().for_each(|c_op| {
-        for change in char_diff.iter_inline_changes(c_op) {
-            match change.tag() {
-                ChangeTag::Insert => { char_add += 1 },
-                ChangeTag::Delete => { char_rem += 1 },
+    // remove, insertのリストを格納しておく
+    let mut remove_changes: Vec<Change<&str>> = vec![];
+    let mut insert_changes: Vec<Change<&str>> = vec![];
+    let mut previous_tag: ChangeTag = ChangeTag::Equal; // とりあえず初期値として突っ込んどく
+
+    for change in change_set {
+        match change.tag() {
+            ChangeTag::Delete => {
+                if previous_tag == ChangeTag::Insert && remove_changes.len() > 0 {
+                    //
+                    let mut remove_string: String = "".to_string();
+                    for rc in remove_changes.iter() {
+                        remove_string.push_str(rc.value());
+                    }
+
+                    //
+                    let mut insert_string: String = "".to_string();
+                    for ic in insert_changes.iter() {
+                        insert_string.push_str(ic.value());
+                    }
+
+                    // 文字単位での差分取得をさせる
+                    let char_diff_set = TextDiff::from_chars(&remove_string, &insert_string);
+                    for char_change in char_diff_set.iter_all_changes() {
+                        let length = char_change.value().len();
+                        match char_change.tag() {
+                            ChangeTag::Insert => { char_add += length },
+                            ChangeTag::Delete => { char_rem += length },
+                            _ => {},
+                        }
+                    }
+
+                    remove_changes = vec![];
+                    insert_changes = vec![];
+                }
+
+                remove_changes.push(change);
+            },
+
+            ChangeTag::Insert => {
+                if previous_tag == ChangeTag::Delete && insert_changes.len() > 0 {
+                    //
+                    let mut remove_string: String = "".to_string();
+                    for rc in remove_changes.iter() {
+                        remove_string.push_str(rc.value());
+                    }
+
+                    //
+                    let mut insert_string: String = "".to_string();
+                    for ic in insert_changes.iter() {
+                        insert_string.push_str(ic.value());
+                    }
+
+                    // 文字単位での差分取得をさせる
+                    let char_diff_set = TextDiff::from_chars(&remove_string, &insert_string);
+                    for char_change in char_diff_set.iter_all_changes() {
+                        let length = char_change.value().len();
+                        match char_change.tag() {
+                            ChangeTag::Insert => { char_add += length },
+                            ChangeTag::Delete => { char_rem += length },
+                            _ => {},
+                        }
+                    }
+
+                    remove_changes = vec![];
+                    insert_changes = vec![];
+                }
+
+
+                insert_changes.push(change);
+            },
+
+            ChangeTag::Equal => {
+                if previous_tag != ChangeTag::Equal {
+                    //
+                    let mut remove_string: String = "".to_string();
+                    for rc in remove_changes.iter() {
+                        remove_string.push_str(rc.value());
+                    }
+
+                    //
+                    let mut insert_string: String = "".to_string();
+                    for ic in insert_changes.iter() {
+                        insert_string.push_str(ic.value());
+                    }
+
+                    // 文字単位での差分取得をさせる
+                    let char_diff_set = TextDiff::from_chars(&remove_string, &insert_string);
+                    for char_change in char_diff_set.iter_all_changes() {
+                        let length = char_change.value().len();
+                        match char_change.tag() {
+                            ChangeTag::Insert => { char_add += length },
+                            ChangeTag::Delete => { char_rem += length },
+                            _ => {},
+                        }
+                    }
+
+                    remove_changes = vec![];
+                    insert_changes = vec![];
+                }
+            }
+        }
+
+        // previous_tagを更新する
+        previous_tag = change.tag()
+    }
+
+    if remove_changes.len() > 0 || insert_changes.len() > 0 {
+        //
+        let mut remove_string: String = "".to_string();
+        for rc in remove_changes.iter() {
+            remove_string.push_str(rc.value());
+        }
+
+        //
+        let mut insert_string: String = "".to_string();
+        for ic in insert_changes.iter() {
+            insert_string.push_str(ic.value());
+        }
+
+        // 文字単位での差分取得をさせる
+        let char_diff_set = TextDiff::from_chars(&remove_string, &insert_string);
+        for char_change in char_diff_set.iter_all_changes() {
+            let length = char_change.value().len();
+            match char_change.tag() {
+                ChangeTag::Insert => { char_add += length },
+                ChangeTag::Delete => { char_rem += length },
                 _ => {},
             }
         }
-    });
+    }
 
     return (char_add, char_rem);
 }
-
-
 
 
 pub struct HistoryArea {
@@ -150,6 +269,9 @@ pub struct HistoryArea {
 
     /// is enable scroll bar
     scroll_bar: bool,
+
+    /// enable character diff
+    enable_char_diff: bool,
 }
 
 /// History Area Object Trait
@@ -171,7 +293,13 @@ impl HistoryArea {
             border: false,
             hide_header: false,
             scroll_bar: false,
+            enable_char_diff: false,
         }
+    }
+
+    ///
+    pub fn set_enable_char_diff(&mut self, enable_char_diff: bool) {
+        self.enable_char_diff = enable_char_diff;
     }
 
     ///
@@ -248,7 +376,11 @@ impl HistoryArea {
                 0 => 1,
                 _ => {
                     if self.summary {
-                        3
+                        if self.enable_char_diff {
+                            3
+                        } else {
+                            2
+                        }
                     } else {
                         1
                     }
@@ -295,7 +427,13 @@ impl HistoryArea {
 
                 // set text
                 let text = match self.summary {
-                    true => Text::from(vec![line1, line2, line3]),
+                    true => {
+                        if self.enable_char_diff {
+                            Text::from(vec![line1, line2, line3])
+                        } else {
+                            Text::from(vec![line1, line2])
+                        }
+                    },
                     false => Text::from(vec![line1]),
                 };
 
