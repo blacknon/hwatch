@@ -443,22 +443,22 @@ fn main() {
                 let mut is_overwrite_question = false;
                 match e {
                     common::LoadLogfileError::LogfileEmpty => {
-                        println!("file {abs_log_path:?} is exists and empty.");
+                        eprintln!("file {abs_log_path:?} is exists and empty.");
                         is_overwrite_question = true;
                     },
                     common::LoadLogfileError::LoadFileError(err) => {
                         match err.kind() {
                             std::io::ErrorKind::NotFound => {},
                             _ => {
-                                println!("file {abs_log_path:?} is exists and load error.");
-                                println!("{err:?}");
+                                eprintln!("file {abs_log_path:?} is exists and load error.");
+                                eprintln!("{err:?}");
                                 is_overwrite_question = true;
                             },
                         }
                     },
                     common::LoadLogfileError::JsonParseError(err) => {
-                        println!("file {abs_log_path:?} is exists and json parse error.");
-                        println!("{err:?}");
+                        eprintln!("file {abs_log_path:?} is exists and json parse error.");
+                        eprintln!("{err:?}");
                         is_overwrite_question = true;
                     },
                 }
