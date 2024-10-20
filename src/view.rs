@@ -57,6 +57,7 @@ pub struct View {
     output_mode: OutputMode,
     diff_mode: DiffMode,
     is_only_diffline: bool,
+    enable_summary_char: bool,
     log_path: String,
 }
 
@@ -81,6 +82,7 @@ impl View {
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
             is_only_diffline: false,
+            enable_summary_char: false,
             log_path: "".to_string(),
         }
     }
@@ -167,6 +169,11 @@ impl View {
 
     pub fn set_only_diffline(mut self, only_diffline: bool) -> Self {
         self.is_only_diffline = only_diffline;
+        self
+    }
+
+    pub fn set_enable_summary_char(mut self, enable_summary_char: bool) -> Self {
+        self.enable_summary_char = enable_summary_char;
         self
     }
 
@@ -257,6 +264,9 @@ impl View {
         // set diff mode
         app.set_diff_mode(self.diff_mode);
         app.set_is_only_diffline(self.is_only_diffline);
+
+        // set enable summary char
+        app.set_enable_summary_char(self.enable_summary_char);
 
         // Run App
         let res = app.run(&mut terminal);
