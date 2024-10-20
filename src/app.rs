@@ -305,9 +305,7 @@ impl<'a> App<'a> {
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
                     // TODO: thread化し、`update_draw`をsignalで受け取るような仕組みにする
-                    eprintln!("before update_result"); // Debug
                     let _exec_return = self.update_result(exec_result, true);
-                    eprintln!("after update_result"); // Debug
 
                     // beep
                     if _exec_return && self.is_beep {
@@ -802,13 +800,11 @@ impl<'a> App<'a> {
     ///
     fn update_result(&mut self, _result: CommandResult, is_running_app: bool) -> bool {
         // check results size.
-        eprintln!("update_result: check results size"); // Debug
         let mut latest_result = ResultItems {
             command_result: Rc::new(CommandResult::default()),
             summary: HistorySummary::init(),
         };
 
-        eprintln!("update_result: check results is empty"); // Debug
         if self.results.is_empty() {
             // diff output data.
             self.results.insert(0, latest_result.clone());
@@ -820,18 +816,15 @@ impl<'a> App<'a> {
         }
 
         // update HeaderArea
-        eprintln!("update_result: update HeaderArea"); // Debug
         self.header_area.set_current_result(_result.clone());
         self.header_area.update();
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        eprintln!("update_result: check result diff"); // Debug
         if latest_result.command_result == Rc::new(_result.clone()) {
             return false;
         }
 
-        eprintln!("update_result: check after command"); // Debug
         if !self.after_command.is_empty() && is_running_app {
             let after_command = self.after_command.clone();
 
@@ -854,21 +847,18 @@ impl<'a> App<'a> {
         }
 
         // append results
-        eprintln!("update_result: append results"); // Debug
-        let insert_result = self.insert_result(_result); eprintln!("update_result: append results: insert_result"); // Debug
+        let insert_result = self.insert_result(_result);
         let result_index = insert_result.0;
         let is_limit_over = insert_result.1;
         let is_update_stdout = insert_result.2;
         let is_update_stderr = insert_result.3;
 
         // logging result.
-        eprintln!("update_result: logging result"); // Debug
         if !self.logfile.is_empty() {
             let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
         // update HistoryArea
-        eprintln!("update_result: update HistoryArea"); // Debug
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match self.output_mode {
@@ -894,7 +884,6 @@ impl<'a> App<'a> {
             }
         }
 
-        eprintln!("update_result: push history"); // Debug
         let mut selected = self.history_area.get_state_select();
         if is_push {
             match self.output_mode {
@@ -916,7 +905,6 @@ impl<'a> App<'a> {
         selected = self.history_area.get_state_select();
 
         // update hisotry area
-        eprintln!("update_result: update hisotry area"); // Debug
         if is_limit_over {
             self.reset_history(selected);
         }
@@ -933,37 +921,30 @@ impl<'a> App<'a> {
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
     fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool, bool) {
-        eprintln!("insert_result: start"); // Debug
         let rc_result = Rc::new(result);
         let mut rc_output_result = ResultItems {
             command_result: Rc::clone(&rc_result),
             summary: HistorySummary::init(),
         };
 
-        eprintln!("insert_result: get result index"); // Debug
         let result_index = self.results.keys().max().unwrap_or(&0) + 1;
         if result_index > 0 {
             let latest_num = result_index - 1;
             let latest_result = self.results[&latest_num].clone();
-            eprintln!("insert_result: get result index: before summary.clac"); // Debug
             rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output(), self.enable_summary_char);
-            eprintln!("insert_result: get result index: after summary.clac"); // Debug
         }
         self.results.insert(result_index, rc_output_result.clone());
 
-        eprintln!("insert_result: create result stdout"); // Debug
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
         let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
         let result_stdout = &rc_result.get_stdout();
 
-        eprintln!("insert_result: create result stderr"); // Debug
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
         let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
         let result_stderr = &rc_result.get_stderr();
 
-        eprintln!("insert_result: append results_stdout"); // Debug
         // append results_stdout
         let mut is_stdout_update = false;
         if before_result_stdout != result_stdout {
@@ -976,7 +957,6 @@ impl<'a> App<'a> {
             self.results_stdout.insert(result_index, rc_stdout_result);
         }
 
-        eprintln!("insert_result: append results_stderr"); // Debug
         // append results_stderr
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
@@ -989,7 +969,6 @@ impl<'a> App<'a> {
             self.results_stderr.insert(result_index, rc_stderr_result);
         }
 
-        eprintln!("insert_result: limit check"); // Debug
         // limit check
         let mut is_limit_over = false;
         if self.limit > 0 {
