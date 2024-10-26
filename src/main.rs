@@ -3,12 +3,10 @@
 // that can be found in the LICENSE file.
 
 // v0.3.16
-// TODO(blacknon): `ps aux`で実行すると、なぜか全体的に遅くなるので原因調査をする
-//                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
-//                 - ほかのナニカもありそうなので、調べて対処していく
-//                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
-//                 => 結果としては、summaryのcalcが遅いのが原因。これを改善することに加え、そもそも最初からsummaryを無効化するようなオプション追加の対応が必要そう。
-//                 - char diffをオプションにして、デフォルトではsummaryとしては無効化する(実行時に計算させるだけでも影響があるので、基本は無効化して処理させる)
+// TODO(blacknon): **コマンド実行結果の登録**を別Threadにし、操作時のレスポンスに影響を与えないようにする(ps aux対策)
+// TODO(blacknon): Output Only時にfilterを有効にしていると、エラーで落ちるので原因を調べておく(位置の数字的なやつ)
+//                 → そもそもhistoryに表示されないようにするとか、表示内容に応じてフィルタがかかるような仕組みにする？？
+// TODO(blacknon): Output Only時に、初期表示が非表示になるのは困るのでいい感じにする(特にbatchとか)
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 
 // v0.3.xx
