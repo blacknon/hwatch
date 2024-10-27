@@ -3,6 +3,7 @@
 // that can be found in the LICENSE file.
 
 // TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る?)
+// TODO: log load時の追加処理がなんか変(たぶん、log load時に処理したresultをログに記録しちゃってる？？？)
 
 // module
 use crossbeam_channel::{Receiver, Sender};
@@ -16,7 +17,6 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io::{self, Write},
-    rc::Rc,
     thread,
 };
 use tui::{
@@ -24,7 +24,6 @@ use tui::{
     layout::{Constraint, Direction, Layout, Rect, Position},
     Frame, Terminal,
 };
-// use tokio::task;
 
 
 // local module
@@ -818,6 +817,10 @@ impl<'a> App<'a> {
 
     // NOTE: CommandResultを元に、
     fn create_result_items(&mut self, _result: CommandResult, is_running_app: bool) -> bool {
+        // update HeaderArea
+        self.header_area.set_current_result(_result.clone());
+        self.header_area.update();
+
         // create latest_result_with_summary.
         let mut latest_result = CommandResult::default();
         if !self.results.is_empty() {
@@ -843,23 +846,29 @@ impl<'a> App<'a> {
         // create ResultItems
         let enable_summary_char = self.enable_summary_char;
         let tx = self.tx.clone();
-        thread::spawn(move || {
-            gen_result_items(
-                _result,
-                is_running_app,
-                enable_summary_char,
-                &latest_result.clone(),
-                &stdout_latest_result,
-                &stderr_latest_result,
-                tx,
-            )
-        });
+
+        if is_running_app {
+            thread::spawn(move || {
+                gen_result_items(
+                    _result,
+                    is_running_app,
+                    enable_summary_char,
+                    &latest_result.clone(),
+                    &stdout_latest_result,
+                    &stderr_latest_result,
+                    tx,
+                )
+            });
+        } else {
+            gen_result_items(_result, is_running_app, enable_summary_char, &latest_result, &stdout_latest_result, &stderr_latest_result, tx);
+        }
+
 
         return true;
     }
 
     ///
-    fn update_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems,  is_running_app: bool) -> bool {
+    fn update_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems, is_running_app: bool) -> bool {
         // check results.
         if self.results.is_empty() {
             // diff output data.
@@ -867,10 +876,6 @@ impl<'a> App<'a> {
             self.results_stdout.insert(0, stdout_result_items.clone());
             self.results_stderr.insert(0, stderr_result_items.clone());
         }
-
-        // update HeaderArea
-        self.header_area.set_current_result(output_result_items.command_result.clone());
-        self.header_area.update();
 
         if !self.after_command.is_empty() && is_running_app {
             let after_command = self.after_command.clone();
@@ -901,7 +906,7 @@ impl<'a> App<'a> {
         let is_update_stderr = insert_result.3;
 
         // logging result.
-        if !self.logfile.is_empty() {
+        if !self.logfile.is_empty() && is_running_app {
             let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
