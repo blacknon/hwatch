@@ -17,13 +17,15 @@ use std::{
     collections::HashMap,
     io::{self, Write},
     rc::Rc,
+    thread,
 };
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect, Position},
     Frame, Terminal,
 };
-use std::thread;
+// use tokio::task;
+
 
 // local module
 use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
@@ -68,9 +70,19 @@ pub enum InputMode {
 #[derive(Clone)]
 /// Struct to hold history summary and CommandResult set.
 /// Since the calculation source of the history summary changes depending on the output mode, it is necessary to set it separately from the command result.
-struct ResultItems {
-    pub command_result: Rc<CommandResult>,
+pub struct ResultItems {
+    pub command_result: CommandResult,
     pub summary: HistorySummary,
+}
+
+impl ResultItems {
+    /// Create a new ResultItems.
+    pub fn default() -> Self {
+        Self {
+            command_result: CommandResult::default(),
+            summary: HistorySummary::init(),
+        }
+    }
 }
 
 /// Struct at watch view window.
@@ -304,8 +316,14 @@ impl<'a> App<'a> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    // TODO: thread化し、`update_draw`をsignalで受け取るような仕組みにする
-                    let _exec_return = self.update_result(exec_result, true);
+                    let _ = self.create_result_items(exec_result, true);
+                }
+
+                Ok(AppEvent::HistoryUpdate(
+                    (output_result_items, stdout_result_items, stderr_result_items),
+                    is_running_app,
+                )) => {
+                    let _exec_return = self.update_result(output_result_items, stdout_result_items, stderr_result_items, is_running_app);
 
                     // beep
                     if _exec_return && self.is_beep {
@@ -314,6 +332,7 @@ impl<'a> App<'a> {
 
                     update_draw = true;
                 }
+
 
                 //
                 Ok(AppEvent::ChangeFlagMouseEvent) => {
@@ -647,7 +666,7 @@ impl<'a> App<'a> {
     ///
     pub fn add_results(&mut self, results: Vec<CommandResult>) {
         for result in results {
-            self.update_result(result, false);
+            self.create_result_items(result, false);
         }
     }
 
@@ -797,33 +816,61 @@ impl<'a> App<'a> {
 
     }
 
-    ///
-    fn update_result(&mut self, _result: CommandResult, is_running_app: bool) -> bool {
-        // check results size.
-        let mut latest_result = ResultItems {
-            command_result: Rc::new(CommandResult::default()),
-            summary: HistorySummary::init(),
-        };
+    // NOTE: CommandResultを元に、
+    fn create_result_items(&mut self, _result: CommandResult, is_running_app: bool) -> bool {
+        // create latest_result_with_summary.
+        let mut latest_result = CommandResult::default();
+        if !self.results.is_empty() {
+            let latest_num = get_results_latest_index(&self.results);
+            latest_result = self.results[&latest_num].command_result.clone();
+        } else {
+            self.results.insert(0, ResultItems::default());
+            self.results_stdout.insert(0, ResultItems::default());
+            self.results_stderr.insert(0, ResultItems::default());
+        }
 
+        // check result diff
+        if latest_result == _result {
+            return false;
+        }
+
+        let stdout_latest_index = get_results_latest_index(&self.results_stdout);
+        let stdout_latest_result = self.results_stdout[&stdout_latest_index].command_result.clone();
+
+        let stderr_latest_index = get_results_latest_index(&self.results_stderr);
+        let stderr_latest_result = self.results_stderr[&stderr_latest_index].command_result.clone();
+
+        // create ResultItems
+        let enable_summary_char = self.enable_summary_char;
+        let tx = self.tx.clone();
+        thread::spawn(move || {
+            gen_result_items(
+                _result,
+                is_running_app,
+                enable_summary_char,
+                &latest_result.clone(),
+                &stdout_latest_result,
+                &stderr_latest_result,
+                tx,
+            )
+        });
+
+        return true;
+    }
+
+    ///
+    fn update_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems,  is_running_app: bool) -> bool {
+        // check results.
         if self.results.is_empty() {
             // diff output data.
-            self.results.insert(0, latest_result.clone());
-            self.results_stdout.insert(0, latest_result.clone());
-            self.results_stderr.insert(0, latest_result.clone());
-        } else {
-            let latest_num = get_results_latest_index(&self.results);
-            latest_result = self.results[&latest_num].clone();
+            self.results.insert(0, output_result_items.clone());
+            self.results_stdout.insert(0, stdout_result_items.clone());
+            self.results_stderr.insert(0, stderr_result_items.clone());
         }
 
         // update HeaderArea
-        self.header_area.set_current_result(_result.clone());
+        self.header_area.set_current_result(output_result_items.command_result.clone());
         self.header_area.update();
-
-        // check result diff
-        // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result.command_result == Rc::new(_result.clone()) {
-            return false;
-        }
 
         if !self.after_command.is_empty() && is_running_app {
             let after_command = self.after_command.clone();
@@ -831,8 +878,8 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result:CommandResult = (*results[&latest_num].command_result).clone();
-            let after_result = _result.clone();
+            let before_result:CommandResult = self.results[&latest_num].command_result.clone();
+            let after_result = output_result_items.command_result.clone();
 
             {
                 thread::spawn(move || {
@@ -847,7 +894,7 @@ impl<'a> App<'a> {
         }
 
         // append results
-        let insert_result = self.insert_result(_result);
+        let insert_result = self.insert_result(output_result_items, stdout_result_items, stderr_result_items);
         let result_index = insert_result.0;
         let is_limit_over = insert_result.1;
         let is_update_stdout = insert_result.2;
@@ -917,56 +964,32 @@ impl<'a> App<'a> {
         true
     }
 
+    // TODO: AddResultItemを受け付けるようにして、calcをここで処理しないようにする
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
-    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool, bool) {
-        let rc_result = Rc::new(result);
-        let mut rc_output_result = ResultItems {
-            command_result: Rc::clone(&rc_result),
-            summary: HistorySummary::init(),
-        };
-
+    fn insert_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems) -> (usize, bool, bool, bool) {
         let result_index = self.results.keys().max().unwrap_or(&0) + 1;
-        if result_index > 0 {
-            let latest_num = result_index - 1;
-            let latest_result = self.results[&latest_num].clone();
-            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output(), self.enable_summary_char);
-        }
-        self.results.insert(result_index, rc_output_result.clone());
+        self.results.insert(result_index, output_result_items);
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
         let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
-        let result_stdout = &rc_result.get_stdout();
+        let result_stdout = &stdout_result_items.command_result.get_stdout();
+        let mut is_stdout_update = false;
+        if before_result_stdout != result_stdout {
+            is_stdout_update = true;
+            self.results_stdout.insert(result_index, stdout_result_items);
+        }
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
         let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
-        let result_stderr = &rc_result.get_stderr();
-
-        // append results_stdout
-        let mut is_stdout_update = false;
-        if before_result_stdout != result_stdout {
-            is_stdout_update = true;
-            let mut rc_stdout_result = ResultItems {
-                command_result: Rc::clone(&rc_result),
-                summary: HistorySummary::init(),
-            };
-            rc_stdout_result.summary.calc(before_result_stdout, result_stdout, self.enable_summary_char);
-            self.results_stdout.insert(result_index, rc_stdout_result);
-        }
-
-        // append results_stderr
+        let result_stderr = &stderr_result_items.command_result.get_stderr();
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            let mut rc_stderr_result = ResultItems {
-                command_result: Rc::clone(&rc_result),
-                summary: HistorySummary::init(),
-            };
-            rc_stderr_result.summary.calc(before_result_stderr, result_stderr, self.enable_summary_char);
-            self.results_stderr.insert(result_index, rc_stderr_result);
+            self.results_stderr.insert(result_index, stderr_result_items);
         }
 
         // limit check
@@ -1431,7 +1454,6 @@ impl<'a> App<'a> {
         }
     }
 
-
     ///
     fn action_up(&mut self) {
         match self.window {
@@ -1874,4 +1896,39 @@ fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -
     }
 
     return next_index;
+}
+
+fn gen_result_items(
+    _result: CommandResult,
+    is_running_app: bool,
+    enable_summary_char: bool,
+    output_latest_result: &CommandResult,
+    stdout_latest_result: &CommandResult,
+    stderr_latest_result: &CommandResult,
+    tx: Sender<AppEvent>,
+) {
+    // create output ResultItems
+    let mut output_result_items = ResultItems {
+        command_result: _result.clone(),
+        summary: HistorySummary::init(),
+    };
+    output_result_items.summary.calc(&output_latest_result.get_output(), &output_result_items.command_result.get_output(), enable_summary_char);
+
+    // create stdout ResultItems
+
+    let mut stdout_result_items = ResultItems {
+        command_result: _result.clone(),
+        summary: HistorySummary::init(),
+    };
+    stdout_result_items.summary.calc(&stdout_latest_result.get_stdout(), &stdout_result_items.command_result.get_stdout(), enable_summary_char);
+
+    // create stderr ResultItems
+    let mut stderr_result_items = ResultItems {
+        command_result: _result.clone(),
+        summary: HistorySummary::init(),
+    };
+    stderr_result_items.summary.calc(&stderr_latest_result.get_stderr(), &stderr_result_items.command_result.get_stderr(), enable_summary_char);
+
+    let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
+
 }

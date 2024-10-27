@@ -36,6 +36,7 @@ shell-words = "1.1.0"
 similar = {version = "2.5.0", features = ["serde", "unicode", "text", "inline", "bytes"]}
 termios = "0.3"
 termwiz = "0.22.0"
+tokio = {version = "1.16", features = ["full"]}
 unicode-segmentation = "1.10"
 unicode-truncate = "1"
 unicode-width = "=0.1.13"
