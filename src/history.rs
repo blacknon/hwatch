@@ -489,10 +489,12 @@ impl HistoryArea {
             } else if row < border_row_num as u16 {
                 select_num = 0;
             } else {
+                let row_count = if self.enable_char_diff { 3 } else { 2 };
+
                 if first_row == 0 {
-                    select_num = ((row - 1 - border_row_num as u16) / 3 + 1) as usize;
+                    select_num = ((row - 1 - border_row_num as u16) / row_count + 1) as usize;
                 } else {
-                    select_num = ((row - border_row_num as u16) / 3) as usize;
+                    select_num = ((row - border_row_num as u16) / row_count) as usize;
                 }
             }
         } else {
