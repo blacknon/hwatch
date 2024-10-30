@@ -4,6 +4,7 @@
 
 // TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る?)
 // TODO: log load時の追加処理がなんか変(たぶん、log load時に処理したresultをログに記録しちゃってる？？？)
+//       →多分直った？と思うけど、要テスト
 
 // module
 use crossbeam_channel::{Receiver, Sender};
@@ -17,7 +18,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io::{self, Write},
-    thread,
+    thread, time::Duration,
 };
 use tui::{
     backend::Backend,
@@ -279,7 +280,14 @@ impl<'a> App<'a> {
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         // set history setting
         self.history_area.set_enable_char_diff(self.enable_summary_char);
-        self.history_area.next(1);
+
+        if self.results.len() > 0 {
+            let selected = self.history_area.get_state_select();
+            self.reset_history(selected);
+            self.set_output_data(selected);
+        } else {
+            self.history_area.next(1);
+        }
 
         let mut update_draw = true;
 
@@ -304,7 +312,7 @@ impl<'a> App<'a> {
             }
 
             // get event
-            match self.rx.recv() {
+            match self.rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(AppEvent::Redraw) => update_draw = true,
 
                 // Get terminal event.
@@ -969,7 +977,6 @@ impl<'a> App<'a> {
         true
     }
 
-    // TODO: AddResultItemを受け付けるようにして、calcをここで処理しないようにする
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
