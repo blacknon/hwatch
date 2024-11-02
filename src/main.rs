@@ -7,6 +7,8 @@
 // TODO(blacknon): Output Only時にfilterを有効にしていると、エラーで落ちるので原因を調べておく(位置の数字的なやつ)
 //                 → そもそもhistoryに表示されないようにするとか、表示内容に応じてフィルタがかかるような仕組みにする？？
 // TODO(blacknon): Output Only時に、初期表示が非表示になるのは困るのでいい感じにする(特にbatchとか)
+// TODO(blacknon): Output Only時にキーワードフィルタが有効になっていると、エラーで落ちるのでどうにかする(Keyword filter有効時にOutput Onlyで対象となる文字列がない場合、非表示にできたらいいけど…？)
+//                 → それ用のデータをStructにもたせておくように修正？？
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 
 // v0.3.xx
