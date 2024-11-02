@@ -3,10 +3,10 @@
 // that can be found in the LICENSE file.
 
 // v0.3.16
-// TODO(blacknon): `ps aux`で実行すると、なぜか全体的に遅くなるので原因調査をする
-//                 - たぶん、sortかけてないからdiffの計算で時間かかっちゃってる？(sortかけると正常に動作する)
-//                 - ほかのナニカもありそうなので、調べて対処していく
-//                 - 必要に応じて、threadで処理させる箇所を増やしてTUIの描写が止まらないようにする(たぶん、tx,rxでの受付が止まっていることが要因)
+// TODO(blacknon): **コマンド実行結果の登録**を別Threadにし、操作時のレスポンスに影響を与えないようにする(ps aux対策)
+// TODO(blacknon): Output Only時にfilterを有効にしていると、エラーで落ちるので原因を調べておく(位置の数字的なやつ)
+//                 → そもそもhistoryに表示されないようにするとか、表示内容に応じてフィルタがかかるような仕組みにする？？
+// TODO(blacknon): Output Only時に、初期表示が非表示になるのは困るのでいい感じにする(特にbatchとか)
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 
 // v0.3.xx
@@ -54,6 +54,7 @@ extern crate shell_words;
 extern crate similar;
 extern crate termios;
 extern crate termwiz;
+extern crate tokio;
 extern crate nix;
 extern crate ratatui as tui;
 extern crate unicode_width;
@@ -158,12 +159,16 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("beep"),
         )
+        // border option
+        //     [--border]
         .arg(
             Arg::new("border")
                 .help("Surround each pane with a border frame")
                 .action(ArgAction::SetTrue)
                 .long("border"),
         )
+        // scrollbar option
+        //     [--with-scrollbar]
         .arg(
             Arg::new("with_scrollbar")
                 .help("When the border option is enabled, display scrollbar on the right side of watch pane.")
@@ -205,7 +210,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("compress"),
         )
-        // exec flag.
+        // no-title flag.
         //     [--no-title]
         .arg(
             Arg::new("no_title")
@@ -213,6 +218,13 @@ fn build_app() -> clap::Command {
                 .long("no-title")
                 .action(ArgAction::SetTrue)
                 .short('t'),
+        )
+        // enable charcter summary option
+        .arg(
+            Arg::new("enable_summary_char")
+                .help("collect character-level diff count in summary.")
+                .long("enable-summary-char")
+                .action(ArgAction::SetTrue),
         )
         // Enable line number mode option
         //   [--line-number,-N]
@@ -223,7 +235,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
-        // exec flag.
+        // help banner disable flag.
         //     [--no-help-banner]
         .arg(
             Arg::new("no_help_banner")
@@ -231,6 +243,15 @@ fn build_app() -> clap::Command {
                 .long("no-help-banner")
                 .action(ArgAction::SetTrue),
         )
+        // summary disable flag.
+        //     [--no-summary]
+        .arg(
+            Arg::new("no_summary")
+                .help("disable the calculation for summary that is running behind the scenes, and disable the summary function in the first place.")
+                .long("no-summary")
+                .action(ArgAction::SetTrue),
+        )
+        //
         // exec flag.
         //     [-x,--exec]
         .arg(
@@ -421,22 +442,22 @@ fn main() {
                 let mut is_overwrite_question = false;
                 match e {
                     common::LoadLogfileError::LogfileEmpty => {
-                        println!("file {abs_log_path:?} is exists and empty.");
+                        eprintln!("file {abs_log_path:?} is exists and empty.");
                         is_overwrite_question = true;
                     },
                     common::LoadLogfileError::LoadFileError(err) => {
                         match err.kind() {
                             std::io::ErrorKind::NotFound => {},
                             _ => {
-                                println!("file {abs_log_path:?} is exists and load error.");
-                                println!("{err:?}");
+                                eprintln!("file {abs_log_path:?} is exists and load error.");
+                                eprintln!("{err:?}");
                                 is_overwrite_question = true;
                             },
                         }
                     },
                     common::LoadLogfileError::JsonParseError(err) => {
-                        println!("file {abs_log_path:?} is exists and json parse error.");
-                        println!("{err:?}");
+                        eprintln!("file {abs_log_path:?} is exists and json parse error.");
+                        eprintln!("{err:?}");
                         is_overwrite_question = true;
                     },
                 }
@@ -468,6 +489,9 @@ fn main() {
 
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
+
+    // enable summary char
+    let enable_summary_char = matcher.get_flag("enable_summary_char");
 
     // output mode
     let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
@@ -588,6 +612,9 @@ fn main() {
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
+
+            // Set enable summary char
+            .set_enable_summary_char(enable_summary_char)
 
             .set_show_ui(!matcher.get_flag("no_title"))
             .set_show_help_banner(!matcher.get_flag("no_help_banner"));
