@@ -730,7 +730,7 @@ impl<'a> App<'a> {
         self.header_area.update();
     }
 
-    ///
+    ///　Check if matches the filter keyword  and reset the history windows data.
     fn reset_history(&mut self, selected: usize) {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
@@ -738,6 +738,11 @@ impl<'a> App<'a> {
             OutputMode::Stdout => &self.results_stdout,
             OutputMode::Stderr => &self.results_stderr,
         };
+
+        // TODO: うまいこと、Diff Output Only時のデータをベースにしたfilter checkをする
+        // NOTE:
+        //   データが少ないウチはいいが、データが多くなるとその分計算量が増えるため、できればメモリ上にキャッシュさせたい。
+        //   なので、Diff Output Onlyのデータとして、Line差分のデータのみをResultItemsの中に持たせることで、再計算を減らす。ただ、Diffのオブジェクトでもたせるとちょっとメモリ使用量が増えるかもしれないので、そこはどうするか考える(差分数が少ないなら大丈夫か…？)
 
         // append result.
         let mut tmp_history = vec![];
@@ -750,7 +755,6 @@ impl<'a> App<'a> {
         });
 
         let mut new_select: Option<usize> = None;
-        // let mut previous_result: String = "".to_string();
         let mut results_vec = results.iter().collect::<Vec<(&usize, &ResultItems)>>();
         results_vec.sort_by_key(|&(key, _)| key);
 
