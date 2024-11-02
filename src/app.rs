@@ -25,9 +25,10 @@ use tui::{
     layout::{Constraint, Direction, Layout, Rect, Position},
     Frame, Terminal,
 };
-
+use similar::{Change, ChangeTag, InlineChange, TextDiff};
 
 // local module
+use crate::ansi::get_ansi_strip_str;
 use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
@@ -73,6 +74,10 @@ pub enum InputMode {
 pub struct ResultItems {
     pub command_result: CommandResult,
     pub summary: HistorySummary,
+
+    // Strcut elements to with keyword filter.
+    // ResultItems are created for each Output Type, so only one is generated in Sturct.
+    pub diff_only_data: Vec<u8>,
 }
 
 impl ResultItems {
@@ -81,6 +86,16 @@ impl ResultItems {
         Self {
             command_result: CommandResult::default(),
             summary: HistorySummary::init(),
+
+            diff_only_data: vec![],
+        }
+    }
+
+    pub fn get_diff_only_data(&self, is_color: bool) -> String {
+        if is_color {
+            get_ansi_strip_str(&String::from_utf8_lossy(&self.diff_only_data))
+        } else {
+            String::from_utf8_lossy(&self.diff_only_data).to_string()
         }
     }
 }
@@ -743,6 +758,7 @@ impl<'a> App<'a> {
         // NOTE:
         //   データが少ないウチはいいが、データが多くなるとその分計算量が増えるため、できればメモリ上にキャッシュさせたい。
         //   なので、Diff Output Onlyのデータとして、Line差分のデータのみをResultItemsの中に持たせることで、再計算を減らす。ただ、Diffのオブジェクトでもたせるとちょっとメモリ使用量が増えるかもしれないので、そこはどうするか考える(差分数が少ないなら大丈夫か…？)
+        // =>  Textで保持させておき、Colorが有効のときのみansiを削除することで、ひとまず差分発生行のところだけテキストで保持させる対応ができるかも？？
 
         // append result.
         let mut tmp_history = vec![];
@@ -765,11 +781,24 @@ impl<'a> App<'a> {
 
             let mut is_push = true;
             if self.is_filtered {
-                let result_text = match self.output_mode {
-                    OutputMode::Output => result.command_result.get_output(),
-                    OutputMode::Stdout => result.command_result.get_stdout(),
-                    OutputMode::Stderr => result.command_result.get_stderr(),
+                let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+                    // Diff Only
+                    (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, DiffMode::Line | DiffMode::Word, true) => result.get_diff_only_data(self.ansi_color),
+
+                    // Output
+                    (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_output(),
+                    (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_output(),
+
+                    // Stdout
+                    (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_stdout(),
+                    (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_stdout(),
+
+                    // Stderr
+                    (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_stderr(),
+                    (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_stderr(),
                 };
+
+                eprint!("result_text: {}", result_text);
 
                 match self.is_regex_filter {
                     true => {
@@ -1924,27 +1953,50 @@ fn gen_result_items(
     tx: Sender<AppEvent>,
 ) {
     // create output ResultItems
+    let output_diff_only_data = gen_diff_only_data(&output_latest_result.get_output(), &_result.get_output());
     let mut output_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
+        diff_only_data: output_diff_only_data,
     };
     output_result_items.summary.calc(&output_latest_result.get_output(), &output_result_items.command_result.get_output(), enable_summary_char);
 
     // create stdout ResultItems
-
+    let stdout_diff_only_data = vec![];
     let mut stdout_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
+        diff_only_data: stdout_diff_only_data,
     };
     stdout_result_items.summary.calc(&stdout_latest_result.get_stdout(), &stdout_result_items.command_result.get_stdout(), enable_summary_char);
 
     // create stderr ResultItems
+    let stderr_diff_only_data = vec![];
     let mut stderr_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
+        diff_only_data: stderr_diff_only_data,
     };
     stderr_result_items.summary.calc(&stderr_latest_result.get_stderr(), &stderr_result_items.command_result.get_stderr(), enable_summary_char);
 
     let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
 
+}
+
+fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
+    let mut diff_only_data = vec![];
+
+    let diff_set = TextDiff::from_lines(before, after);
+    for op in diff_set.ops().iter() {
+        for change in diff_set.iter_inline_changes(op) {
+            match change.tag() {
+                ChangeTag::Equal => {},
+                ChangeTag::Delete | ChangeTag::Insert => {
+                    let value = change.to_string().as_bytes().iter().map(|&x| x).collect::<Vec<u8>>();
+                    diff_only_data.extend(value);
+                }
+            }
+        }
+    }
+    diff_only_data
 }
