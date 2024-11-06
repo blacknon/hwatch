@@ -529,6 +529,8 @@ impl<'a> App<'a> {
         let mut src = dest;
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
+        } else if previous_dst == 0 && self.is_only_diffline && matches!(self.diff_mode, DiffMode::Line| DiffMode::Word) {
+            src = &results[&0].command_result;
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
@@ -758,12 +760,6 @@ impl<'a> App<'a> {
             OutputMode::Stderr => &self.results_stderr,
         };
 
-        // TODO: うまいこと、Diff Output Only時のデータをベースにしたfilter checkをする
-        // NOTE:
-        //   データが少ないウチはいいが、データが多くなるとその分計算量が増えるため、できればメモリ上にキャッシュさせたい。
-        //   なので、Diff Output Onlyのデータとして、Line差分のデータのみをResultItemsの中に持たせることで、再計算を減らす。ただ、Diffのオブジェクトでもたせるとちょっとメモリ使用量が増えるかもしれないので、そこはどうするか考える(差分数が少ないなら大丈夫か…？)
-        // =>  Textで保持させておき、Colorが有効のときのみansiを削除することで、ひとまず差分発生行のところだけテキストで保持させる対応ができるかも？？
-
         // append result.
         let mut tmp_history = vec![];
         let latest_num: usize = get_results_latest_index(&results);
@@ -869,11 +865,7 @@ impl<'a> App<'a> {
         // create latest_result_with_summary.
         let mut latest_result = CommandResult::default();
         if self.results.is_empty() {
-            let init_items = ResultItems{
-                command_result: latest_result.clone(),
-                summary: HistorySummary::init(),
-                diff_only_data: vec![],
-            };
+            let init_items = ResultItems::default();
 
             self.results.insert(0, init_items.clone());
             self.results_stdout.insert(0, init_items.clone());
