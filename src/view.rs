@@ -213,9 +213,6 @@ impl View {
         // Create App
         let mut app = App::new(tx, rx, self.interval.clone());
 
-        // set exist results
-        app.add_results(exist_results);
-
         // set keymap
         app.set_keymap(self.keymap.clone());
 
@@ -267,6 +264,9 @@ impl View {
 
         // set enable summary char
         app.set_enable_summary_char(self.enable_summary_char);
+
+        // set exist results
+        app.add_results(exist_results);
 
         // Run App
         let res = app.run(&mut terminal);
