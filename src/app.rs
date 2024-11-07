@@ -298,8 +298,8 @@ impl<'a> App<'a> {
 
         if self.results.len() > 0 {
             let selected = self.history_area.get_state_select();
-            self.reset_history(selected);
-            self.set_output_data(selected);
+            let new_selected = self.reset_history(selected);
+            self.set_output_data(new_selected);
         } else {
             self.history_area.next(1);
         }
@@ -534,8 +534,6 @@ impl<'a> App<'a> {
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
-
-        // TODO: output_dataのtabをスペース展開する処理を追加
 
         self.watch_area.is_line_number = self.line_number;
         self.watch_area.update_output(output_data);
@@ -774,6 +772,7 @@ impl<'a> App<'a> {
         let mut results_vec = results.iter().collect::<Vec<(&usize, &ResultItems)>>();
         results_vec.sort_by_key(|&(key, _)| key);
 
+        let mut tmp_results: HashMap<usize, ResultItems> = HashMap::new();
         for (key, result) in results_vec {
             if key == &0 {
                 continue;
@@ -815,10 +814,6 @@ impl<'a> App<'a> {
                 }
             }
 
-            if &selected == key {
-                new_select = Some(selected);
-            }
-
             if is_push {
                 tmp_history.push(History {
                     timestamp: result.command_result.timestamp.clone(),
@@ -826,13 +821,18 @@ impl<'a> App<'a> {
                     num: *key as u16,
                     summary: result.summary.clone(),
                 });
+
+                tmp_results.insert(*key, result.clone());
+
+                if &selected == key {
+                    new_select = Some(selected);
+                }
             }
         }
 
         if new_select.is_none() {
-            new_select = Some(get_near_index(&results, selected));
+            new_select = Some(get_near_index(&tmp_results, selected));
         }
-
 
         // sort tmp_history, to push history
         let mut history = vec![];
@@ -1333,12 +1333,12 @@ impl<'a> App<'a> {
                         self.filtered_text = self.header_area.input_text.clone();
                         self.set_input_mode(InputMode::None);
 
-                        let selected = self.history_area.get_state_select();
-                        self.reset_history(selected);
+                        let selected: usize = self.history_area.get_state_select();
+                        let new_selected = self.reset_history(selected);
 
                         // update WatchArea
                         self.watch_area.set_keyword(self.filtered_text.clone(), is_regex);
-                        self.set_output_data(selected);
+                        self.set_output_data(new_selected);
                     }
 
                     // default
@@ -1471,11 +1471,11 @@ impl<'a> App<'a> {
             self.set_input_mode(InputMode::None);
 
             let selected = self.history_area.get_state_select();
-            self.reset_history(selected);
+            let new_selected = self.reset_history(selected);
 
             // update WatchArea
             self.watch_area.reset_keyword();
-            self.set_output_data(selected);
+            self.set_output_data(new_selected);
         } else if 0 != self.history_area.get_state_select() {
             // set latest history
             self.reset_history(0);
@@ -1497,11 +1497,11 @@ impl<'a> App<'a> {
             self.set_input_mode(InputMode::None);
 
             let selected = self.history_area.get_state_select();
-            self.reset_history(selected);
+            let new_selected = self.reset_history(selected);
 
             // update WatchArea
             self.watch_area.reset_keyword();
-            self.set_output_data(selected);
+            self.set_output_data(new_selected);
         } else if 0 != self.history_area.get_state_select() {
             // set latest history
             self.reset_history(0);
@@ -1740,10 +1740,10 @@ impl<'a> App<'a> {
         self.set_input_mode(InputMode::None);
 
         let selected = self.history_area.get_state_select();
-        self.reset_history(selected);
+        let new_selected = self.reset_history(selected);
 
         // update WatchArea
-        self.set_output_data(selected);
+        self.set_output_data(new_selected);
     }
 
     ///
