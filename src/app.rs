@@ -968,10 +968,21 @@ impl<'a> App<'a> {
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
-            let result_text = match self.output_mode {
-                OutputMode::Output => self.results[&result_index].command_result.get_output(),
-                OutputMode::Stdout => self.results_stdout[&result_index].command_result.get_stdout(),
-                OutputMode::Stderr => self.results_stderr[&result_index].command_result.get_stderr(),
+            let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+                // Diff Only
+                (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, DiffMode::Line | DiffMode::Word, true) => self.results[&result_index].get_diff_only_data(self.ansi_color),
+
+                // Output
+                (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_output(),
+                (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_output(),
+
+                // Stdout
+                (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_stdout(),
+                (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_stdout(),
+
+                // Stderr
+                (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_stderr(),
+                (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_stderr(),
             };
 
             match self.is_regex_filter {
