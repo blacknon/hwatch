@@ -717,7 +717,13 @@ impl<'a> App<'a> {
         self.printer.set_diff_mode(diff_mode);
 
         let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+
+        if self.results.len() > 0 {
+            let reseted_select = self.reset_history(selected);
+            self.set_output_data(reseted_select);
+        } else {
+            self.set_output_data(selected);
+        }
     }
 
     ///
