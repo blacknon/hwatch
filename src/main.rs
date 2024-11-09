@@ -46,7 +46,6 @@ extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
-extern crate termios;
 extern crate termwiz;
 extern crate tokio;
 extern crate nix;
@@ -54,6 +53,8 @@ extern crate ratatui as tui;
 extern crate unicode_width;
 extern crate unicode_segmentation;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+extern crate termios;
 
 // macro crate
 #[macro_use]
