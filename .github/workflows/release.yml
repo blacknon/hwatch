@@ -138,7 +138,7 @@ jobs:
 
       - name: Upload artifact
         if: matrix.ext == 'rpm'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: build-${{ matrix.target }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
@@ -150,21 +150,21 @@ jobs:
 
       - name: Upload artifact
         if: matrix.ext == 'deb'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: build-${{ matrix.target }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
 
       - name: Upload artifact
         if: matrix.ext == 'tar.gz'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: build-${{ matrix.target }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
 
       - name: Upload artifact
         if: matrix.ext == 'zip'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: build-${{ matrix.target }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
@@ -199,7 +199,7 @@ jobs:
       - run: |
           echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         with:
           name: create-release
           path: release_upload_url.txt
