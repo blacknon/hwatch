@@ -4,14 +4,16 @@
 
 // module
 use chrono::Local;
+use serde_json::Deserializer;
 use std::error::Error;
-use std::fs::OpenOptions;
+use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
+use std::io::BufReader;
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
 
 // local module
-use crate::exec::CommandResult;
+use crate::exec::{CommandResult, CommandResultData};
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -35,6 +37,54 @@ pub fn now_str() -> String {
     let date = Local::now();
     return date.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
 }
+
+pub enum LoadLogfileError {
+    LogfileEmpty,
+    LoadFileError(std::io::Error),
+    JsonParseError(serde_json::Error),
+}
+
+pub fn load_logfile(log_path: &str, is_compress: bool) -> Result<Vec<CommandResult>, LoadLogfileError> {
+    // fileのサイズをチェックするし、0だった場合commandが必須であるエラーを返す
+    match fs::metadata(log_path) {
+        Ok(metadata) => {
+            if metadata.len() == 0 {
+                return Err(LoadLogfileError::LogfileEmpty);
+            }
+        }
+        Err(_) => {},
+    }
+
+    // load log file
+    let file = match File::open(log_path) {
+        Ok(f) => f,
+        Err(e) => {
+            return Err(LoadLogfileError::LoadFileError(e));
+        },
+    };
+
+    // create file reader
+    let reader = BufReader::new(file);
+
+    // create stream use by Deserializer
+    let stream = Deserializer::from_reader(reader).into_iter::<CommandResultData>();
+
+    // load and add data.
+    let mut result_data = vec![];
+    for log_data in stream {
+        match log_data {
+            Ok(data) => {
+                result_data.push(data.generate_result(is_compress))
+            },
+            Err(e) => {
+                return Err(LoadLogfileError::JsonParseError(e));
+            },
+        }
+    }
+
+    Ok(result_data)
+}
+
 
 /// logging result data to log file(_logpath).
 pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<dyn Error>> {

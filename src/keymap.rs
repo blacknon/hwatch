@@ -78,7 +78,7 @@ impl Input {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 38] = [
+const DEFAULT_KEYMAP: [&str; 40] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -109,6 +109,8 @@ const DEFAULT_KEYMAP: [&str; 38] = [
     "f3=set_output_mode_output", // Set Output Mode Output: F3
     "f1=set_output_mode_stdout", // Set Output Mode Stdout: F1
     "f2=set_output_mode_stderr", // Set Output Mode Stderr: F2
+    "ctrl-n=next_keyword",
+    "ctrl-p=prev_keyword",
     "shift-s=togge_history_summary",
     "plus=interval_plus", // Interval Plus: +
     "minus=interval_minus", // Interval Minus: -
@@ -546,6 +548,8 @@ pub enum InputAction {
     // ==========
     #[serde(rename = "cancel")]
     Cancel,
+    #[serde(rename = "force_cancel")]
+    ForceCancel,
 
     // help
     // ==========
@@ -615,6 +619,13 @@ pub enum InputAction {
     SetOutputModeStdout,
     #[serde(rename = "set_output_mode_stderr")]
     SetOutputModeStderr,
+
+    // Keyword search
+    // ==========
+    #[serde(rename = "next_keyword")]
+    NextKeyword,
+    #[serde(rename = "prev_keyword")]
+    PrevKeyword,
 
     // HistorySummary
     #[serde(rename = "togge_history_summary")]
@@ -702,6 +713,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
 
         // Cancel
         InputAction::Cancel => "Cancel".to_string(),
+        InputAction::ForceCancel => "Cancel without displaying the exit dialog".to_string(),
 
         // Help
         InputAction::Help => "Show and hide help window".to_string(),
@@ -741,6 +753,10 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::SetOutputModeOutput => "Set output mode output".to_string(),
         InputAction::SetOutputModeStdout => "Set output mode stdout".to_string(),
         InputAction::SetOutputModeStderr => "Set output mode stderr".to_string(),
+
+        // Keyword search
+        InputAction::NextKeyword => "Forcus next keyword".to_string(),
+        InputAction::PrevKeyword => "Forcus previous keyword".to_string(),
 
         // HistorySummary
         InputAction::ToggleHistorySummary => "Toggle history summary".to_string(),

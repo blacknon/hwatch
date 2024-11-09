@@ -3,9 +3,11 @@
 // that can be found in the LICENSE file.
 
 use crate::exec::CommandResult;
+use crate::app::ResultItems;
 
 pub enum AppEvent {
     OutputUpdate(CommandResult),
+    HistoryUpdate((ResultItems, ResultItems, ResultItems), bool),
     TerminalEvent(crossterm::event::Event),
     Redraw,
     ChangeFlagMouseEvent,

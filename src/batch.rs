@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::Receiver;
 use std::{io, collections::HashMap};
 use std::thread;
 
@@ -47,15 +47,12 @@ pub struct Batch {
     printer: output::Printer,
 
     ///
-    pub tx: Sender<AppEvent>,
-
-    ///
     pub rx: Receiver<AppEvent>,
 }
 
 impl Batch {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>) -> Self {
+    pub fn new(rx: Receiver<AppEvent>) -> Self {
         Self {
             after_command: "".to_string(),
             line_number: false,
@@ -68,7 +65,6 @@ impl Batch {
             is_only_diffline: false,
             logfile: "".to_string(),
             printer: output::Printer::new(),
-            tx,
             rx,
         }
     }

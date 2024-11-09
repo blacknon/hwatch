@@ -3,12 +3,16 @@
 // that can be found in the LICENSE file.
 
 // TODO: historyの一個前、をdiffで取れるようにする(今は問答無用でVecの1個前のデータを取得しているから、ちょっと違う方法を取る?)
+// TODO: log load時の追加処理がなんか変(たぶん、log load時に処理したresultをログに記録しちゃってる？？？)
+//       →多分直った？と思うけど、要テスト
+
+// TODO: keyword filter有効時に、マッチしないResult Itemも表示中のhistoryに追加されてしまうため、追加されないようにする
 
 // module
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEvent, KeyModifiers,
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEvent
     },
     execute,
 };
@@ -16,16 +20,17 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     io::{self, Write},
-    rc::Rc,
+    thread, time::Duration,
 };
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect, Position},
     Frame, Terminal,
 };
-use std::thread;
+use similar::{ChangeTag, TextDiff};
 
 // local module
+use crate::ansi::get_ansi_strip_str;
 use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
@@ -68,9 +73,33 @@ pub enum InputMode {
 #[derive(Clone)]
 /// Struct to hold history summary and CommandResult set.
 /// Since the calculation source of the history summary changes depending on the output mode, it is necessary to set it separately from the command result.
-struct ResultItems {
-    pub command_result: Rc<CommandResult>,
+pub struct ResultItems {
+    pub command_result: CommandResult,
     pub summary: HistorySummary,
+
+    // Strcut elements to with keyword filter.
+    // ResultItems are created for each Output Type, so only one is generated in Sturct.
+    pub diff_only_data: Vec<u8>,
+}
+
+impl ResultItems {
+    /// Create a new ResultItems.
+    pub fn default() -> Self {
+        Self {
+            command_result: CommandResult::default(),
+            summary: HistorySummary::init(),
+
+            diff_only_data: vec![],
+        }
+    }
+
+    pub fn get_diff_only_data(&self, is_color: bool) -> String {
+        if is_color {
+            get_ansi_strip_str(&String::from_utf8_lossy(&self.diff_only_data))
+        } else {
+            String::from_utf8_lossy(&self.diff_only_data).to_string()
+        }
+    }
 }
 
 /// Struct at watch view window.
@@ -156,6 +185,9 @@ pub struct App<'a> {
     results_stderr: HashMap<usize, ResultItems>,
 
     ///
+    enable_summary_char: bool,
+
+    ///
     interval: Interval,
 
     ///
@@ -238,6 +270,8 @@ impl<'a> App<'a> {
             results_stdout: HashMap::new(),
             results_stderr: HashMap::new(),
 
+            enable_summary_char: false,
+
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
@@ -261,19 +295,26 @@ impl<'a> App<'a> {
 
     ///
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        self.history_area.next(1);
+        // set history setting
+        self.history_area.set_enable_char_diff(self.enable_summary_char);
+
+        if self.results.len() > 0 {
+            let selected = self.history_area.get_state_select();
+            let new_selected = self.reset_history(selected);
+            self.set_output_data(new_selected);
+        } else {
+            self.history_area.next(1);
+        }
+
         let mut update_draw = true;
 
         self.printer
             .set_batch(false)
             .set_color(self.ansi_color)
             .set_diff_mode(self.diff_mode)
-            .set_filter(self.is_filtered)
-            .set_regex_filter(self.is_regex_filter)
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
-            .set_filter_text(self.filtered_text.clone())
             .set_only_diffline(self.is_only_diffline);
 
         loop {
@@ -288,7 +329,7 @@ impl<'a> App<'a> {
             }
 
             // get event
-            match self.rx.recv() {
+            match self.rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(AppEvent::Redraw) => update_draw = true,
 
                 // Get terminal event.
@@ -299,7 +340,14 @@ impl<'a> App<'a> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    let _exec_return = self.update_result(exec_result);
+                    let _ = self.create_result_items(exec_result, true);
+                }
+
+                Ok(AppEvent::HistoryUpdate(
+                    (output_result_items, stdout_result_items, stderr_result_items),
+                    is_running_app,
+                )) => {
+                    let _exec_return = self.update_result(output_result_items, stdout_result_items, stderr_result_items, is_running_app);
 
                     // beep
                     if _exec_return && self.is_beep {
@@ -308,6 +356,7 @@ impl<'a> App<'a> {
 
                     update_draw = true;
                 }
+
 
                 //
                 Ok(AppEvent::ChangeFlagMouseEvent) => {
@@ -323,12 +372,16 @@ impl<'a> App<'a> {
 
                 Err(_) => {}
             }
+
+            if update_draw {
+                self.watch_area.update_wrap();
+            }
         }
     }
 
     ///
     pub fn draw(&mut self, f: &mut Frame) {
-        self.define_subareas(f.size());
+        self.define_subareas(f.area());
 
         if self.show_header {
             // Draw header area.
@@ -363,7 +416,7 @@ impl<'a> App<'a> {
                 let input_text_y = self.header_area.area.y + 1;
 
                 // set cursor
-                f.set_cursor(input_text_x, input_text_y);
+                f.set_cursor_position(Position { x: input_text_x, y: input_text_y });
             }
 
             _ => {}
@@ -475,15 +528,25 @@ impl<'a> App<'a> {
         let dest: &CommandResult = &results[&target_dst].command_result;
 
         // set old text(text_src)
-        let mut src = &CommandResult::default();
+        let mut src = dest;
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
+        } else if previous_dst == 0 && self.is_only_diffline && matches!(self.diff_mode, DiffMode::Line| DiffMode::Word) {
+            src = &results[&0].command_result;
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
 
-        // TODO: output_dataのtabをスペース展開する処理を追加
+        self.watch_area.is_line_number = self.line_number;
+        match self.diff_mode {
+            DiffMode::Disable | DiffMode::Watch => {
+                self.watch_area.is_line_diff_head = false;
+            }
 
+            DiffMode::Line | DiffMode::Word => {
+                self.watch_area.is_line_diff_head = true;
+            }
+        }
         self.watch_area.update_output(output_data);
     }
 
@@ -516,11 +579,10 @@ impl<'a> App<'a> {
                 OutputMode::Stdout => &self.results_stdout,
                 OutputMode::Stderr => &self.results_stderr,
             };
-
             let selected: usize = self.history_area.get_state_select();
             let new_selected = get_near_index(&results, selected);
-            self.reset_history(new_selected);
-            self.set_output_data(new_selected);
+            let reseted_select = self.reset_history(new_selected);
+            self.set_output_data(reseted_select);
         }
     }
 
@@ -615,6 +677,11 @@ impl<'a> App<'a> {
     }
 
     ///
+    pub fn set_enable_summary_char(&mut self, enable_summary_char: bool) {
+        self.enable_summary_char = enable_summary_char;
+    }
+
+    ///
     pub fn set_interval(&mut self, interval: f64) {
         let mut cur_interval = self.interval.write().unwrap();
         *cur_interval = interval;
@@ -626,6 +693,13 @@ impl<'a> App<'a> {
     pub fn set_mouse_events(&mut self, mouse_events: bool) {
         self.mouse_events = mouse_events;
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
+    }
+
+    ///
+    pub fn add_results(&mut self, results: Vec<CommandResult>) {
+        for result in results {
+            self.create_result_items(result, false);
+        }
     }
 
     ///
@@ -652,7 +726,13 @@ impl<'a> App<'a> {
         self.printer.set_diff_mode(diff_mode);
 
         let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+
+        if self.results.len() > 0 {
+            let reseted_select = self.reset_history(selected);
+            self.set_output_data(reseted_select);
+        } else {
+            self.set_output_data(selected);
+        }
     }
 
     ///
@@ -665,7 +745,12 @@ impl<'a> App<'a> {
         self.printer.set_only_diffline(is_only_diffline);
 
         let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        if self.results.len() > 0 {
+            let reseted_select = self.reset_history(selected);
+            self.set_output_data(reseted_select);
+        } else {
+            self.set_output_data(selected);
+        }
     }
 
     ///
@@ -676,13 +761,12 @@ impl<'a> App<'a> {
     ///
     fn set_input_mode(&mut self, input_mode: InputMode) {
         self.input_mode = input_mode;
-
         self.header_area.set_input_mode(self.input_mode);
         self.header_area.update();
     }
 
-    ///
-    fn reset_history(&mut self, selected: usize) {
+    ///　Check if matches the filter keyword  and reset the history windows data.
+    fn reset_history(&mut self, selected: usize) -> usize {
         // Switch the result depending on the output mode.
         let results = match self.output_mode {
             OutputMode::Output => &self.results,
@@ -701,10 +785,10 @@ impl<'a> App<'a> {
         });
 
         let mut new_select: Option<usize> = None;
-        // let mut previous_result: String = "".to_string();
         let mut results_vec = results.iter().collect::<Vec<(&usize, &ResultItems)>>();
         results_vec.sort_by_key(|&(key, _)| key);
 
+        let mut tmp_results: HashMap<usize, ResultItems> = HashMap::new();
         for (key, result) in results_vec {
             if key == &0 {
                 continue;
@@ -712,10 +796,21 @@ impl<'a> App<'a> {
 
             let mut is_push = true;
             if self.is_filtered {
-                let result_text = match self.output_mode {
-                    OutputMode::Output => result.command_result.get_output(),
-                    OutputMode::Stdout => result.command_result.get_stdout(),
-                    OutputMode::Stderr => result.command_result.get_stderr(),
+                let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+                    // Diff Only
+                    (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, DiffMode::Line | DiffMode::Word, true) => result.get_diff_only_data(self.ansi_color),
+
+                    // Output
+                    (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_output(),
+                    (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_output(),
+
+                    // Stdout
+                    (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_stdout(),
+                    (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_stdout(),
+
+                    // Stderr
+                    (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_stderr(),
+                    (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_stderr(),
                 };
 
                 match self.is_regex_filter {
@@ -735,10 +830,6 @@ impl<'a> App<'a> {
                 }
             }
 
-            if &selected == key {
-                new_select = Some(selected);
-            }
-
             if is_push {
                 tmp_history.push(History {
                     timestamp: result.command_result.timestamp.clone(),
@@ -746,13 +837,18 @@ impl<'a> App<'a> {
                     num: *key as u16,
                     summary: result.summary.clone(),
                 });
+
+                tmp_results.insert(*key, result.clone());
+
+                if &selected == key {
+                    new_select = Some(selected);
+                }
             }
         }
 
         if new_select.is_none() {
-            new_select = Some(get_near_index(&results, selected));
+            new_select = Some(get_near_index(&tmp_results, selected));
         }
-
 
         // sort tmp_history, to push history
         let mut history = vec![];
@@ -772,44 +868,92 @@ impl<'a> App<'a> {
         self.history_area.reset_history_data(history);
         self.history_area.set_state_select(new_select.unwrap());
 
+        // result new selected;
+        return new_select.unwrap();
     }
 
-    ///
-    fn update_result(&mut self, _result: CommandResult) -> bool {
-        // check results size.
-        let mut latest_result = ResultItems {
-            command_result: Rc::new(CommandResult::default()),
-            summary: HistorySummary::init(),
-        };
-
-        if self.results.is_empty() {
-            // diff output data.
-            self.results.insert(0, latest_result.clone());
-            self.results_stdout.insert(0, latest_result.clone());
-            self.results_stderr.insert(0, latest_result.clone());
-        } else {
-            let latest_num = get_results_latest_index(&self.results);
-            latest_result = self.results[&latest_num].clone();
-        }
-
+    // NOTE: CommandResultを元に、
+    fn create_result_items(&mut self, _result: CommandResult, is_running_app: bool) -> bool {
         // update HeaderArea
         self.header_area.set_current_result(_result.clone());
         self.header_area.update();
 
+        // create latest_result_with_summary.
+        let mut latest_result = CommandResult::default();
+        if self.results.is_empty() {
+            let init_items = ResultItems::default();
+
+            self.results.insert(0, init_items.clone());
+            self.results_stdout.insert(0, init_items.clone());
+            self.results_stderr.insert(0, init_items.clone());
+        } else {
+            let latest_num = get_results_latest_index(&self.results);
+            latest_result = self.results[&latest_num].command_result.clone();
+        }
+
         // check result diff
-        // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result.command_result == Rc::new(_result.clone()) {
+        if latest_result == _result {
             return false;
         }
 
-        if !self.after_command.is_empty() {
+        let stdout_latest_index = get_results_latest_index(&self.results_stdout);
+        let stdout_latest_result = self.results_stdout[&stdout_latest_index].command_result.clone();
+
+        let stderr_latest_index = get_results_latest_index(&self.results_stderr);
+        let stderr_latest_result = self.results_stderr[&stderr_latest_index].command_result.clone();
+
+        // create ResultItems
+        let enable_summary_char = self.enable_summary_char;
+        let tx = self.tx.clone();
+
+        if is_running_app {
+            thread::spawn(move || {
+                let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
+                    _result,
+                    enable_summary_char,
+                    &latest_result.clone(),
+                    &stdout_latest_result,
+                    &stderr_latest_result,
+                );
+
+                let _ = tx.send(AppEvent::HistoryUpdate(
+                    (output_result_items, stdout_result_items, stderr_result_items),
+                    is_running_app,
+                ));
+            });
+        } else {
+            let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
+                _result,
+                enable_summary_char,
+                &latest_result,
+                &stdout_latest_result,
+                &stderr_latest_result,
+            );
+
+            let _ = self.update_result(output_result_items, stdout_result_items, stderr_result_items, is_running_app);
+        }
+
+        return true;
+    }
+
+    ///
+    fn update_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems, is_running_app: bool) -> bool {
+        // check results.
+        if self.results.is_empty() {
+            // diff output data.
+            self.results.insert(0, output_result_items.clone());
+            self.results_stdout.insert(0, stdout_result_items.clone());
+            self.results_stderr.insert(0, stderr_result_items.clone());
+        }
+
+        if !self.after_command.is_empty() && is_running_app {
             let after_command = self.after_command.clone();
 
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result:CommandResult = (*results[&latest_num].command_result).clone();
-            let after_result = _result.clone();
+            let before_result:CommandResult = self.results[&latest_num].command_result.clone();
+            let after_result = output_result_items.command_result.clone();
 
             {
                 thread::spawn(move || {
@@ -824,24 +968,35 @@ impl<'a> App<'a> {
         }
 
         // append results
-        let insert_result = self.insert_result(_result);
+        let insert_result = self.insert_result(output_result_items, stdout_result_items, stderr_result_items);
         let result_index = insert_result.0;
         let is_limit_over = insert_result.1;
         let is_update_stdout = insert_result.2;
         let is_update_stderr = insert_result.3;
 
         // logging result.
-        if !self.logfile.is_empty() {
+        if !self.logfile.is_empty() && is_running_app {
             let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
-            let result_text = match self.output_mode {
-                OutputMode::Output => self.results[&result_index].command_result.get_output(),
-                OutputMode::Stdout => self.results_stdout[&result_index].command_result.get_stdout(),
-                OutputMode::Stderr => self.results_stderr[&result_index].command_result.get_stderr(),
+            let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+                // Diff Only
+                (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, DiffMode::Line | DiffMode::Word, true) => self.results[&result_index].get_diff_only_data(self.ansi_color),
+
+                // Output
+                (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_output(),
+                (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_output(),
+
+                // Stdout
+                (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_stdout(),
+                (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_stdout(),
+
+                // Stderr
+                (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_stderr(),
+                (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_stderr(),
             };
 
             match self.is_regex_filter {
@@ -886,8 +1041,10 @@ impl<'a> App<'a> {
             self.reset_history(selected);
         }
 
-        // update WatchArea
-        self.set_output_data(selected);
+        if is_running_app{
+            // update WatchArea
+            self.set_output_data(selected);
+        }
 
         true
     }
@@ -895,53 +1052,28 @@ impl<'a> App<'a> {
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
-    fn insert_result(&mut self, result: CommandResult) -> (usize, bool, bool, bool) {
-        let rc_result = Rc::new(result);
-        let mut rc_output_result = ResultItems {
-            command_result: Rc::clone(&rc_result),
-            summary: HistorySummary::init(),
-        };
-
+    fn insert_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems) -> (usize, bool, bool, bool) {
         let result_index = self.results.keys().max().unwrap_or(&0) + 1;
-        if result_index > 0 {
-            let latest_num = result_index - 1;
-            let latest_result = self.results[&latest_num].clone();
-            rc_output_result.summary.calc(&latest_result.command_result.get_output(), &rc_output_result.command_result.get_output());
-        }
-        self.results.insert(result_index, rc_output_result.clone());
+        self.results.insert(result_index, output_result_items);
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
         let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
-        let result_stdout = &rc_result.get_stdout();
+        let result_stdout = &stdout_result_items.command_result.get_stdout();
+        let mut is_stdout_update = false;
+        if before_result_stdout != result_stdout {
+            is_stdout_update = true;
+            self.results_stdout.insert(result_index, stdout_result_items);
+        }
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
         let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
-        let result_stderr = &rc_result.get_stderr();
-
-        // append results_stdout
-        let mut is_stdout_update = false;
-        if before_result_stdout != result_stdout {
-            is_stdout_update = true;
-            let mut rc_stdout_result = ResultItems {
-                command_result: Rc::clone(&rc_result),
-                summary: HistorySummary::init(),
-            };
-            rc_stdout_result.summary.calc(before_result_stdout, result_stdout);
-            self.results_stdout.insert(result_index, rc_stdout_result);
-        }
-
-        // append results_stderr
+        let result_stderr = &stderr_result_items.command_result.get_stderr();
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            let mut rc_stderr_result = ResultItems {
-                command_result: Rc::clone(&rc_result),
-                summary: HistorySummary::init(),
-            };
-            rc_stderr_result.summary.calc(before_result_stderr, result_stderr);
-            self.results_stderr.insert(result_index, rc_stderr_result);
+            self.results_stderr.insert(result_index, stderr_result_items);
         }
 
         // limit check
@@ -1062,8 +1194,8 @@ impl<'a> App<'a> {
                             }
                         }, // Quit
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
-                        // InputAction::Cancel => self.action_cancel(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::ForceCancel => self.action_force_reset(),
                         InputAction::Help => self.toggle_window(), // Help
                         InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
                         InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
@@ -1087,6 +1219,8 @@ impl<'a> App<'a> {
                         InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
                         InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
                         InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
+                        InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
                         InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
@@ -1226,15 +1360,12 @@ impl<'a> App<'a> {
                         self.filtered_text = self.header_area.input_text.clone();
                         self.set_input_mode(InputMode::None);
 
-                        self.printer.set_filter(self.is_filtered);
-                        self.printer.set_regex_filter(self.is_regex_filter);
-                        self.printer.set_filter_text(self.filtered_text.clone());
-
-                        let selected = self.history_area.get_state_select();
-                        self.reset_history(selected);
+                        let selected: usize = self.history_area.get_state_select();
+                        let new_selected = self.reset_history(selected);
 
                         // update WatchArea
-                        self.set_output_data(selected);
+                        self.watch_area.set_keyword(self.filtered_text.clone(), is_regex);
+                        self.set_output_data(new_selected);
                     }
 
                     // default
@@ -1366,15 +1497,12 @@ impl<'a> App<'a> {
             self.header_area.input_text = self.filtered_text.clone();
             self.set_input_mode(InputMode::None);
 
-            self.printer.set_filter(self.is_filtered);
-            self.printer.set_regex_filter(self.is_regex_filter);
-            self.printer.set_filter_text("".to_string());
-
             let selected = self.history_area.get_state_select();
-            self.reset_history(selected);
+            let new_selected = self.reset_history(selected);
 
             // update WatchArea
-            self.set_output_data(selected);
+            self.watch_area.reset_keyword();
+            self.set_output_data(new_selected);
         } else if 0 != self.history_area.get_state_select() {
             // set latest history
             self.reset_history(0);
@@ -1382,6 +1510,31 @@ impl<'a> App<'a> {
         } else {
             // exit popup
             self.show_exit_popup()
+        }
+    }
+
+    ///
+    fn action_force_reset(&mut self) {
+        if self.is_filtered {
+            // unset filter
+            self.is_filtered = false;
+            self.is_regex_filter = false;
+            self.filtered_text = "".to_string();
+            self.header_area.input_text = self.filtered_text.clone();
+            self.set_input_mode(InputMode::None);
+
+            let selected = self.history_area.get_state_select();
+            let new_selected = self.reset_history(selected);
+
+            // update WatchArea
+            self.watch_area.reset_keyword();
+            self.set_output_data(new_selected);
+        } else if 0 != self.history_area.get_state_select() {
+            // set latest history
+            self.reset_history(0);
+            self.set_output_data(0);
+        } else {
+            self.exit();
         }
     }
 
@@ -1612,16 +1765,22 @@ impl<'a> App<'a> {
     fn action_input_reset(&mut self) {
         self.header_area.input_text = self.filtered_text.clone();
         self.set_input_mode(InputMode::None);
-        self.is_filtered = false;
-
-        self.printer.set_filter(self.is_filtered);
-        self.printer.set_regex_filter(self.is_regex_filter);
 
         let selected = self.history_area.get_state_select();
-        self.reset_history(selected);
+        let new_selected = self.reset_history(selected);
 
         // update WatchArea
-        self.set_output_data(selected);
+        self.set_output_data(new_selected);
+    }
+
+    ///
+    fn action_previous_keyword(&mut self) {
+        self.watch_area.previous_keyword();
+    }
+
+    ///
+    fn action_next_keyword(&mut self) {
+        self.watch_area.next_keyword();
     }
 
     ///
@@ -1689,7 +1848,7 @@ impl<'a> App<'a> {
 
             },
             ActiveWindow::Help => {
-                self.help_window.scroll_down(2);
+                self.help_window.scroll_up(2);
             },
             _ => {},
         }
@@ -1768,7 +1927,11 @@ fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize 
     } else if index == 0 {
         return index;
     } else {
-        let min = keys.iter().min().unwrap();
+        let min = if let Some(min_value) = keys.iter().min() {
+            min_value
+        } else {
+            &0
+        };
         if *min >= index {
             // return get_results_previous_index(results, index);
             return get_results_next_index(results, index);
@@ -1821,4 +1984,62 @@ fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -
     }
 
     return next_index;
+}
+
+fn gen_result_items(
+    _result: CommandResult,
+    enable_summary_char: bool,
+    output_latest_result: &CommandResult,
+    stdout_latest_result: &CommandResult,
+    stderr_latest_result: &CommandResult,
+) -> (ResultItems, ResultItems, ResultItems) {
+    // create output ResultItems
+    let output_diff_only_data = gen_diff_only_data(&output_latest_result.get_output(), &_result.get_output());
+    let mut output_result_items = ResultItems {
+        command_result: _result.clone(),
+        summary: HistorySummary::init(),
+        diff_only_data: output_diff_only_data,
+    };
+    output_result_items.summary.calc(&output_latest_result.get_output(), &output_result_items.command_result.get_output(), enable_summary_char);
+
+    // create stdout ResultItems
+    let stdout_diff_only_data = gen_diff_only_data(&output_latest_result.get_stdout(), &_result.get_stdout());
+    let mut stdout_result_items = ResultItems {
+        command_result: _result.clone(),
+        summary: HistorySummary::init(),
+        diff_only_data: stdout_diff_only_data,
+    };
+    stdout_result_items.summary.calc(&stdout_latest_result.get_stdout(), &stdout_result_items.command_result.get_stdout(), enable_summary_char);
+
+    // create stderr ResultItems
+    let stderr_diff_only_data = gen_diff_only_data(&output_latest_result.get_stderr(), &_result.get_stderr());
+    let mut stderr_result_items = ResultItems {
+        command_result: _result.clone(),
+        summary: HistorySummary::init(),
+        diff_only_data: stderr_diff_only_data,
+    };
+    stderr_result_items.summary.calc(&stderr_latest_result.get_stderr(), &stderr_result_items.command_result.get_stderr(), enable_summary_char);
+
+    // TODO: is_appじゃない場合、tx.sendじゃないやり方で追加する方法を考える必要がありそう？？ → 呼び出し元で処理をさせるようにする？？？(log load時にうまく動作しない原因がこれ)
+    // let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
+    return (output_result_items, stdout_result_items, stderr_result_items);
+}
+
+fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
+    let mut diff_only_data = vec![];
+
+    let diff_set = TextDiff::from_lines(before, after);
+    for op in diff_set.ops() {
+        for change in diff_set.iter_changes(op) {
+            match change.tag() {
+                ChangeTag::Equal => {},
+                ChangeTag::Delete | ChangeTag::Insert => {
+                    let value = change.to_string().as_bytes().iter().map(|&x| x).collect::<Vec<u8>>();
+                    diff_only_data.extend(value);
+                }
+            }
+        }
+    }
+
+    diff_only_data
 }
