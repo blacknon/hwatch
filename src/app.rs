@@ -1919,7 +1919,11 @@ fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize 
     } else if index == 0 {
         return index;
     } else {
-        let min = keys.iter().min().unwrap();
+        let min = if let Some(min_value) = keys.iter().min() {
+            min_value
+        } else {
+            &0
+        };
         if *min >= index {
             // return get_results_previous_index(results, index);
             return get_results_next_index(results, index);
