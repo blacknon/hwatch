@@ -761,7 +761,6 @@ impl<'a> App<'a> {
     ///
     fn set_input_mode(&mut self, input_mode: InputMode) {
         self.input_mode = input_mode;
-
         self.header_area.set_input_mode(self.input_mode);
         self.header_area.update();
     }
