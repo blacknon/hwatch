@@ -42,6 +42,9 @@ pub struct WatchArea<'a> {
     /// line number.
     pub is_line_number: bool,
 
+    /// line diff
+    pub is_line_diff_head: bool,
+
     /// scroll position.
     position: i16,
 
@@ -80,6 +83,8 @@ impl<'a> WatchArea<'a> {
 
             is_line_number: false,
 
+            is_line_diff_head: false,
+
             position: 0,
 
             lines: 0,
@@ -114,7 +119,7 @@ impl<'a> WatchArea<'a> {
 
         if self.keyword.len() > 0 {
             // update keyword position
-            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
         }
     }
 
@@ -125,7 +130,7 @@ impl<'a> WatchArea<'a> {
 
         if self.keyword.len() > 0 {
             // update keyword position
-            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
         }
     }
 
@@ -159,7 +164,7 @@ impl<'a> WatchArea<'a> {
 
         if self.keyword.len() > 0 {
             // update keyword position
-            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
             if self.keyword_position.len() > 0 {
                 self.next_keyword();
             }
@@ -179,7 +184,7 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn previous_keyword(&mut self) {
         // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
 
         if self.keyword_position.len() > 0 {
             if self.selected_keyword > 0 {
@@ -203,7 +208,7 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn next_keyword(&mut self) {
         // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
+        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
 
         if self.keyword_position.len() > 0 {
             // get selected keyword position
@@ -365,11 +370,15 @@ impl<'a> WatchArea<'a> {
 }
 
 ///
-fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool) -> Vec<(usize, usize, usize)> {
+fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool, is_diff_head: bool) -> Vec<(usize, usize, usize)> {
     let mut ignore_head_count = 0;
     if is_line_number {
         let num_count = lines.len().to_string().len();
         ignore_head_count = num_count + 3; // ^<number>` | `
+    }
+
+    if is_diff_head {
+        ignore_head_count += 4; // `    ` | ` +  ` | ` -  `
     }
 
     let re = if is_regex {
