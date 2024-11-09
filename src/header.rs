@@ -157,6 +157,13 @@ impl<'a> HeaderArea<'a> {
     }
 
     pub fn set_input_mode(&mut self, input_mode: InputMode) {
+        match self.input_mode {
+            InputMode::Filter => self.input_prompt = "/".to_string(),
+            InputMode::RegexFilter => self.input_prompt = "*".to_string(),
+
+            _ => self.input_prompt = " ".to_string(),
+        }
+
         self.input_mode = input_mode;
     }
 
@@ -196,7 +203,7 @@ impl<'a> HeaderArea<'a> {
                 InputMode::Filter => self.input_prompt = "/".to_string(),
                 InputMode::RegexFilter => self.input_prompt = "*".to_string(),
 
-                _ => self.input_prompt = " ".to_string(),
+                _ => {},
             }
 
             filter_keyword_style = Style::default().fg(Color::Gray);
