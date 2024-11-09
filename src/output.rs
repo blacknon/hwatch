@@ -7,9 +7,9 @@
 //       => すぐには出来なさそう？なので、0.3.15にて対応とする？
 // TODO: 行・文字差分数の取得を行うための関数を作成する(ここじゃないかも？？)
 
+
 // modules
 use ratatui::style::Stylize;
-use regex::Regex;
 use std::{borrow::Cow, vec};
 use std::cmp;
 use std::fmt::Write;
@@ -34,7 +34,6 @@ const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
 const COLOR_WATCH_LINE_ADD: Color = Color::Green;
 const COLOR_WATCH_LINE_REM: Color = Color::Red;
 const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
-const COLOR_WATCH_FILTER_KEYWORD: Color = Color::LightBlue;
 
 // local const
 use crate::ansi;
@@ -124,20 +123,11 @@ pub struct Printer {
     // is reverse text.
     is_reverse: bool,
 
-    // is filtered text.
-    is_filter: bool,
-
-    // is regex filter text.
-    is_regex_filter: bool,
-
     // is word highlight at line diff.
     is_word_highlight: bool,
 
     // is only print different line.
     is_only_diffline: bool,
-
-    // filter text.
-    filter_text: String,
 
     // tab size.
     tab_size: u16,
@@ -155,11 +145,8 @@ impl Printer {
             is_color: false,
             is_line_number: false,
             is_reverse: false,
-            is_filter: false,
-            is_regex_filter: false,
             is_word_highlight: false,
             is_only_diffline: false,
-            filter_text: "".to_string(),
             tab_size: DEFAULT_TAB_SIZE,
             header_width: 0,
         }
@@ -265,33 +252,10 @@ impl Printer {
         }
 
         if self.is_batch {
-            if self.is_filter && !self.is_color {
-                return self.create_plane_output_batch_with_filter(&text);
-            } else {
-                return self.create_plane_output_batch(&text);
-            }
+            return self.create_plane_output_batch(&text);
         } else {
-            if self.is_filter && !self.is_color {
-                return self.create_plane_output_watch_with_filter(&text);
-            } else {
-                return self.create_plane_output_watch(&text);
-            }
+            return self.create_plane_output_watch(&text);
         }
-    }
-
-    /// create filter pattern
-    fn create_filter_pattern(&mut self) -> Regex {
-        // set filter regex.
-        let mut pattern: Regex = Regex::new(&self.filter_text).unwrap();
-        if !self.is_color && self.is_filter {
-            pattern = Regex::new(&regex::escape(&self.filter_text)).unwrap();
-
-            if self.is_regex_filter {
-                pattern = Regex::new(&self.filter_text).unwrap();
-            }
-        }
-
-        return pattern;
     }
 
     ///
@@ -310,32 +274,6 @@ impl Printer {
                 line.push_str(
                     &gen_counter_str(self.is_color, counter, header_width, DifferenceType::Same)
                 );
-            }
-
-            line.push_str(&l);
-            result.push(line);
-
-            counter += 1;
-        }
-
-        return PrintData::Strings(result);
-    }
-
-    ///
-    fn create_plane_output_batch_with_filter<'a>(&mut self, text: &str) -> PrintData<'a> {
-        // @TODO: filterを適用するオプションをそのうち作る
-        //
-        let mut result = Vec::new();
-
-        //
-        let header_width = text.split('\n').count().to_string().chars().count();
-        let mut counter = 1;
-
-        // split line
-        for l in text.split('\n') {
-            let mut line = String::new();
-            if self.is_line_number {
-                line.push_str(&gen_counter_str(self.is_color, counter, header_width, DifferenceType::Same));
             }
 
             line.push_str(&l);
@@ -378,104 +316,6 @@ impl Printer {
             }
 
             result.push(Line::from(line));
-            counter += 1;
-        }
-
-        return PrintData::Lines(result);
-    }
-
-    ///
-    fn create_plane_output_watch_with_filter<'a>(&mut self, text: &str) -> PrintData<'a> {
-        let mut result = Vec::new();
-
-        // line_span is vec for span on a line-by-line basis
-        let mut line_span = vec![];
-
-        let pattern = self.create_filter_pattern();
-
-        // line number
-        let mut counter = 1;
-        let header_width = &text.split('\n').clone().count().to_string().chars().count();
-
-        let mut last_match: usize = 0;
-
-        for mch in pattern.find_iter(text) {
-            let start: usize = mch.start();
-            let end: usize = mch.end();
-
-            // before regex hit.
-            let before_range_text = &text[last_match..start];
-
-            // regex hit.
-            let range_text = &text[start..end];
-
-            // split newline to Spans, at before_range_text
-            for (before_range_count, before_text_line) in before_range_text.split('\n').enumerate()
-            {
-                if before_range_count > 0 {
-                    let line_data = line_span.clone();
-                    result.push(Line::from(line_data));
-                    line_span = vec![];
-                    counter += 1;
-                }
-
-                if self.is_line_number && line_span.is_empty() {
-                    line_span.push(Span::styled(
-                        format!("{counter:>header_width$} | "),
-                        Style::default().fg(Color::DarkGray),
-                    ));
-                }
-
-                // push to line_span at before_text_line.
-                line_span.push(Span::from(before_text_line.to_string()));
-            }
-
-            // split newline to Spans, at range_text
-            for (range_count, text_line) in range_text.split('\n').enumerate() {
-                if range_count > 0 {
-                    if self.is_line_number && line_span.is_empty() {
-                        line_span.push(Span::styled(
-                            format!("{counter:>header_width$} | "),
-                            Style::default().fg(Color::DarkGray),
-                        ));
-                    }
-
-                    let line_data = line_span.clone();
-                    result.push(Line::from(line_data));
-                    line_span = vec![];
-                    counter += 1;
-                }
-
-                // push to line_span at text_line.
-                line_span.push(Span::styled(
-                    text_line.to_string(),
-                    Style::default().fg(COLOR_WATCH_FILTER_KEYWORD).add_modifier(Modifier::REVERSED),
-                ));
-            }
-
-            last_match = end;
-        }
-
-        // last push
-        let last_str = &text[last_match..];
-
-        for last_str_line in last_str.split('\n') {
-            let mut last_str_line_span = vec![];
-            if !line_span.is_empty() {
-                last_str_line_span = line_span;
-                line_span = vec![];
-            }
-
-            if self.is_line_number && last_str_line_span.is_empty() {
-                last_str_line_span.push(Span::styled(
-                    format!("{counter:>header_width$} | "),
-                    Style::default().fg(Color::DarkGray),
-                ));
-            }
-            last_str_line_span.push(Span::from(String::from(last_str_line)));
-
-            result.push(Line::from(last_str_line_span));
-
             counter += 1;
         }
 
@@ -868,6 +708,7 @@ impl Printer {
                         if self.is_color {
                             result_line_spans = vec![Span::from(line_header)];
                             let colored_data = ansi::bytes_to_text(format!("{line_data}").as_bytes());
+
                             for d in colored_data.lines {
                                 for x in d.spans {
                                     result_line_spans.push(x);
@@ -952,24 +793,6 @@ impl Printer {
     // set is reverse.
     pub fn set_reverse(&mut self, is_reverse: bool) -> &mut Self {
         self.is_reverse = is_reverse;
-        self
-    }
-
-    /// set is_filter.
-    pub fn set_filter(&mut self, is_filter: bool) -> &mut Self {
-        self.is_filter = is_filter;
-        self
-    }
-
-    /// set diff mode.
-    pub fn set_regex_filter(&mut self, is_regex_filter: bool) -> &mut Self {
-        self.is_regex_filter = is_regex_filter;
-        self
-    }
-
-    /// set filter text.
-    pub fn set_filter_text(&mut self, filter_text: String) -> &mut Self {
-        self.filter_text = filter_text;
         self
     }
 

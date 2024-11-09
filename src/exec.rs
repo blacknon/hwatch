@@ -20,8 +20,7 @@ use crate::common::OutputMode;
 use crate::event::AppEvent;
 
 // struct for handling data during log/after exec
-#[derive(Serialize)]
-
+#[derive(Serialize, Deserialize)]
 pub struct CommandResultData {
     pub timestamp: String,
     pub command: String,
@@ -29,6 +28,30 @@ pub struct CommandResultData {
     pub output: String,
     pub stdout: String,
     pub stderr: String,
+}
+
+impl CommandResultData {
+    pub fn generate_result(&self, is_compress: bool) -> CommandResult {
+        let output = self.output.as_bytes().to_vec();
+        let stdout = self.stdout.as_bytes().to_vec();
+        let stderr = self.stderr.as_bytes().to_vec();
+
+
+        let result = CommandResult {
+            timestamp: self.timestamp.clone(),
+            command: self.command.clone(),
+            status: self.status,
+            is_compress: is_compress,
+            output: vec![],
+            stdout: vec![],
+            stderr: vec![],
+        }
+        .set_output(output)
+        .set_stdout(stdout)
+        .set_stderr(stderr);
+
+        result
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]

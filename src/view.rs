@@ -6,7 +6,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use std::time::Duration;
 use crossterm::{
-    event::DisableMouseCapture,
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -17,10 +17,20 @@ use std::{
 };
 use tui::{backend::CrosstermBackend, Terminal};
 
+// non blocking io
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use std::{
+    io::stdin,
+    os::unix::io::AsRawFd,
+};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
+
 // local module
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
+use crate::exec::CommandResult;
 use crate::keymap::{Keymap, default_keymap};
 
 // local const
@@ -47,6 +57,7 @@ pub struct View {
     output_mode: OutputMode,
     diff_mode: DiffMode,
     is_only_diffline: bool,
+    enable_summary_char: bool,
     log_path: String,
 }
 
@@ -71,6 +82,7 @@ impl View {
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
             is_only_diffline: false,
+            enable_summary_char: false,
             log_path: "".to_string(),
         }
     }
@@ -160,6 +172,11 @@ impl View {
         self
     }
 
+    pub fn set_enable_summary_char(mut self, enable_summary_char: bool) -> Self {
+        self.enable_summary_char = enable_summary_char;
+        self
+    }
+
     pub fn set_logfile(mut self, log_path: String) -> Self {
         self.log_path = log_path;
         self
@@ -169,6 +186,7 @@ impl View {
         &mut self,
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
+        exist_results: Vec<CommandResult>,
     ) -> Result<(), Box<dyn Error>> {
         // Setup Terminal
         enable_raw_mode()?;
@@ -177,14 +195,19 @@ impl View {
         execute!(stdout, EnterAlternateScreen)?;
 
         let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
+        let mut terminal: Terminal<CrosstermBackend<io::Stdout>> = Terminal::new(backend)?;
         let _ = terminal.clear();
 
         {
             let input_tx = tx.clone();
-            let _ = std::thread::spawn(move || loop {
-                let _ = send_input(input_tx.clone());
-            });
+            let _ = std::thread::spawn(move || {
+                    // non blocking io
+                    #[cfg(any(target_os = "linux", target_os = "macos"))]
+                    loop {
+                        let _ = send_input(input_tx.clone());
+                    }
+                }
+            );
         }
 
         // Create App
@@ -197,6 +220,11 @@ impl View {
         app.set_after_command(self.after_command.clone());
 
         // set mouse events
+        // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCatpure can be used
+        // https://github.com/crossterm-rs/crossterm/issues/660
+        if cfg!(target_os = "windows") {
+            execute!(terminal.backend_mut(), EnableMouseCapture)?;
+        }
         app.set_mouse_events(self.mouse_events);
 
         // set limit
@@ -234,6 +262,12 @@ impl View {
         app.set_diff_mode(self.diff_mode);
         app.set_is_only_diffline(self.is_only_diffline);
 
+        // set enable summary char
+        app.set_enable_summary_char(self.enable_summary_char);
+
+        // set exist results
+        app.add_results(exist_results);
+
         // Run App
         let res = app.run(&mut terminal);
 
@@ -263,10 +297,44 @@ fn restore_terminal() {
     let _ = terminal.show_cursor();
 }
 
+// TODO(blacknon): `Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }`で終了してしまう場合があるので、どこで終了されてしまっているかを調査、対処する
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
-        let event = crossterm::event::read()?;
-        let _ = tx.send(AppEvent::TerminalEvent(event));
+        // non blocking mode
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        set_nonblocking(true)?;
+
+        // get event
+        let result = crossterm::event::read();
+
+        // blocking mode
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        set_nonblocking(false)?;
+
+        if let Ok(event) = result {
+            let _ = tx.send(AppEvent::TerminalEvent(event));
+        }
+
+        // clearing buffer
+        while crossterm::event::poll(std::time::Duration::from_millis(0)).unwrap() {
+            let _ = crossterm::event::read()?;
+        }
     }
+    Ok(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
+    let stdin_fd = stdin().as_raw_fd();
+    let flags = fcntl(stdin_fd, F_GETFL)?;
+
+    if is_nonblocking {
+        let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
+        fcntl(stdin_fd, F_SETFL(new_flags))?;
+    } else {
+        let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
+        fcntl(stdin_fd, F_SETFL(new_flags))?;
+    }
+
     Ok(())
 }

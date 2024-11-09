@@ -7,6 +7,9 @@ hwatch.sublime-project
 # VSCode files
 .vscode*
 
+# IntelliJ files
+.idea
+
 # Rust files
 #Cargo.lock
 tmp*

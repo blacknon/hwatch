@@ -2,22 +2,21 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.16
-// TODO(blacknon): Enterキーでfilter modeのキーワード移動をできるようにする
-// TODO(blacknon): filter modeのハイライト表示をどのoutput modeでもできるようにする(とりあえずcolor mode enable時はansi codeをパース前にいじる感じにすれば良さそう？)
+// v0.3.xx
+// TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
+// TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
+// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
+// TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
+// TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
+// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
-// TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
-// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
-// TODO(blacknon): https://github.com/blacknon/hwatch/issues/101
-//                 - ログを読み込ませて、そのまま続きの処理を行わせる機能の追加
-
-// v0.3.17
-// TODO(blacknon): ...
+// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
@@ -47,8 +46,14 @@ extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
+extern crate termios;
 extern crate termwiz;
+extern crate tokio;
+extern crate nix;
 extern crate ratatui as tui;
+extern crate unicode_width;
+extern crate unicode_segmentation;
+
 
 // macro crate
 #[macro_use]
@@ -59,7 +64,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{Arg, ArgAction, Command, ValueHint, builder::ArgPredicate};
+use clap::{Arg, ArgAction, Command, error::ErrorKind, ValueHint, builder::ArgPredicate};
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
@@ -67,7 +72,7 @@ use std::sync::{Arc, RwLock};
 use crossbeam_channel::unbounded;
 use std::thread;
 use std::time::Duration;
-use common::DiffMode;
+use common::{DiffMode, load_logfile};
 
 // local modules
 mod ansi;
@@ -127,7 +132,6 @@ fn build_app() -> clap::Command {
                 .allow_hyphen_values(true)
                 .num_args(0..)
                 .value_hint(ValueHint::CommandWithArguments)
-                .required(true),
         )
 
         // -- flags --
@@ -135,7 +139,7 @@ fn build_app() -> clap::Command {
         //     [-b,--batch]
         .arg(
             Arg::new("batch")
-                .help("output exection results to stdout")
+                .help("output execution results to stdout")
                 .short('b')
                 .action(ArgAction::SetTrue)
                 .long("batch"),
@@ -149,12 +153,16 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("beep"),
         )
+        // border option
+        //     [--border]
         .arg(
             Arg::new("border")
                 .help("Surround each pane with a border frame")
                 .action(ArgAction::SetTrue)
                 .long("border"),
         )
+        // scrollbar option
+        //     [--with-scrollbar]
         .arg(
             Arg::new("with_scrollbar")
                 .help("When the border option is enabled, display scrollbar on the right side of watch pane.")
@@ -196,7 +204,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("compress"),
         )
-        // exec flag.
+        // no-title flag.
         //     [--no-title]
         .arg(
             Arg::new("no_title")
@@ -204,6 +212,13 @@ fn build_app() -> clap::Command {
                 .long("no-title")
                 .action(ArgAction::SetTrue)
                 .short('t'),
+        )
+        // enable charcter summary option
+        .arg(
+            Arg::new("enable_summary_char")
+                .help("collect character-level diff count in summary.")
+                .long("enable-summary-char")
+                .action(ArgAction::SetTrue),
         )
         // Enable line number mode option
         //   [--line-number,-N]
@@ -214,7 +229,7 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
-        // exec flag.
+        // help banner disable flag.
         //     [--no-help-banner]
         .arg(
             Arg::new("no_help_banner")
@@ -222,6 +237,15 @@ fn build_app() -> clap::Command {
                 .long("no-help-banner")
                 .action(ArgAction::SetTrue),
         )
+        // summary disable flag.
+        //     [--no-summary]
+        .arg(
+            Arg::new("no_summary")
+                .help("disable the calculation for summary that is running behind the scenes, and disable the summary function in the first place.")
+                .long("no-summary")
+                .action(ArgAction::SetTrue),
+        )
+        //
         // exec flag.
         //     [-x,--exec]
         .arg(
@@ -263,7 +287,7 @@ fn build_app() -> clap::Command {
         //      {timestamp: "...", command: "....", output: ".....", ...}
         .arg(
             Arg::new("logfile")
-                .help("logging file")
+                .help("logging file. if a log file is already used, its contents will be read and executed.")
                 .short('l')
                 .long("logfile")
                 .num_args(0..=1)
@@ -274,7 +298,7 @@ fn build_app() -> clap::Command {
         //   [--shell,-s] command
         .arg(
             Arg::new("shell_command")
-                .help("shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.")
+                .help("shell to use at runtime. can also insert the command to the location specified by {COMMAND}.")
                 .short('s')
                 .long("shell")
                 .action(ArgAction::Append)
@@ -337,7 +361,8 @@ fn build_app() -> clap::Command {
                 .default_value("output")
                 .action(ArgAction::Append),
         )
-        //
+        // Set keymap option
+        //   [--keymap,-K] keymap(shortcut=function)
         .arg(
             Arg::new("keymap")
                 .help("Add keymap")
@@ -348,7 +373,7 @@ fn build_app() -> clap::Command {
 
 }
 
-fn get_clap_matcher() -> clap::ArgMatches {
+fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
     let env_config = std::env::var("HWATCH").unwrap_or_default();
     let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
     let mut os_args = std::env::args_os();
@@ -364,12 +389,13 @@ fn get_clap_matcher() -> clap::ArgMatches {
     args.extend(env_args.iter().map(std::ffi::OsString::from));
     args.extend(os_args);
 
-    build_app().get_matches_from(args)
+    cmd_app.get_matches_from(args)
 }
 
 fn main() {
     // Get command args matches
-    let matcher = get_clap_matcher();
+    let mut cmd_app = build_app();
+    let matcher = get_clap_matcher(cmd_app.clone());
 
     // Get options flag
     let batch = matcher.get_flag("batch");
@@ -383,30 +409,64 @@ fn main() {
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
+    let mut load_results = vec![];
     if let Some(logfile) = logfile {
-        let _log_path = Path::new(logfile);
-        let _log_dir = _log_path.parent().unwrap();
-        let _cur_dir = std::env::current_dir().expect("cannot get current directory");
-        let _abs_log_path = _cur_dir.join(_log_path);
-        let _abs_log_dir = _cur_dir.join(_log_dir);
-
-        // check _log_path exist
-        if _abs_log_path.exists() {
-            println!("file {_abs_log_path:?} is exists.");
-            let answer = Question::new("Log to the same file?")
-                .default(Answer::YES)
-                .show_defaults()
-                .confirm();
-
-            if answer != Answer::YES {
-                std::process::exit(1);
-            }
-        }
+        // logging log
+        let log_path = Path::new(logfile);
+        let log_dir = log_path.parent().unwrap();
+        let cur_dir = std::env::current_dir().expect("cannot get current directory");
+        let abs_log_path = cur_dir.join(log_path);
+        let abs_log_dir = cur_dir.join(log_dir);
 
         // check _log_dir exist
-        if !_abs_log_dir.exists() {
-            println!("directory {_abs_log_dir:?} is not exists.");
-            std::process::exit(1);
+        if !abs_log_dir.exists() {
+            let err = cmd_app.error(
+                ErrorKind::ValueValidation,
+                format!("directory {abs_log_dir:?} is not exists."),
+            );
+            err.exit();
+        }
+
+        // load logfile
+        match load_logfile(abs_log_path.to_str().unwrap(), compress) {
+            Ok(results) => {
+                load_results = results;
+            },
+            Err(e) => {
+                let mut is_overwrite_question = false;
+                match e {
+                    common::LoadLogfileError::LogfileEmpty => {
+                        eprintln!("file {abs_log_path:?} is exists and empty.");
+                        is_overwrite_question = true;
+                    },
+                    common::LoadLogfileError::LoadFileError(err) => {
+                        match err.kind() {
+                            std::io::ErrorKind::NotFound => {},
+                            _ => {
+                                eprintln!("file {abs_log_path:?} is exists and load error.");
+                                eprintln!("{err:?}");
+                                is_overwrite_question = true;
+                            },
+                        }
+                    },
+                    common::LoadLogfileError::JsonParseError(err) => {
+                        eprintln!("file {abs_log_path:?} is exists and json parse error.");
+                        eprintln!("{err:?}");
+                        is_overwrite_question = true;
+                    },
+                }
+
+                if is_overwrite_question {
+                    let answer = Question::new("Log to the same file?")
+                        .default(Answer::YES)
+                        .show_defaults()
+                        .confirm();
+
+                    if answer != Answer::YES {
+                        std::process::exit(1);
+                    }
+                }
+            }
         }
     }
 
@@ -423,6 +483,9 @@ fn main() {
 
     // tab size
     let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
+
+    // enable summary char
+    let enable_summary_char = matcher.get_flag("enable_summary_char");
 
     // output mode
     let output_mode = match matcher.get_one::<String>("output").unwrap().as_str() {
@@ -460,12 +523,31 @@ fn main() {
         }
     };
 
+    // set command
+    let command_line: Vec<String>;
+    if let Some(value) = matcher.get_many::<String>("command") {
+        command_line = value.into_iter().map(|s| s.clone()).collect()
+    } else {
+        // check load_results
+        if load_results.is_empty() {
+            let err = cmd_app.error(
+                ErrorKind::InvalidValue,
+                format!("command not specified and logfile is empty."),
+            );
+            err.exit();
+        }
+
+        // set command
+        let command = load_results.last().unwrap().command.clone();
+        command_line = shell_words::split(&command).unwrap();
+    }
+
     // Start Command Thread
     {
         let m = matcher.clone();
         let tx = tx.clone();
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
-        let command: Vec<_> = m.get_many::<String>("command").unwrap().into_iter().map(|s| s.clone()).collect();
+        let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
         let interval = interval.clone();
         let _ = thread::spawn(move || loop {
@@ -525,6 +607,9 @@ fn main() {
             .set_diff_mode(diff_mode)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
 
+            // Set enable summary char
+            .set_enable_summary_char(enable_summary_char)
+
             .set_show_ui(!matcher.get_flag("no_title"))
             .set_show_help_banner(!matcher.get_flag("no_help_banner"));
 
@@ -539,10 +624,10 @@ fn main() {
         }
 
         // start app.
-        let _res = view.start(tx, rx);
+        let _res = view.start(tx, rx, load_results);
     } else {
         // is batch mode
-        let mut batch = batch::Batch::new(tx, rx)
+        let mut batch = batch::Batch::new(rx)
             .set_beep(matcher.get_flag("beep"))
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)

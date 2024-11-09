@@ -1,4 +1,4 @@
-% hwatch(1) Version 0.3.13 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
+% hwatch(1) Version 0.3.16 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
 NAME
 ====
@@ -36,12 +36,22 @@ Flags
 
 -b, \--batch
 
-:   Output exection results to stdout. NOTE: Operations with TUI are not possible in batch mode.
+:   Output execution results to stdout. NOTE: Operations with TUI are not possible in batch mode.
 
 
 -B, \--beep
 
 :   beep if command has a change result.
+
+
+\--border
+
+:   Surround each pane with a border frame
+
+
+\--with-scrollbar
+
+:   When the border option is enabled, display scrollbar on the right side of watch pane.
 
 
 \--mouse
@@ -59,9 +69,19 @@ Flags
 :   Display text upside down.
 
 
+-C, \--compress
+
+:   Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.
+
+
 -t, \--no-title
 
 :   Hide the UI on start. Use `t` to toggle it.
+
+
+\--enable-summary-char
+
+:   collect character-level diff count in summary.
 
 
 -N, \--line-number
@@ -74,7 +94,13 @@ Flags
 :   Hide the "Display help with h key" message
 
 
--e, \--exec
+\--no-summary
+
+
+:   disable the calculation for summary that is running behind the scenes, and disable the summary function in the first place.
+
+
+-x, \--exec
 
 :   Run the command directly, not through the shell. Much like the `-x` option of the watch command.
 
@@ -95,6 +121,7 @@ Options
 -l, \--logfile *logfile*
 
 :   Output the command execution result and its time as a log in json. The execution results that are recorded are only those that differ from the previous execution results.
+:   If a log file is already used, its contents will be read and executed.
 
 
 -s, \--shell *shell command*
@@ -105,6 +132,11 @@ Options
 -n, \--interval *seconds*
 
 :   Specify update interval. The command will not allow quicker than **0.001** second interval, in which the smaller values are converted. Both '.' and ',' work for any locales.
+
+
+-L, \--limit *limit num*
+
+:   Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000) [default: 5000]
 
 
 \--tab-size *num*
@@ -131,6 +163,11 @@ Options
 :   set output mode. If you specify the output mode, the history pane will also display only the history where the specified output mode has changed.
 
 
+-K, \--keymap *keymap*
+
+:   Customize Keymap.　Keymap is specified in the format of *key=action* or *modifierkey-key=action*
+
+
 Configuration
 -------
 
@@ -147,6 +184,8 @@ KEYBINDS
 ========
 
 **hwatch** uses *Keybind* for operations on the command execution screen.
+It is the default keymap.
+
 
 h
 
@@ -244,6 +283,22 @@ F2
 F3
 
 :   Display *Stdout* and *Stderr*.
+
+Ctrl+P
+
+:   Forcus before keyword.
+
+Ctrl+N
+
+:   Forcus next keyword.
+
+Shif+O
+
+:   Show only lines with differences(line/word diff mode only).
+
+Shif+S
+
+:   Show summary infomation in history.
 
 \+
 

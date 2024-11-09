@@ -54,22 +54,22 @@ That records the result of command execution and can display it history and diff
           [command]...
 
         Options:
-          -b, --batch                         output exection results to stdout
+          -b, --batch                         output execution results to stdout
           -B, --beep                          beep if command has a change result
               --border                        Surround each pane with a border frame
               --with-scrollbar                When the border option is enabled, display scrollbar on the right side of watch pane.
               --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
           -c, --color                         interpret ANSI color and style sequences
           -r, --reverse                       display text upside down.
-          -C, --compress                      Compress data in memory.
+          -C, --compress                      Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.
           -t, --no-title                      hide the UI on start. Use `t` to toggle it.
           -N, --line-number                   show line number
               --no-help-banner                hide the "Display help with h key" message
           -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
           -O, --diff-output-only              Display only the lines with differences during `line` diff and `word` diff.
           -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
-          -l, --logfile [<logfile>]           logging file
-          -s, --shell <shell_command>         shell to use at runtime. can  also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
+          -l, --logfile [<logfile>]           logging file. if a log file is already used, its contents will be read and executed.
+          -s, --shell <shell_command>         shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
           -n, --interval <interval>           seconds to wait between updates [default: 2]
           -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000) [default: 5000]
               --tab-size <tab_size>           Specifying tab display size [default: 4]
@@ -107,6 +107,8 @@ Watch mode keybind(Default).
 | <kbd>2</kbd>                         | switch line type diff.                                      |
 | <kbd>3</kbd>                         | switch word type diff.                                      |
 | <kbd>O</kbd>                         | switch output mode(output->stdout->stderr).                 |
+| <kbd>Ctrl</kbd>+<kbd>P</kbd>         | Forcus before keyword.                                      |
+| <kbd>Ctrl</kbd>+<kbd>N</kbd>         | Forcus next keyword.                                        |
 | <kbd>Shift</kbd>+<kbd>O</kbd>        | show only lines with differences(line/word diff mode only). |
 | <kbd>Shift</kbd>+<kbd>S</kbd>        | show summary infomation in history.                         |
 | <kbd>F1</kbd>                        | only stdout print.                                          |
@@ -130,57 +132,60 @@ hwatch -K ctrl-p=history_pane_up -K ctrl-n=history_pane_down command...
 
 Keybind functions that can be specified are as follows.
 
-| function                 | description                              |
-|--------------------------|------------------------------------------|
-| up                       | Move up                                  |
-| watch_pane_up            | Move up in watch pane                    |
-| history_pane_up          | Move up in history pane                  |
-| down                     | Move down                                |
-| watch_pane_down          | Move down in watch pane                  |
-| history_pane_down        | Move down in history pane                |
-| page_up                  | Move page up                             |
-| watch_pane_page_up       | Move page up in watch pane               |
-| history_pane_page_up     | Move page up in history pane             |
-| page_down                | Move page down                           |
-| watch_pane_page_down     | Move page down in watch pane             |
-| history_pane_page_down   | Move page down in history pane           |
-| move_top                 | Move top                                 |
-| watch_pane_move_top      | Move top in watch pane                   |
-| history_pane_move_top    | Move top in history pane                 |
-| move_end                 | Move end                                 |
-| watch_pane_move_end      | Move end in watch pane                   |
-| history_pane_move_end    | Move end in history pane                 |
-| toggle_forcus            | Toggle forcus window                     |
-| forcus_watch_pane        | Forcus watch pane                        |
-| forcus_history_pane      | Forcus history pane                      |
-| quit                     | Quit hwatch                              |
-| reset                    | filter reset                             |
-| cancel                   | Cancel                                   |
-| help                     | Show and hide help window                |
-| toggle_color             | Toggle enable/disable ANSI Color         |
-| toggle_line_number       | Toggle enable/disable Line Number        |
-| toggle_reverse           | Toggle enable/disable text reverse       |
-| toggle_mouse_support     | Toggle enable/disable mouse support      |
-| toggle_view_pane_ui      | Toggle view header/history pane          |
-| toggle_view_header_pane  | Toggle view header pane                  |
-| toggle_view_history_pane | Toggle view history pane                 |
-| toggle_border            | Toggle enable/disable border             |
-| toggle_scroll_bar        | Toggle enable/disable scroll bar         |
-| toggle_diff_mode         | Toggle diff mode                         |
-| set_diff_mode_plane      | Set diff mode plane                      |
-| set_diff_mode_watch      | Set diff mode watch                      |
-| set_diff_mode_line       | Set diff mode line                       |
-| set_diff_mode_word       | Set diff mode word                       |
-| set_diff_only            | Set diff line only (line/word diff only) |
-| toggle_output_mode       | Toggle output mode                       |
-| set_output_mode_output   | Set output mode output                   |
-| set_output_mode_stdout   | Set output mode stdout                   |
-| set_output_mode_stderr   | Set output mode stderr                   |
-| togge_history_summary    | Toggle history summary                   |
-| interval_plus            | Interval +0.5sec                         |
-| interval_minus           | Interval -0.5sec                         |
-| change_filter_mode       | Change filter mode                       |
-| change_regex_filter_mode | Change regex filter mode                 |
+| function                 | description                               |
+|--------------------------|-------------------------------------------|
+| up                       | Move up                                   |
+| watch_pane_up            | Move up in watch pane                     |
+| history_pane_up          | Move up in history pane                   |
+| down                     | Move down                                 |
+| watch_pane_down          | Move down in watch pane                   |
+| history_pane_down        | Move down in history pane                 |
+| page_up                  | Move page up                              |
+| watch_pane_page_up       | Move page up in watch pane                |
+| history_pane_page_up     | Move page up in history pane              |
+| page_down                | Move page down                            |
+| watch_pane_page_down     | Move page down in watch pane              |
+| history_pane_page_down   | Move page down in history pane            |
+| move_top                 | Move top                                  |
+| watch_pane_move_top      | Move top in watch pane                    |
+| history_pane_move_top    | Move top in history pane                  |
+| move_end                 | Move end                                  |
+| watch_pane_move_end      | Move end in watch pane                    |
+| history_pane_move_end    | Move end in history pane                  |
+| toggle_forcus            | Toggle forcus window                      |
+| forcus_watch_pane        | Forcus watch pane                         |
+| forcus_history_pane      | Forcus history pane                       |
+| quit                     | Quit hwatch                               |
+| reset                    | filter reset                              |
+| cancel                   | Cancel                                    |
+| force_cancel             | Cancel without displaying the exit dialog |
+| help                     | Show and hide help window                 |
+| toggle_color             | Toggle enable/disable ANSI Color          |
+| toggle_line_number       | Toggle enable/disable Line Number         |
+| toggle_reverse           | Toggle enable/disable text reverse        |
+| toggle_mouse_support     | Toggle enable/disable mouse support       |
+| toggle_view_pane_ui      | Toggle view header/history pane           |
+| toggle_view_header_pane  | Toggle view header pane                   |
+| toggle_view_history_pane | Toggle view history pane                  |
+| toggle_border            | Toggle enable/disable border              |
+| toggle_scroll_bar        | Toggle enable/disable scroll bar          |
+| toggle_diff_mode         | Toggle diff mode                          |
+| set_diff_mode_plane      | Set diff mode plane                       |
+| set_diff_mode_watch      | Set diff mode watch                       |
+| set_diff_mode_line       | Set diff mode line                        |
+| set_diff_mode_word       | Set diff mode word                        |
+| set_diff_only            | Set diff line only (line/word diff only)  |
+| toggle_output_mode       | Toggle output mode                        |
+| set_output_mode_output   | Set output mode output                    |
+| set_output_mode_stdout   | Set output mode stdout                    |
+| set_output_mode_stderr   | Set output mode stderr                    |
+| togge_history_summary    | Toggle history summary                    |
+| interval_plus            | Interval +0.5sec                          |
+| interval_minus           | Interval -0.5sec                          |
+| prev_keyword             | Forcus previous keyword                   |
+| next_keyword             | Forcus next keyword                       |
+| change_filter_mode       | Change filter mode                        |
+| change_regex_filter_mode | Change regex filter mode                  |
 
 
 ## Configuration
@@ -202,10 +207,6 @@ Use the -n option to specify the command execution interval.
 ```bash
 hwatch -n 3 command...
 ```
-
-<p align="center">
-<img src="./img/interval.gif" />
-</p>
 
 ### logging output
 
@@ -254,19 +255,19 @@ hwatch -n 3 -d command...
 #### watch diff
 
 <p align="center">
-<img src="./img/watch_diff.png" />
+<img src="./img/watch_diff.jpg" />
 </p>
 
 #### line diff
 
 <p align="center">
-<img src="./img/line_diff.png" />
+<img src="./img/line_diff.jpg" />
 </p>
 
 #### word diff
 
 <p align="center">
-<img src="./img/word_diff.png" />
+<img src="./img/word_diff.jpg" />
 </p>
 
 ### history filtering
@@ -286,3 +287,4 @@ hwatch -b command...
   the newest version seems to be distributed as a part of
   [`procps`](https://gitlab.com/procps-ng/procps).
 - [Viddy](https://github.com/sachaos/viddy).
+- [sasqwatch](https://github.com/fabio42/sasqwatch)
