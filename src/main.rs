@@ -2,18 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.16
-// TODO(blacknon): **コマンド実行結果の登録**を別Threadにし、操作時のレスポンスに影響を与えないようにする(ps aux対策)
-// TODO(blacknon): Output Only時にfilterを有効にしていると、エラーで落ちるので原因を調べておく(位置の数字的なやつ)
-//                 → そもそもhistoryに表示されないようにするとか、表示内容に応じてフィルタがかかるような仕組みにする？？
-// TODO(blacknon): Output Only時に、初期表示が非表示になるのは困るのでいい感じにする(特にbatchとか)
-// TODO(blacknon): Output Only時にキーワードフィルタが有効になっていると、エラーで落ちるのでどうにかする(Keyword filter有効時にOutput Onlyで対象となる文字列がない場合、非表示にできたらいいけど…？)
-//                 → それ用のデータをStructにもたせておくように修正？？
-// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
-
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
 // TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
+// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
@@ -635,7 +627,7 @@ fn main() {
         let _res = view.start(tx, rx, load_results);
     } else {
         // is batch mode
-        let mut batch = batch::Batch::new(tx, rx)
+        let mut batch = batch::Batch::new(rx)
             .set_beep(matcher.get_flag("beep"))
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)
