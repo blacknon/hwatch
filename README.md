@@ -255,19 +255,19 @@ hwatch -n 3 -d command...
 #### watch diff
 
 <p align="center">
-<img src="./img/watch_diff.png" />
+<img src="./img/watch_diff.jpg" />
 </p>
 
 #### line diff
 
 <p align="center">
-<img src="./img/line_diff.png" />
+<img src="./img/line_diff.jpg" />
 </p>
 
 #### word diff
 
 <p align="center">
-<img src="./img/word_diff.png" />
+<img src="./img/word_diff.jpg" />
 </p>
 
 ### history filtering

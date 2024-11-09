@@ -538,6 +538,15 @@ impl<'a> App<'a> {
         let output_data = self.printer.get_watch_text(dest, src);
 
         self.watch_area.is_line_number = self.line_number;
+        match self.diff_mode {
+            DiffMode::Disable | DiffMode::Watch => {
+                self.watch_area.is_line_diff_head = false;
+            }
+
+            DiffMode::Line | DiffMode::Word => {
+                self.watch_area.is_line_diff_head = true;
+            }
+        }
         self.watch_area.update_output(output_data);
     }
 
