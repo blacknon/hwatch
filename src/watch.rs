@@ -160,8 +160,9 @@ impl<'a> WatchArea<'a> {
         if self.keyword.len() > 0 {
             // update keyword position
             self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
-
-            self.next_keyword();
+            if self.keyword_position.len() > 0 {
+                self.next_keyword();
+            }
         } else {
             self.keyword_position = vec![];
         }
@@ -180,21 +181,23 @@ impl<'a> WatchArea<'a> {
         // update keyword position
         self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
 
-        if self.selected_keyword > 0 {
-            self.selected_keyword -= 1;
-        } else if self.selected_keyword == 0 {
-            self.selected_keyword = self.keyword_position.len() as i16 - 1;
+        if self.keyword_position.len() > 0 {
+            if self.selected_keyword > 0 {
+                self.selected_keyword -= 1;
+            } else if self.selected_keyword == 0 {
+                self.selected_keyword = self.keyword_position.len() as i16 - 1;
+            }
+
+            if self.keyword_position.len() - 1 < self.selected_keyword as usize {
+                self.selected_keyword = self.keyword_position.len() as i16 - 1;
+            }
+
+            // get selected keyword position
+            let position = self.keyword_position[self.selected_keyword as usize];
+
+            // scroll move
+            self.scroll_move(position.0 as i16);
         }
-
-        if self.keyword_position.len() - 1 < self.selected_keyword as usize {
-            self.selected_keyword = self.keyword_position.len() as i16 - 1;
-        }
-
-        // get selected keyword position
-        let position = self.keyword_position[self.selected_keyword as usize];
-
-        // scroll move
-        self.scroll_move(position.0 as i16);
     }
 
     ///
@@ -202,24 +205,26 @@ impl<'a> WatchArea<'a> {
         // update keyword position
         self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number);
 
-        // get selected keyword position
-        if self.keyword_position.len() < self.selected_keyword as usize {
-            self.selected_keyword = -1;
-        }
+        if self.keyword_position.len() > 0 {
+            // get selected keyword position
+            if self.keyword_position.len() < self.selected_keyword as usize {
+                self.selected_keyword = -1;
+            }
 
-        if self.selected_keyword < self.keyword_position.len() as i16 - 1 {
-            self.selected_keyword += 1;
-        } else if self.selected_keyword == self.keyword_position.len() as i16 - 1 {
-            self.selected_keyword = 0;
-        } else if self.selected_keyword > self.keyword_position.len() as i16 - 1 {
-            self.selected_keyword = self.keyword_position.len() as i16 - 1;
-        }
+            if self.selected_keyword < self.keyword_position.len() as i16 - 1 {
+                self.selected_keyword += 1;
+            } else if self.selected_keyword == self.keyword_position.len() as i16 - 1 {
+                self.selected_keyword = 0;
+            } else if self.selected_keyword > self.keyword_position.len() as i16 - 1 {
+                self.selected_keyword = self.keyword_position.len() as i16 - 1;
+            }
 
-        if self.keyword_position.len() >= self.selected_keyword as usize + 1 && self.selected_keyword >= 0 {
-            let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
+            if self.keyword_position.len() >= self.selected_keyword as usize + 1 && self.selected_keyword >= 0 {
+                let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
 
-            // scroll move
-            self.scroll_move(position.0 as i16);
+                // scroll move
+                self.scroll_move(position.0 as i16);
+            }
         }
     }
 
