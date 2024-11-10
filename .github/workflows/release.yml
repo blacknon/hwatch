@@ -197,13 +197,13 @@ jobs:
           draft: true
           prerelease: false
 
-      # - run: |
-      #     echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
+      - run: |
+          echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
 
-      # - uses: actions/upload-artifact@v3
-      #   with:
-      #     name: create-release
-      #     path: release_upload_url.txt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: create-release
+          path: release_upload_url.txt
 
   upload-release:
     strategy:
