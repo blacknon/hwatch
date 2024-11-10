@@ -216,11 +216,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu-targz
+          - target: x86_64-unknown-linux-gnu
             artifact: build-x86_64-unknown-linux-gnu
             os: ubuntu-latest
             ext: tar.gz
-          - target: x86_64-unknown-linux-musl-targz
+          - target: x86_64-unknown-linux-musl
             artifact: build-x86_64-unknown-linux-gnu-targz
             os: ubuntu-latest
             ext: tar.gz
