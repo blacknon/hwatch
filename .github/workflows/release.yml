@@ -140,7 +140,7 @@ jobs:
         if: matrix.ext == 'rpm'
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
+          name: build-${{ matrix.target }}-rpm
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
 
       - name: README for deb
@@ -152,21 +152,21 @@ jobs:
         if: matrix.ext == 'deb'
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
+          name: build-${{ matrix.target }}-deb
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
 
       - name: Upload artifact
         if: matrix.ext == 'tar.gz'
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
+          name: build-${{ matrix.target }}-targz
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
 
       - name: Upload artifact
         if: matrix.ext == 'zip'
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
+          name: build-${{ matrix.target }}-zip
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
 
   # create package release
@@ -212,13 +212,13 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             ext: tar.gz
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-musl-targz
             os: ubuntu-latest
             ext: tar.gz
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-musl-rpm
             os: ubuntu-latest
             ext: rpm
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-musl-deb
             os: ubuntu-latest
             ext: deb
           - target: x86_64-apple-darwin
