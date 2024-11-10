@@ -247,7 +247,7 @@ jobs:
 
       # debug
       - run: |
-          ls -la build-${{ matrix.target }}
+          ls -la
 
       - uses: actions/upload-release-asset@v1
         env:
