@@ -392,7 +392,7 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
     for (line_index, line) in lines.iter().enumerate() {
         let combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
         let combined_text = if is_line_number {
-            combined_text[ignore_head_count..].to_string()
+            combined_text.chars().skip(ignore_head_count).collect()
         } else {
             combined_text
         };
@@ -503,13 +503,14 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
 
                     if highlight_start > last_pos {
+                        let before_highlight_text:String = span_text.chars().skip(last_pos).take(highlight_start-last_pos).collect();
                         new_spans.push(Span::styled(
-                            span_text[last_pos..highlight_start].to_string(),
+                            before_highlight_text,
                             span.style,
                         ));
                     }
 
-                    let text_str: String = span_text[highlight_start..highlight_end].to_string();
+                    let text_str: String = span_text.chars().skip(highlight_start).take(highlight_end-highlight_start).collect();
 
                     if text_str.len() > 0 {
                         if current_count == selected_keyword {
@@ -530,8 +531,9 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                 }
 
                 if last_pos < span_text.len() {
+                    let after_highlight_text:String = span_text.chars().skip(last_pos).collect();
                     new_spans.push(Span::styled(
-                        span_text[last_pos..].to_string(),
+                        after_highlight_text,
                         span.style,
                     ));
                 }
