@@ -9,6 +9,7 @@
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。(DiffModeのPlugin化の布石)
+// TODO(blacknon): [hwatch 0.3.16 freezes in a narrow terminal when used with --no-help-banner](https://github.com/blacknon/hwatch/issues/169)
 
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)

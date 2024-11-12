@@ -371,14 +371,18 @@ impl<'a> WatchArea<'a> {
 
 ///
 fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool, is_diff_head: bool) -> Vec<(usize, usize, usize)> {
+    // Ignore the number of characters at the beginning of the line specified by `ignore_head_count` when searching.
     let mut ignore_head_count = 0;
+
+    //
     if is_line_number {
         let num_count = lines.len().to_string().len();
         ignore_head_count = num_count + 3; // ^<number>` | `
     }
 
+    // `    ` | ` +  ` | ` -  `
     if is_diff_head {
-        ignore_head_count += 4; // `    ` | ` +  ` | ` -  `
+        ignore_head_count += 4;
     }
 
     let re = if is_regex {
@@ -390,28 +394,30 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
     let mut hits = Vec::new();
 
     for (line_index, line) in lines.iter().enumerate() {
-        let combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
-        let combined_text = if is_line_number {
-            combined_text.chars().skip(ignore_head_count).collect()
-        } else {
-            combined_text
-        };
+        let base_combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
+        let combined_text: String = base_combined_text.chars().skip(ignore_head_count).collect();
 
         if let Some(re) = &re {
+
             for mat in re.find_iter(&combined_text) {
                 hits.push((line_index, mat.start() + ignore_head_count, mat.end() + ignore_head_count));
             }
         } else {
             let mut start_position = 0;
+            let keyword_len = keyword.chars().count(); // キーワードの文字数を取得
+            let combined_text_chars: Vec<char> = combined_text.chars().collect(); // 入力テキストを文字ベクタに変換
 
-            while let Some(pos) = combined_text[start_position..].find(keyword) {
-                let match_start = start_position + pos;
-                let match_end = match_start + keyword.len();
-                hits.push((line_index, match_start + ignore_head_count, match_end + ignore_head_count));
-                start_position = match_end;
+            while start_position + keyword_len <= combined_text_chars.len() {
+                let current_slice: String = combined_text_chars[start_position .. (start_position + keyword_len)].iter().collect();
+                if current_slice == keyword {
+                    hits.push((line_index, start_position + ignore_head_count, start_position + keyword_len + ignore_head_count));
+                }
+                start_position += 1;
             }
         }
     }
+
+    eprintln!("{:?}", hits);
 
     hits
 }
@@ -469,6 +475,8 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 
 ///
 fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line<'a>> {
+    // TODO: spanが1行で別れている場合に、うまくカウントが合計できておらずハイライトがズレてるっぽい
+
     let mut new_lines = Vec::new();
     let mut current_count:i16 = 0;
 
@@ -477,11 +485,16 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
         let mut current_pos = 0;
 
         // Get the highlighted position of the corresponding keyword for this line
-        let line_hits: Vec<(usize, usize, usize)> = positions
-            .iter()
+        let line_hits: Vec<(usize, usize)> = positions
+            .clone()
+            .into_iter()
             .filter(|(line_index, _, _)| *line_index == i)
-            .cloned()
+            .map(|(_, start_position, end_position)| (start_position, end_position))
             .collect();
+
+        eprintln!("line: {}, line_hits: {:?}", i, line_hits);
+
+        eprintln!("line: {}, span: {:?}", i, line.spans);
 
         // Process each Span to generate a new Span
         for span in &line.spans {
@@ -492,27 +505,39 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
             // Processing when the highlight range spans Span
             if !line_hits.is_empty() {
                 let mut last_pos = 0;
-                for (_, start_position, end_position) in line_hits.iter() {
+                for (start_position, end_position) in line_hits.iter() {
                     // Ignore if the hit is after the current span
                     if *start_position >= span_end {
                         continue;
                     }
 
                     // Calculating highlight_start and highlight_end
+                    // let highlight_start = *start_position + 1; // 値が負にならないように調整
                     let highlight_start = (*start_position).saturating_sub(span_start); // 値が負にならないように調整
+                    // let highlight_end = *end_position + 1;
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
 
+                    // eprintln!("span_start: {}, span_end: {}", span_start, span_end);
+                    // eprintln!("start_position: {}, span_start: {}", start_position, span_start);
+                    // eprintln!("highlight:: line: {}, highlight_start: {}, highlight_end: {}", i, highlight_start, highlight_end);
+
+                    eprintln!("line: {}, highlight_start: {}, highlight_end: {}, span_text: '{}'", i, highlight_start, highlight_end, span_text);
+
                     if highlight_start > last_pos {
-                        let before_highlight_text:String = span_text.chars().skip(last_pos).take(highlight_start-last_pos).collect();
+                        let before_highlight_text: String = span_text.chars().skip(last_pos).take(highlight_start - last_pos).collect();
+                        eprintln!("line: {}, before_highlight_text.chars().count(): {}, before_highlight_text: '{}'", i, before_highlight_text.chars().count(), before_highlight_text);
                         new_spans.push(Span::styled(
                             before_highlight_text,
                             span.style,
                         ));
                     }
 
-                    let text_str: String = span_text.chars().skip(highlight_start).take(highlight_end-highlight_start).collect();
+                    eprintln!("line: {}, last_pos: {}, span_text: '{}'", i, last_pos, span_text);
 
-                    if text_str.len() > 0 {
+                    let text_str: String = span_text.chars().skip(highlight_start).take(highlight_end-highlight_start).collect();
+                    eprintln!("line: {}, last_pos: {}, highlight_start: {}, highlight_end: {}, text_str.chars().count(): {}, text_str: {}", i, last_pos,  highlight_start, highlight_end, text_str.chars().count(), text_str);
+
+                    if text_str.chars().count() > 0 {
                         if current_count == selected_keyword {
                             new_spans.push(Span::styled(
                                 text_str,
@@ -530,8 +555,9 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                     last_pos = highlight_end;
                 }
 
-                if last_pos < span_text.len() {
+                if last_pos < span_text.chars().count() {
                     let after_highlight_text:String = span_text.chars().skip(last_pos).collect();
+                    eprintln!("line: {}, last_pos: {}, after_highlight_text: {}", i, last_pos, after_highlight_text);
                     new_spans.push(Span::styled(
                         after_highlight_text,
                         span.style,
