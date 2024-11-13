@@ -1,5 +1,5 @@
 Name:           hwatch
-Version:        0.3.16
+Version:        0.3.17
 Release:        1%{?dist}
 Summary:        A modern alternative to the 'watch' command, it records differences in execution results and allows for examination of these differences afterward.
 URL:            https://github.com/blacknon/hwatch/
@@ -52,6 +52,9 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features
 /etc/bash_completion.d/%{name}.bash
 
 %changelog
+* Wed Nov 13 2024 blacknon - 0.3.17-1
+ - Bugfix. Fixed the filter keyword not supporting multi-byte characters.
+ - Bugfix. Fixed freezes in a narrow terminal when used with `--no-help-banner` (issue #169)
 * Sun Nov 10 2024 blacknon - 0.3.16-1
  - Bugfix an issue where the ESC key was unintentionally triggered during mouse operations on MacOS
  - Enhancement of filter (issue #124)

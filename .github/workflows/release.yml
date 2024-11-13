@@ -17,6 +17,7 @@ on:
       - "img/**"
       - "package/**"
       - "LICENSE"
+      - "hwatch.spec"
 
 jobs:
   # build rust binary
