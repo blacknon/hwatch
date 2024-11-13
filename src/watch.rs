@@ -16,6 +16,10 @@ use tui::{
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 
+// set highlight style
+static KEYWORD_HIGHLIGHT_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Yellow);
+static SELECTED_KEYWORD_HIGHLIGHT_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Cyan);
+
 #[derive(Clone)]
 pub struct WatchArea<'a> {
     /// ratatui::layout::Rect. The area to draw the widget in.
@@ -26,6 +30,9 @@ pub struct WatchArea<'a> {
 
     /// Wrapped data.
     wrap_data: Vec<Line<'a>>,
+
+    /// highlighted data.
+    highlight_data: Vec<Line<'a>>,
 
     /// search keyword.
     keyword: String,
@@ -72,6 +79,8 @@ impl<'a> WatchArea<'a> {
             data: vec![Line::from("")],
 
             wrap_data: vec![Line::from("")],
+
+            highlight_data: vec![Line::from("")],
 
             keyword: String::from(""),
 
@@ -121,6 +130,15 @@ impl<'a> WatchArea<'a> {
             // update keyword position
             self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -171,6 +189,15 @@ impl<'a> WatchArea<'a> {
         } else {
             self.keyword_position = vec![];
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -179,7 +206,15 @@ impl<'a> WatchArea<'a> {
         self.keyword_is_regex = false;
         self.keyword_position = vec![];
         self.selected_keyword = -1;
-    }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );    }
 
     ///
     pub fn previous_keyword(&mut self) {
@@ -203,6 +238,15 @@ impl<'a> WatchArea<'a> {
             // scroll move
             self.scroll_move(position.0 as i16);
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -231,16 +275,20 @@ impl<'a> WatchArea<'a> {
                 self.scroll_move(position.0 as i16);
             }
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
     pub fn draw(&mut self, frame: &mut Frame) {
-        // set highlight style
-        let highlight_style = Style::new().fg(Color::Black).bg(Color::Yellow);
-        let selected_highlight_style = Style::new().fg(Color::Black).bg(Color::Cyan);
-
-        // TODO: 毎回ハイライト処理させると重くなるので、cacheに入れておくように修正する？
-        let block_data = highlight_text(&self.wrap_data, self.keyword_position.clone(), self.selected_keyword, selected_highlight_style, highlight_style);
+        let block_data = self.highlight_data.clone();
 
         // declare variables
         let pane_block: Block<'_>;
@@ -473,7 +521,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 }
 
 ///
-fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line<'a>> {
+fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line> {
     // TODO: spanが1行で別れている場合に、うまくカウントが合計できておらずハイライトがズレてるっぽい
 
     let mut new_lines = Vec::new();
