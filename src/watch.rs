@@ -239,6 +239,7 @@ impl<'a> WatchArea<'a> {
         let highlight_style = Style::new().fg(Color::Black).bg(Color::Yellow);
         let selected_highlight_style = Style::new().fg(Color::Black).bg(Color::Cyan);
 
+        // TODO: 毎回ハイライト処理させると重くなるので、cacheに入れておくように修正する？
         let block_data = highlight_text(&self.wrap_data, self.keyword_position.clone(), self.selected_keyword, selected_highlight_style, highlight_style);
 
         // declare variables
@@ -417,8 +418,6 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
         }
     }
 
-    eprintln!("{:?}", hits);
-
     hits
 }
 
@@ -492,10 +491,6 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
             .map(|(_, start_position, end_position)| (start_position, end_position))
             .collect();
 
-        eprintln!("line: {}, line_hits: {:?}", i, line_hits);
-
-        eprintln!("line: {}, span: {:?}", i, line.spans);
-
         // Process each Span to generate a new Span
         for span in &line.spans {
             let span_text = span.content.as_ref().to_string();
@@ -505,6 +500,7 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
             // Processing when the highlight range spans Span
             if !line_hits.is_empty() {
                 let mut last_pos = 0;
+
                 for (start_position, end_position) in line_hits.iter() {
                     // Ignore if the hit is after the current span
                     if *start_position >= span_end {
@@ -512,30 +508,18 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                     }
 
                     // Calculating highlight_start and highlight_end
-                    // let highlight_start = *start_position + 1; // 値が負にならないように調整
                     let highlight_start = (*start_position).saturating_sub(span_start); // 値が負にならないように調整
-                    // let highlight_end = *end_position + 1;
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
-
-                    // eprintln!("span_start: {}, span_end: {}", span_start, span_end);
-                    // eprintln!("start_position: {}, span_start: {}", start_position, span_start);
-                    // eprintln!("highlight:: line: {}, highlight_start: {}, highlight_end: {}", i, highlight_start, highlight_end);
-
-                    eprintln!("line: {}, highlight_start: {}, highlight_end: {}, span_text: '{}'", i, highlight_start, highlight_end, span_text);
 
                     if highlight_start > last_pos {
                         let before_highlight_text: String = span_text.chars().skip(last_pos).take(highlight_start - last_pos).collect();
-                        eprintln!("line: {}, before_highlight_text.chars().count(): {}, before_highlight_text: '{}'", i, before_highlight_text.chars().count(), before_highlight_text);
                         new_spans.push(Span::styled(
                             before_highlight_text,
                             span.style,
                         ));
                     }
 
-                    eprintln!("line: {}, last_pos: {}, span_text: '{}'", i, last_pos, span_text);
-
                     let text_str: String = span_text.chars().skip(highlight_start).take(highlight_end-highlight_start).collect();
-                    eprintln!("line: {}, last_pos: {}, highlight_start: {}, highlight_end: {}, text_str.chars().count(): {}, text_str: {}", i, last_pos,  highlight_start, highlight_end, text_str.chars().count(), text_str);
 
                     if text_str.chars().count() > 0 {
                         if current_count == selected_keyword {
@@ -557,7 +541,6 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
 
                 if last_pos < span_text.chars().count() {
                     let after_highlight_text:String = span_text.chars().skip(last_pos).collect();
-                    eprintln!("line: {}, last_pos: {}, after_highlight_text: {}", i, last_pos, after_highlight_text);
                     new_spans.push(Span::styled(
                         after_highlight_text,
                         span.style,
@@ -568,7 +551,7 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                 new_spans.push(Span::styled(span_text.clone(), span.style));
             }
 
-            current_pos += span_text.len();
+            current_pos += span_text.chars().count();
         }
 
         new_lines.push(Line::from(new_spans));
