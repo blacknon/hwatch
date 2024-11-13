@@ -453,8 +453,8 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
             }
         } else {
             let mut start_position = 0;
-            let keyword_len = keyword.chars().count(); // キーワードの文字数を取得
-            let combined_text_chars: Vec<char> = combined_text.chars().collect(); // 入力テキストを文字ベクタに変換
+            let keyword_len = keyword.chars().count();
+            let combined_text_chars: Vec<char> = combined_text.chars().collect();
 
             while start_position + keyword_len <= combined_text_chars.len() {
                 let current_slice: String = combined_text_chars[start_position .. (start_position + keyword_len)].iter().collect();
@@ -522,8 +522,6 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 
 ///
 fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line> {
-    // TODO: spanが1行で別れている場合に、うまくカウントが合計できておらずハイライトがズレてるっぽい
-
     let mut new_lines = Vec::new();
     let mut current_count:i16 = 0;
 
@@ -556,7 +554,7 @@ fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selec
                     }
 
                     // Calculating highlight_start and highlight_end
-                    let highlight_start = (*start_position).saturating_sub(span_start); // 値が負にならないように調整
+                    let highlight_start = (*start_position).saturating_sub(span_start);
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
 
                     if highlight_start > last_pos {
