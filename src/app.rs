@@ -28,6 +28,7 @@ use tui::{
     Frame, Terminal,
 };
 use similar::{ChangeTag, TextDiff};
+use unicode_width::UnicodeWidthStr;
 
 // local module
 use crate::ansi::get_ansi_strip_str;
@@ -412,7 +413,8 @@ impl<'a> App<'a> {
         match self.input_mode {
             InputMode::Filter | InputMode::RegexFilter => {
                 //
-                let input_text_x = self.header_area.input_text.len() as u16 + 1;
+                // TODO: cursor位置をUTF-8対応の文字幅にする
+                let input_text_x = self.header_area.input_text.width() as u16 + 1;
                 let input_text_y = self.header_area.area.y + 1;
 
                 // set cursor
