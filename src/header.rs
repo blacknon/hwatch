@@ -187,7 +187,7 @@ impl<'a> HeaderArea<'a> {
         }
 
         // filter keyword.
-        let filter_keyword_width = if width > ((self.banner.len() + 20) + 2 + 14) {
+        let filter_keyword_width = if width > ((self.banner.len() + 20) + 2 + 14) && width > 59 {
             // width - POSITION_X_HELP_TEXT - 2 - 14
             // length("[Number] [Color] [Output] [history] [Line(Only)]") = 48
             // length("[Number] [Color] [Reverse] [Output] [history] [Line(Only)]") = 58
