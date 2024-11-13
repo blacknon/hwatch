@@ -150,6 +150,15 @@ impl<'a> WatchArea<'a> {
             // update keyword position
             self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
