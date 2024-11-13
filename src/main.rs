@@ -2,14 +2,11 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.17
-// TODO(blacknon): 検索で日本語を入力すると、1文字づつしか入力されないので修正する(最優先) => IMEがネックになっているので、位置文字づつではなく文字列としてまとめて受け付ける変更が必要？？？
-// TODO(blacknon): 検索で日本語を含む出力結果を検索すると、正しい位置情報が得られないので修正する(最優先) =>  UTF-8でのpositionが正常に受け付けられることが重要になる？
+// v0.3.18
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。(DiffModeのPlugin化の布石)
-// TODO(blacknon): [hwatch 0.3.16 freezes in a narrow terminal when used with --no-help-banner](https://github.com/blacknon/hwatch/issues/169)
 
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
