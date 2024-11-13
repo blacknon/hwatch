@@ -12,7 +12,6 @@ use tui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame
 };
-
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 
