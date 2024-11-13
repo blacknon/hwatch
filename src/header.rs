@@ -14,6 +14,7 @@ use tui::{
     Frame,
     prelude::Line,
 };
+use unicode_width::UnicodeWidthStr;
 
 // local module
 use crate::app::{ActiveArea, InputMode};
@@ -195,7 +196,8 @@ impl<'a> HeaderArea<'a> {
         } else {
             0
         };
-        let filter_keyword = format!("{:wid$}", self.input_text, wid = filter_keyword_width);
+        // format!("{:wid$}", self.input_text, wid = filter_keyword_width);
+        let filter_keyword = format_with_multibyte_width(&self.input_text, filter_keyword_width);
         let filter_keyword_style: Style;
 
         if self.input_text.is_empty() {
@@ -356,5 +358,16 @@ impl<'a> HeaderArea<'a> {
     pub fn draw(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone());
         frame.render_widget(block, self.area);
+    }
+}
+
+fn format_with_multibyte_width(input: &str, target_width: usize) -> String {
+    let current_width = UnicodeWidthStr::width(input);
+    if current_width >= target_width {
+        input.to_string()
+    } else {
+        // 残りの幅を計算し、スペースでパディングを追加
+        let padding = " ".repeat(target_width - current_width);
+        format!("{}{}", input, padding)
     }
 }
