@@ -412,8 +412,6 @@ impl<'a> App<'a> {
         // match input_mode
         match self.input_mode {
             InputMode::Filter | InputMode::RegexFilter => {
-                //
-                // TODO: cursor位置をUTF-8対応の文字幅にする
                 let input_text_x = self.header_area.input_text.width() as u16 + 1;
                 let input_text_y = self.header_area.area.y + 1;
 
