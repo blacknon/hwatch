@@ -12,9 +12,12 @@ use tui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame
 };
-
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
+
+// set highlight style
+static KEYWORD_HIGHLIGHT_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Yellow);
+static SELECTED_KEYWORD_HIGHLIGHT_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Cyan);
 
 #[derive(Clone)]
 pub struct WatchArea<'a> {
@@ -26,6 +29,9 @@ pub struct WatchArea<'a> {
 
     /// Wrapped data.
     wrap_data: Vec<Line<'a>>,
+
+    /// highlighted data.
+    highlight_data: Vec<Line<'a>>,
 
     /// search keyword.
     keyword: String,
@@ -72,6 +78,8 @@ impl<'a> WatchArea<'a> {
             data: vec![Line::from("")],
 
             wrap_data: vec![Line::from("")],
+
+            highlight_data: vec![Line::from("")],
 
             keyword: String::from(""),
 
@@ -121,6 +129,15 @@ impl<'a> WatchArea<'a> {
             // update keyword position
             self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -132,6 +149,15 @@ impl<'a> WatchArea<'a> {
             // update keyword position
             self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -171,6 +197,15 @@ impl<'a> WatchArea<'a> {
         } else {
             self.keyword_position = vec![];
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -179,7 +214,15 @@ impl<'a> WatchArea<'a> {
         self.keyword_is_regex = false;
         self.keyword_position = vec![];
         self.selected_keyword = -1;
-    }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );    }
 
     ///
     pub fn previous_keyword(&mut self) {
@@ -203,6 +246,15 @@ impl<'a> WatchArea<'a> {
             // scroll move
             self.scroll_move(position.0 as i16);
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
@@ -231,15 +283,20 @@ impl<'a> WatchArea<'a> {
                 self.scroll_move(position.0 as i16);
             }
         }
+
+        // set highlight style
+        self.highlight_data = highlight_text(
+            self.wrap_data.clone(),
+            self.keyword_position.clone(),
+            self.selected_keyword,
+            KEYWORD_HIGHLIGHT_STYLE,
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+        );
     }
 
     ///
     pub fn draw(&mut self, frame: &mut Frame) {
-        // set highlight style
-        let highlight_style = Style::new().fg(Color::Black).bg(Color::Yellow);
-        let selected_highlight_style = Style::new().fg(Color::Black).bg(Color::Cyan);
-
-        let block_data = highlight_text(&self.wrap_data, self.keyword_position.clone(), self.selected_keyword, selected_highlight_style, highlight_style);
+        let block_data = self.highlight_data.clone();
 
         // declare variables
         let pane_block: Block<'_>;
@@ -371,14 +428,18 @@ impl<'a> WatchArea<'a> {
 
 ///
 fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool, is_diff_head: bool) -> Vec<(usize, usize, usize)> {
+    // Ignore the number of characters at the beginning of the line specified by `ignore_head_count` when searching.
     let mut ignore_head_count = 0;
+
+    //
     if is_line_number {
         let num_count = lines.len().to_string().len();
         ignore_head_count = num_count + 3; // ^<number>` | `
     }
 
+    // `    ` | ` +  ` | ` -  `
     if is_diff_head {
-        ignore_head_count += 4; // `    ` | ` +  ` | ` -  `
+        ignore_head_count += 4;
     }
 
     let re = if is_regex {
@@ -390,25 +451,25 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
     let mut hits = Vec::new();
 
     for (line_index, line) in lines.iter().enumerate() {
-        let combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
-        let combined_text = if is_line_number {
-            combined_text[ignore_head_count..].to_string()
-        } else {
-            combined_text
-        };
+        let base_combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
+        let combined_text: String = base_combined_text.chars().skip(ignore_head_count).collect();
 
         if let Some(re) = &re {
+
             for mat in re.find_iter(&combined_text) {
                 hits.push((line_index, mat.start() + ignore_head_count, mat.end() + ignore_head_count));
             }
         } else {
             let mut start_position = 0;
+            let keyword_len = keyword.chars().count();
+            let combined_text_chars: Vec<char> = combined_text.chars().collect();
 
-            while let Some(pos) = combined_text[start_position..].find(keyword) {
-                let match_start = start_position + pos;
-                let match_end = match_start + keyword.len();
-                hits.push((line_index, match_start + ignore_head_count, match_end + ignore_head_count));
-                start_position = match_end;
+            while start_position + keyword_len <= combined_text_chars.len() {
+                let current_slice: String = combined_text_chars[start_position .. (start_position + keyword_len)].iter().collect();
+                if current_slice == keyword {
+                    hits.push((line_index, start_position + ignore_head_count, start_position + keyword_len + ignore_head_count));
+                }
+                start_position += 1;
             }
         }
     }
@@ -468,7 +529,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 }
 
 ///
-fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line<'a>> {
+fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line> {
     let mut new_lines = Vec::new();
     let mut current_count:i16 = 0;
 
@@ -477,10 +538,11 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
         let mut current_pos = 0;
 
         // Get the highlighted position of the corresponding keyword for this line
-        let line_hits: Vec<(usize, usize, usize)> = positions
-            .iter()
+        let line_hits: Vec<(usize, usize)> = positions
+            .clone()
+            .into_iter()
             .filter(|(line_index, _, _)| *line_index == i)
-            .cloned()
+            .map(|(_, start_position, end_position)| (start_position, end_position))
             .collect();
 
         // Process each Span to generate a new Span
@@ -492,26 +554,28 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
             // Processing when the highlight range spans Span
             if !line_hits.is_empty() {
                 let mut last_pos = 0;
-                for (_, start_position, end_position) in line_hits.iter() {
+
+                for (start_position, end_position) in line_hits.iter() {
                     // Ignore if the hit is after the current span
                     if *start_position >= span_end {
                         continue;
                     }
 
                     // Calculating highlight_start and highlight_end
-                    let highlight_start = (*start_position).saturating_sub(span_start); // 値が負にならないように調整
+                    let highlight_start = (*start_position).saturating_sub(span_start);
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
 
                     if highlight_start > last_pos {
+                        let before_highlight_text: String = span_text.chars().skip(last_pos).take(highlight_start - last_pos).collect();
                         new_spans.push(Span::styled(
-                            span_text[last_pos..highlight_start].to_string(),
+                            before_highlight_text,
                             span.style,
                         ));
                     }
 
-                    let text_str: String = span_text[highlight_start..highlight_end].to_string();
+                    let text_str: String = span_text.chars().skip(highlight_start).take(highlight_end-highlight_start).collect();
 
-                    if text_str.len() > 0 {
+                    if text_str.chars().count() > 0 {
                         if current_count == selected_keyword {
                             new_spans.push(Span::styled(
                                 text_str,
@@ -529,9 +593,10 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                     last_pos = highlight_end;
                 }
 
-                if last_pos < span_text.len() {
+                if last_pos < span_text.chars().count() {
+                    let after_highlight_text:String = span_text.chars().skip(last_pos).collect();
                     new_spans.push(Span::styled(
-                        span_text[last_pos..].to_string(),
+                        after_highlight_text,
                         span.style,
                     ));
                 }
@@ -540,7 +605,7 @@ fn highlight_text<'a>(lines: &'a Vec<Line>, positions: Vec<(usize, usize, usize)
                 new_spans.push(Span::styled(span_text.clone(), span.style));
             }
 
-            current_pos += span_text.len();
+            current_pos += span_text.chars().count();
         }
 
         new_lines.push(Line::from(new_spans));

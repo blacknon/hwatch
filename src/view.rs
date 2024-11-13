@@ -314,11 +314,6 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         if let Ok(event) = result {
             let _ = tx.send(AppEvent::TerminalEvent(event));
         }
-
-        // clearing buffer
-        while crossterm::event::poll(std::time::Duration::from_millis(0)).unwrap() {
-            let _ = crossterm::event::read()?;
-        }
     }
     Ok(())
 }

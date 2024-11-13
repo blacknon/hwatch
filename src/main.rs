@@ -2,6 +2,12 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+// v0.3.18
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
+// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
+//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
+// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。(DiffModeのPlugin化の布石)
+
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
 // TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
@@ -10,9 +16,6 @@
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
-//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
