@@ -5,6 +5,7 @@
 // v0.3.18
 // - https://github.com/blacknon/hwatch/issues/171
 // - https://github.com/blacknon/hwatch/issues/172
+//   - color mode + line/word diffのとき、最終行が出てこない？？
 
 // v0.3.19
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
