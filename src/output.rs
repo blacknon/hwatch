@@ -295,7 +295,11 @@ impl Printer {
         let mut counter = 1;
 
         // split line
-        for l in text.split('\n') {
+        for mut l in text.split('\n') {
+            if l.is_empty() {
+                l = "\u{200B}";
+            }
+
             let mut line = vec![];
 
             if self.is_line_number {
@@ -327,24 +331,45 @@ impl Printer {
     /// generate output at DiffMOde::Watch
     fn gen_watch_diff_output<'a>(&mut self, dest: &str, src: &str) -> PrintData<'a> {
         // tab expand dest
-        let mut text_dest = dest.to_string();
+        let mut text_dest_str = dest.to_string();
         if !self.is_batch {
-            text_dest = expand_line_tab(dest, self.tab_size);
+            text_dest_str = expand_line_tab(dest, self.tab_size);
 
             if !self.is_color {
-                text_dest = ansi::escape_ansi(&text_dest);
+                text_dest_str = ansi::escape_ansi(&text_dest_str);
             }
+        }
+
+        let mut text_dest: String = "".to_string();
+        for mut l in text_dest_str.lines() {
+            if l.is_empty() {
+                l = "\u{200B}";
+            }
+
+            text_dest.push_str(l);
+            text_dest.push_str("\n");
         }
 
         // tab expand src
-        let mut text_src = src.to_string();
+        let mut text_src_str = src.to_string();
         if !self.is_batch {
-            text_src = expand_line_tab(src, self.tab_size);
+            text_src_str = expand_line_tab(src, self.tab_size);
 
             if !self.is_color {
-                text_src = ansi::escape_ansi(&text_src);
+                text_src_str = ansi::escape_ansi(&text_src_str);
             }
         }
+
+        let mut text_src: String = "".to_string();
+        for mut l in text_src_str.lines() {
+            if l.is_empty() {
+                l = "\u{200B}";
+            }
+
+            text_src.push_str(l);
+            text_src.push_str("\n");
+        }
+
 
         // create text vector
         let mut vec_src: Vec<&str> = text_src.lines().collect();
