@@ -178,8 +178,15 @@ impl<'a> HeaderArea<'a> {
         // Value for width calculation.
         let command_width: usize;
         let timestamp_width: usize;
-        if WIDTH_TEXT_INTERVAL + (1 + self.banner.len() + 1 + WIDTH_TIMESTAMP) < width {
-            command_width = width - 2 - 1 - WIDTH_TEXT_INTERVAL - self.banner.len() - 1 - WIDTH_TIMESTAMP;
+        // WIDTH_TEXT_INTERVAL ... interval sec width
+        // 2 ... space
+        // 1 ... `:`
+        // self.banner.len() ... banner length
+        // 1 ... space
+        // WIDTH_TIMESTAMP ... timestamp width
+        let command_width_offset = WIDTH_TEXT_INTERVAL + (2 + 1 + self.banner.len() + 1 + WIDTH_TIMESTAMP);
+        if command_width_offset < width {
+            command_width = width - command_width_offset;
             timestamp_width = WIDTH_TIMESTAMP;
         } else {
             command_width = 0;
