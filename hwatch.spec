@@ -52,6 +52,9 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features
 /etc/bash_completion.d/%{name}.bash
 
 %changelog
+* Fri Nov 15 2024 blacknon - 0.3.18-1
+ - fix hwatch 0.3.17 freezes in a narrow terminal  #171
+ - fix hwatch 0.3.17 no longer prints blank lines. #172
 * Wed Nov 13 2024 blacknon - 0.3.17-1
  - Bugfix. Fixed the filter keyword not supporting multi-byte characters.
  - Bugfix. Fixed freezes in a narrow terminal when used with `--no-help-banner` (issue #169)
