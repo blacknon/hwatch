@@ -5,9 +5,9 @@
 use ratatui::style::Stylize;
 use tui::{
     layout::Rect,
-    style::{Color, Style},
     prelude::Line,
-    widgets::{Block, Borders, BorderType, Clear, Paragraph, Wrap},
+    style::{Color, Style},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 

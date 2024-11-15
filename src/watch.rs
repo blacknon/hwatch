@@ -4,15 +4,15 @@
 
 // TODO: リファクタリング
 
+use regex::Regex;
 use tui::{
     prelude::{Line, Margin},
     style::{Color, Style, Styled},
     symbols::{self, scrollbar},
     text::Span,
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
-    Frame
+    Frame,
 };
-use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 
 // set highlight style
@@ -111,10 +111,19 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    // TODO: Rename to get_area_height?
     pub fn get_area_size(&mut self) -> i16 {
         let height = self.area.height as i16;
 
-        return height
+        return height;
+    }
+
+    pub fn get_pane_width(&self) -> u16 {
+        let mut pane_width: u16 = self.area.width;
+        if self.border && pane_width > 0 {
+            pane_width -= 1;
+        }
+        pane_width
     }
 
     ///
@@ -127,7 +136,13 @@ impl<'a> WatchArea<'a> {
 
         if self.keyword.len() > 0 {
             // update keyword position
-            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
+            self.keyword_position = get_keyword_positions(
+                &self.wrap_data,
+                &self.keyword,
+                self.keyword_is_regex,
+                self.is_line_number,
+                self.is_line_diff_head,
+            );
         }
 
         // set highlight style
@@ -136,7 +151,7 @@ impl<'a> WatchArea<'a> {
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
         );
     }
 
@@ -147,7 +162,13 @@ impl<'a> WatchArea<'a> {
 
         if self.keyword.len() > 0 {
             // update keyword position
-            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
+            self.keyword_position = get_keyword_positions(
+                &self.wrap_data,
+                &self.keyword,
+                self.keyword_is_regex,
+                self.is_line_number,
+                self.is_line_diff_head,
+            );
         }
 
         // set highlight style
@@ -156,7 +177,7 @@ impl<'a> WatchArea<'a> {
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
         );
     }
 
@@ -190,7 +211,13 @@ impl<'a> WatchArea<'a> {
 
         if self.keyword.len() > 0 {
             // update keyword position
-            self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
+            self.keyword_position = get_keyword_positions(
+                &self.wrap_data,
+                &self.keyword,
+                self.keyword_is_regex,
+                self.is_line_number,
+                self.is_line_diff_head,
+            );
             if self.keyword_position.len() > 0 {
                 self.next_keyword();
             }
@@ -204,7 +231,7 @@ impl<'a> WatchArea<'a> {
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
         );
     }
 
@@ -221,13 +248,20 @@ impl<'a> WatchArea<'a> {
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE
-        );    }
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
+        );
+    }
 
     ///
     pub fn previous_keyword(&mut self) {
         // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
+        self.keyword_position = get_keyword_positions(
+            &self.wrap_data,
+            &self.keyword,
+            self.keyword_is_regex,
+            self.is_line_number,
+            self.is_line_diff_head,
+        );
 
         if self.keyword_position.len() > 0 {
             if self.selected_keyword > 0 {
@@ -253,14 +287,20 @@ impl<'a> WatchArea<'a> {
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
         );
     }
 
     ///
     pub fn next_keyword(&mut self) {
         // update keyword position
-        self.keyword_position = get_keyword_positions(&self.wrap_data, &self.keyword, self.keyword_is_regex, self.is_line_number, self.is_line_diff_head);
+        self.keyword_position = get_keyword_positions(
+            &self.wrap_data,
+            &self.keyword,
+            self.keyword_is_regex,
+            self.is_line_number,
+            self.is_line_diff_head,
+        );
 
         if self.keyword_position.len() > 0 {
             // get selected keyword position
@@ -276,8 +316,11 @@ impl<'a> WatchArea<'a> {
                 self.selected_keyword = self.keyword_position.len() as i16 - 1;
             }
 
-            if self.keyword_position.len() >= self.selected_keyword as usize + 1 && self.selected_keyword >= 0 {
-                let position: (usize, usize, usize) = self.keyword_position[self.selected_keyword as usize];
+            if self.keyword_position.len() >= self.selected_keyword as usize + 1
+                && self.selected_keyword >= 0
+            {
+                let position: (usize, usize, usize) =
+                    self.keyword_position[self.selected_keyword as usize];
 
                 // scroll move
                 self.scroll_move(position.0 as i16);
@@ -290,7 +333,7 @@ impl<'a> WatchArea<'a> {
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE
+            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
         );
     }
 
@@ -307,22 +350,18 @@ impl<'a> WatchArea<'a> {
                 pane_block = Block::default()
                     .borders(Borders::RIGHT)
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(
-                        symbols::border::Set {
-                            top_right: symbols::line::NORMAL.horizontal_down,
-                            ..symbols::border::PLAIN
-                        }
-                    );
+                    .border_set(symbols::border::Set {
+                        top_right: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    });
             } else {
                 pane_block = Block::default()
                     .borders(Borders::TOP | Borders::RIGHT)
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(
-                        symbols::border::Set {
-                            top_right: symbols::line::NORMAL.horizontal_down,
-                            ..symbols::border::PLAIN
-                        }
-                    );
+                    .border_set(symbols::border::Set {
+                        top_right: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    });
             }
         } else {
             pane_block = Block::default()
@@ -335,12 +374,7 @@ impl<'a> WatchArea<'a> {
             .scroll((self.position as u16, 0));
 
         // get self.lines
-        let mut pane_width: u16 = self.area.width as u16;
-        if self.border {
-            pane_width = pane_width - 1;
-        }
-
-        self.lines = block.line_count(pane_width) as i16;
+        self.lines = block.line_count(self.get_pane_width()) as i16;
 
         frame.render_widget(block, self.area);
 
@@ -356,7 +390,7 @@ impl<'a> WatchArea<'a> {
                     .begin_symbol(None)
                     .track_symbol(None)
                     .end_symbol(None),
-            self.area.inner(Margin {
+                self.area.inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
@@ -416,18 +450,23 @@ impl<'a> WatchArea<'a> {
         let end = std::cmp::min(self.position + height, self.lines);
 
         if start < position && position < end {
-            return
+            return;
         } else if start > position {
             self.position = position;
         } else if end < position + 1 {
             self.position = position - height + 1;
         }
     }
-
 }
 
 ///
-fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_line_number: bool, is_diff_head: bool) -> Vec<(usize, usize, usize)> {
+fn get_keyword_positions(
+    lines: &Vec<Line>,
+    keyword: &str,
+    is_regex: bool,
+    is_line_number: bool,
+    is_diff_head: bool,
+) -> Vec<(usize, usize, usize)> {
     // Ignore the number of characters at the beginning of the line specified by `ignore_head_count` when searching.
     let mut ignore_head_count = 0;
 
@@ -451,13 +490,20 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
     let mut hits = Vec::new();
 
     for (line_index, line) in lines.iter().enumerate() {
-        let base_combined_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
+        let base_combined_text: String = line
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
         let combined_text: String = base_combined_text.chars().skip(ignore_head_count).collect();
 
         if let Some(re) = &re {
-
             for mat in re.find_iter(&combined_text) {
-                hits.push((line_index, mat.start() + ignore_head_count, mat.end() + ignore_head_count));
+                hits.push((
+                    line_index,
+                    mat.start() + ignore_head_count,
+                    mat.end() + ignore_head_count,
+                ));
             }
         } else {
             let mut start_position = 0;
@@ -465,9 +511,16 @@ fn get_keyword_positions(lines: &Vec<Line>, keyword: &str, is_regex: bool, is_li
             let combined_text_chars: Vec<char> = combined_text.chars().collect();
 
             while start_position + keyword_len <= combined_text_chars.len() {
-                let current_slice: String = combined_text_chars[start_position .. (start_position + keyword_len)].iter().collect();
+                let current_slice: String = combined_text_chars
+                    [start_position..(start_position + keyword_len)]
+                    .iter()
+                    .collect();
                 if current_slice == keyword {
-                    hits.push((line_index, start_position + ignore_head_count, start_position + keyword_len + ignore_head_count));
+                    hits.push((
+                        line_index,
+                        start_position + ignore_head_count,
+                        start_position + keyword_len + ignore_head_count,
+                    ));
                 }
                 start_position += 1;
             }
@@ -486,7 +539,9 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
         let mut current_width = 0;
 
         for span in &line.spans {
-            let words = span.content.split_inclusive(|c| c == ' ' || c == '\u{00a0}' || c == '\u{200b}');
+            let words = span
+                .content
+                .split_inclusive(|c| c == ' ' || c == '\u{00a0}' || c == '\u{200b}');
             for word in words {
                 let word_width = unicode_width::UnicodeWidthStr::width(word);
 
@@ -507,14 +562,18 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
                                 current_width = 0;
                             }
                             let style = span.style().clone();
-                            current_line.spans.push(Span::styled(grapheme.to_string(), style));
+                            current_line
+                                .spans
+                                .push(Span::styled(grapheme.to_string(), style));
                             current_width += grapheme_width;
                         }
                         continue;
                     }
                 }
 
-                current_line.spans.push(Span::styled(word.to_string(), span.style().clone()));
+                current_line
+                    .spans
+                    .push(Span::styled(word.to_string(), span.style().clone()));
                 current_width += word_width;
             }
         }
@@ -529,9 +588,15 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 }
 
 ///
-fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selected_keyword: i16, selected_highlight_style: Style, highlight_style: Style) -> Vec<Line> {
+fn highlight_text(
+    lines: Vec<Line>,
+    positions: Vec<(usize, usize, usize)>,
+    selected_keyword: i16,
+    selected_highlight_style: Style,
+    highlight_style: Style,
+) -> Vec<Line> {
     let mut new_lines = Vec::new();
-    let mut current_count:i16 = 0;
+    let mut current_count: i16 = 0;
 
     for (i, line) in lines.iter().enumerate() {
         let mut new_spans = Vec::new();
@@ -566,26 +631,25 @@ fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selec
                     let highlight_end = (*end_position).min(span_end).saturating_sub(span_start);
 
                     if highlight_start > last_pos {
-                        let before_highlight_text: String = span_text.chars().skip(last_pos).take(highlight_start - last_pos).collect();
-                        new_spans.push(Span::styled(
-                            before_highlight_text,
-                            span.style,
-                        ));
+                        let before_highlight_text: String = span_text
+                            .chars()
+                            .skip(last_pos)
+                            .take(highlight_start - last_pos)
+                            .collect();
+                        new_spans.push(Span::styled(before_highlight_text, span.style));
                     }
 
-                    let text_str: String = span_text.chars().skip(highlight_start).take(highlight_end-highlight_start).collect();
+                    let text_str: String = span_text
+                        .chars()
+                        .skip(highlight_start)
+                        .take(highlight_end - highlight_start)
+                        .collect();
 
                     if text_str.chars().count() > 0 {
                         if current_count == selected_keyword {
-                            new_spans.push(Span::styled(
-                                text_str,
-                                selected_highlight_style,
-                            ));
+                            new_spans.push(Span::styled(text_str, selected_highlight_style));
                         } else {
-                            new_spans.push(Span::styled(
-                                text_str,
-                                highlight_style,
-                            ));
+                            new_spans.push(Span::styled(text_str, highlight_style));
                         }
                         current_count += 1;
                     }
@@ -594,11 +658,8 @@ fn highlight_text(lines: Vec<Line>, positions: Vec<(usize, usize, usize)>, selec
                 }
 
                 if last_pos < span_text.chars().count() {
-                    let after_highlight_text:String = span_text.chars().skip(last_pos).collect();
-                    new_spans.push(Span::styled(
-                        after_highlight_text,
-                        span.style,
-                    ));
+                    let after_highlight_text: String = span_text.chars().skip(last_pos).collect();
+                    new_spans.push(Span::styled(after_highlight_text, span.style));
                 }
             } else {
                 // Apply existing style to parts that are not highlights
