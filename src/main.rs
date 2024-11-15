@@ -2,16 +2,19 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.18
+// v0.3.19
 // TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。(DiffModeのPlugin化の布石)
+// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
+//                 - DiffModeのPlugin化の布石としての対応
+//                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
+// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
+// TODO(blacknon): Github Actionsをきれいにする
 
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
 // TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
-// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
