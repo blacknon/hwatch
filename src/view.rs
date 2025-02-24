@@ -18,12 +18,12 @@ use std::{
 use tui::{backend::CrosstermBackend, Terminal};
 
 // non blocking io
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 use std::{
     io::stdin,
     os::unix::io::AsRawFd,
 };
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
 
 // local module
@@ -202,7 +202,7 @@ impl View {
             let input_tx = tx.clone();
             let _ = std::thread::spawn(move || {
                     // non blocking io
-                    #[cfg(any(target_os = "linux", target_os = "macos"))]
+                    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
                     loop {
                         let _ = send_input(input_tx.clone());
                     }
@@ -301,14 +301,14 @@ fn restore_terminal() {
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
         // non blocking mode
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
         set_nonblocking(true)?;
 
         // get event
         let result = crossterm::event::read();
 
         // blocking mode
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
         set_nonblocking(false)?;
 
         if let Ok(event) = result {
@@ -318,7 +318,7 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     Ok(())
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
     let stdin_fd = stdin().as_raw_fd();
     let flags = fcntl(stdin_fd, F_GETFL)?;

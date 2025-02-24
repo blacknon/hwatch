@@ -59,7 +59,7 @@ extern crate ratatui as tui;
 extern crate unicode_width;
 extern crate unicode_segmentation;
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 extern crate termios;
 
 // macro crate
