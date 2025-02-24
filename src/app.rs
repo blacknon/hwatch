@@ -12,41 +12,46 @@
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEvent
+        DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
+        MouseEvent,
     },
     execute,
 };
 use regex::Regex;
+use similar::{ChangeTag, TextDiff};
 use std::{
     collections::HashMap,
     io::{self, Write},
-    thread, time::Duration,
+    thread,
+    time::Duration,
 };
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect, Position},
+    layout::{Constraint, Direction, Layout, Position, Rect},
     Frame, Terminal,
 };
-use similar::{ChangeTag, TextDiff};
 use unicode_width::UnicodeWidthStr;
 
 // local module
 use crate::ansi::get_ansi_strip_str;
-use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
-use crate::history::{History, HistorySummary, HistoryArea};
-use crate::keymap::{Keymap, default_keymap, InputAction};
+use crate::history::{History, HistoryArea, HistorySummary};
+use crate::keymap::{default_keymap, InputAction, Keymap};
 use crate::output;
 use crate::watch::WatchArea;
+use crate::{
+    common::{logging_result, DiffMode, OutputMode},
+    keymap::InputEventContents,
+};
 
 // local const
-use crate::HISTORY_WIDTH;
-use crate::DEFAULT_TAB_SIZE;
 use crate::Interval;
+use crate::DEFAULT_TAB_SIZE;
+use crate::HISTORY_WIDTH;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -232,11 +237,7 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl<'a> App<'a> {
     ///
-    pub fn new(
-        tx: Sender<AppEvent>,
-        rx: Receiver<AppEvent>,
-        interval: Interval,
-    ) -> Self {
+    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: Interval) -> Self {
         // method at create new view trail.
         Self {
             keymap: default_keymap(),
@@ -297,7 +298,8 @@ impl<'a> App<'a> {
     ///
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         // set history setting
-        self.history_area.set_enable_char_diff(self.enable_summary_char);
+        self.history_area
+            .set_enable_char_diff(self.enable_summary_char);
 
         if self.results.len() > 0 {
             let selected = self.history_area.get_state_select();
@@ -348,7 +350,12 @@ impl<'a> App<'a> {
                     (output_result_items, stdout_result_items, stderr_result_items),
                     is_running_app,
                 )) => {
-                    let _exec_return = self.update_result(output_result_items, stdout_result_items, stderr_result_items, is_running_app);
+                    let _exec_return = self.update_result(
+                        output_result_items,
+                        stdout_result_items,
+                        stderr_result_items,
+                        is_running_app,
+                    );
 
                     // beep
                     if _exec_return && self.is_beep {
@@ -357,7 +364,6 @@ impl<'a> App<'a> {
 
                     update_draw = true;
                 }
-
 
                 //
                 Ok(AppEvent::ChangeFlagMouseEvent) => {
@@ -416,7 +422,10 @@ impl<'a> App<'a> {
                 let input_text_y = self.header_area.area.y + 1;
 
                 // set cursor
-                f.set_cursor_position(Position { x: input_text_x, y: input_text_y });
+                f.set_cursor_position(Position {
+                    x: input_text_x,
+                    y: input_text_y,
+                });
             }
 
             _ => {}
@@ -477,11 +486,14 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_input_action(&self, terminal_event: &crossterm::event::Event) -> Option<&InputEventContents> {
+    fn get_input_action(
+        &self,
+        terminal_event: &crossterm::event::Event,
+    ) -> Option<&InputEventContents> {
         match terminal_event {
             &Event::Key(_) => {
                 return self.keymap.get(terminal_event);
-            },
+            }
             &Event::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.kind,
@@ -490,8 +502,7 @@ impl<'a> App<'a> {
                     modifiers: KeyModifiers::empty(),
                 };
                 return self.keymap.get(&Event::Mouse(mouse_event));
-
-            },
+            }
             _ => {
                 return None;
             }
@@ -531,7 +542,10 @@ impl<'a> App<'a> {
         let mut src = dest;
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
-        } else if previous_dst == 0 && self.is_only_diffline && matches!(self.diff_mode, DiffMode::Line| DiffMode::Word) {
+        } else if previous_dst == 0
+            && self.is_only_diffline
+            && matches!(self.diff_mode, DiffMode::Line | DiffMode::Word)
+        {
             src = &results[&0].command_result;
         }
 
@@ -551,7 +565,7 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn set_keymap(&mut self,keymap: Keymap) {
+    pub fn set_keymap(&mut self, keymap: Keymap) {
         self.keymap = keymap.clone();
         self.help_window = HelpWindow::new(self.keymap.clone());
     }
@@ -798,19 +812,35 @@ impl<'a> App<'a> {
             if self.is_filtered {
                 let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
                     // Diff Only
-                    (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, DiffMode::Line | DiffMode::Word, true) => result.get_diff_only_data(self.ansi_color),
+                    (
+                        OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr,
+                        DiffMode::Line | DiffMode::Word,
+                        true,
+                    ) => result.get_diff_only_data(self.ansi_color),
 
                     // Output
-                    (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_output(),
-                    (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_output(),
+                    (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => {
+                        result.command_result.get_output()
+                    }
+                    (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => {
+                        result.command_result.get_output()
+                    }
 
                     // Stdout
-                    (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_stdout(),
-                    (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_stdout(),
+                    (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => {
+                        result.command_result.get_stdout()
+                    }
+                    (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => {
+                        result.command_result.get_stdout()
+                    }
 
                     // Stderr
-                    (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => result.command_result.get_stderr(),
-                    (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => result.command_result.get_stderr(),
+                    (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => {
+                        result.command_result.get_stderr()
+                    }
+                    (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => {
+                        result.command_result.get_stderr()
+                    }
                 };
 
                 match self.is_regex_filter {
@@ -897,10 +927,14 @@ impl<'a> App<'a> {
         }
 
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let stdout_latest_result = self.results_stdout[&stdout_latest_index].command_result.clone();
+        let stdout_latest_result = self.results_stdout[&stdout_latest_index]
+            .command_result
+            .clone();
 
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let stderr_latest_result = self.results_stderr[&stderr_latest_index].command_result.clone();
+        let stderr_latest_result = self.results_stderr[&stderr_latest_index]
+            .command_result
+            .clone();
 
         // create ResultItems
         let enable_summary_char = self.enable_summary_char;
@@ -908,16 +942,21 @@ impl<'a> App<'a> {
 
         if is_running_app {
             thread::spawn(move || {
-                let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
-                    _result,
-                    enable_summary_char,
-                    &latest_result.clone(),
-                    &stdout_latest_result,
-                    &stderr_latest_result,
-                );
+                let (output_result_items, stdout_result_items, stderr_result_items) =
+                    gen_result_items(
+                        _result,
+                        enable_summary_char,
+                        &latest_result.clone(),
+                        &stdout_latest_result,
+                        &stderr_latest_result,
+                    );
 
                 let _ = tx.send(AppEvent::HistoryUpdate(
-                    (output_result_items, stdout_result_items, stderr_result_items),
+                    (
+                        output_result_items,
+                        stdout_result_items,
+                        stderr_result_items,
+                    ),
                     is_running_app,
                 ));
             });
@@ -930,14 +969,25 @@ impl<'a> App<'a> {
                 &stderr_latest_result,
             );
 
-            let _ = self.update_result(output_result_items, stdout_result_items, stderr_result_items, is_running_app);
+            let _ = self.update_result(
+                output_result_items,
+                stdout_result_items,
+                stderr_result_items,
+                is_running_app,
+            );
         }
 
         return true;
     }
 
     ///
-    fn update_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems, is_running_app: bool) -> bool {
+    fn update_result(
+        &mut self,
+        output_result_items: ResultItems,
+        stdout_result_items: ResultItems,
+        stderr_result_items: ResultItems,
+        is_running_app: bool,
+    ) -> bool {
         // check results.
         if self.results.is_empty() {
             // diff output data.
@@ -952,7 +1002,7 @@ impl<'a> App<'a> {
             let results = self.results.clone();
             let latest_num = results.len() - 1;
 
-            let before_result:CommandResult = self.results[&latest_num].command_result.clone();
+            let before_result: CommandResult = self.results[&latest_num].command_result.clone();
             let after_result = output_result_items.command_result.clone();
 
             {
@@ -968,7 +1018,11 @@ impl<'a> App<'a> {
         }
 
         // append results
-        let insert_result = self.insert_result(output_result_items, stdout_result_items, stderr_result_items);
+        let insert_result = self.insert_result(
+            output_result_items,
+            stdout_result_items,
+            stderr_result_items,
+        );
         let result_index = insert_result.0;
         let is_limit_over = insert_result.1;
         let is_update_stdout = insert_result.2;
@@ -984,19 +1038,35 @@ impl<'a> App<'a> {
         if self.is_filtered {
             let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
                 // Diff Only
-                (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, DiffMode::Line | DiffMode::Word, true) => self.results[&result_index].get_diff_only_data(self.ansi_color),
+                (
+                    OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr,
+                    DiffMode::Line | DiffMode::Word,
+                    true,
+                ) => self.results[&result_index].get_diff_only_data(self.ansi_color),
 
                 // Output
-                (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_output(),
-                (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_output(),
+                (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => {
+                    self.results[&result_index].command_result.get_output()
+                }
+                (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => {
+                    self.results[&result_index].command_result.get_output()
+                }
 
                 // Stdout
-                (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_stdout(),
-                (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_stdout(),
+                (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => {
+                    self.results[&result_index].command_result.get_stdout()
+                }
+                (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => {
+                    self.results[&result_index].command_result.get_stdout()
+                }
 
                 // Stderr
-                (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => self.results[&result_index].command_result.get_stderr(),
-                (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => self.results[&result_index].command_result.get_stderr(),
+                (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => {
+                    self.results[&result_index].command_result.get_stderr()
+                }
+                (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => {
+                    self.results[&result_index].command_result.get_stderr()
+                }
             };
 
             match self.is_regex_filter {
@@ -1019,19 +1089,17 @@ impl<'a> App<'a> {
         let mut selected = self.history_area.get_state_select();
         if is_push {
             match self.output_mode {
-                OutputMode::Output => {
-                    self.add_history(result_index, selected)
-                },
+                OutputMode::Output => self.add_history(result_index, selected),
                 OutputMode::Stdout => {
                     if is_update_stdout {
                         self.add_history(result_index, selected)
                     }
-                },
+                }
                 OutputMode::Stderr => {
                     if is_update_stderr {
                         self.add_history(result_index, selected)
                     }
-                },
+                }
             }
         }
         selected = self.history_area.get_state_select();
@@ -1041,7 +1109,7 @@ impl<'a> App<'a> {
             self.reset_history(selected);
         }
 
-        if is_running_app{
+        if is_running_app {
             // update WatchArea
             self.set_output_data(selected);
         }
@@ -1052,28 +1120,39 @@ impl<'a> App<'a> {
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
-    fn insert_result(&mut self, output_result_items: ResultItems, stdout_result_items: ResultItems, stderr_result_items: ResultItems) -> (usize, bool, bool, bool) {
+    fn insert_result(
+        &mut self,
+        output_result_items: ResultItems,
+        stdout_result_items: ResultItems,
+        stderr_result_items: ResultItems,
+    ) -> (usize, bool, bool, bool) {
         let result_index = self.results.keys().max().unwrap_or(&0) + 1;
         self.results.insert(result_index, output_result_items);
 
         // create result_stdout
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = &self.results_stdout[&stdout_latest_index].command_result.get_stdout();
+        let before_result_stdout = &self.results_stdout[&stdout_latest_index]
+            .command_result
+            .get_stdout();
         let result_stdout = &stdout_result_items.command_result.get_stdout();
         let mut is_stdout_update = false;
         if before_result_stdout != result_stdout {
             is_stdout_update = true;
-            self.results_stdout.insert(result_index, stdout_result_items);
+            self.results_stdout
+                .insert(result_index, stdout_result_items);
         }
 
         // create result_stderr
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = &self.results_stderr[&stderr_latest_index].command_result.get_stderr();
+        let before_result_stderr = &self.results_stderr[&stderr_latest_index]
+            .command_result
+            .get_stderr();
         let result_stderr = &stderr_result_items.command_result.get_stderr();
         let mut is_stderr_update = false;
         if before_result_stderr != result_stderr {
             is_stderr_update = true;
-            self.results_stderr.insert(result_index, stderr_result_items);
+            self.results_stderr
+                .insert(result_index, stderr_result_items);
         }
 
         // limit check
@@ -1120,7 +1199,12 @@ impl<'a> App<'a> {
             }
         }
 
-        return (result_index, is_limit_over,  is_stdout_update, is_stderr_update);
+        return (
+            result_index,
+            is_limit_over,
+            is_stdout_update,
+            is_stderr_update,
+        );
     }
 
     ///
@@ -1136,28 +1220,28 @@ impl<'a> App<'a> {
                                 KeyCode::Char('y') => {
                                     self.exit();
                                     return;
-                                },
+                                }
                                 KeyCode::Char('q') => {
                                     self.exit();
                                     return;
-                                },
+                                }
                                 KeyCode::Char('n') => {
                                     self.window = ActiveWindow::Normal;
                                     return;
-                                },
+                                }
                                 KeyCode::Char('h') => {
                                     self.window = ActiveWindow::Help;
                                     return;
-                                },
+                                }
                                 // default
                                 _ => {}
                             }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         if let Some(event_content) = self.get_input_action(&terminal_event) {
@@ -1165,22 +1249,24 @@ impl<'a> App<'a> {
             match self.window {
                 ActiveWindow::Normal => {
                     match action {
-                        InputAction::Up => self.action_up(), // Up
-                        InputAction::WatchPaneUp => self.action_watch_up(), // Watch Pane Up
+                        InputAction::Up => self.action_up(),                        // Up
+                        InputAction::WatchPaneUp => self.action_watch_up(),         // Watch Pane Up
                         InputAction::HistoryPaneUp => self.action_history_up(), // History Pane Up
-                        InputAction::Down => self.action_down(), // Dow
+                        InputAction::Down => self.action_down(),                // Dow
                         InputAction::WatchPaneDown => self.action_watch_down(), // Watch Pane Down
                         InputAction::HistoryPaneDown => self.action_history_down(), // History Pane Down
+                        InputAction::ScrollRight => self.watch_area.scroll_right(1),
+                        InputAction::ScrollLeft => self.watch_area.scroll_left(1),
                         InputAction::PageUp => self.action_pgup(), // PageUp
                         InputAction::WatchPanePageUp => self.action_watch_pgup(), // Watch Pane PageUp
                         InputAction::HistoryPanePageUp => self.action_history_pgup(), // History Pane PageUp
-                        InputAction::PageDown => self.action_pgdn(), // PageDown
+                        InputAction::PageDown => self.action_pgdn(),                  // PageDown
                         InputAction::WatchPanePageDown => self.action_watch_pgdn(), // Watch Pane PageDown
                         InputAction::HistoryPanePageDown => self.action_history_pgdn(), // History Pane PageDown
-                        InputAction::MoveTop => self.action_top(), // MoveTop
+                        InputAction::MoveTop => self.action_top(),                      // MoveTop
                         InputAction::WatchPaneMoveTop => self.watch_area.scroll_home(), // Watch Pane MoveTop
                         InputAction::HistoryPaneMoveTop => self.action_history_top(), // History Pane MoveTop
-                        InputAction::MoveEnd => self.action_end(), // MoveEnd
+                        InputAction::MoveEnd => self.action_end(),                    // MoveEnd
                         InputAction::WatchPaneMoveEnd => self.watch_area.scroll_end(), // Watch Pane MoveEnd
                         InputAction::HistoryPaneMoveEnd => self.action_history_end(), // History Pane MoveEnd
                         InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
@@ -1192,7 +1278,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.show_exit_popup();
                             }
-                        }, // Quit
+                        } // Quit
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::ForceCancel => self.action_force_reset(),
@@ -1200,7 +1286,9 @@ impl<'a> App<'a> {
                         InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color), // ToggleColor
                         InputAction::ToggleLineNumber => self.set_line_number(!self.line_number), // ToggleLineNumber
                         InputAction::ToggleReverse => self.set_reverse(!self.reverse), // ToggleReverse
-                        InputAction::ToggleMouseSupport => self.set_mouse_events(!self.mouse_events), // ToggleMouseSupport
+                        InputAction::ToggleMouseSupport => {
+                            self.set_mouse_events(!self.mouse_events)
+                        } // ToggleMouseSupport
                         InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header), // ToggleViewPaneUI
                         InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history), // ToggleViewHistory
                         InputAction::ToggleBorder => self.set_border(!self.is_border), // ToggleBorder
@@ -1208,24 +1296,37 @@ impl<'a> App<'a> {
                         InputAction::ToggleBorderWithScrollBar => {
                             self.set_border(!self.is_border);
                             self.set_scroll_bar(!self.is_scroll_bar);
-                        }, // ToggleBorderWithScrollBar
+                        } // ToggleBorderWithScrollBar
                         InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
                         InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
                         InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
                         InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
                         InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
-                        InputAction::SetDiffOnly => self.set_is_only_diffline(!self.is_only_diffline), // SetOnlyDiffLine
+                        InputAction::SetDiffOnly => {
+                            self.set_is_only_diffline(!self.is_only_diffline)
+                        } // SetOnlyDiffLine
                         InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
-                        InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output), // SetOutputModeOutput
-                        InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout), // SetOutputModeStdout
-                        InputAction::SetOutputModeStderr => self.set_output_mode(OutputMode::Stderr), // SetOutputModeStderr
+                        InputAction::SetOutputModeOutput => {
+                            self.set_output_mode(OutputMode::Output)
+                        } // SetOutputModeOutput
+                        InputAction::SetOutputModeStdout => {
+                            self.set_output_mode(OutputMode::Stdout)
+                        } // SetOutputModeStdout
+                        InputAction::SetOutputModeStderr => {
+                            self.set_output_mode(OutputMode::Stderr)
+                        } // SetOutputModeStderr
+                        InputAction::ToggleWrapMode => self.watch_area.toggle_wrap_mode(),
                         InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
                         InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
-                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
-                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
-                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
+                        InputAction::ToggleHistorySummary => {
+                            self.set_history_summary(!self.is_history_summary)
+                        } // ToggleHistorySummary
+                        InputAction::IntervalPlus => self.increase_interval(),      // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(),     // IntervalMinus
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
-                        InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
+                        InputAction::ChangeRegexFilterMode => {
+                            self.set_input_mode(InputMode::RegexFilter)
+                        } // Change Filter Mode(regex text).
 
                         // MouseScrollDown
                         InputAction::MouseScrollDown => {
@@ -1234,7 +1335,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_down(0, 0)
                             }
-                        },
+                        }
 
                         // MouseScrollUp
                         InputAction::MouseScrollUp => {
@@ -1243,7 +1344,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_up(0, 0)
                             }
-                        },
+                        }
 
                         // MouseButtonLeft
                         InputAction::MouseButtonLeft => {
@@ -1252,7 +1353,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_click_left(0, 0)
                             }
-                        },
+                        }
 
                         // default
                         _ => {}
@@ -1274,7 +1375,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.show_exit_popup();
                             }
-                        },
+                        }
                         InputAction::Cancel => self.toggle_window(), // Cancel (Close help window with Cancel.)
 
                         // MouseScrollDown
@@ -1284,7 +1385,7 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_down(0, 0)
                             }
-                        },
+                        }
 
                         // MouseScrollUp
                         InputAction::MouseScrollUp => {
@@ -1293,23 +1394,23 @@ impl<'a> App<'a> {
                             } else {
                                 self.mouse_scroll_up(0, 0)
                             }
-                        },
+                        }
 
                         // default
                         _ => {}
                     }
-                },
+                }
                 ActiveWindow::Exit => {
                     match action {
-                        InputAction::Quit => self.exit(), // Quit
-                        InputAction::Cancel => self.exit(), // Cancel
+                        InputAction::Quit => self.exit(),                         // Quit
+                        InputAction::Cancel => self.exit(),                       // Cancel
                         InputAction::Reset => self.window = ActiveWindow::Normal, // Reset
                         _ => {}
                     }
                 }
             }
 
-            return
+            return;
         }
     }
 
@@ -1327,7 +1428,11 @@ impl<'a> App<'a> {
     }
 
     ///
-    fn get_default_filter_input_key(&mut self, is_regex: bool, terminal_event: crossterm::event::Event) {
+    fn get_default_filter_input_key(
+        &mut self,
+        is_regex: bool,
+        terminal_event: crossterm::event::Event,
+    ) {
         if let Event::Key(key) = terminal_event {
             if key.kind == KeyEventKind::Press {
                 match key.code {
@@ -1364,7 +1469,8 @@ impl<'a> App<'a> {
                         let new_selected = self.reset_history(selected);
 
                         // update WatchArea
-                        self.watch_area.set_keyword(self.filtered_text.clone(), is_regex);
+                        self.watch_area
+                            .set_keyword(self.filtered_text.clone(), is_regex);
                         self.set_output_data(new_selected);
                     }
 
@@ -1417,7 +1523,7 @@ impl<'a> App<'a> {
         match self.window {
             ActiveWindow::Normal => self.window = ActiveWindow::Help,
             ActiveWindow::Help => self.window = ActiveWindow::Normal,
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1454,7 +1560,7 @@ impl<'a> App<'a> {
             timestamp.to_string(),
             *status,
             result_index as u16,
-            history_summary
+            history_summary,
         );
 
         // update selected
@@ -1542,17 +1648,13 @@ impl<'a> App<'a> {
     fn action_up(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {
-                    self.action_watch_up()
-                }
-                ActiveArea::History => {
-                    self.action_history_up()
-                }
+                ActiveArea::Watch => self.action_watch_up(),
+                ActiveArea::History => self.action_history_up(),
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_up(1);
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1576,17 +1678,13 @@ impl<'a> App<'a> {
     fn action_down(&mut self) {
         match self.window {
             ActiveWindow::Normal => match self.area {
-                ActiveArea::Watch => {
-                    self.action_watch_down()
-                }
-                ActiveArea::History => {
-                    self.action_history_down()
-                }
+                ActiveArea::Watch => self.action_watch_down(),
+                ActiveArea::History => self.action_history_down(),
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_down(1);
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1609,19 +1707,18 @@ impl<'a> App<'a> {
     ///
     fn action_pgup(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
-                    ActiveArea::Watch => {
-                        self.action_watch_pgup();
-                    },
-                    ActiveArea::History => {
-                        self.action_history_pgup();
-                    }
-                },
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.action_watch_pgup();
+                }
+                ActiveArea::History => {
+                    self.action_history_pgup();
+                }
+            },
             ActiveWindow::Help => {
                 self.help_window.page_up();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1640,11 +1737,7 @@ impl<'a> App<'a> {
     fn action_history_pgup(&mut self) {
         // move next history
         let area_size = self.history_area.area.height;
-        let move_size = if area_size > 1 {
-            area_size - 1
-        } else {
-            1
-        };
+        let move_size = if area_size > 1 { area_size - 1 } else { 1 };
 
         // up
         self.history_area.next(move_size as usize);
@@ -1657,20 +1750,18 @@ impl<'a> App<'a> {
     ///
     fn action_pgdn(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
-                    ActiveArea::Watch => {
-                        self.action_watch_pgdn();
-                    },
-                    ActiveArea::History => {
-
-                        self.action_history_pgdn();
-                    },
-                },
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => {
+                    self.action_watch_pgdn();
+                }
+                ActiveArea::History => {
+                    self.action_history_pgdn();
+                }
+            },
             ActiveWindow::Help => {
                 self.help_window.page_down();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1689,11 +1780,7 @@ impl<'a> App<'a> {
     fn action_history_pgdn(&mut self) {
         // move previous history
         let area_size = self.history_area.area.height;
-        let move_size = if area_size > 1 {
-            area_size - 1
-        } else {
-            1
-        };
+        let move_size = if area_size > 1 { area_size - 1 } else { 1 };
 
         // down
         self.history_area.previous(move_size as usize);
@@ -1706,15 +1793,14 @@ impl<'a> App<'a> {
     ///
     fn action_top(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
+            ActiveWindow::Normal => match self.area {
                 ActiveArea::Watch => self.watch_area.scroll_home(),
                 ActiveArea::History => self.action_history_top(),
             },
             ActiveWindow::Help => {
                 self.help_window.scroll_top();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1731,15 +1817,14 @@ impl<'a> App<'a> {
     ///
     fn action_end(&mut self) {
         match self.window {
-            ActiveWindow::Normal =>
-                match self.area {
-                    ActiveArea::Watch => self.watch_area.scroll_end(),
-                    ActiveArea::History => self.action_history_end(),
-                },
+            ActiveWindow::Normal => match self.area {
+                ActiveArea::Watch => self.watch_area.scroll_end(),
+                ActiveArea::History => self.action_history_end(),
+            },
             ActiveWindow::Help => {
                 self.help_window.scroll_end();
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -1826,7 +1911,7 @@ impl<'a> App<'a> {
                     match self.area {
                         ActiveArea::Watch => {
                             self.watch_area.scroll_up(2);
-                        },
+                        }
                         ActiveArea::History => {
                             self.history_area.next(1);
 
@@ -1845,12 +1930,11 @@ impl<'a> App<'a> {
                         self.watch_area.scroll_up(2);
                     }
                 }
-
-            },
+            }
             ActiveWindow::Help => {
                 self.help_window.scroll_up(2);
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
@@ -1862,7 +1946,7 @@ impl<'a> App<'a> {
                     match self.area {
                         ActiveArea::Watch => {
                             self.watch_area.scroll_down(2);
-                        },
+                        }
                         ActiveArea::History => {
                             self.history_area.previous(1);
 
@@ -1881,17 +1965,18 @@ impl<'a> App<'a> {
                         self.watch_area.scroll_down(2);
                     }
                 }
-            },
+            }
             ActiveWindow::Help => {
                 self.help_window.scroll_down(2);
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
     ///
     fn exit(&mut self) {
-        self.tx.send(AppEvent::Exit)
+        self.tx
+            .send(AppEvent::Exit)
             .expect("send error hwatch exit.");
     }
 }
@@ -1937,7 +2022,7 @@ fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize 
             return get_results_next_index(results, index);
         }
         // return get_results_next_index(results, index)
-        return get_results_previous_index(results, index)
+        return get_results_previous_index(results, index);
     }
 }
 
@@ -1967,7 +2052,6 @@ fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usiz
     }
 
     return previous_index;
-
 }
 
 fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
@@ -1994,35 +2078,54 @@ fn gen_result_items(
     stderr_latest_result: &CommandResult,
 ) -> (ResultItems, ResultItems, ResultItems) {
     // create output ResultItems
-    let output_diff_only_data = gen_diff_only_data(&output_latest_result.get_output(), &_result.get_output());
+    let output_diff_only_data =
+        gen_diff_only_data(&output_latest_result.get_output(), &_result.get_output());
     let mut output_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
         diff_only_data: output_diff_only_data,
     };
-    output_result_items.summary.calc(&output_latest_result.get_output(), &output_result_items.command_result.get_output(), enable_summary_char);
+    output_result_items.summary.calc(
+        &output_latest_result.get_output(),
+        &output_result_items.command_result.get_output(),
+        enable_summary_char,
+    );
 
     // create stdout ResultItems
-    let stdout_diff_only_data = gen_diff_only_data(&output_latest_result.get_stdout(), &_result.get_stdout());
+    let stdout_diff_only_data =
+        gen_diff_only_data(&output_latest_result.get_stdout(), &_result.get_stdout());
     let mut stdout_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
         diff_only_data: stdout_diff_only_data,
     };
-    stdout_result_items.summary.calc(&stdout_latest_result.get_stdout(), &stdout_result_items.command_result.get_stdout(), enable_summary_char);
+    stdout_result_items.summary.calc(
+        &stdout_latest_result.get_stdout(),
+        &stdout_result_items.command_result.get_stdout(),
+        enable_summary_char,
+    );
 
     // create stderr ResultItems
-    let stderr_diff_only_data = gen_diff_only_data(&output_latest_result.get_stderr(), &_result.get_stderr());
+    let stderr_diff_only_data =
+        gen_diff_only_data(&output_latest_result.get_stderr(), &_result.get_stderr());
     let mut stderr_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
         diff_only_data: stderr_diff_only_data,
     };
-    stderr_result_items.summary.calc(&stderr_latest_result.get_stderr(), &stderr_result_items.command_result.get_stderr(), enable_summary_char);
+    stderr_result_items.summary.calc(
+        &stderr_latest_result.get_stderr(),
+        &stderr_result_items.command_result.get_stderr(),
+        enable_summary_char,
+    );
 
     // TODO: is_appじゃない場合、tx.sendじゃないやり方で追加する方法を考える必要がありそう？？ → 呼び出し元で処理をさせるようにする？？？(log load時にうまく動作しない原因がこれ)
     // let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
-    return (output_result_items, stdout_result_items, stderr_result_items);
+    return (
+        output_result_items,
+        stdout_result_items,
+        stderr_result_items,
+    );
 }
 
 fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
@@ -2032,9 +2135,14 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
     for op in diff_set.ops() {
         for change in diff_set.iter_changes(op) {
             match change.tag() {
-                ChangeTag::Equal => {},
+                ChangeTag::Equal => {}
                 ChangeTag::Delete | ChangeTag::Insert => {
-                    let value = change.to_string().as_bytes().iter().map(|&x| x).collect::<Vec<u8>>();
+                    let value = change
+                        .to_string()
+                        .as_bytes()
+                        .iter()
+                        .map(|&x| x)
+                        .collect::<Vec<u8>>();
                     diff_only_data.extend(value);
                 }
             }

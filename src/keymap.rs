@@ -2,12 +2,15 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use std::{collections::HashMap, fmt::Debug};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState, MouseEvent, MouseButton, MouseEventKind};
+use config::{Config, ConfigError, FileFormat};
+use crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
+};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
-use serde::{Deserialize, Serialize, de};
-use config::{Config, ConfigError, FileFormat};
+use serde::{de, Deserialize, Serialize};
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::errors::HwatchError;
 
@@ -30,7 +33,7 @@ enum InputType {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
 pub struct Input {
-    input: InputType
+    input: InputType,
 }
 
 impl Input {
@@ -50,7 +53,7 @@ impl Input {
                 } else {
                     format!("{}-{}", modifiers, code)
                 }
-            },
+            }
 
             // mouse
             InputType::Mouse(mouse) => {
@@ -71,53 +74,59 @@ impl Input {
                 };
 
                 format!("mouse-{}", action)
-            },
+            }
         };
 
-        return result
+        return result;
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 40] = [
-    "up=up",  // Up
-    "down=down", // Down
-    "pageup=page_up", // PageUp
-    "pagedown=page_down", // PageDown
-    "home=move_top", // MoveTop: Home
-    "end=move_end", // MoveEnd: End
-    "tab=toggle_forcus", // ToggleForcus: Tab
-    "left=forcus_watch_pane", // ForcusWatchPane: Left
-    "right=forcus_history_pane", // ForcusHistoryPane: Right
-    "q=quit", // Quit: q
-    "esc=reset", // Reset: ESC
-    "ctrl-c=cancel", // Cancel: Ctrl + c
-    "h=help", // Help: h
-    "b=toggle_border_with_scroll_bar", // Toggle Border: b
-    "c=toggle_color", // Toggle Color: c
-    "n=toggle_line_number", // Toggle Line Number: n
-    "r=toggle_reverse", // Toggle Reverse: r
-    "m=toggle_mouse_support", // Toggle Mouse Support: m
-    "t=toggle_view_pane_ui", // Toggle View Pane UI: t
-    "backspace=toggle_view_history_pane", // Toggle View History Pane: Backspace
-    "d=toggle_diff_mode", // Toggle Diff Mode: d
-    "0=set_diff_mode_plane", // Set Diff Mode Plane: 0
-    "1=set_diff_mode_watch", // Set Diff Mode Watch: 1
-    "2=set_diff_mode_line", // Set Diff Mode Line: 2
-    "3=set_diff_mode_word", // Set Diff Mode Word: 3
-    "shift-o=set_diff_only", // Set Diff Only: Shift + o
-    "o=toggle_output_mode", // Toggle Output Mode: o
-    "f3=set_output_mode_output", // Set Output Mode Output: F3
-    "f1=set_output_mode_stdout", // Set Output Mode Stdout: F1
-    "f2=set_output_mode_stderr", // Set Output Mode Stderr: F2
-    "ctrl-n=next_keyword",
-    "ctrl-p=prev_keyword",
-    "shift-s=togge_history_summary",
-    "plus=interval_plus", // Interval Plus: +
-    "minus=interval_minus", // Interval Minus: -
-    "/=change_filter_mode", // Change Filter Mode: /
-    "*=change_regex_filter_mode", // Change Regex Filter Mode: *
-    "mouse-scroll_up=mouse_scroll_up", // Mouse Scroll Up: Mouse Scroll Up
-    "mouse-scroll_down=mouse_scroll_down", // Mouse Scroll Down: Mouse Scroll Down
+// NOTE: shfit + alt + keyは動くので、とりあえず横スクロールの移動はこれにしとくか？
+//       もしくは、適当にHome/End + altにでもしとく？？？押しにくいので、デフォルトは↑のがいいけど
+
+const DEFAULT_KEYMAP: [&str; 43] = [
+    "up=up",                                    // Up
+    "down=down",                                // Down
+    "pageup=page_up",                           // PageUp
+    "pagedown=page_down",                       // PageDown
+    "home=move_top",                            // MoveTop: Home
+    "end=move_end",                             // MoveEnd: End
+    "tab=toggle_forcus",                        // ToggleForcus: Tab
+    "left=forcus_watch_pane",                   // ForcusWatchPane: Left
+    "right=forcus_history_pane",                // ForcusHistoryPane: Right
+    "alt-right=scroll_right",                   // Watch window scrll right
+    "alt-left=scroll_left",                     // Watch window scrll left
+    "q=quit",                                   // Quit: q
+    "esc=reset",                                // Reset: ESC
+    "ctrl-c=cancel",                            // Cancel: Ctrl + c
+    "h=help",                                   // Help: h
+    "b=toggle_border_with_scroll_bar",          // Toggle Border: b
+    "c=toggle_color",                           // Toggle Color: c
+    "n=toggle_line_number",                     // Toggle Line Number: n
+    "r=toggle_reverse",                         // Toggle Reverse: r
+    "m=toggle_mouse_support",                   // Toggle Mouse Support: m
+    "t=toggle_view_pane_ui",                    // Toggle View Pane UI: t
+    "backspace=toggle_view_history_pane",       // Toggle View History Pane: Backspace
+    "d=toggle_diff_mode",                       // Toggle Diff Mode: d
+    "0=set_diff_mode_plane",                    // Set Diff Mode Plane: 0
+    "1=set_diff_mode_watch",                    // Set Diff Mode Watch: 1
+    "2=set_diff_mode_line",                     // Set Diff Mode Line: 2
+    "3=set_diff_mode_word",                     // Set Diff Mode Word: 3
+    "shift-o=set_diff_only",                    // Set Diff Only: Shift + o
+    "o=toggle_output_mode",                     // Toggle Output Mode: o
+    "f3=set_output_mode_output",                // Set Output Mode Output: F3
+    "f1=set_output_mode_stdout",                // Set Output Mode Stdout: F1
+    "f2=set_output_mode_stderr",                // Set Output Mode Stderr: F2
+    "w=toggle_wrap_mode",                       //
+    "ctrl-n=next_keyword",                      //
+    "ctrl-p=prev_keyword",                      //
+    "shift-s=togge_history_summary",            //
+    "plus=interval_plus",                       // Interval Plus: +
+    "minus=interval_minus",                     // Interval Minus: -
+    "/=change_filter_mode",                     // Change Filter Mode: /
+    "*=change_regex_filter_mode",               // Change Regex Filter Mode: *
+    "mouse-scroll_up=mouse_scroll_up",          // Mouse Scroll Up: Mouse Scroll Up
+    "mouse-scroll_down=mouse_scroll_down",      // Mouse Scroll Down: Mouse Scroll Down
     "mouse-button_down_left=mouse_button_left", // Mouse Button Left: Mouse Button Left
 ];
 
@@ -238,24 +247,23 @@ impl<'de> Deserialize<'de> for Input {
         let tokens = value.split('-').collect::<Vec<&str>>();
         let input = match tokens[0] {
             "mouse" => {
-                let mouse = Mouse::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
+                let mouse =
+                    Mouse::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
                 Input {
                     input: InputType::Mouse(mouse),
                 }
-            },
+            }
             _ => {
                 let key = Key::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
                 Input {
                     input: InputType::Key(key),
                 }
-            },
+            }
         };
 
         Ok(input)
     }
 }
-
-
 
 impl<'de> Deserialize<'de> for Key {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -354,16 +362,14 @@ impl<'de> Deserialize<'de> for Mouse {
             }
         };
 
-        Ok(Mouse {action})
+        Ok(Mouse { action })
     }
 }
 
 impl From<MouseEvent> for Input {
     fn from(value: MouseEvent) -> Self {
         Self {
-            input: InputType::Mouse(Mouse {
-                action: value.kind,
-            }),
+            input: InputType::Mouse(Mouse { action: value.kind }),
         }
     }
 }
@@ -414,10 +420,8 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
         builder = builder.add_source(config::File::from_str(ko, FileFormat::Ini).required(false));
     }
 
-    let config = builder
-        .build()?;
-    let inputs = config
-        .try_deserialize::<HashMap<Input, InputAction>>()?;
+    let config = builder.build()?;
+    let inputs = config.try_deserialize::<HashMap<Input, InputAction>>()?;
 
     for (k, a) in inputs {
         match k.input {
@@ -435,7 +439,7 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
                         action: a,
                     },
                 );
-            },
+            }
             InputType::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.action,
@@ -450,7 +454,7 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
                         action: a,
                     },
                 );
-            },
+            }
         }
     }
 
@@ -488,6 +492,16 @@ pub enum InputAction {
     WatchPaneDown,
     #[serde(rename = "history_pane_down")]
     HistoryPaneDown,
+
+    // Scroll right
+    // ==========
+    #[serde(rename = "scroll_right")]
+    ScrollRight,
+
+    // Scroll left
+    // ==========
+    #[serde(rename = "scroll_left")]
+    ScrollLeft,
 
     // PageUp
     // ==========
@@ -620,6 +634,11 @@ pub enum InputAction {
     #[serde(rename = "set_output_mode_stderr")]
     SetOutputModeStderr,
 
+    // Toggle Wrap
+    // ==========
+    #[serde(rename = "toggle_wrap_mode")]
+    ToggleWrapMode,
+
     // Keyword search
     // ==========
     #[serde(rename = "next_keyword")]
@@ -680,6 +699,12 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::WatchPaneDown => "Move down in watch pane".to_string(),
         InputAction::HistoryPaneDown => "Move down in history pane".to_string(),
 
+        // Shift Right
+        InputAction::ScrollRight => "Move Right".to_string(),
+
+        // Shift Left
+        InputAction::ScrollLeft => "Move Left".to_string(),
+
         // PageUp
         InputAction::PageUp => "Move page up".to_string(),
         InputAction::WatchPanePageUp => "Move page up in watch pane".to_string(),
@@ -738,7 +763,9 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Border
         InputAction::ToggleBorder => "Toggle enable/disable border".to_string(),
         InputAction::ToggleScrollBar => "Toggle enable/disable scroll bar".to_string(),
-        InputAction::ToggleBorderWithScrollBar => "Toggle enable/disable border and scroll bar".to_string(),
+        InputAction::ToggleBorderWithScrollBar => {
+            "Toggle enable/disable border and scroll bar".to_string()
+        }
 
         // Diff Mode
         InputAction::ToggleDiffMode => "Toggle diff mode".to_string(),
@@ -757,6 +784,9 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Keyword search
         InputAction::NextKeyword => "Forcus next keyword".to_string(),
         InputAction::PrevKeyword => "Forcus previous keyword".to_string(),
+
+        // Toggle Wrap
+        InputAction::ToggleWrapMode => "Toggle wrap mode".to_string(),
 
         // HistorySummary
         InputAction::ToggleHistorySummary => "Toggle history summary".to_string(),
@@ -779,5 +809,4 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::MouseMoveUp => "Mouse Move Up".to_string(),
         InputAction::MouseMoveDown => "Mouse Move Down".to_string(),
     }
-
 }
