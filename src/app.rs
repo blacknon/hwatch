@@ -1256,7 +1256,11 @@ impl<'a> App<'a> {
                         InputAction::WatchPaneDown => self.action_watch_down(), // Watch Pane Down
                         InputAction::HistoryPaneDown => self.action_history_down(), // History Pane Down
                         InputAction::ScrollRight => self.watch_area.scroll_right(1),
+                        InputAction::ScrollHorizontalEnd => self.watch_area.scroll_horizontal_end(),
                         InputAction::ScrollLeft => self.watch_area.scroll_left(1),
+                        InputAction::ScrollHorizontalHome => {
+                            self.watch_area.scroll_horizontal_home()
+                        }
                         InputAction::PageUp => self.action_pgup(), // PageUp
                         InputAction::WatchPanePageUp => self.action_watch_pgup(), // Watch Pane PageUp
                         InputAction::HistoryPanePageUp => self.action_history_pgup(), // History Pane PageUp
