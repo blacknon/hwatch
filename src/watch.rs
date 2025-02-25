@@ -445,7 +445,7 @@ impl<'a> WatchArea<'a> {
             );
 
             // horizontal scrollbar
-            if !self.is_line_wrap {
+            if !self.is_line_wrap && self.width > self.area.width as i16 {
                 let mut horizontal_scrollbar_state: ScrollbarState = ScrollbarState::default()
                     .content_length(self.width as usize - self.area.width as usize)
                     .position(self.horizontal_position as usize);
