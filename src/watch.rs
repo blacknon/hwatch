@@ -102,7 +102,7 @@ impl<'a> WatchArea<'a> {
 
             is_line_diff_head: false,
 
-            is_line_wrap: false,
+            is_line_wrap: true,
 
             position: 0,
 
@@ -137,19 +137,20 @@ impl<'a> WatchArea<'a> {
         // update data
         self.data = data;
 
+        // get maximum width
+        self.width = 0;
+        for line in &self.data {
+            let line_width = line.width();
+
+            self.width = std::cmp::max(self.width, line_width as i16);
+        }
+
         // update wrap data
         if self.is_line_wrap {
             self.horizontal_position = 0;
             self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
         } else {
             self.wrap_data = self.data.clone()
-        }
-
-        // get maximum width
-        for line in &self.data {
-            let line_width = line.width();
-
-            self.width = std::cmp::max(self.width, line_width as i16);
         }
 
         if self.keyword.len() > 0 {
@@ -175,6 +176,14 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn update_wrap(&mut self) {
+        // get maximum width
+        self.width = 0;
+        for line in &self.data {
+            let line_width = line.width();
+
+            self.width = std::cmp::max(self.width, line_width as i16);
+        }
+
         // update wrap data
         if self.is_line_wrap {
             self.horizontal_position = 0;
@@ -488,6 +497,18 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn scroll_left(&mut self, num: i16) {
         self.horizontal_position = std::cmp::max(0, self.horizontal_position - num);
+    }
+
+    ///
+    pub fn scroll_horizontal_home(&mut self) {
+        self.horizontal_position = 0
+    }
+
+    ///
+    pub fn scroll_horizontal_end(&mut self) {
+        let width: u16 = self.area.width;
+
+        self.horizontal_position = self.width - width as i16;
     }
 
     ///

@@ -84,7 +84,7 @@ impl Input {
 // NOTE: shfit + alt + keyは動くので、とりあえず横スクロールの移動はこれにしとくか？
 //       もしくは、適当にHome/End + altにでもしとく？？？押しにくいので、デフォルトは↑のがいいけど
 
-const DEFAULT_KEYMAP: [&str; 43] = [
+const DEFAULT_KEYMAP: [&str; 45] = [
     "up=up",                                    // Up
     "down=down",                                // Down
     "pageup=page_up",                           // PageUp
@@ -94,8 +94,10 @@ const DEFAULT_KEYMAP: [&str; 43] = [
     "tab=toggle_forcus",                        // ToggleForcus: Tab
     "left=forcus_watch_pane",                   // ForcusWatchPane: Left
     "right=forcus_history_pane",                // ForcusHistoryPane: Right
-    "alt-right=scroll_right",                   // Watch window scrll right
-    "alt-left=scroll_left",                     // Watch window scrll left
+    "alt-left=scroll_left",                     // Watch window scrll left: Alt + Left
+    "shift-alt-left=scroll_horizontal_home",    //
+    "alt-right=scroll_right",                   // Watch window scrll right: Alt + Right
+    "shift-alt-right=scroll_horizontal_end",    //
     "q=quit",                                   // Quit: q
     "esc=reset",                                // Reset: ESC
     "ctrl-c=cancel",                            // Cancel: Ctrl + c
@@ -117,7 +119,7 @@ const DEFAULT_KEYMAP: [&str; 43] = [
     "f3=set_output_mode_output",                // Set Output Mode Output: F3
     "f1=set_output_mode_stdout",                // Set Output Mode Stdout: F1
     "f2=set_output_mode_stderr",                // Set Output Mode Stderr: F2
-    "w=toggle_wrap_mode",                       //
+    "w=toggle_wrap_mode",                       // Toggle Wrap mode: w
     "ctrl-n=next_keyword",                      //
     "ctrl-p=prev_keyword",                      //
     "shift-s=togge_history_summary",            //
@@ -497,11 +499,15 @@ pub enum InputAction {
     // ==========
     #[serde(rename = "scroll_right")]
     ScrollRight,
+    #[serde(rename = "scroll_horizontal_home")]
+    ScrollHorizontalHome,
 
     // Scroll left
     // ==========
     #[serde(rename = "scroll_left")]
     ScrollLeft,
+    #[serde(rename = "scroll_horizontal_end")]
+    ScrollHorizontalEnd,
 
     // PageUp
     // ==========
@@ -701,9 +707,11 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
 
         // Shift Right
         InputAction::ScrollRight => "Move Right".to_string(),
+        InputAction::ScrollHorizontalEnd => "Move Right end".to_string(),
 
         // Shift Left
         InputAction::ScrollLeft => "Move Left".to_string(),
+        InputAction::ScrollHorizontalHome => "Move Left home".to_string(),
 
         // PageUp
         InputAction::PageUp => "Move page up".to_string(),
