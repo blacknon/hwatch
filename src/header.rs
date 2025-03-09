@@ -34,6 +34,9 @@ pub struct HeaderArea<'a> {
     interval: f64,
 
     ///
+    pause: bool,
+
+    ///
     command: String,
 
     ///
@@ -81,11 +84,12 @@ pub struct HeaderArea<'a> {
 
 /// Header Area Object Trait
 impl<'a> HeaderArea<'a> {
-    pub fn new(interval: f64) -> Self {
+    pub fn new(interval: f64, pause: bool) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
             interval,
+            pause,
 
             command: "".to_string(),
             timestamp: "".to_string(),
@@ -146,6 +150,10 @@ impl<'a> HeaderArea<'a> {
 
     pub fn set_interval(&mut self, interval: f64) {
         self.interval = interval;
+    }
+
+    pub fn set_pause(&mut self, pause: bool) {
+        self.pause = pause;
     }
 
     pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
@@ -222,7 +230,10 @@ impl<'a> HeaderArea<'a> {
         }
 
         // Get the data to display at header.
-        let interval = format!("{:.3}", self.interval);
+        let interval = match self.pause {
+            true => "Paused".into(),
+            false => format!("{:.3}", self.interval),
+        };
 
         // Set Number flag value
         let value_number: Span = match self.line_number {
@@ -297,7 +308,7 @@ impl<'a> HeaderArea<'a> {
                 format!("{:>wid$}", interval, wid = 9),
                 Style::default().fg(Color::Cyan),
             ),
-            Span::raw("s:"),
+            Span::raw(":"),
             Span::styled(
                 format!("{:wid$}", self.command, wid = command_width),
                 Style::default().fg(command_color),
