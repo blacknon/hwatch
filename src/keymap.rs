@@ -111,7 +111,7 @@ const DEFAULT_KEYMAP: [&str; 40] = [
     "f2=set_output_mode_stderr", // Set Output Mode Stderr: F2
     "ctrl-n=next_keyword",
     "ctrl-p=prev_keyword",
-    "shift-s=togge_history_summary",
+    "shift-s=toggle_history_summary",
     "plus=interval_plus", // Interval Plus: +
     "minus=interval_minus", // Interval Minus: -
     "/=change_filter_mode", // Change Filter Mode: /
@@ -628,7 +628,7 @@ pub enum InputAction {
     PrevKeyword,
 
     // HistorySummary
-    #[serde(rename = "togge_history_summary")]
+    #[serde(rename = "toggle_history_summary")]
     ToggleHistorySummary,
 
     // Interval

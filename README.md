@@ -179,7 +179,7 @@ Keybind functions that can be specified are as follows.
 | set_output_mode_output   | Set output mode output                    |
 | set_output_mode_stdout   | Set output mode stdout                    |
 | set_output_mode_stderr   | Set output mode stderr                    |
-| togge_history_summary    | Toggle history summary                    |
+| toggle_history_summary   | Toggle history summary                    |
 | interval_plus            | Interval +0.5sec                          |
 | interval_minus           | Interval -0.5sec                          |
 | prev_keyword             | Forcus previous keyword                   |
