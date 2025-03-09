@@ -116,6 +116,7 @@ Watch mode keybind(Default).
 | <kbd>F3</kbd>                        | print output.                                               |
 | <kbd>+</kbd>                         | increase interval.                                          |
 | <kbd>-</kbd>                         | decrease interval.                                          |
+| <kbd>P</kbd>                         | Pause/unpause execution.                                    |
 | <kbd>/</kbd>                         | filter history by string.                                   |
 | <kbd>*</kbd>                         | filter history by regex.                                    |
 | <kbd>Esc</kbd>                       | unfiltering.                                                |
@@ -182,6 +183,7 @@ Keybind functions that can be specified are as follows.
 | toggle_history_summary   | Toggle history summary                    |
 | interval_plus            | Interval +0.5sec                          |
 | interval_minus           | Interval -0.5sec                          |
+| toggle_pause             | Toggle pause execution                    |
 | prev_keyword             | Forcus previous keyword                   |
 | next_keyword             | Forcus next keyword                       |
 | change_filter_mode       | Change filter mode                        |

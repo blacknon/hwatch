@@ -9,7 +9,6 @@
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
 //                 - DiffModeのPlugin化の布石としての対応
 //                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
-// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 // TODO(blacknon): Github Actionsをきれいにする
 
 // v0.3.xx
@@ -105,6 +104,7 @@ pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
 type Interval = Arc<RwLock<f64>>;
+type Pause = Arc<RwLock<bool>>;
 
 // const at Windows
 #[cfg(windows)]
@@ -482,6 +482,7 @@ fn main() {
         .get_one::<f64>("interval")
         .unwrap_or(&DEFAULT_INTERVAL);
     let interval = Interval::new(override_interval.into());
+    let pause = Pause::new(RwLock::new(false));
 
     // history limit
     let default_limit: u32 = HISTORY_LIMIT.parse().unwrap();
@@ -559,24 +560,28 @@ fn main() {
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
         let interval = interval.clone();
+        let pause = pause.clone();
         let _ = thread::spawn(move || loop {
-            // Create cmd..
-            let mut exe = exec::ExecuteCommand::new(tx.clone());
+            let should_pause = *pause.read().expect("Non poisoned RwLock");
+            if should_pause == false {
+                // Create cmd..
+                let mut exe = exec::ExecuteCommand::new(tx.clone());
 
-            // Set shell command
-            exe.shell_command = shell_command.clone();
+                // Set shell command
+                exe.shell_command = shell_command.clone();
 
-            // Set command
-            exe.command = command.clone();
+                // Set command
+                exe.command = command.clone();
 
-            // Set compress
-            exe.is_compress = compress;
+                // Set compress
+                exe.is_compress = compress;
 
-            // Set is exec flag.
-            exe.is_exec = is_exec;
+                // Set is exec flag.
+                exe.is_exec = is_exec;
 
-            // Exec command
-            exe.exec_command();
+                // Exec command
+                exe.exec_command();
+            }
 
             let sleep_interval = *interval.read().unwrap();
             std::thread::sleep(Duration::from_secs_f64(sleep_interval));
@@ -587,38 +592,28 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new(interval.clone())
-            // Set interval on view.header
-            .set_interval(interval)
+        let mut view = view::View::new(interval.clone(), pause.clone())
             .set_tab_size(tab_size)
             .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
-
             // set keymap
             .set_keymap(keymap)
-
             // Set color in view
             .set_color(matcher.get_flag("color"))
-
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
-
             // Set reverse mode in view
             .set_reverse(matcher.get_flag("reverse"))
-
             // Set output in view
             .set_output_mode(output_mode)
-
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
-
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
-
             .set_show_ui(!matcher.get_flag("no_title"))
             .set_show_help_banner(!matcher.get_flag("no_help_banner"));
 

@@ -78,7 +78,7 @@ impl Input {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 40] = [
+const DEFAULT_KEYMAP: [&str; 41] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -114,6 +114,7 @@ const DEFAULT_KEYMAP: [&str; 40] = [
     "shift-s=toggle_history_summary",
     "plus=interval_plus", // Interval Plus: +
     "minus=interval_minus", // Interval Minus: -
+    "p=toggle_pause",
     "/=change_filter_mode", // Change Filter Mode: /
     "*=change_regex_filter_mode", // Change Regex Filter Mode: *
     "mouse-scroll_up=mouse_scroll_up", // Mouse Scroll Up: Mouse Scroll Up
@@ -637,6 +638,8 @@ pub enum InputAction {
     IntervalPlus,
     #[serde(rename = "interval_minus")]
     IntervalMinus,
+    #[serde(rename = "toggle_pause")]
+    TogglePause,
 
     // Command/Filter
     // ==========
@@ -764,6 +767,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Interval
         InputAction::IntervalPlus => "Interval +0.5sec".to_string(),
         InputAction::IntervalMinus => "Interval -0.5sec".to_string(),
+        InputAction::TogglePause => "Toggle Execution Pause".to_string(),
 
         // Command/Filter
         InputAction::ChangeFilterMode => "Change filter mode".to_string(),

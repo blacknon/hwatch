@@ -13,7 +13,6 @@ use std::time::Duration;
 use std::{
     error::Error,
     io,
-    sync::{Arc, RwLock},
 };
 use tui::{backend::CrosstermBackend, Terminal};
 
@@ -31,8 +30,8 @@ use crate::exec::CommandResult;
 use crate::keymap::{default_keymap, Keymap};
 
 // local const
-use crate::Interval;
 use crate::DEFAULT_TAB_SIZE;
+use crate::{Interval, Pause};
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
@@ -56,11 +55,12 @@ pub struct View {
     is_only_diffline: bool,
     enable_summary_char: bool,
     log_path: String,
+    pause: Pause,
 }
 
 ///
 impl View {
-    pub fn new(interval: Interval) -> Self {
+    pub fn new(interval: Interval, pause: Pause) -> Self {
         Self {
             after_command: "".to_string(),
             interval,
@@ -81,16 +81,12 @@ impl View {
             is_only_diffline: false,
             enable_summary_char: false,
             log_path: "".to_string(),
+            pause,
         }
     }
 
     pub fn set_after_command(mut self, command: String) -> Self {
         self.after_command = command;
-        self
-    }
-
-    pub fn set_interval(mut self, interval: Arc<RwLock<f64>>) -> Self {
-        self.interval = interval;
         self
     }
 
@@ -198,17 +194,16 @@ impl View {
         {
             let input_tx = tx.clone();
             let _ = std::thread::spawn(move || {
-                    // non blocking io
-                    #[cfg(any(target_os = "linux", target_os = "macos"))]
-                    loop {
-                        let _ = send_input(input_tx.clone());
-                    }
+                // non blocking io
+                #[cfg(any(target_os = "linux", target_os = "macos"))]
+                loop {
+                    let _ = send_input(input_tx.clone());
                 }
-            );
+            });
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone());
+        let mut app = App::new(tx, rx, self.interval.clone(), self.pause.clone());
 
         // set keymap
         app.set_keymap(self.keymap.clone());

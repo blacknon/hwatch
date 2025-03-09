@@ -31,7 +31,7 @@ use similar::{ChangeTag, TextDiff};
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::ansi::get_ansi_strip_str;
+use crate::{ansi::get_ansi_strip_str, Pause};
 use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
@@ -192,6 +192,9 @@ pub struct App<'a> {
     interval: Interval,
 
     ///
+    pause: Pause,
+
+    ///
     tab_size: u16,
 
     ///
@@ -236,6 +239,7 @@ impl<'a> App<'a> {
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
         interval: Interval,
+        pause: Pause
     ) -> Self {
         // method at create new view trail.
         Self {
@@ -274,9 +278,10 @@ impl<'a> App<'a> {
             enable_summary_char: false,
 
             interval: interval.clone(),
+            pause: pause.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
-            header_area: HeaderArea::new(*interval.read().unwrap()),
+            header_area: HeaderArea::new(*interval.read().unwrap(), *pause.read().unwrap()),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -714,6 +719,17 @@ impl<'a> App<'a> {
         if cur_interval > 0.5 {
             self.set_interval(cur_interval - 0.5);
         }
+    }
+
+    ///
+    fn toggle_pause(&mut self) {
+        let mut pause = self.pause.write().unwrap();
+        match *pause {
+            true => *pause = false,
+            false => *pause = true,
+        };
+        self.header_area.set_pause(*pause);
+        self.header_area.update();
     }
 
     ///
@@ -1224,6 +1240,7 @@ impl<'a> App<'a> {
                         InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
                         InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
                         InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
+                        InputAction::TogglePause => self.toggle_pause(), // TogglePause
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
                         InputAction::ChangeRegexFilterMode => self.set_input_mode(InputMode::RegexFilter), // Change Filter Mode(regex text).
 
