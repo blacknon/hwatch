@@ -31,13 +31,13 @@ use crate::keymap::{default_keymap, Keymap};
 
 // local const
 use crate::DEFAULT_TAB_SIZE;
-use crate::{Interval, Pause};
+use crate::SharedInterval;
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
 pub struct View {
     after_command: String,
-    interval: Interval,
+    interval: SharedInterval,
     tab_size: u16,
     limit: u32,
     keymap: Keymap,
@@ -55,12 +55,11 @@ pub struct View {
     is_only_diffline: bool,
     enable_summary_char: bool,
     log_path: String,
-    pause: Pause,
 }
 
 ///
 impl View {
-    pub fn new(interval: Interval, pause: Pause) -> Self {
+    pub fn new(interval: SharedInterval) -> Self {
         Self {
             after_command: "".to_string(),
             interval,
@@ -81,7 +80,6 @@ impl View {
             is_only_diffline: false,
             enable_summary_char: false,
             log_path: "".to_string(),
-            pause,
         }
     }
 
@@ -203,7 +201,7 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone(), self.pause.clone());
+        let mut app = App::new(tx, rx, self.interval.clone());
 
         // set keymap
         app.set_keymap(self.keymap.clone());

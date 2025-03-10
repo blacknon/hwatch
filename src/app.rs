@@ -31,7 +31,7 @@ use similar::{ChangeTag, TextDiff};
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::{ansi::get_ansi_strip_str, Pause};
+use crate::ansi::get_ansi_strip_str;
 use crate::{common::{logging_result, DiffMode, OutputMode}, keymap::InputEventContents};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
@@ -46,7 +46,7 @@ use crate::watch::WatchArea;
 // local const
 use crate::HISTORY_WIDTH;
 use crate::DEFAULT_TAB_SIZE;
-use crate::Interval;
+use crate::SharedInterval;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -189,10 +189,7 @@ pub struct App<'a> {
     enable_summary_char: bool,
 
     ///
-    interval: Interval,
-
-    ///
-    pause: Pause,
+    interval: SharedInterval,
 
     ///
     tab_size: u16,
@@ -238,8 +235,7 @@ impl<'a> App<'a> {
     pub fn new(
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
-        interval: Interval,
-        pause: Pause
+        interval: SharedInterval,
     ) -> Self {
         // method at create new view trail.
         Self {
@@ -278,10 +274,9 @@ impl<'a> App<'a> {
             enable_summary_char: false,
 
             interval: interval.clone(),
-            pause: pause.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
-            header_area: HeaderArea::new(*interval.read().unwrap(), *pause.read().unwrap()),
+            header_area: HeaderArea::new(interval.clone()),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -687,14 +682,6 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn set_interval(&mut self, interval: f64) {
-        let mut cur_interval = self.interval.write().unwrap();
-        *cur_interval = interval;
-        self.header_area.set_interval(*cur_interval);
-        self.header_area.update();
-    }
-
-    ///
     pub fn set_mouse_events(&mut self, mouse_events: bool) {
         self.mouse_events = mouse_events;
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
@@ -709,26 +696,19 @@ impl<'a> App<'a> {
 
     ///
     fn increase_interval(&mut self) {
-        let cur_interval = *self.interval.read().unwrap();
-        self.set_interval(cur_interval + 0.5);
+        self.interval.write().unwrap().increase(0.5);
+        self.header_area.update();
     }
 
     ///
     fn decrease_interval(&mut self) {
-        let cur_interval = *self.interval.read().unwrap();
-        if cur_interval > 0.5 {
-            self.set_interval(cur_interval - 0.5);
-        }
+        self.interval.write().unwrap().decrease(0.5);
+        self.header_area.update();
     }
 
     ///
     fn toggle_pause(&mut self) {
-        let mut pause = self.pause.write().unwrap();
-        match *pause {
-            true => *pause = false,
-            false => *pause = true,
-        };
-        self.header_area.set_pause(*pause);
+        self.interval.write().unwrap().toggle_pause();
         self.header_area.update();
     }
 
