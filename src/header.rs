@@ -16,7 +16,7 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::app::{ActiveArea, InputMode};
+use crate::{app::{ActiveArea, InputMode}, SharedInterval};
 use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
 
@@ -31,10 +31,7 @@ pub struct HeaderArea<'a> {
     pub area: tui::layout::Rect,
 
     ///
-    interval: f64,
-
-    ///
-    pause: bool,
+    interval: SharedInterval,
 
     ///
     command: String,
@@ -84,12 +81,11 @@ pub struct HeaderArea<'a> {
 
 /// Header Area Object Trait
 impl<'a> HeaderArea<'a> {
-    pub fn new(interval: f64, pause: bool) -> Self {
+    pub fn new(interval: SharedInterval) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
             interval,
-            pause,
 
             command: "".to_string(),
             timestamp: "".to_string(),
@@ -146,14 +142,6 @@ impl<'a> HeaderArea<'a> {
         self.command = result.command;
         self.timestamp = result.timestamp;
         self.exec_status = result.status;
-    }
-
-    pub fn set_interval(&mut self, interval: f64) {
-        self.interval = interval;
-    }
-
-    pub fn set_pause(&mut self, pause: bool) {
-        self.pause = pause;
     }
 
     pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
@@ -229,10 +217,11 @@ impl<'a> HeaderArea<'a> {
                 .add_modifier(Modifier::BOLD);
         }
 
+        let interval = self.interval.read().unwrap();
         // Get the data to display at header.
-        let interval = match self.pause {
+        let interval = match interval.paused {
             true => "Paused".into(),
-            false => format!("{:.3}", self.interval),
+            false => format!("{:.3}", interval.interval),
         };
 
         // Set Number flag value
