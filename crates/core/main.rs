@@ -9,7 +9,6 @@
 //                 [Create an interface for each Diff Mode #156](https://github.com/blacknon/hwatch/issues/156)
 //                 - DiffModeのPlugin化の布石としての対応
 //                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
-// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 // TODO(blacknon): Github Actionsをきれいにする
 
 // v0.3.xx
@@ -107,12 +106,42 @@ mod view;
 mod watch;
 
 // const
-pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
-type Interval = Arc<RwLock<f64>>;
+type SharedInterval = Arc<RwLock<RunInterval>>;
+
+#[derive(Clone, Debug)]
+struct RunInterval {
+    interval: f64,
+    paused: bool,
+}
+
+impl RunInterval {
+    fn new(interval: f64) -> Self {
+        Self {
+            interval,
+            paused: false,
+        }
+    }
+    fn increase(&mut self, seconds: f64) {
+        self.interval += seconds;
+    }
+    fn decrease(&mut self, seconds: f64) {
+        if self.interval > seconds {
+            self.interval -= seconds;
+        }
+    }
+    fn toggle_pause(&mut self) {
+        self.paused = !self.paused;
+    }
+}
+impl Default for RunInterval {
+    fn default() -> Self {
+        Self::new(2.0)
+    }
+}
 
 // const at Windows
 #[cfg(windows)]
@@ -486,10 +515,10 @@ fn main() {
     let (tx, rx) = unbounded();
 
     // interval
-    let override_interval: f64 = *matcher
-        .get_one::<f64>("interval")
-        .unwrap_or(&DEFAULT_INTERVAL);
-    let interval = Interval::new(override_interval.into());
+    let shared_interval: SharedInterval = match matcher.get_one::<f64>("interval") {
+        Some(override_interval) => SharedInterval::new(RunInterval::new(*override_interval).into()),
+        None => SharedInterval::default(),
+    };
 
     // history limit
     let default_limit: u32 = HISTORY_LIMIT.parse().unwrap();
@@ -566,28 +595,34 @@ fn main() {
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
-        let interval = interval.clone();
+        let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
-            // Create cmd..
-            let mut exe = exec::ExecuteCommand::new(tx.clone());
+            let run_interval = run_interval_ptr.read().expect("Non poisoned block");
+            let paused = run_interval.paused.clone();
+            let interval = run_interval.interval.clone();
+            drop(run_interval); // We manually drop here or else it locks anything else from reading/writing the interval
 
-            // Set shell command
-            exe.shell_command = shell_command.clone();
+            if paused == false {
+                // Create cmd..
+                let mut exe = exec::ExecuteCommand::new(tx.clone());
 
-            // Set command
-            exe.command = command.clone();
+                // Set shell command
+                exe.shell_command = shell_command.clone();
 
-            // Set compress
-            exe.is_compress = compress;
+                // Set command
+                exe.command = command.clone();
 
-            // Set is exec flag.
-            exe.is_exec = is_exec;
+                // Set compress
+                exe.is_compress = compress;
 
-            // Exec command
-            exe.exec_command();
+                // Set is exec flag.
+                exe.is_exec = is_exec;
 
-            let sleep_interval = *interval.read().unwrap();
-            std::thread::sleep(Duration::from_secs_f64(sleep_interval));
+                // Exec command
+                exe.exec_command();
+            }
+
+            std::thread::sleep(Duration::from_secs_f64(interval));
         });
     }
 
@@ -595,9 +630,7 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new(interval.clone())
-            // Set interval on view.header
-            .set_interval(interval)
+        let mut view = view::View::new(shared_interval.clone())
             .set_tab_size(tab_size)
             .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
@@ -656,5 +689,24 @@ fn main() {
 
         // start batch.
         let _res = batch.run();
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_run_interval() {
+        let mut actual = RunInterval::default();
+        assert_eq!(actual.paused, false);
+        assert_eq!(actual.interval, 2.0);
+        actual.increase(1.5);
+        actual.toggle_pause();
+        assert_eq!(actual.paused, true);
+        assert_eq!(actual.interval, 3.5);
+        actual.decrease(0.5);
+        actual.toggle_pause();
+        assert_eq!(actual.paused, false);
+        assert_eq!(actual.interval, 3.0);
     }
 }
