@@ -48,6 +48,16 @@ tokio = { version = "1.16", features = ["full"] }
 unicode-segmentation = "1.10"
 unicode-truncate = "1"
 unicode-width = "=0.1.13"
+hwatch-diffmode = { version = "0.3.19", path = "crates/diffmode" }
+hwatch-ansi = { version = "0.3.19", path = "crates/ansi" }
+
+[[bin]]
+bench = false
+path = "crates/core/main.rs"
+name = "hwatch"
+
+[workspace]
+members = ["crates/ansi", "crates/diffmode"]
 
 [target.'cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))'.dependencies]
 termios = "0.3"

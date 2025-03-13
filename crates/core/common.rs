@@ -17,15 +17,6 @@ use crate::exec::{CommandResult, CommandResultData};
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum DiffMode {
-    Disable,
-    Watch,
-    Line,
-    Word,
-}
-
-///
-#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OutputMode {
     Output,
     Stdout,

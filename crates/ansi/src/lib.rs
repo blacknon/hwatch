@@ -1,6 +1,8 @@
 // Copyright (c) 2024 Blacknon.
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
+extern crate ratatui as tui;
+
 use ansi_parser::{AnsiParser, AnsiSequence, Output};
 use termwiz::cell::{Blink, Intensity, Underline};
 use termwiz::color::ColorSpec;
@@ -9,9 +11,9 @@ use termwiz::escape::{
     parser::Parser,
     Action, ControlCode,
 };
-use tui::style::{Color, Modifier, Style};
-use tui::text::{Span,Text};
 use tui::prelude::Line;
+use tui::style::{Color, Modifier, Style};
+use tui::text::{Span, Text};
 
 /// Converts ANSI-escaped strings to tui-rs compatible text
 pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
@@ -127,7 +129,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                             let rgb_tuple = rgb.to_srgb_u8();
                             span_style =
                                 span_style.bg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
-                        },
+                        }
                     },
                     _ => {}
                 }

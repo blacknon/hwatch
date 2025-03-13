@@ -1081,6 +1081,8 @@ dependencies = [
  "flate2",
  "futures",
  "heapless",
+ "hwatch-ansi",
+ "hwatch-diffmode",
  "nix 0.29.0",
  "question",
  "ratatui",
@@ -1097,6 +1099,24 @@ dependencies = [
  "unicode-segmentation",
  "unicode-truncate",
  "unicode-width",
+]
+
+[[package]]
+name = "hwatch-ansi"
+version = "0.3.19"
+dependencies = [
+ "ansi-parser",
+ "heapless",
+ "ratatui",
+ "termwiz",
+]
+
+[[package]]
+name = "hwatch-diffmode"
+version = "0.3.19"
+dependencies = [
+ "ansi_term",
+ "ratatui",
 ]
 
 [[package]]

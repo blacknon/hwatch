@@ -41,8 +41,10 @@ use crate::DEFAULT_TAB_SIZE;
 // local module
 use crate::ansi::gen_ansi_all_set_str;
 use crate::ansi::get_ansi_strip_str;
-use crate::common::{DiffMode, OutputMode};
+use crate::common::OutputMode;
+use crate::diffmode_plane::DiffModeAtPlane;
 use crate::exec::CommandResult;
+use hwatch_diffmode::DiffMode;
 
 // output return type
 enum PrintData<'a> {
@@ -105,7 +107,7 @@ where
 
 pub struct Printer {
     // diff mode.
-    diff_mode: DiffMode,
+    diff_mode: Box<dyn DiffMode>,
 
     // output mode.
     output_mode: OutputMode,
@@ -136,9 +138,9 @@ pub struct Printer {
 }
 
 impl Printer {
-    pub fn new() -> Self {
+    pub fn new(diffmode: Box<dyn DiffMode>) -> Self {
         Self {
-            diff_mode: DiffMode::Disable,
+            diff_mode: diffmode,
             output_mode: OutputMode::Output,
             is_batch: false,
             is_color: false,
@@ -240,8 +242,8 @@ impl Printer {
         }
     }
 
-    // Plane Output
-    // ====================
+    // // Plane Output
+    // // ====================
     /// generate output at DiffMOde::Disable
     fn gen_plane_output<'a>(&mut self, dest: &str) -> PrintData<'a> {
         // tab expand
@@ -254,6 +256,10 @@ impl Printer {
             }
         }
 
+        // ------
+        // TODO: ここより上はお決まりの処理(あとで共通化・リファクタする)
+        //
+
         if self.is_batch {
             return self.create_plane_output_batch(&text);
         } else {
@@ -261,76 +267,76 @@ impl Printer {
         }
     }
 
+    // ///
+    // fn create_plane_output_batch<'a>(&mut self, text: &str) -> PrintData<'a> {
+    //     //
+    //     let mut result = Vec::new();
+
+    //     //
+    //     let header_width = text.split('\n').count().to_string().chars().count();
+    //     let mut counter = 1;
+
+    //     // split line
+    //     for l in text.split('\n') {
+    //         let mut line = String::new();
+    //         if self.is_line_number {
+    //             line.push_str(&gen_counter_str(
+    //                 self.is_color,
+    //                 counter,
+    //                 header_width,
+    //                 DifferenceType::Same,
+    //             ));
+    //         }
+
+    //         line.push_str(&l);
+    //         result.push(line);
+
+    //         counter += 1;
+    //     }
+
+    //     return PrintData::Strings(result);
+    // }
+
     ///
-    fn create_plane_output_batch<'a>(&mut self, text: &str) -> PrintData<'a> {
-        //
-        let mut result = Vec::new();
+    // fn create_plane_output_watch<'a>(&mut self, text: &str) -> PrintData<'a> {
+    //     //
+    //     let mut result = Vec::new();
 
-        //
-        let header_width = text.split('\n').count().to_string().chars().count();
-        let mut counter = 1;
+    //     //
+    //     let header_width = text.split('\n').count().to_string().chars().count();
+    //     let mut counter = 1;
 
-        // split line
-        for l in text.split('\n') {
-            let mut line = String::new();
-            if self.is_line_number {
-                line.push_str(&gen_counter_str(
-                    self.is_color,
-                    counter,
-                    header_width,
-                    DifferenceType::Same,
-                ));
-            }
+    //     // split line
+    //     for mut l in text.split('\n') {
+    //         if l.is_empty() {
+    //             l = "\u{200B}";
+    //         }
 
-            line.push_str(&l);
-            result.push(line);
+    //         let mut line = vec![];
 
-            counter += 1;
-        }
+    //         if self.is_line_number {
+    //             line.push(Span::styled(
+    //                 format!("{counter:>header_width$} | "),
+    //                 Style::default().fg(Color::DarkGray),
+    //             ));
+    //         }
 
-        return PrintData::Strings(result);
-    }
+    //         if self.is_color {
+    //             let data = ansi::bytes_to_text(format!("{l}\n").as_bytes());
 
-    ///
-    fn create_plane_output_watch<'a>(&mut self, text: &str) -> PrintData<'a> {
-        //
-        let mut result = Vec::new();
+    //             for d in data.lines {
+    //                 line.extend(d.spans);
+    //             }
+    //         } else {
+    //             line.push(Span::from(String::from(l)));
+    //         }
 
-        //
-        let header_width = text.split('\n').count().to_string().chars().count();
-        let mut counter = 1;
+    //         result.push(Line::from(line));
+    //         counter += 1;
+    //     }
 
-        // split line
-        for mut l in text.split('\n') {
-            if l.is_empty() {
-                l = "\u{200B}";
-            }
-
-            let mut line = vec![];
-
-            if self.is_line_number {
-                line.push(Span::styled(
-                    format!("{counter:>header_width$} | "),
-                    Style::default().fg(Color::DarkGray),
-                ));
-            }
-
-            if self.is_color {
-                let data = ansi::bytes_to_text(format!("{l}\n").as_bytes());
-
-                for d in data.lines {
-                    line.extend(d.spans);
-                }
-            } else {
-                line.push(Span::from(String::from(l)));
-            }
-
-            result.push(Line::from(line));
-            counter += 1;
-        }
-
-        return PrintData::Lines(result);
-    }
+    //     return PrintData::Lines(result);
+    // }
 
     // Watch Diff Output
     // ====================
@@ -375,6 +381,9 @@ impl Printer {
             text_src.push_str(l);
             text_src.push_str("\n");
         }
+
+        // ------
+        // ここまではお決まりの処理(あとで共通化・リファクタする)
 
         // create text vector
         let mut vec_src: Vec<&str> = text_src.lines().collect();
