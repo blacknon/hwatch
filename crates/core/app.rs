@@ -49,9 +49,9 @@ use crate::{
 };
 
 // local const
-use crate::Interval;
-use crate::DEFAULT_TAB_SIZE;
 use crate::HISTORY_WIDTH;
+use crate::DEFAULT_TAB_SIZE;
+use crate::SharedInterval;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -194,7 +194,7 @@ pub struct App<'a> {
     enable_summary_char: bool,
 
     ///
-    interval: Interval,
+    interval: SharedInterval,
 
     ///
     tab_size: u16,
@@ -237,7 +237,7 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl<'a> App<'a> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: Interval) -> Self {
+    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: SharedInterval) -> Self {
         // method at create new view trail.
         Self {
             keymap: default_keymap(),
@@ -277,7 +277,7 @@ impl<'a> App<'a> {
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
-            header_area: HeaderArea::new(*interval.read().unwrap()),
+            header_area: HeaderArea::new(interval.clone()),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -696,14 +696,6 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn set_interval(&mut self, interval: f64) {
-        let mut cur_interval = self.interval.write().unwrap();
-        *cur_interval = interval;
-        self.header_area.set_interval(*cur_interval);
-        self.header_area.update();
-    }
-
-    ///
     pub fn set_mouse_events(&mut self, mouse_events: bool) {
         self.mouse_events = mouse_events;
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
@@ -718,16 +710,20 @@ impl<'a> App<'a> {
 
     ///
     fn increase_interval(&mut self) {
-        let cur_interval = *self.interval.read().unwrap();
-        self.set_interval(cur_interval + 0.5);
+        self.interval.write().unwrap().increase(0.5);
+        self.header_area.update();
     }
 
     ///
     fn decrease_interval(&mut self) {
-        let cur_interval = *self.interval.read().unwrap();
-        if cur_interval > 0.5 {
-            self.set_interval(cur_interval - 0.5);
-        }
+        self.interval.write().unwrap().decrease(0.5);
+        self.header_area.update();
+    }
+
+    ///
+    fn toggle_pause(&mut self) {
+        self.interval.write().unwrap().toggle_pause();
+        self.header_area.update();
     }
 
     ///
@@ -1322,11 +1318,10 @@ impl<'a> App<'a> {
                         InputAction::ToggleWrapMode => self.watch_area.toggle_wrap_mode(),
                         InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
                         InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
-                        InputAction::ToggleHistorySummary => {
-                            self.set_history_summary(!self.is_history_summary)
-                        } // ToggleHistorySummary
-                        InputAction::IntervalPlus => self.increase_interval(),      // IntervalPlus
-                        InputAction::IntervalMinus => self.decrease_interval(),     // IntervalMinus
+                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
+                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
+                        InputAction::TogglePause => self.toggle_pause(), // TogglePause
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
                         InputAction::ChangeRegexFilterMode => {
                             self.set_input_mode(InputMode::RegexFilter)
