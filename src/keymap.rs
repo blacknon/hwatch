@@ -2,12 +2,15 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use std::{collections::HashMap, fmt::Debug};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState, MouseEvent, MouseButton, MouseEventKind};
+use config::{Config, ConfigError, FileFormat};
+use crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
+};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
-use serde::{Deserialize, Serialize, de};
-use config::{Config, ConfigError, FileFormat};
+use serde::{de, Deserialize, Serialize};
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::errors::HwatchError;
 
@@ -30,7 +33,7 @@ enum InputType {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
 pub struct Input {
-    input: InputType
+    input: InputType,
 }
 
 impl Input {
@@ -50,7 +53,7 @@ impl Input {
                 } else {
                     format!("{}-{}", modifiers, code)
                 }
-            },
+            }
 
             // mouse
             InputType::Mouse(mouse) => {
@@ -71,14 +74,14 @@ impl Input {
                 };
 
                 format!("mouse-{}", action)
-            },
+            }
         };
 
-        return result
+        return result;
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 41] = [
+const DEFAULT_KEYMAP: [&str; 45] = [
     "up=up",  // Up
     "down=down", // Down
     "pageup=page_up", // PageUp
@@ -88,6 +91,10 @@ const DEFAULT_KEYMAP: [&str; 41] = [
     "tab=toggle_forcus", // ToggleForcus: Tab
     "left=forcus_watch_pane", // ForcusWatchPane: Left
     "right=forcus_history_pane", // ForcusHistoryPane: Right
+    "alt-left=scroll_left",                     // Watch window scrll left: Alt + Left
+    "shift-alt-left=scroll_horizontal_home",    //
+    "alt-right=scroll_right",                   // Watch window scrll right: Alt + Right
+    "shift-alt-right=scroll_horizontal_end",    //
     "q=quit", // Quit: q
     "esc=reset", // Reset: ESC
     "ctrl-c=cancel", // Cancel: Ctrl + c
@@ -239,24 +246,23 @@ impl<'de> Deserialize<'de> for Input {
         let tokens = value.split('-').collect::<Vec<&str>>();
         let input = match tokens[0] {
             "mouse" => {
-                let mouse = Mouse::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
+                let mouse =
+                    Mouse::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
                 Input {
                     input: InputType::Mouse(mouse),
                 }
-            },
+            }
             _ => {
                 let key = Key::deserialize(de::value::StrDeserializer::<D::Error>::new(&value))?;
                 Input {
                     input: InputType::Key(key),
                 }
-            },
+            }
         };
 
         Ok(input)
     }
 }
-
-
 
 impl<'de> Deserialize<'de> for Key {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -355,16 +361,14 @@ impl<'de> Deserialize<'de> for Mouse {
             }
         };
 
-        Ok(Mouse {action})
+        Ok(Mouse { action })
     }
 }
 
 impl From<MouseEvent> for Input {
     fn from(value: MouseEvent) -> Self {
         Self {
-            input: InputType::Mouse(Mouse {
-                action: value.kind,
-            }),
+            input: InputType::Mouse(Mouse { action: value.kind }),
         }
     }
 }
@@ -415,10 +419,8 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
         builder = builder.add_source(config::File::from_str(ko, FileFormat::Ini).required(false));
     }
 
-    let config = builder
-        .build()?;
-    let inputs = config
-        .try_deserialize::<HashMap<Input, InputAction>>()?;
+    let config = builder.build()?;
+    let inputs = config.try_deserialize::<HashMap<Input, InputAction>>()?;
 
     for (k, a) in inputs {
         match k.input {
@@ -436,7 +438,7 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
                         action: a,
                     },
                 );
-            },
+            }
             InputType::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.action,
@@ -451,7 +453,7 @@ fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap
                         action: a,
                     },
                 );
-            },
+            }
         }
     }
 
@@ -489,6 +491,20 @@ pub enum InputAction {
     WatchPaneDown,
     #[serde(rename = "history_pane_down")]
     HistoryPaneDown,
+
+    // Scroll right
+    // ==========
+    #[serde(rename = "scroll_right")]
+    ScrollRight,
+    #[serde(rename = "scroll_horizontal_home")]
+    ScrollHorizontalHome,
+
+    // Scroll left
+    // ==========
+    #[serde(rename = "scroll_left")]
+    ScrollLeft,
+    #[serde(rename = "scroll_horizontal_end")]
+    ScrollHorizontalEnd,
 
     // PageUp
     // ==========
@@ -621,6 +637,11 @@ pub enum InputAction {
     #[serde(rename = "set_output_mode_stderr")]
     SetOutputModeStderr,
 
+    // Toggle Wrap
+    // ==========
+    #[serde(rename = "toggle_wrap_mode")]
+    ToggleWrapMode,
+
     // Keyword search
     // ==========
     #[serde(rename = "next_keyword")]
@@ -683,6 +704,14 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::WatchPaneDown => "Move down in watch pane".to_string(),
         InputAction::HistoryPaneDown => "Move down in history pane".to_string(),
 
+        // Shift Right
+        InputAction::ScrollRight => "Move Right".to_string(),
+        InputAction::ScrollHorizontalEnd => "Move Right end".to_string(),
+
+        // Shift Left
+        InputAction::ScrollLeft => "Move Left".to_string(),
+        InputAction::ScrollHorizontalHome => "Move Left home".to_string(),
+
         // PageUp
         InputAction::PageUp => "Move page up".to_string(),
         InputAction::WatchPanePageUp => "Move page up in watch pane".to_string(),
@@ -741,7 +770,9 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Border
         InputAction::ToggleBorder => "Toggle enable/disable border".to_string(),
         InputAction::ToggleScrollBar => "Toggle enable/disable scroll bar".to_string(),
-        InputAction::ToggleBorderWithScrollBar => "Toggle enable/disable border and scroll bar".to_string(),
+        InputAction::ToggleBorderWithScrollBar => {
+            "Toggle enable/disable border and scroll bar".to_string()
+        }
 
         // Diff Mode
         InputAction::ToggleDiffMode => "Toggle diff mode".to_string(),
@@ -760,6 +791,9 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         // Keyword search
         InputAction::NextKeyword => "Forcus next keyword".to_string(),
         InputAction::PrevKeyword => "Forcus previous keyword".to_string(),
+
+        // Toggle Wrap
+        InputAction::ToggleWrapMode => "Toggle wrap mode".to_string(),
 
         // HistorySummary
         InputAction::ToggleHistorySummary => "Toggle history summary".to_string(),
@@ -783,5 +817,4 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::MouseMoveUp => "Mouse Move Up".to_string(),
         InputAction::MouseMoveDown => "Mouse Move Down".to_string(),
     }
-
 }
