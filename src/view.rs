@@ -4,16 +4,15 @@
 
 // module
 use crossbeam_channel::{Receiver, Sender};
-use std::time::Duration;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::time::Duration;
 use std::{
     error::Error,
     io,
-    sync::{Arc, RwLock},
 };
 use tui::{backend::CrosstermBackend, Terminal};
 
@@ -25,23 +24,25 @@ use std::{
 };
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use std::{io::stdin, os::unix::io::AsRawFd};
 
 // local module
 use crate::app::App;
 use crate::common::{DiffMode, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
-use crate::keymap::{Keymap, default_keymap};
+use crate::keymap::{default_keymap, Keymap};
 
 // local const
-use crate::Interval;
 use crate::DEFAULT_TAB_SIZE;
+use crate::SharedInterval;
 
 /// Struct at run hwatch on tui
 #[derive(Clone)]
 pub struct View {
     after_command: String,
-    interval: Interval,
+    interval: SharedInterval,
     tab_size: u16,
     limit: u32,
     keymap: Keymap,
@@ -63,7 +64,7 @@ pub struct View {
 
 ///
 impl View {
-    pub fn new(interval: Interval) -> Self {
+    pub fn new(interval: SharedInterval) -> Self {
         Self {
             after_command: "".to_string(),
             interval,
@@ -89,11 +90,6 @@ impl View {
 
     pub fn set_after_command(mut self, command: String) -> Self {
         self.after_command = command;
-        self
-    }
-
-    pub fn set_interval(mut self, interval: Arc<RwLock<f64>>) -> Self {
-        self.interval = interval;
         self
     }
 
@@ -201,13 +197,12 @@ impl View {
         {
             let input_tx = tx.clone();
             let _ = std::thread::spawn(move || {
-                    // non blocking io
-                    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-                    loop {
-                        let _ = send_input(input_tx.clone());
-                    }
+                // non blocking io
+                #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+                loop {
+                    let _ = send_input(input_tx.clone());
                 }
-            );
+            });
         }
 
         // Create App
@@ -220,7 +215,7 @@ impl View {
         app.set_after_command(self.after_command.clone());
 
         // set mouse events
-        // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCatpure can be used
+        // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCapture can be used
         // https://github.com/crossterm-rs/crossterm/issues/660
         if cfg!(target_os = "windows") {
             execute!(terminal.backend_mut(), EnableMouseCapture)?;
