@@ -588,13 +588,12 @@ fn main() {
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
-        let run_interval_ptr = 
-      .clone();
+        let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
             let run_interval = run_interval_ptr.read().expect("Non poisoned block");
             let paused = run_interval.paused.clone();
             let interval = run_interval.interval.clone();
-            drop(run_interval);  // We manually drop here or else it locks anything else from reading/writing the interval
+            drop(run_interval); // We manually drop here or else it locks anything else from reading/writing the interval
 
             if paused == false {
                 // Create cmd..
@@ -703,5 +702,4 @@ mod tests {
         assert_eq!(actual.paused, false);
         assert_eq!(actual.interval, 3.0);
     }
-
 }
