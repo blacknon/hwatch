@@ -1,0 +1,13 @@
+[package]
+name = "hwatch-ansi"
+version = "0.3.19"
+edition = "2021"
+
+[dependencies]
+ansi-parser = "0.9.0"
+termwiz = "0.22.0"
+ratatui = { version = "0.28.0", default-features = false, features = [
+    'crossterm',
+    'unstable-rendered-line-info',
+] }
+heapless = "0.8.0"

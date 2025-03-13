@@ -3,11 +3,10 @@
 // that can be found in the LICENSE file.
 
 // v0.3.19
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する(un wrap mode)
-//                 [[FR] Disable line wrapping #182](https://github.com/blacknon/hwatch/issues/182)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
+//                 [Create an interface for each Diff Mode #156](https://github.com/blacknon/hwatch/issues/156)
 //                 - DiffModeのPlugin化の布石としての対応
 //                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
 // TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
@@ -60,6 +59,10 @@ extern crate tokio;
 extern crate unicode_segmentation;
 extern crate unicode_width;
 
+// local crate
+extern crate hwatch_ansi;
+extern crate hwatch_diffmode;
+
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 extern crate termios;
 
@@ -83,10 +86,14 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
-mod ansi;
+// mod ansi;
 mod app;
 mod batch;
 mod common;
+mod diffmode_line;
+mod diffmode_plane;
+mod diffmode_watch;
+mod diffmode_word;
 mod errors;
 mod event;
 mod exec;
