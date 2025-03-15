@@ -8,34 +8,70 @@ extern crate ratatui as tui;
 // extern crate hwatch_ansi as ansi;
 
 use ansi_term::Colour;
-use std::any::Any;
-use std::cmp;
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::{borrow::Cow, vec};
 
 use tui::{prelude::Line, style::Color};
 
 // const
-const COLOR_BATCH_LINE_NUMBER_DEFAULT: Colour = Colour::Fixed(240);
-const COLOR_BATCH_LINE_NUMBER_ADD: Colour = Colour::RGB(56, 119, 120);
-const COLOR_BATCH_LINE_NUMBER_REM: Colour = Colour::RGB(118, 0, 0);
-const COLOR_BATCH_LINE_ADD: Colour = Colour::Green;
-const COLOR_BATCH_LINE_REM: Colour = Colour::Red;
-const COLOR_BATCH_LINE_REVERSE_FG: Colour = Colour::White;
-const COLOR_WATCH_LINE_NUMBER_DEFAULT: Color = Color::DarkGray;
-const COLOR_WATCH_LINE_NUMBER_ADD: Color = Color::Rgb(56, 119, 120);
-const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
-const COLOR_WATCH_LINE_ADD: Color = Color::Green;
-const COLOR_WATCH_LINE_REM: Color = Color::Red;
-const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
+pub const COLOR_BATCH_LINE_NUMBER_DEFAULT: Colour = Colour::Fixed(240);
+pub const COLOR_BATCH_LINE_NUMBER_ADD: Colour = Colour::RGB(56, 119, 120);
+pub const COLOR_BATCH_LINE_NUMBER_REM: Colour = Colour::RGB(118, 0, 0);
+pub const COLOR_BATCH_LINE_ADD: Colour = Colour::Green;
+pub const COLOR_BATCH_LINE_REM: Colour = Colour::Red;
+pub const COLOR_BATCH_LINE_REVERSE_FG: Colour = Colour::White;
+pub const COLOR_WATCH_LINE_NUMBER_DEFAULT: Color = Color::DarkGray;
+pub const COLOR_WATCH_LINE_NUMBER_ADD: Color = Color::Rgb(56, 119, 120);
+pub const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
+pub const COLOR_WATCH_LINE_ADD: Color = Color::Green;
+pub const COLOR_WATCH_LINE_REM: Color = Color::Red;
+pub const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
 
 // enum
+
+// OutputVecData is ...
+pub enum OutputVecData<'a> {
+    Lines(Vec<Line<'a>>),
+    Strings(Vec<String>),
+}
+
+// OutputVecElementData is ...
+pub enum OutputVecElementData<'a> {
+    Line(Line<'a>),
+    String(String),
+    None(),
+}
+
+// DifferenceType is ...
 pub enum DifferenceType {
     Same,
     Add,
     Rem,
 }
+
+// NOTE:
+//  以下のコードは、output.rsで前処理コードとして後で追加する
+//     // tab expand dest
+//     let mut text_dest = dest.to_string();
+//     if !self.is_batch {
+//         text_dest = expand_line_tab(dest, self.tab_size);
+//
+//         if !self.is_color {
+//             text_dest = ansi::escape_ansi(&text_dest);
+//         }
+//     }
+//     let text_dest_bytes = text_dest.as_bytes().to_vec();
+//
+//     // tab expand src
+//     let mut text_src = src.to_string();
+//     if !self.is_batch {
+//         text_src = expand_line_tab(src, self.tab_size);
+//
+//         if !self.is_color {
+//             text_src = ansi::escape_ansi(&text_src);
+//         }
+//     }
+//     let text_src_bytes = text_src.as_bytes().to_vec();
 
 pub trait StringExt {
     fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
@@ -86,6 +122,12 @@ pub struct DiffModeOptions {
 
     //
     line_number: bool,
+
+    //
+    word_highlight: bool,
+
+    //
+    only_diffline: bool,
 }
 
 impl DiffModeOptions {
@@ -93,6 +135,8 @@ impl DiffModeOptions {
         Self {
             color: false,
             line_number: false,
+            word_highlight: false,
+            only_diffline: false,
         }
     }
 
@@ -110,6 +154,22 @@ impl DiffModeOptions {
 
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
+    }
+
+    pub fn get_word_highlight(&self) -> bool {
+        self.word_highlight
+    }
+
+    pub fn set_word_highlight(&mut self, word_highlight: bool) {
+        self.word_highlight = word_highlight;
+    }
+
+    pub fn get_only_diffline(&self) -> bool {
+        self.only_diffline
+    }
+
+    pub fn set_only_diffline(&mut self, only_diffline: bool) {
+        self.only_diffline = only_diffline;
     }
 }
 
@@ -167,4 +227,30 @@ pub fn gen_counter_str(
 
     let width = header_width + prefix_width + suffix_width;
     format!("{counter_str:>width$}{seprator}")
+}
+
+pub fn expand_output_vec_element_data(
+    is_batch: bool,
+    data: Vec<OutputVecElementData>,
+) -> OutputVecData {
+    let mut lines = Vec::new();
+    let mut strings = Vec::new();
+
+    for element in data {
+        match element {
+            OutputVecElementData::Line(line) => {
+                lines.push(line);
+            }
+            OutputVecElementData::String(string) => {
+                strings.push(string);
+            }
+            _ => {}
+        }
+    }
+
+    if is_batch {
+        return OutputVecData::Strings(strings);
+    } else {
+        return OutputVecData::Lines(lines);
+    };
 }
