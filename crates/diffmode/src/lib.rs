@@ -73,6 +73,8 @@ pub enum DifferenceType {
 //     }
 //     let text_src_bytes = text_src.as_bytes().to_vec();
 
+// TODO: headerで出力する文字列取得用のMethodを追加する
+
 pub trait StringExt {
     fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
 }
