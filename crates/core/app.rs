@@ -1521,7 +1521,11 @@ impl<'a> App<'a> {
 
     ///
     fn toggle_diff_mode(&mut self) {
-        self.diff_mode = std::cmp::max(self.diff_mode + 1, self.diff_modes.len() - 1);
+        self.diff_mode = if self.diff_mode + 1 > self.diff_modes.len() - 1 {
+            0
+        } else {
+            self.diff_mode + 1
+        };
 
         self.header_area
             .set_diff_mode(self.diff_modes[self.diff_mode].clone());
