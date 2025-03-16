@@ -76,16 +76,6 @@ impl DiffMode for DiffModeAtPlane {
         //
         let mut result = Vec::new();
 
-        // NOTE: batchで必要になる以下の処理は、この処理の呼び出し元で対処する
-        // if !self.is_batch {
-        //     text = expand_line_tab(dest, self.tab_size);
-        //
-        //     if !self.is_color {
-        //         text = ansi::escape_ansi(&text);
-        //     }
-        // }
-
-        //
         //
         let header_width: usize = if self.options.get_line_number() {
             dest.split('\n').count().to_string().chars().count() + 2
@@ -115,6 +105,14 @@ impl DiffMode for DiffModeAtPlane {
         }
 
         return result;
+    }
+
+    fn get_header_text(&self) -> String {
+        return String::from("None");
+    }
+
+    fn get_support_only_diffline(&self) -> bool {
+        return false;
     }
 
     fn set_option(&mut self, options: DiffModeOptions) {

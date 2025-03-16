@@ -19,6 +19,7 @@ use crossterm::{
 };
 use regex::Regex;
 use similar::{ChangeTag, TextDiff};
+use std::sync::{Arc, Mutex};
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -33,25 +34,26 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::ansi::get_ansi_strip_str;
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea, HistorySummary};
+use crate::hwatch_ansi::get_ansi_strip_str;
+use crate::hwatch_diffmode::DiffMode;
 use crate::keymap::{default_keymap, InputAction, Keymap};
 use crate::output;
 use crate::watch::WatchArea;
 use crate::{
-    common::{logging_result, DiffMode, OutputMode},
+    common::{logging_result, OutputMode},
     keymap::InputEventContents,
 };
 
 // local const
-use crate::HISTORY_WIDTH;
-use crate::DEFAULT_TAB_SIZE;
 use crate::SharedInterval;
+use crate::DEFAULT_TAB_SIZE;
+use crate::HISTORY_WIDTH;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -170,8 +172,11 @@ pub struct App<'a> {
     ///
     output_mode: OutputMode,
 
+    //
+    diff_mode: usize,
+
     ///
-    diff_mode: DiffMode,
+    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
 
     ///
     is_only_diffline: bool,
@@ -237,7 +242,16 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl<'a> App<'a> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: SharedInterval) -> Self {
+    pub fn new(
+        tx: Sender<AppEvent>,
+        rx: Receiver<AppEvent>,
+        interval: SharedInterval,
+        diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+    ) -> Self {
+        // Create Default DiffMode
+        let diff_mode_counter = 0;
+        let mutex_diff_mode = Arc::clone(&diff_modes[diff_mode_counter]);
+
         // method at create new view trail.
         Self {
             keymap: default_keymap(),
@@ -265,7 +279,8 @@ impl<'a> App<'a> {
 
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
-            diff_mode: DiffMode::Disable,
+            diff_mode: diff_mode_counter,
+            diff_modes: diff_modes,
             is_only_diffline: false,
 
             results: HashMap::new(),
@@ -277,7 +292,7 @@ impl<'a> App<'a> {
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
-            header_area: HeaderArea::new(interval.clone()),
+            header_area: HeaderArea::new(interval.clone(), mutex_diff_mode.clone()),
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -286,7 +301,7 @@ impl<'a> App<'a> {
 
             mouse_events: false,
 
-            printer: output::Printer::new(),
+            printer: output::Printer::new(mutex_diff_mode.clone()),
 
             done: false,
             logfile: "".to_string(),
@@ -314,7 +329,7 @@ impl<'a> App<'a> {
         self.printer
             .set_batch(false)
             .set_color(self.ansi_color)
-            .set_diff_mode(self.diff_mode)
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone())
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
@@ -544,7 +559,10 @@ impl<'a> App<'a> {
             src = &results[&previous_dst].command_result;
         } else if previous_dst == 0
             && self.is_only_diffline
-            && matches!(self.diff_mode, DiffMode::Line | DiffMode::Word)
+            && self.diff_modes[self.diff_mode]
+                .lock()
+                .unwrap()
+                .get_support_only_diffline()
         {
             src = &results[&0].command_result;
         }
@@ -552,12 +570,16 @@ impl<'a> App<'a> {
         let output_data = self.printer.get_watch_text(dest, src);
 
         self.watch_area.is_line_number = self.line_number;
-        match self.diff_mode {
-            DiffMode::Disable | DiffMode::Watch => {
+        match self.diff_modes[self.diff_mode]
+            .lock()
+            .unwrap()
+            .get_support_only_diffline()
+        {
+            false => {
                 self.watch_area.is_line_diff_head = false;
             }
 
-            DiffMode::Line | DiffMode::Word => {
+            true => {
                 self.watch_area.is_line_diff_head = true;
             }
         }
@@ -727,13 +749,15 @@ impl<'a> App<'a> {
     }
 
     ///
-    pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
+    pub fn set_diff_mode(&mut self, diff_mode: usize) {
         self.diff_mode = diff_mode;
 
-        self.header_area.set_diff_mode(diff_mode);
+        self.header_area
+            .set_diff_mode(self.diff_modes[diff_mode].clone());
         self.header_area.update();
 
-        self.printer.set_diff_mode(diff_mode);
+        self.printer
+            .set_diff_mode(self.diff_modes[diff_mode].clone());
 
         let selected = self.history_area.get_state_select();
 
@@ -806,37 +830,27 @@ impl<'a> App<'a> {
 
             let mut is_push = true;
             if self.is_filtered {
-                let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+                let result_text = match (
+                    self.output_mode,
+                    self.diff_modes[self.diff_mode]
+                        .lock()
+                        .unwrap()
+                        .get_support_only_diffline(),
+                    self.is_only_diffline,
+                ) {
                     // Diff Only
-                    (
-                        OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr,
-                        DiffMode::Line | DiffMode::Word,
-                        true,
-                    ) => result.get_diff_only_data(self.ansi_color),
+                    (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
+                        result.get_diff_only_data(self.ansi_color)
+                    }
 
                     // Output
-                    (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => {
-                        result.command_result.get_output()
-                    }
-                    (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => {
-                        result.command_result.get_output()
-                    }
+                    (OutputMode::Output, _, _) => result.command_result.get_output(),
 
                     // Stdout
-                    (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => {
-                        result.command_result.get_stdout()
-                    }
-                    (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => {
-                        result.command_result.get_stdout()
-                    }
+                    (OutputMode::Stdout, _, _) => result.command_result.get_stdout(),
 
                     // Stderr
-                    (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => {
-                        result.command_result.get_stderr()
-                    }
-                    (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => {
-                        result.command_result.get_stderr()
-                    }
+                    (OutputMode::Stderr, _, _) => result.command_result.get_stderr(),
                 };
 
                 match self.is_regex_filter {
@@ -1032,35 +1046,31 @@ impl<'a> App<'a> {
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
-            let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+            let result_text = match (
+                self.output_mode,
+                self.diff_modes[self.diff_mode]
+                    .lock()
+                    .unwrap()
+                    .get_support_only_diffline(),
+                self.is_only_diffline,
+            ) {
                 // Diff Only
-                (
-                    OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr,
-                    DiffMode::Line | DiffMode::Word,
-                    true,
-                ) => self.results[&result_index].get_diff_only_data(self.ansi_color),
+                (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
+                    self.results[&result_index].get_diff_only_data(self.ansi_color)
+                }
 
                 // Output
-                (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => {
-                    self.results[&result_index].command_result.get_output()
-                }
-                (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => {
+                (OutputMode::Output, _, _) => {
                     self.results[&result_index].command_result.get_output()
                 }
 
                 // Stdout
-                (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => {
-                    self.results[&result_index].command_result.get_stdout()
-                }
-                (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => {
+                (OutputMode::Stdout, _, _) => {
                     self.results[&result_index].command_result.get_stdout()
                 }
 
                 // Stderr
-                (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => {
-                    self.results[&result_index].command_result.get_stderr()
-                }
-                (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => {
+                (OutputMode::Stderr, _, _) => {
                     self.results[&result_index].command_result.get_stderr()
                 }
             };
@@ -1298,14 +1308,14 @@ impl<'a> App<'a> {
                             self.set_scroll_bar(!self.is_scroll_bar);
                         } // ToggleBorderWithScrollBar
                         InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
-                        InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
-                        InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
-                        InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
-                        InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
+                        InputAction::SetDiffModePlane => self.set_diff_mode(0), // SetDiffModePlane
+                        InputAction::SetDiffModeWatch => self.set_diff_mode(1), // SetDiffModeWatch
+                        InputAction::SetDiffModeLine => self.set_diff_mode(2),  // SetDiffModeLine
+                        InputAction::SetDiffModeWord => self.set_diff_mode(3),  // SetDiffModeWord
                         InputAction::SetDiffOnly => {
                             self.set_is_only_diffline(!self.is_only_diffline)
                         } // SetOnlyDiffLine
-                        InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
+                        InputAction::ToggleOutputMode => self.toggle_output(),  // ToggleOutputMode
                         InputAction::SetOutputModeOutput => {
                             self.set_output_mode(OutputMode::Output)
                         } // SetOutputModeOutput
@@ -1318,10 +1328,12 @@ impl<'a> App<'a> {
                         InputAction::ToggleWrapMode => self.watch_area.toggle_wrap_mode(),
                         InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
                         InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
-                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
-                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
-                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
-                        InputAction::TogglePause => self.toggle_pause(), // TogglePause
+                        InputAction::ToggleHistorySummary => {
+                            self.set_history_summary(!self.is_history_summary)
+                        } // ToggleHistorySummary
+                        InputAction::IntervalPlus => self.increase_interval(),      // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(),     // IntervalMinus
+                        InputAction::TogglePause => self.toggle_pause(),            // TogglePause
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
                         InputAction::ChangeRegexFilterMode => {
                             self.set_input_mode(InputMode::RegexFilter)
@@ -1509,12 +1521,14 @@ impl<'a> App<'a> {
 
     ///
     fn toggle_diff_mode(&mut self) {
-        match self.diff_mode {
-            DiffMode::Disable => self.set_diff_mode(DiffMode::Watch),
-            DiffMode::Watch => self.set_diff_mode(DiffMode::Line),
-            DiffMode::Line => self.set_diff_mode(DiffMode::Word),
-            DiffMode::Word => self.set_diff_mode(DiffMode::Disable),
-        }
+        self.diff_mode = std::cmp::max(self.diff_mode + 1, self.diff_modes.len() - 1);
+
+        self.header_area
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
+        self.header_area.update();
+
+        self.printer
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
     }
 
     ///

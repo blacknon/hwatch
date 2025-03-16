@@ -65,6 +65,14 @@ impl DiffMode for DiffModeAtWatch {
         }
     }
 
+    fn get_header_text(&self) -> String {
+        return String::from("Watch");
+    }
+
+    fn get_support_only_diffline(&self) -> bool {
+        return false;
+    }
+
     fn set_option(&mut self, options: DiffModeOptions) {
         self.options = options;
     }

@@ -9,6 +9,7 @@ extern crate ratatui as tui;
 
 use ansi_term::Colour;
 use std::fmt::Write;
+use std::sync::{Arc, Mutex};
 use std::{borrow::Cow, vec};
 
 use tui::{prelude::Line, style::Color};
@@ -27,7 +28,8 @@ pub const COLOR_WATCH_LINE_ADD: Color = Color::Green;
 pub const COLOR_WATCH_LINE_REM: Color = Color::Red;
 pub const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
 
-// enum
+// type
+pub type DiffModeMutex = Arc<Mutex<Box<dyn DiffMode>>>;
 
 // OutputVecData is ...
 pub enum OutputVecData<'a> {
@@ -74,6 +76,7 @@ pub enum DifferenceType {
 //     let text_src_bytes = text_src.as_bytes().to_vec();
 
 // TODO: headerで出力する文字列取得用のMethodを追加する
+// TODO: output onlyに対応しているかどうかを出力するMethodを追加する
 
 pub trait StringExt {
     fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
@@ -182,6 +185,12 @@ pub trait DiffMode {
 
     // generate and return diff batch result.
     fn generate_batch_diff(&mut self, dest: &str, src: &str) -> Vec<String>;
+
+    // get header's text
+    fn get_header_text(&self) -> String;
+
+    // get support only diffline
+    fn get_support_only_diffline(&self) -> bool;
 
     // オプション指定用function
     fn set_option(&mut self, options: DiffModeOptions);

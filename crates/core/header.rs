@@ -5,20 +5,24 @@
 // TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える??(v0.3.9)
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
+use std::sync::{Arc, Mutex};
 use tui::{
+    prelude::Line,
     style::{Color, Modifier, Style},
     text::Span,
-
     widgets::Paragraph,
     Frame,
-    prelude::Line,
 };
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::{app::{ActiveArea, InputMode}, SharedInterval};
-use crate::common::{DiffMode, OutputMode};
+use crate::common::OutputMode;
 use crate::exec::CommandResult;
+use crate::{
+    app::{ActiveArea, InputMode},
+    SharedInterval,
+};
+use hwatch_diffmode::DiffMode;
 
 //const
 // const POSITION_X_HELP_TEXT: usize = 47;
@@ -58,7 +62,7 @@ pub struct HeaderArea<'a> {
     active_area: ActiveArea,
 
     ///
-    diff_mode: DiffMode,
+    diff_mode: Arc<Mutex<Box<dyn DiffMode>>>,
 
     ///
     is_only_diffline: bool,
@@ -81,7 +85,7 @@ pub struct HeaderArea<'a> {
 
 /// Header Area Object Trait
 impl<'a> HeaderArea<'a> {
-    pub fn new(interval: SharedInterval) -> Self {
+    pub fn new(interval: SharedInterval, diffmode: Arc<Mutex<Box<dyn DiffMode>>>) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
@@ -99,7 +103,7 @@ impl<'a> HeaderArea<'a> {
 
             active_area: ActiveArea::History,
 
-            diff_mode: DiffMode::Disable,
+            diff_mode: diffmode,
             is_only_diffline: false,
 
             output_mode: OutputMode::Output,
@@ -144,7 +148,7 @@ impl<'a> HeaderArea<'a> {
         self.exec_status = result.status;
     }
 
-    pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
+    pub fn set_diff_mode(&mut self, diff_mode: Arc<Mutex<Box<dyn DiffMode>>>) {
         self.diff_mode = diff_mode;
     }
 
@@ -180,7 +184,8 @@ impl<'a> HeaderArea<'a> {
         // 1 ... `:`
         // self.banner.len() ... banner length
         // 1 ... space
-        let command_width_offset = WIDTH_TEXT_INTERVAL + (2 + 1 + self.banner.len() + 1 + WIDTH_TIMESTAMP);
+        let command_width_offset =
+            WIDTH_TEXT_INTERVAL + (2 + 1 + self.banner.len() + 1 + WIDTH_TIMESTAMP);
         if command_width_offset < width {
             command_width = width - command_width_offset;
             timestamp_width = WIDTH_TIMESTAMP;
@@ -207,7 +212,7 @@ impl<'a> HeaderArea<'a> {
                 InputMode::Filter => self.input_prompt = "/".to_string(),
                 InputMode::RegexFilter => self.input_prompt = "*".to_string(),
 
-                _ => {},
+                _ => {}
             }
 
             filter_keyword_style = Style::default().fg(Color::Gray);
@@ -273,15 +278,10 @@ impl<'a> HeaderArea<'a> {
             ActiveArea::Watch => "Watch".to_string(),
         };
 
-        // Set IsOnlyDiffline value
-        let value_only_diffline = if self.is_only_diffline { "(Only)" } else { "" };
-
         // Set Diff mode value
-        let value_diff = match self.diff_mode {
-            DiffMode::Disable => "None".to_string(),
-            DiffMode::Watch => "Watch".to_string(),
-            DiffMode::Line => "Line".to_string() + value_only_diffline,
-            DiffMode::Word => "Word".to_string() + value_only_diffline,
+        let value_diff: String;
+        {
+            value_diff = self.diff_mode.lock().unwrap().get_header_text()
         };
 
         // Set Color
@@ -320,11 +320,20 @@ impl<'a> HeaderArea<'a> {
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
             // Line number flag
-            Span::raw("["), value_number, Span::raw("]"), Span::raw(" "),
+            Span::raw("["),
+            value_number,
+            Span::raw("]"),
+            Span::raw(" "),
             // Color flag
-            Span::raw("["), value_color, Span::raw("]"), Span::raw(" "),
+            Span::raw("["),
+            value_color,
+            Span::raw("]"),
+            Span::raw(" "),
             // Reverse flag
-            Span::raw("["), value_reverse, Span::raw("]"), Span::raw(" "),
+            Span::raw("["),
+            value_reverse,
+            Span::raw("]"),
+            Span::raw(" "),
             // Output Type
             Span::raw("["),
             // Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),

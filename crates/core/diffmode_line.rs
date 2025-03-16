@@ -73,6 +73,23 @@ impl DiffMode for DiffModeAtLineDiff {
         }
     }
 
+    fn get_header_text(&self) -> String {
+        let header_text = match (
+            self.options.get_word_highlight(),
+            self.options.get_only_diffline(),
+        ) {
+            (true, true) => "Word(Only)",
+            (true, false) => "Word      ",
+            (false, true) => "Line(Only)",
+            (false, false) => "Line      ",
+        };
+        return String::from(header_text);
+    }
+
+    fn get_support_only_diffline(&self) -> bool {
+        return true;
+    }
+
     fn set_option(&mut self, options: DiffModeOptions) {
         self.options = options;
     }
