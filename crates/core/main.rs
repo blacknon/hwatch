@@ -2,13 +2,9 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.19
+// v0.3.20
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
-//                 [Create an interface for each Diff Mode #156](https://github.com/blacknon/hwatch/issues/156)
-//                 - DiffModeのPlugin化の布石としての対応
-//                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
 // TODO(blacknon): Github Actionsをきれいにする
 
 // v0.3.xx
@@ -22,6 +18,12 @@
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
+
+// v0.4.0
+// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
+//                 [Create an interface for each Diff Mode #156](https://github.com/blacknon/hwatch/issues/156)
+//                 - DiffModeのPlugin化の布石としての対応
+//                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
@@ -75,12 +77,13 @@ extern crate serde_json;
 
 // modules
 use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
-use common::{load_logfile, DiffMode};
+use common::load_logfile;
 use crossbeam_channel::unbounded;
+use hwatch_diffmode::DiffMode;
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -92,7 +95,6 @@ mod common;
 mod diffmode_line;
 mod diffmode_plane;
 mod diffmode_watch;
-mod diffmode_word;
 mod errors;
 mod event;
 mod exec;
@@ -543,14 +545,14 @@ fn main() {
     // diff mode
     let diff_mode = if matcher.contains_id("differences") {
         match matcher.get_one::<String>("differences").unwrap().as_str() {
-            "none" => DiffMode::Disable,
-            "watch" => DiffMode::Watch,
-            "line" => DiffMode::Line,
-            "word" => DiffMode::Word,
-            _ => DiffMode::Disable,
+            "none" => 0,
+            "watch" => 1,
+            "line" => 2,
+            "word" => 3,
+            _ => 0,
         }
     } else {
-        DiffMode::Disable
+        0
     };
 
     // Get Add keymap
@@ -626,11 +628,37 @@ fn main() {
         });
     }
 
+    // create diff_mode(plane)
+    let mut diff_mode_plane = diffmode_plane::DiffModeAtPlane::new();
+
+    // create diff_mode(watch)
+    let mut diff_mode_watch = diffmode_watch::DiffModeAtWatch::new();
+
+    // create diff_mode(line)
+    let mut diff_mode_line = diffmode_line::DiffModeAtLineDiff::new();
+    let mut diff_mode_line_options = hwatch_diffmode::DiffModeOptions::new();
+    diff_mode_line_options.set_word_highlight(false);
+    diff_mode_line.set_option(diff_mode_line_options);
+
+    // create diff_mode(word)
+    let mut diff_mode_word = diffmode_line::DiffModeAtLineDiff::new();
+    let mut diff_mode_word_options = hwatch_diffmode::DiffModeOptions::new();
+    diff_mode_word_options.set_word_highlight(true);
+    diff_mode_word.set_option(diff_mode_word_options);
+
+    // set diff_modes
+    let diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> = vec![
+        Arc::new(Mutex::new(Box::new(diff_mode_plane))),
+        Arc::new(Mutex::new(Box::new(diff_mode_watch))),
+        Arc::new(Mutex::new(Box::new(diff_mode_line))),
+        Arc::new(Mutex::new(Box::new(diff_mode_word))),
+    ];
+
     // check batch mode
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new(shared_interval.clone())
+        let mut view = view::View::new(shared_interval.clone(), diff_modes)
             .set_tab_size(tab_size)
             .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
@@ -669,7 +697,7 @@ fn main() {
         let _res = view.start(tx, rx, load_results);
     } else {
         // is batch mode
-        let mut batch = batch::Batch::new(rx)
+        let mut batch = batch::Batch::new(rx, diff_modes)
             .set_beep(matcher.get_flag("beep"))
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)

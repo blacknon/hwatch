@@ -9,6 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{error::Error, io};
 use tui::{backend::CrosstermBackend, Terminal};
@@ -21,10 +22,12 @@ use std::{io::stdin, os::unix::io::AsRawFd};
 
 // local module
 use crate::app::App;
-use crate::common::{DiffMode, OutputMode};
+use crate::common::OutputMode;
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::keymap::{default_keymap, Keymap};
+
+use hwatch_diffmode::DiffMode;
 
 // local const
 use crate::SharedInterval;
@@ -48,7 +51,8 @@ pub struct View {
     line_number: bool,
     reverse: bool,
     output_mode: OutputMode,
-    diff_mode: DiffMode,
+    diff_mode: usize,
+    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
     is_only_diffline: bool,
     enable_summary_char: bool,
     log_path: String,
@@ -56,7 +60,7 @@ pub struct View {
 
 ///
 impl View {
-    pub fn new(interval: SharedInterval) -> Self {
+    pub fn new(interval: SharedInterval, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
         Self {
             after_command: "".to_string(),
             interval,
@@ -73,7 +77,8 @@ impl View {
             line_number: false,
             reverse: false,
             output_mode: OutputMode::Output,
-            diff_mode: DiffMode::Disable,
+            diff_mode: 0,
+            diff_modes: diff_modes,
             is_only_diffline: false,
             enable_summary_char: false,
             log_path: "".to_string(),
@@ -150,7 +155,7 @@ impl View {
         self
     }
 
-    pub fn set_diff_mode(mut self, diff_mode: DiffMode) -> Self {
+    pub fn set_diff_mode(mut self, diff_mode: usize) -> Self {
         self.diff_mode = diff_mode;
         self
     }
@@ -198,7 +203,7 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone());
+        let mut app = App::new(tx, rx, self.interval.clone(), self.diff_modes.clone());
 
         // set keymap
         app.set_keymap(self.keymap.clone());

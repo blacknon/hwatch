@@ -3,13 +3,16 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::Receiver;
-use std::{io, collections::HashMap};
+use std::sync::{Arc, Mutex};
 use std::thread;
+use std::{collections::HashMap, io};
 
-use crate::common::{DiffMode, OutputMode, logging_result};
+use crate::common::{logging_result, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
+
+use hwatch_diffmode::DiffMode;
 
 /// Struct at watch view window.
 pub struct Batch {
@@ -35,7 +38,10 @@ pub struct Batch {
     output_mode: OutputMode,
 
     ///
-    diff_mode: DiffMode,
+    diff_mode: usize,
+
+    ///
+    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
 
     ///
     is_only_diffline: bool,
@@ -52,7 +58,11 @@ pub struct Batch {
 
 impl Batch {
     ///
-    pub fn new(rx: Receiver<AppEvent>) -> Self {
+    pub fn new(rx: Receiver<AppEvent>, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
+        // Create Default DiffMode
+        let diff_mode_counter = 0;
+        let mutex_diff_mode = Arc::clone(&diff_modes[diff_mode_counter]);
+
         Self {
             after_command: "".to_string(),
             line_number: false,
@@ -61,10 +71,11 @@ impl Batch {
             is_reverse: false,
             results: HashMap::new(),
             output_mode: OutputMode::Output,
-            diff_mode: DiffMode::Disable,
+            diff_mode: 0,
+            diff_modes: diff_modes,
             is_only_diffline: false,
             logfile: "".to_string(),
-            printer: output::Printer::new(),
+            printer: output::Printer::new(mutex_diff_mode),
             rx,
         }
     }
@@ -73,7 +84,7 @@ impl Batch {
         self.printer
             .set_batch(true)
             .set_color(self.is_color)
-            .set_diff_mode(self.diff_mode)
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone())
             .set_line_number(self.line_number)
             .set_reverse(self.is_reverse)
             .set_only_diffline(self.is_only_diffline)
@@ -89,10 +100,10 @@ impl Batch {
                     if _exec_return && self.is_beep {
                         println!("\x07")
                     }
-                },
+                }
 
                 // Other event
-                Ok(_) => {},
+                Ok(_) => {}
 
                 // Error
                 Err(_) => {}
@@ -168,7 +179,10 @@ impl Batch {
 
         // print split line
         if self.is_color {
-            println!("\x1b[38;5;240m=====[{:}]=========================\x1b[0m", timestamp_dst);
+            println!(
+                "\x1b[38;5;240m=====[{:}]=========================\x1b[0m",
+                timestamp_dst
+            );
         } else {
             println!("=====[{:}]=========================", timestamp_dst);
         }
@@ -209,7 +223,7 @@ impl Batch {
     }
 
     ///
-    pub fn set_diff_mode(mut self, diff_mode: DiffMode) -> Self {
+    pub fn set_diff_mode(mut self, diff_mode: usize) -> Self {
         self.diff_mode = diff_mode;
         self
     }
@@ -224,6 +238,4 @@ impl Batch {
         self.logfile = logfile;
         self
     }
-
-
 }
