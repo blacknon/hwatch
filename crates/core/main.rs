@@ -88,7 +88,6 @@ use std::thread;
 use std::time::Duration;
 
 // local modules
-// mod ansi;
 mod app;
 mod batch;
 mod common;
@@ -629,10 +628,10 @@ fn main() {
     }
 
     // create diff_mode(plane)
-    let mut diff_mode_plane = diffmode_plane::DiffModeAtPlane::new();
+    let diff_mode_plane = diffmode_plane::DiffModeAtPlane::new();
 
     // create diff_mode(watch)
-    let mut diff_mode_watch = diffmode_watch::DiffModeAtWatch::new();
+    let diff_mode_watch = diffmode_watch::DiffModeAtWatch::new();
 
     // create diff_mode(line)
     let mut diff_mode_line = diffmode_line::DiffModeAtLineDiff::new();
