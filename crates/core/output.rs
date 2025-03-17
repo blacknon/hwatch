@@ -8,8 +8,8 @@
 // TODO: 行・文字差分数の取得を行うための関数を作成する(ここじゃないかも？？)
 
 // modules
-use std::borrow::Cow;
-use std::fmt::Write;
+// use std::borrow::Cow;
+// use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use tui::prelude::Line;
 
@@ -20,47 +20,6 @@ use crate::DEFAULT_TAB_SIZE;
 use crate::common::OutputMode;
 use crate::exec::CommandResult;
 use hwatch_diffmode::{expand_line_tab, DiffMode, DiffModeOptions};
-
-pub trait StringExt {
-    fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
-}
-
-impl<T> StringExt for T
-where
-    T: AsRef<str>,
-{
-    fn expand_tabs(&self, tab_size: u16) -> Cow<str> {
-        let s = self.as_ref();
-        let tab = '\t';
-
-        if s.contains(tab) {
-            let mut res = String::new();
-            let mut last_pos = 0;
-
-            while let Some(pos) = &s[last_pos..].find(tab) {
-                res.push_str(&s[last_pos..*pos + last_pos]);
-
-                let spaces_to_add = if tab_size != 0 {
-                    tab_size - (*pos as u16 % tab_size)
-                } else {
-                    0
-                };
-
-                if spaces_to_add != 0 {
-                    let _ = write!(res, "{:width$}", "", width = spaces_to_add as usize);
-                }
-
-                last_pos += *pos + 1;
-            }
-
-            res.push_str(&s[last_pos..]);
-
-            Cow::from(res)
-        } else {
-            Cow::from(s)
-        }
-    }
-}
 
 pub struct Printer {
     // diff mode.
@@ -80,9 +39,6 @@ pub struct Printer {
 
     // tab size.
     tab_size: u16,
-
-    // watch window header width.
-    header_width: usize,
 }
 
 impl Printer {
@@ -94,7 +50,6 @@ impl Printer {
             options: DiffModeOptions::new(),
             is_reverse: false,
             tab_size: DEFAULT_TAB_SIZE,
-            header_width: 0,
         }
     }
 
