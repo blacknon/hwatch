@@ -636,15 +636,11 @@ fn main() {
 
     // create diff_mode(line)
     let mut diff_mode_line = diffmode_line::DiffModeAtLineDiff::new();
-    let mut diff_mode_line_options = hwatch_diffmode::DiffModeOptions::new();
-    diff_mode_line_options.set_word_highlight(false);
-    diff_mode_line.set_option(diff_mode_line_options);
+    diff_mode_line.is_word_highlight = false;
 
     // create diff_mode(word)
     let mut diff_mode_word = diffmode_line::DiffModeAtLineDiff::new();
-    let mut diff_mode_word_options = hwatch_diffmode::DiffModeOptions::new();
-    diff_mode_word_options.set_word_highlight(true);
-    diff_mode_word.set_option(diff_mode_word_options);
+    diff_mode_word.is_word_highlight = true;
 
     // set diff_modes
     let diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> = vec![

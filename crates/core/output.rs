@@ -21,24 +21,6 @@ use crate::common::OutputMode;
 use crate::exec::CommandResult;
 use hwatch_diffmode::{expand_line_tab, DiffMode, DiffModeOptions};
 
-// output return type
-enum PrintData<'a> {
-    Lines(Vec<Line<'a>>),
-    Strings(Vec<String>),
-}
-
-enum PrintElementData<'a> {
-    Line(Line<'a>),
-    String(String),
-    None(),
-}
-
-enum DifferenceType {
-    Same,
-    Add,
-    Rem,
-}
-
 pub trait StringExt {
     fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
 }
@@ -90,20 +72,11 @@ pub struct Printer {
     // batch mode.
     is_batch: bool,
 
-    // color mode.
-    is_color: bool,
-
-    // line number.
-    is_line_number: bool,
+    // diffmode options.
+    options: DiffModeOptions,
 
     // is reverse text.
     is_reverse: bool,
-
-    // is word highlight at line diff.
-    is_word_highlight: bool,
-
-    // is only print different line.
-    is_only_diffline: bool,
 
     // tab size.
     tab_size: u16,
@@ -118,11 +91,8 @@ impl Printer {
             diff_mode: diffmode,
             output_mode: OutputMode::Output,
             is_batch: false,
-            is_color: false,
-            is_line_number: false,
+            options: DiffModeOptions::new(),
             is_reverse: false,
-            is_word_highlight: false,
-            is_only_diffline: false,
             tab_size: DEFAULT_TAB_SIZE,
             header_width: 0,
         }
@@ -134,6 +104,47 @@ impl Printer {
         dest: &CommandResult,
         src: &CommandResult,
     ) -> Vec<Line<'a>> {
+        // set new text(text_dst)
+        let mut text_dest = match self.output_mode {
+            OutputMode::Output => (*dest).get_output(),
+            OutputMode::Stdout => (*dest).get_stdout(),
+            OutputMode::Stderr => (*dest).get_stderr(),
+        };
+        text_dest = expand_line_tab(&text_dest, self.tab_size);
+        if !self.options.get_color() {
+            text_dest = hwatch_ansi::escape_ansi(&text_dest);
+        }
+
+        // set old text(text_src)
+        let mut text_src = match self.output_mode {
+            OutputMode::Output => (*src).get_output(),
+            OutputMode::Stdout => (*src).get_stdout(),
+            OutputMode::Stderr => (*src).get_stderr(),
+        };
+        text_src = expand_line_tab(&text_src, self.tab_size);
+        if !self.options.get_color() {
+            text_src = hwatch_ansi::escape_ansi(&text_src);
+        }
+
+        let result: Vec<Line<'_>>;
+
+        let mut diff_mode = self.diff_mode.lock().unwrap();
+
+        // set diff mode options
+        diff_mode.set_option(self.options);
+
+        // create diff
+        result = diff_mode.generate_watch_diff(&text_dest, &text_src);
+
+        if self.is_reverse {
+            result.into_iter().rev().collect()
+        } else {
+            result
+        }
+    }
+
+    ///
+    pub fn get_batch_text(&mut self, dest: &CommandResult, src: &CommandResult) -> Vec<String> {
         // set new text(text_dst)
         let text_dest = match self.output_mode {
             OutputMode::Output => (*dest).get_output(),
@@ -148,74 +159,15 @@ impl Printer {
             OutputMode::Stderr => (*src).get_stderr(),
         };
 
-        let mut result = vec![];
+        let result: Vec<String>;
 
-        {
-            // create diff mode options
-            let mut diff_mode_options = DiffModeOptions::new();
-            diff_mode_options.set_color(self.is_color);
-            diff_mode_options.set_line_number(self.is_line_number);
-            diff_mode_options.set_word_highlight(self.is_word_highlight);
-            diff_mode_options.set_only_diffline(self.is_only_diffline);
+        let mut diff_mode = self.diff_mode.lock().unwrap();
 
-            let mut diff_mode = self.diff_mode.lock().unwrap();
+        // set diff mode options
+        diff_mode.set_option(self.options);
 
-            // set diff mode options
-            diff_mode.set_option(diff_mode_options);
-
-            // create diff
-            result = diff_mode.generate_watch_diff(&text_dest, &text_src);
-        }
-
-        if self.is_reverse {
-            result.into_iter().rev().collect()
-        } else {
-            result
-        }
-    }
-
-    ///
-    pub fn get_batch_text(&mut self, dest: &CommandResult, src: &CommandResult) -> Vec<String> {
-        // set new text(text_dst)
-        let mut text_dest = match self.output_mode {
-            OutputMode::Output => (*dest).get_output(),
-            OutputMode::Stdout => (*dest).get_stdout(),
-            OutputMode::Stderr => (*dest).get_stderr(),
-        };
-        text_dest = expand_line_tab(&text_dest, self.tab_size);
-        if self.is_color {
-            text_dest = hwatch_ansi::escape_ansi(&text_dest);
-        }
-
-        // set old text(text_src)
-        let mut text_src = match self.output_mode {
-            OutputMode::Output => (*src).get_output(),
-            OutputMode::Stdout => (*src).get_stdout(),
-            OutputMode::Stderr => (*src).get_stderr(),
-        };
-        text_src = expand_line_tab(&text_src, self.tab_size);
-        if self.is_color {
-            text_src = hwatch_ansi::escape_ansi(&text_src);
-        }
-
-        let mut result = vec![];
-
-        {
-            // create diff mode options
-            let mut diff_mode_options = DiffModeOptions::new();
-            diff_mode_options.set_color(self.is_color);
-            diff_mode_options.set_line_number(self.is_line_number);
-            diff_mode_options.set_word_highlight(self.is_word_highlight);
-            diff_mode_options.set_only_diffline(self.is_only_diffline);
-
-            let mut diff_mode = self.diff_mode.lock().unwrap();
-
-            // set diff mode options
-            diff_mode.set_option(diff_mode_options);
-
-            // create diff
-            result = diff_mode.generate_batch_diff(&text_dest, &text_src);
-        }
+        // create diff
+        result = diff_mode.generate_batch_diff(&text_dest, &text_src);
 
         if self.is_reverse {
             result.into_iter().rev().collect()
@@ -244,13 +196,13 @@ impl Printer {
 
     /// set color mode.
     pub fn set_color(&mut self, is_color: bool) -> &mut Self {
-        self.is_color = is_color;
+        self.options.set_color(is_color);
         self
     }
 
     /// set line number.
     pub fn set_line_number(&mut self, is_line_number: bool) -> &mut Self {
-        self.is_line_number = is_line_number;
+        self.options.set_line_number(is_line_number);
         self
     }
 
@@ -262,7 +214,7 @@ impl Printer {
 
     /// set diff mode.
     pub fn set_only_diffline(&mut self, is_only_diffline: bool) -> &mut Self {
-        self.is_only_diffline = is_only_diffline;
+        self.options.set_only_diffline(is_only_diffline);
         self
     }
 

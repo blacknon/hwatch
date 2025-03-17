@@ -4,20 +4,21 @@
 
 use tui::{
     prelude::Line,
-    style::{Color, Style, Stylize},
+    style::{Style, Stylize},
     text::Span,
 };
 
 use hwatch_ansi as ansi;
 use hwatch_diffmode::{
-    expand_output_vec_element_data, gen_counter_str, DiffMode, DiffModeExt, DiffModeOptions,
-    DifferenceType, OutputVecData, OutputVecElementData,
+    gen_counter_str, DiffMode, DiffModeExt, DiffModeOptions, DifferenceType, OutputVecData,
+    OutputVecElementData,
 };
 use similar::{ChangeTag, InlineChange, TextDiff};
 use std::cmp;
 
 pub struct DiffModeAtLineDiff {
     header_width: usize,
+    pub is_word_highlight: bool,
     options: DiffModeOptions,
 }
 
@@ -25,6 +26,7 @@ impl DiffModeAtLineDiff {
     pub fn new() -> Self {
         Self {
             header_width: 3,
+            is_word_highlight: false,
             options: DiffModeOptions::new(),
         }
     }
@@ -32,17 +34,9 @@ impl DiffModeAtLineDiff {
 
 impl DiffMode for DiffModeAtLineDiff {
     fn generate_watch_diff(&mut self, dest: &str, src: &str) -> Vec<Line<'static>> {
-        // create LineDiffOptions
-        let options: LineDiffOptions = LineDiffOptions {
-            is_color: self.options.get_color(),
-            is_batch: false,
-            is_line_number: self.options.get_line_number(),
-            is_word_highlight: self.options.get_word_highlight(),
-            is_only_diffline: self.options.get_only_diffline(),
-        };
-
         // generate diff output
-        let (header_width, output_vec_data) = gen_line_diff_output(dest, src, &options);
+        let (header_width, output_vec_data) =
+            gen_line_diff_output(dest, src, false, self.is_word_highlight, &self.options);
         self.header_width = header_width;
 
         if let OutputVecData::Lines(lines) = output_vec_data {
@@ -53,17 +47,9 @@ impl DiffMode for DiffModeAtLineDiff {
     }
 
     fn generate_batch_diff(&mut self, dest: &str, src: &str) -> Vec<String> {
-        // create LineDiffOptions
-        let options: LineDiffOptions = LineDiffOptions {
-            is_color: self.options.get_color(),
-            is_batch: true,
-            is_line_number: self.options.get_line_number(),
-            is_word_highlight: self.options.get_word_highlight(),
-            is_only_diffline: self.options.get_only_diffline(),
-        };
-
         // generate diff output
-        let (header_width, output_vec_data) = gen_line_diff_output(dest, src, &options);
+        let (header_width, output_vec_data) =
+            gen_line_diff_output(dest, src, true, self.is_word_highlight, &self.options);
         self.header_width = header_width;
 
         if let OutputVecData::Strings(lines) = output_vec_data {
@@ -74,10 +60,7 @@ impl DiffMode for DiffModeAtLineDiff {
     }
 
     fn get_header_text(&self) -> String {
-        let header_text = match (
-            self.options.get_word_highlight(),
-            self.options.get_only_diffline(),
-        ) {
+        let header_text = match (self.is_word_highlight, self.options.get_only_diffline()) {
             (true, true) => "Word(Only)",
             (true, false) => "Word      ",
             (false, true) => "Line(Only)",
@@ -102,7 +85,7 @@ impl DiffModeExt for DiffModeAtLineDiff {
     }
 
     fn get_header_width<T: 'static>(&self) -> usize {
-        self.header_width
+        self.header_width + 3
     }
 }
 
@@ -110,19 +93,13 @@ impl DiffModeExt for DiffModeAtLineDiff {
 // private function
 // ----
 
-struct LineDiffOptions {
-    is_color: bool,
-    is_batch: bool,
-    is_line_number: bool,
-    is_word_highlight: bool,
-    is_only_diffline: bool,
-}
-
 // TODO: options系はstructで渡すようにする
 fn gen_line_diff_output<'a>(
     dest: &str,
     src: &str,
-    options: &LineDiffOptions,
+    is_batch: bool,
+    is_word_highlight: bool,
+    options: &DiffModeOptions,
 ) -> (usize, OutputVecData<'a>) {
     let text_dest = dest.to_string();
     let text_dest_bytes = text_dest.as_bytes().to_vec();
@@ -147,7 +124,8 @@ fn gen_line_diff_output<'a>(
     for op in diff_set.ops().iter() {
         for change in diff_set.iter_inline_changes(op) {
             // create PrintElementData
-            let data = gen_line_diff_element(&change, header_width, options);
+            let data =
+                gen_line_diff_element(&change, header_width, is_batch, is_word_highlight, options);
             match data {
                 OutputVecElementData::String(data_str) => result_str.push(data_str),
                 OutputVecElementData::Line(data_line) => result_line.push(data_line),
@@ -156,7 +134,7 @@ fn gen_line_diff_output<'a>(
         }
     }
 
-    if options.is_batch {
+    if is_batch {
         return (header_width, OutputVecData::Strings(result_str));
     } else {
         return (header_width, OutputVecData::Lines(result_line));
@@ -167,7 +145,9 @@ fn gen_line_diff_output<'a>(
 fn gen_line_diff_element<'a>(
     change: &InlineChange<[u8]>,
     header_width: usize,
-    options: &LineDiffOptions,
+    is_batch: bool,
+    is_word_highlight: bool,
+    options: &DiffModeOptions,
 ) -> OutputVecElementData<'a> {
     let mut result_line_spans = vec![];
     let mut result_str_elements = vec![];
@@ -181,10 +161,11 @@ fn gen_line_diff_element<'a>(
     let tui_line_header_style: Style;
     let str_line_style: ansi_term::Style;
     let str_line_highlight_style: ansi_term::Style;
+    let strip_ansi: bool;
     match change.tag() {
         ChangeTag::Equal => {
             // If is_only_diffline is valid, it will not be output in the first place, so it will return here.
-            if options.is_only_diffline {
+            if options.get_only_diffline() {
                 return OutputVecElementData::None();
             }
 
@@ -197,6 +178,7 @@ fn gen_line_diff_element<'a>(
                 Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_DEFAULT);
             str_line_style = ansi_term::Style::new();
             str_line_highlight_style = ansi_term::Style::new();
+            strip_ansi = false;
         }
         ChangeTag::Delete => {
             line_number = change.old_index().unwrap() as i32;
@@ -213,6 +195,7 @@ fn gen_line_diff_element<'a>(
             str_line_highlight_style = ansi_term::Style::new()
                 .fg(hwatch_diffmode::COLOR_BATCH_LINE_REVERSE_FG)
                 .on(hwatch_diffmode::COLOR_BATCH_LINE_REM);
+            strip_ansi = true;
         }
         ChangeTag::Insert => {
             line_number = change.new_index().unwrap() as i32;
@@ -229,6 +212,7 @@ fn gen_line_diff_element<'a>(
             str_line_highlight_style = ansi_term::Style::new()
                 .fg(hwatch_diffmode::COLOR_BATCH_LINE_REVERSE_FG)
                 .on(hwatch_diffmode::COLOR_BATCH_LINE_ADD);
+            strip_ansi = true;
         }
     };
 
@@ -241,7 +225,11 @@ fn gen_line_diff_element<'a>(
     );
     for (emphasized, value) in change.iter_strings_lossy() {
         let mut line_data = value.to_string();
-        if options.is_word_highlight && emphasized {
+        if strip_ansi {
+            line_data = ansi::get_ansi_strip_str(&line_data);
+        }
+
+        if is_word_highlight && emphasized {
             // word highlight
             // line push
             result_line_spans.push(Span::styled(
@@ -259,7 +247,7 @@ fn gen_line_diff_element<'a>(
             // normal
             match change.tag() {
                 ChangeTag::Equal => {
-                    if options.is_color {
+                    if options.get_color() {
                         result_line_spans = vec![Span::from(line_header)];
                         let colored_data = ansi::bytes_to_text(format!("{line_data}").as_bytes());
 
@@ -307,7 +295,7 @@ fn gen_line_diff_element<'a>(
         .to_string();
 
     // add line number
-    if options.is_line_number {
+    if options.get_line_number() {
         let line_number = line_number + 1;
         // result_line update
         result_line.spans.insert(
@@ -321,7 +309,7 @@ fn gen_line_diff_element<'a>(
         result_str.insert_str(
             0,
             &gen_counter_str(
-                options.is_color,
+                options.get_color(),
                 line_number as usize,
                 header_width,
                 diff_type,
@@ -329,7 +317,7 @@ fn gen_line_diff_element<'a>(
         );
     }
 
-    if options.is_batch {
+    if is_batch {
         return OutputVecElementData::String(result_str.trim_end_matches('\n').to_string());
     } else {
         return OutputVecElementData::Line(result_line);

@@ -33,7 +33,7 @@ impl DiffMode for DiffModeAtPlane {
         // NOTE: header_widthの計算をしておく
         // TODO: 2箇所で似たような処理をしているので、もうちょっとまとめたい
         let header_width: usize = if self.options.get_line_number() {
-            dest.split('\n').count().to_string().chars().count() + 2
+            dest.split('\n').count().to_string().chars().count()
         } else {
             0
         };
@@ -127,6 +127,6 @@ impl DiffModeExt for DiffModeAtPlane {
     }
 
     fn get_header_width<T: 'static>(&self) -> usize {
-        self.header_width
+        self.header_width + 3
     }
 }

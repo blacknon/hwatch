@@ -51,30 +51,6 @@ pub enum DifferenceType {
     Rem,
 }
 
-// NOTE:
-//  以下のコードは、output.rsで前処理コードとして後で追加する
-//     // tab expand dest
-//     let mut text_dest = dest.to_string();
-//     if !self.is_batch {
-//         text_dest = expand_line_tab(dest, self.tab_size);
-//
-//         if !self.is_color {
-//             text_dest = ansi::escape_ansi(&text_dest);
-//         }
-//     }
-//     let text_dest_bytes = text_dest.as_bytes().to_vec();
-//
-//     // tab expand src
-//     let mut text_src = src.to_string();
-//     if !self.is_batch {
-//         text_src = expand_line_tab(src, self.tab_size);
-//
-//         if !self.is_color {
-//             text_src = ansi::escape_ansi(&text_src);
-//         }
-//     }
-//     let text_src_bytes = text_src.as_bytes().to_vec();
-
 // TODO: headerで出力する文字列取得用のMethodを追加する
 // TODO: output onlyに対応しているかどうかを出力するMethodを追加する
 
@@ -129,9 +105,6 @@ pub struct DiffModeOptions {
     line_number: bool,
 
     //
-    word_highlight: bool,
-
-    //
     only_diffline: bool,
 }
 
@@ -140,7 +113,6 @@ impl DiffModeOptions {
         Self {
             color: false,
             line_number: false,
-            word_highlight: false,
             only_diffline: false,
         }
     }
@@ -159,14 +131,6 @@ impl DiffModeOptions {
 
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
-    }
-
-    pub fn get_word_highlight(&self) -> bool {
-        self.word_highlight
-    }
-
-    pub fn set_word_highlight(&mut self, word_highlight: bool) {
-        self.word_highlight = word_highlight;
     }
 
     pub fn get_only_diffline(&self) -> bool {

@@ -555,26 +555,24 @@ impl<'a> App<'a> {
 
         // set old text(text_src)
         let mut src = dest;
+
+        // support_only_diffline
+        let support_only_diffline: bool;
+        support_only_diffline = self.diff_modes[self.diff_mode]
+            .lock()
+            .unwrap()
+            .get_support_only_diffline();
+
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
-        } else if previous_dst == 0
-            && self.is_only_diffline
-            && self.diff_modes[self.diff_mode]
-                .lock()
-                .unwrap()
-                .get_support_only_diffline()
-        {
+        } else if previous_dst == 0 && self.is_only_diffline && support_only_diffline {
             src = &results[&0].command_result;
         }
 
         let output_data = self.printer.get_watch_text(dest, src);
 
         self.watch_area.is_line_number = self.line_number;
-        match self.diff_modes[self.diff_mode]
-            .lock()
-            .unwrap()
-            .get_support_only_diffline()
-        {
+        match support_only_diffline {
             false => {
                 self.watch_area.is_line_diff_head = false;
             }
@@ -753,11 +751,11 @@ impl<'a> App<'a> {
         self.diff_mode = diff_mode;
 
         self.header_area
-            .set_diff_mode(self.diff_modes[diff_mode].clone());
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
         self.header_area.update();
 
         self.printer
-            .set_diff_mode(self.diff_modes[diff_mode].clone());
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
 
         let selected = self.history_area.get_state_select();
 
@@ -773,10 +771,10 @@ impl<'a> App<'a> {
     pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
         self.is_only_diffline = is_only_diffline;
 
+        self.printer.set_only_diffline(is_only_diffline);
+
         self.header_area.set_is_only_diffline(is_only_diffline);
         self.header_area.update();
-
-        self.printer.set_only_diffline(is_only_diffline);
 
         let selected = self.history_area.get_state_select();
         if self.results.len() > 0 {
@@ -828,14 +826,17 @@ impl<'a> App<'a> {
                 continue;
             }
 
+            let support_only_diffline: bool;
+            support_only_diffline = self.diff_modes[self.diff_mode]
+                .lock()
+                .unwrap()
+                .get_support_only_diffline();
+
             let mut is_push = true;
             if self.is_filtered {
                 let result_text = match (
                     self.output_mode,
-                    self.diff_modes[self.diff_mode]
-                        .lock()
-                        .unwrap()
-                        .get_support_only_diffline(),
+                    support_only_diffline,
                     self.is_only_diffline,
                 ) {
                     // Diff Only
@@ -1043,15 +1044,18 @@ impl<'a> App<'a> {
             let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
+        let support_only_diffline: bool;
+        support_only_diffline = self.diff_modes[self.diff_mode]
+            .lock()
+            .unwrap()
+            .get_support_only_diffline();
+
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
             let result_text = match (
                 self.output_mode,
-                self.diff_modes[self.diff_mode]
-                    .lock()
-                    .unwrap()
-                    .get_support_only_diffline(),
+                support_only_diffline,
                 self.is_only_diffline,
             ) {
                 // Diff Only
@@ -1526,13 +1530,7 @@ impl<'a> App<'a> {
         } else {
             self.diff_mode + 1
         };
-
-        self.header_area
-            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
-        self.header_area.update();
-
-        self.printer
-            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
+        self.set_diff_mode(self.diff_mode);
     }
 
     ///
