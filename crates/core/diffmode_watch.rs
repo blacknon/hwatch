@@ -85,7 +85,7 @@ impl DiffModeExt for DiffModeAtWatch {
     }
 
     fn get_header_width<T: 'static>(&self) -> usize {
-        self.header_width
+        self.header_width + 3
     }
 }
 

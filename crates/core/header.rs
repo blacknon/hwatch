@@ -280,9 +280,7 @@ impl<'a> HeaderArea<'a> {
 
         // Set Diff mode value
         let value_diff: String;
-        {
-            value_diff = self.diff_mode.lock().unwrap().get_header_text()
-        };
+        value_diff = self.diff_mode.lock().unwrap().get_header_text();
 
         // Set Color
         let command_color = match self.exec_status {
