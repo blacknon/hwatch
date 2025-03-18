@@ -19,7 +19,7 @@ _hwatch() {
 
     case "${cmd}" in
         hwatch)
-            opts="-b -B -c -r -C -t -N -x -O -A -l -s -n -L -d -o -K -h -V --batch --beep --border --with-scrollbar --mouse --color --reverse --compress --no-title --line-number --no-help-banner --exec --diff-output-only --aftercommand --logfile --shell --interval --limit --tab-size --differences --output --keymap --help --version [command]..."
+            opts="-b -B -c -r -C -t -N -x -O -A -l -s -n -L -d -o -K -h -V --batch --beep --border --with-scrollbar --mouse --color --reverse --compress --no-title --line-number --no-help-banner --exec --diff-output-only --aftercommand --logfile --shell --interval --precise --limit --tab-size --differences --output --keymap --help --version [command]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -72,6 +72,10 @@ _hwatch() {
                     return 0
                     ;;
                 --interval)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --precise)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

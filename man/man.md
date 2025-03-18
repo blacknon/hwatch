@@ -109,6 +109,9 @@ Flags
 
 :   Display only the lines with differences during `line` diff and `word` diff.
 
+\--precise
+
+:   Attempt to run as close to the interval as possible, regardless of how long the command takes to run.
 
 Options
 -------
