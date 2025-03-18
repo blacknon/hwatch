@@ -23,6 +23,7 @@ _hwatch() {
 '*--shell=[shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.]: :_cmdstring' \
 '*-n+[seconds to wait between updates]: : ' \
 '*--interval=[seconds to wait between updates]: : ' \
+'--precise[Attempt to run as close to the interval as possible, regardless of how long the command takes to run]: : ' \
 '-L+[Set the number of history records to keep. only work in watch mode. Set \`0\` for unlimited recording. (default\: 5000)]: : ' \
 '--limit=[Set the number of history records to keep. only work in watch mode. Set \`0\` for unlimited recording. (default\: 5000)]: : ' \
 '*--tab-size=[Specifying tab display size]: : ' \
