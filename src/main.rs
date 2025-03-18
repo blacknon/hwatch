@@ -573,13 +573,13 @@ fn main() {
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().map(|s| s.clone()).collect()
+        command_line = value.into_iter().cloned().collect()
     } else {
         // check load_results
         if load_results.is_empty() {
             let err = cmd_app.error(
                 ErrorKind::InvalidValue,
-                format!("command not specified and logfile is empty."),
+                "command not specified and logfile is empty.".to_string(),
             );
             err.exit();
         }
@@ -599,12 +599,12 @@ fn main() {
         let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
             let run_interval = run_interval_ptr.read().expect("Non poisoned block");
-            let paused = run_interval.paused.clone();
-            let interval = run_interval.interval.clone();
+            let paused = run_interval.paused;
+            let interval = run_interval.interval;
             drop(run_interval); // We manually drop here or else it locks anything else from reading/writing the interval
             let mut time_to_sleep: f64 = interval;
 
-            if paused == false {
+            if !paused {
                 // Create cmd..
                 let mut exe = exec::ExecuteCommand::new(tx.clone());
 
@@ -712,15 +712,15 @@ mod tests {
     #[test]
     fn test_run_interval() {
         let mut actual = RunInterval::default();
-        assert_eq!(actual.paused, false);
+        assert!(!actual.paused);
         assert_eq!(actual.interval, 2.0);
         actual.increase(1.5);
         actual.toggle_pause();
-        assert_eq!(actual.paused, true);
+        assert!(actual.paused);
         assert_eq!(actual.interval, 3.5);
         actual.decrease(0.5);
         actual.toggle_pause();
-        assert_eq!(actual.paused, false);
+        assert!(!actual.paused);
         assert_eq!(actual.interval, 3.0);
     }
 }

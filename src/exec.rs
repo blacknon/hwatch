@@ -37,20 +37,20 @@ impl CommandResultData {
         let stderr = self.stderr.as_bytes().to_vec();
 
 
-        let result = CommandResult {
+        
+
+        CommandResult {
             timestamp: self.timestamp.clone(),
             command: self.command.clone(),
             status: self.status,
-            is_compress: is_compress,
+            is_compress,
             output: vec![],
             stdout: vec![],
             stderr: vec![],
         }
         .set_output(output)
         .set_stdout(stdout)
-        .set_stderr(stderr);
-
-        result
+        .set_stderr(stderr)
     }
 }
 
@@ -116,15 +116,15 @@ impl CommandResult {
     }
 
     pub fn set_output(&self, data: Vec<u8>) -> Self {
-        return self.set_data(data, OutputMode::Output)
+        self.set_data(data, OutputMode::Output)
     }
 
     pub fn set_stdout(&self, data: Vec<u8>) -> Self {
-        return self.set_data(data, OutputMode::Stdout)
+        self.set_data(data, OutputMode::Stdout)
     }
 
     pub fn set_stderr(&self, data: Vec<u8>) -> Self {
-        return self.set_data(data, OutputMode::Stderr)
+        self.set_data(data, OutputMode::Stderr)
     }
 
     fn get_data(&self, data_type: OutputMode) -> String {
@@ -140,7 +140,7 @@ impl CommandResult {
             decoder.read_to_string(&mut s).unwrap();
             s
         } else {
-            String::from_utf8_lossy(&data).to_string()
+            String::from_utf8_lossy(data).to_string()
         }
     }
 

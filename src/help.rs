@@ -35,7 +35,7 @@ pub struct HelpWindow<'a> {
 }
 
 /// History Area Object Trait
-impl<'a> HelpWindow<'a> {
+impl HelpWindow<'_> {
     pub fn new(keymap: Keymap) -> Self {
         let text = gen_help_text(keymap);
 
@@ -158,11 +158,11 @@ fn gen_help_text_from_key_data<'a>(data: Vec<KeyData>) -> Vec<Line<'a>> {
 fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
     let mut keydata_list = vec![];
 
-    for (_, input_event_content) in &keymap {
+    for input_event_content in keymap.values() {
         let key = input_event_content.input.to_str();
         let description = get_input_action_description(input_event_content.action);
 
-        keydata_list.push(KeyData { key: key, description: description, action: input_event_content.action});
+        keydata_list.push(KeyData { key, description, action: input_event_content.action});
     };
 
     // sort
