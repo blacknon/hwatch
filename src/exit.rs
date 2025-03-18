@@ -21,7 +21,7 @@ pub struct ExitWindow<'a> {
     area: Rect,
 }
 
-impl<'a> ExitWindow<'a> {
+impl ExitWindow<'_> {
     pub fn new() -> Self {
         let text = vec![
             Line::from(" Exit hwatch?"),

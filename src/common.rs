@@ -35,7 +35,7 @@ pub enum OutputMode {
 ///
 pub fn now_str() -> String {
     let date = Local::now();
-    return date.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+    date.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
 }
 
 pub enum LoadLogfileError {
@@ -49,13 +49,10 @@ pub fn load_logfile(
     is_compress: bool,
 ) -> Result<Vec<CommandResult>, LoadLogfileError> {
     // fileのサイズをチェックするし、0だった場合commandが必須であるエラーを返す
-    match fs::metadata(log_path) {
-        Ok(metadata) => {
-            if metadata.len() == 0 {
-                return Err(LoadLogfileError::LogfileEmpty);
-            }
+    if let Ok(metadata) = fs::metadata(log_path) {
+        if metadata.len() == 0 {
+            return Err(LoadLogfileError::LogfileEmpty);
         }
-        Err(_) => {}
     }
 
     // load log file
@@ -90,7 +87,7 @@ pub fn load_logfile(
 pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<dyn Error>> {
     // try open logfile
     let mut logfile = match OpenOptions::new()
-        .write(true)
+        
         .create(true)
         .append(true)
         .open(_logpath)
