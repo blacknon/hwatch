@@ -92,9 +92,9 @@ const DEFAULT_KEYMAP: [&str; 46] = [
     "left=forcus_watch_pane",                // ForcusWatchPane: Left
     "right=forcus_history_pane",             // ForcusHistoryPane: Right
     "alt-left=scroll_left",                  // Watch window scrll left: Alt + Left
-    "shift-alt-left=scroll_horizontal_home", //
+    "shift-alt-left=scroll_horizontal_home", // Watch window scrll End left: Shift + Alt + Left
     "alt-right=scroll_right",                // Watch window scrll right: Alt + Right
-    "shift-alt-right=scroll_horizontal_end", //
+    "shift-alt-right=scroll_horizontal_end", // Watch window scrll End right: Shift + Alt + Right
     "q=quit",                                // Quit: q
     "esc=reset",                             // Reset: ESC
     "ctrl-c=cancel",                         // Cancel: Ctrl + c
@@ -497,15 +497,15 @@ pub enum InputAction {
     // ==========
     #[serde(rename = "scroll_right")]
     ScrollRight,
-    #[serde(rename = "scroll_horizontal_home")]
-    ScrollHorizontalHome,
+    #[serde(rename = "scroll_horizontal_end")]
+    ScrollHorizontalEnd,
 
     // Scroll left
     // ==========
     #[serde(rename = "scroll_left")]
     ScrollLeft,
-    #[serde(rename = "scroll_horizontal_end")]
-    ScrollHorizontalEnd,
+    #[serde(rename = "scroll_horizontal_home")]
+    ScrollHorizontalHome,
 
     // PageUp
     // ==========

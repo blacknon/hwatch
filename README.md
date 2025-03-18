@@ -83,44 +83,46 @@ That records the result of command execution and can display it history and diff
 
 Watch mode keybind(Default).
 
-| Key                                  | Action                                                      |
-|--------------------------------------|-------------------------------------------------------------|
-| <kbd>↑</kbd>, <kbd>↓</kbd>           | move selected screen(history/watch).                        |
-| <kbd>pageup</kbd>, <kbd>pagedn</kbd> | move selected screen(history/watch).                        |
-| <kbd>home</kbd>, <kbd>end</kbd>      | move selected screen(history/watch).                        |
-| <kbd>Tab</kbd>                       | toggle select screen(history/watch).                        |
-| <kbd>←</kbd>                         | select watch screen.                                        |
-| <kbd>→</kbd>                         | select history screen.                                      |
-| <kbd>H</kbd>                         | show help window.                                           |
-| <kbd>B</kbd>                         | toggle enable/disable border.                               |
-| <kbd>S</kbd>                         | toggle enable/disable border scrollbar.                     |
-| <kbd>C</kbd>                         | toggle color.                                               |
-| <kbd>N</kbd>                         | switch line number display.                                 |
-| <kbd>R</kbd>                         | toggle reverse mode.                                        |
-| <kbd>M</kbd>                         | toggle mouse support.                                       |
-| <kbd>D</kbd>                         | switch diff mode.                                           |
-| <kbd>T</kbd>                         | toggle the UI (history pane and header).                    |
-| <kbd>Backspace</kbd>                 | toggle the history pane.                                    |
-| <kbd>Q</kbd>                         | exit hwatch.                                                |
-| <kbd>0</kbd>                         | disable diff.                                               |
-| <kbd>1</kbd>                         | switch watch type diff.                                     |
-| <kbd>2</kbd>                         | switch line type diff.                                      |
-| <kbd>3</kbd>                         | switch word type diff.                                      |
-| <kbd>O</kbd>                         | switch output mode(output->stdout->stderr).                 |
-| <kbd>Ctrl</kbd>+<kbd>P</kbd>         | Forcus before keyword.                                      |
-| <kbd>Ctrl</kbd>+<kbd>N</kbd>         | Forcus next keyword.                                        |
-| <kbd>Shift</kbd>+<kbd>O</kbd>        | show only lines with differences(line/word diff mode only). |
-| <kbd>Shift</kbd>+<kbd>S</kbd>        | show summary infomation in history.                         |
-| <kbd>F1</kbd>                        | only stdout print.                                          |
-| <kbd>F2</kbd>                        | only stderr print.                                          |
-| <kbd>F3</kbd>                        | print output.                                               |
-| <kbd>+</kbd>                         | increase interval.                                          |
-| <kbd>-</kbd>                         | decrease interval.                                          |
-| <kbd>P</kbd>                         | Pause/unpause execution.                                    |
-| <kbd>/</kbd>                         | filter history by string.                                   |
-| <kbd>*</kbd>                         | filter history by regex.                                    |
-| <kbd>Esc</kbd>                       | unfiltering.                                                |
-| <kbd>Ctrl</kbd>+<kbd>c</kbd>         | cancel.                                                     |
+| Key                                                                                        | Action                                                      |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| <kbd>↑</kbd>, <kbd>↓</kbd>                                                                 | move selected screen(history/watch).                        |
+| <kbd>pageup</kbd>, <kbd>pagedn</kbd>                                                       | move selected screen(history/watch).                        |
+| <kbd>home</kbd>, <kbd>end</kbd>                                                            | move selected screen(history/watch).                        |
+| <kbd>Tab</kbd>                                                                             | toggle select screen(history/watch).                        |
+| <kbd>←</kbd>                                                                               | select watch screen.                                        |
+| <kbd>→</kbd>                                                                               | select history screen.                                      |
+| <kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Alt</kbd>+<kbd>→</kbd>                                   | Watch window scrll left/right.                              |
+| <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>→</kbd> | Watch window scrll start/end.                               |
+| <kbd>Q</kbd>                                                                               | exit hwatch.                                                |
+| <kbd>Esc</kbd>                                                                             | unfiltering.                                                |
+| <kbd>Ctrl</kbd>+<kbd>c</kbd>                                                               | cancel.                                                     |
+| <kbd>H</kbd>                                                                               | show help window.                                           |
+| <kbd>B</kbd>                                                                               | toggle enable/disable border.                               |
+| <kbd>C</kbd>                                                                               | toggle color.                                               |
+| <kbd>N</kbd>                                                                               | switch line number display.                                 |
+| <kbd>R</kbd>                                                                               | toggle reverse mode.                                        |
+| <kbd>M</kbd>                                                                               | toggle mouse support.                                       |
+| <kbd>T</kbd>                                                                               | toggle the UI (history pane and header).                    |
+| <kbd>Backspace</kbd>                                                                       | toggle the history pane.                                    |
+| <kbd>D</kbd>                                                                               | switch diff mode.                                           |
+| <kbd>0</kbd>                                                                               | disable diff.                                               |
+| <kbd>1</kbd>                                                                               | switch watch type diff.                                     |
+| <kbd>2</kbd>                                                                               | switch line type diff.                                      |
+| <kbd>3</kbd>                                                                               | switch word type diff.                                      |
+| <kbd>Shift</kbd>+<kbd>O</kbd>                                                              | show only lines with differences(line/word diff mode only). |
+| <kbd>O</kbd>                                                                               | switch output mode(output->stdout->stderr).                 |
+| <kbd>W</kbd>                                                                               | Toggle wrap.                                                |
+| <kbd>F1</kbd>                                                                              | only stdout print.                                          |
+| <kbd>F2</kbd>                                                                              | only stderr print.                                          |
+| <kbd>F3</kbd>                                                                              | print output.                                               |
+| <kbd>Ctrl</kbd>+<kbd>N</kbd>                                                               | Forcus next keyword.                                        |
+| <kbd>Ctrl</kbd>+<kbd>P</kbd>                                                               | Forcus before keyword.                                      |
+| <kbd>Shift</kbd>+<kbd>S</kbd>                                                              | show summary infomation in history.                         |
+| <kbd>+</kbd>                                                                               | increase interval.                                          |
+| <kbd>-</kbd>                                                                               | decrease interval.                                          |
+| <kbd>P</kbd>                                                                               | Pause/unpause execution.                                    |
+| <kbd>/</kbd>                                                                               | filter history by string.                                   |
+| <kbd>*</kbd>                                                                               | filter history by regex.                                    |
 
 #### Custom keybind
 
@@ -133,61 +135,66 @@ hwatch -K ctrl-p=history_pane_up -K ctrl-n=history_pane_down command...
 
 Keybind functions that can be specified are as follows.
 
-| function                 | description                               |
-|--------------------------|-------------------------------------------|
-| up                       | Move up                                   |
-| watch_pane_up            | Move up in watch pane                     |
-| history_pane_up          | Move up in history pane                   |
-| down                     | Move down                                 |
-| watch_pane_down          | Move down in watch pane                   |
-| history_pane_down        | Move down in history pane                 |
-| page_up                  | Move page up                              |
-| watch_pane_page_up       | Move page up in watch pane                |
-| history_pane_page_up     | Move page up in history pane              |
-| page_down                | Move page down                            |
-| watch_pane_page_down     | Move page down in watch pane              |
-| history_pane_page_down   | Move page down in history pane            |
-| move_top                 | Move top                                  |
-| watch_pane_move_top      | Move top in watch pane                    |
-| history_pane_move_top    | Move top in history pane                  |
-| move_end                 | Move end                                  |
-| watch_pane_move_end      | Move end in watch pane                    |
-| history_pane_move_end    | Move end in history pane                  |
-| toggle_forcus            | Toggle forcus window                      |
-| forcus_watch_pane        | Forcus watch pane                         |
-| forcus_history_pane      | Forcus history pane                       |
-| quit                     | Quit hwatch                               |
-| reset                    | filter reset                              |
-| cancel                   | Cancel                                    |
-| force_cancel             | Cancel without displaying the exit dialog |
-| help                     | Show and hide help window                 |
-| toggle_color             | Toggle enable/disable ANSI Color          |
-| toggle_line_number       | Toggle enable/disable Line Number         |
-| toggle_reverse           | Toggle enable/disable text reverse        |
-| toggle_mouse_support     | Toggle enable/disable mouse support       |
-| toggle_view_pane_ui      | Toggle view header/history pane           |
-| toggle_view_header_pane  | Toggle view header pane                   |
-| toggle_view_history_pane | Toggle view history pane                  |
-| toggle_border            | Toggle enable/disable border              |
-| toggle_scroll_bar        | Toggle enable/disable scroll bar          |
-| toggle_diff_mode         | Toggle diff mode                          |
-| set_diff_mode_plane      | Set diff mode plane                       |
-| set_diff_mode_watch      | Set diff mode watch                       |
-| set_diff_mode_line       | Set diff mode line                        |
-| set_diff_mode_word       | Set diff mode word                        |
-| set_diff_only            | Set diff line only (line/word diff only)  |
-| toggle_output_mode       | Toggle output mode                        |
-| set_output_mode_output   | Set output mode output                    |
-| set_output_mode_stdout   | Set output mode stdout                    |
-| set_output_mode_stderr   | Set output mode stderr                    |
-| toggle_history_summary   | Toggle history summary                    |
-| interval_plus            | Interval +0.5sec                          |
-| interval_minus           | Interval -0.5sec                          |
-| toggle_pause             | Toggle pause execution                    |
-| prev_keyword             | Forcus previous keyword                   |
-| next_keyword             | Forcus next keyword                       |
-| change_filter_mode       | Change filter mode                        |
-| change_regex_filter_mode | Change regex filter mode                  |
+| function                 | description                                |
+| ------------------------ | ------------------------------------------ |
+| up                       | Move up                                    |
+| watch_pane_up            | Move up in watch pane                      |
+| history_pane_up          | Move up in history pane                    |
+| down                     | Move down                                  |
+| watch_pane_down          | Move down in watch pane                    |
+| history_pane_down        | Move down in history pane                  |
+| scroll_right             | Move page right in watch pane              |
+| scroll_horizontal_end    | Move page right end in watch pane          |
+| scroll_left              | Move page left in watch pane               |
+| scroll_horizontal_home   | Move page left start in watch pane         |
+| page_up                  | Move page up                               |
+| watch_pane_page_up       | Move page up in watch pane                 |
+| history_pane_page_up     | Move page up in history pane               |
+| page_down                | Move page down                             |
+| watch_pane_page_down     | Move page down in watch pane               |
+| history_pane_page_down   | Move page down in history pane             |
+| move_top                 | Move top                                   |
+| watch_pane_move_top      | Move top in watch pane                     |
+| history_pane_move_top    | Move top in history pane                   |
+| move_end                 | Move end                                   |
+| watch_pane_move_end      | Move end in watch pane                     |
+| history_pane_move_end    | Move end in history pane                   |
+| toggle_forcus            | Toggle forcus window                       |
+| forcus_watch_pane        | Forcus watch pane                          |
+| forcus_history_pane      | Forcus history pane                        |
+| quit                     | Quit hwatch                                |
+| reset                    | filter reset                               |
+| cancel                   | Cancel                                     |
+| force_cancel             | Cancel without displaying the exit dialog  |
+| help                     | Show and hide help window                  |
+| toggle_color             | Toggle enable/disable ANSI Color           |
+| toggle_line_number       | Toggle enable/disable Line Number          |
+| toggle_reverse           | Toggle enable/disable text reverse         |
+| toggle_mouse_support     | Toggle enable/disable mouse support        |
+| toggle_view_pane_ui      | Toggle view header/history pane            |
+| toggle_view_header_pane  | Toggle view header pane                    |
+| toggle_view_history_pane | Toggle view history pane                   |
+| toggle_border            | Toggle enable/disable border               |
+| toggle_scroll_bar        | Toggle enable/disable scroll bar           |
+| toggle_diff_mode         | Toggle diff mode                           |
+| set_diff_mode_plane      | Set diff mode plane                        |
+| set_diff_mode_watch      | Set diff mode watch                        |
+| set_diff_mode_line       | Set diff mode line                         |
+| set_diff_mode_word       | Set diff mode word                         |
+| set_diff_only            | Set diff line only (line/word diff only)   |
+| toggle_output_mode       | Toggle output mode                         |
+| set_output_mode_output   | Set output mode output                     |
+| set_output_mode_stdout   | Set output mode stdout                     |
+| set_output_mode_stderr   | Set output mode stderr                     |
+| toggle_wrap_mode         | Toggle watch pane text wrap enable/disable |
+| toggle_history_summary   | Toggle history summary                     |
+| interval_plus            | Interval +0.5sec                           |
+| interval_minus           | Interval -0.5sec                           |
+| toggle_pause             | Toggle pause execution                     |
+| prev_keyword             | Forcus previous keyword                    |
+| next_keyword             | Forcus next keyword                        |
+| change_filter_mode       | Change filter mode                         |
+| change_regex_filter_mode | Change regex filter mode                   |
 
 
 ## Configuration
@@ -202,7 +209,7 @@ export HWATCH="--no-title --color --no-help-banner --border --with-scrollbar"
 
 ## Example
 
-### interval 10 second
+### interval 3 second
 
 Use the -n option to specify the command execution interval.
 
