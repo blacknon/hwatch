@@ -38,7 +38,9 @@ pub struct Input {
 
 impl Input {
     pub fn to_str(&self) -> String {
-        let result = match &self.input {
+        
+
+        match &self.input {
             // keyboard
             InputType::Key(key) => {
                 let modifiers = key
@@ -75,9 +77,7 @@ impl Input {
 
                 format!("mouse-{}", action)
             }
-        };
-
-        return result;
+        }
     }
 }
 
@@ -405,13 +405,13 @@ pub type Keymap = HashMap<Event, InputEventContents>;
 
 pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
     let keymap = default_keymap();
-    let result = create_keymap(keymap, keymap_options);
-    return result;
+    
+    create_keymap(keymap, keymap_options)
 }
 
 ///
 fn create_keymap(mut keymap: Keymap, keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
-    if keymap_options.len() == 0 {
+    if keymap_options.is_empty() {
         return Ok(keymap);
     }
 
@@ -465,7 +465,7 @@ pub fn default_keymap() -> Keymap {
     let default_keymap = DEFAULT_KEYMAP.to_vec();
     let keymap = HashMap::new();
     let result = create_keymap(keymap, default_keymap);
-    return result.unwrap();
+    result.unwrap()
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]

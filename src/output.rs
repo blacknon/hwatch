@@ -189,9 +189,9 @@ impl Printer {
             if self.is_reverse {
                 result.reverse();
             }
-            return result;
+            result
         } else {
-            return vec![];
+            vec![]
         }
     }
 
@@ -234,9 +234,9 @@ impl Printer {
             if self.is_reverse {
                 result.reverse();
             }
-            return result;
+            result
         } else {
-            return vec![];
+            vec![]
         }
     }
 
@@ -255,9 +255,9 @@ impl Printer {
         }
 
         if self.is_batch {
-            return self.create_plane_output_batch(&text);
+            self.create_plane_output_batch(&text)
         } else {
-            return self.create_plane_output_watch(&text);
+            self.create_plane_output_watch(&text)
         }
     }
 
@@ -282,13 +282,13 @@ impl Printer {
                 ));
             }
 
-            line.push_str(&l);
+            line.push_str(l);
             result.push(line);
 
             counter += 1;
         }
 
-        return PrintData::Strings(result);
+        PrintData::Strings(result)
     }
 
     ///
@@ -329,7 +329,7 @@ impl Printer {
             counter += 1;
         }
 
-        return PrintData::Lines(result);
+        PrintData::Lines(result)
     }
 
     // Watch Diff Output
@@ -353,7 +353,7 @@ impl Printer {
             }
 
             text_dest.push_str(l);
-            text_dest.push_str("\n");
+            text_dest.push('\n');
         }
 
         // tab expand src
@@ -373,7 +373,7 @@ impl Printer {
             }
 
             text_src.push_str(l);
-            text_src.push_str("\n");
+            text_src.push('\n');
         }
 
         // create text vector
@@ -401,13 +401,13 @@ impl Printer {
             let dest_line = vec_dest[i];
 
             let mut line_data = match self.is_color {
-                false => self.create_watch_diff_output_line(&src_line, &dest_line),
+                false => self.create_watch_diff_output_line(src_line, dest_line),
                 true => {
                     if self.is_batch {
-                        self.create_watch_diff_output_line(&src_line, &dest_line)
+                        self.create_watch_diff_output_line(src_line, dest_line)
                     } else {
                         self.create_watch_diff_output_line_with_ansi_for_watch(
-                            &src_line, &dest_line,
+                            src_line, dest_line,
                         )
                     }
                 }
@@ -443,7 +443,7 @@ impl Printer {
             counter += 1;
         }
 
-        return expand_print_element_data(self.is_batch, result);
+        expand_print_element_data(self.is_batch, result)
     }
 
     ///
@@ -539,9 +539,9 @@ impl Printer {
         if self.is_batch {
             let mut data_str: String = result_chars.iter().collect();
             data_str.push_str("\x1b[0m");
-            return PrintElementData::String(data_str);
+            PrintElementData::String(data_str)
         } else {
-            return PrintElementData::Line(Line::from(result_spans));
+            PrintElementData::Line(Line::from(result_spans))
         }
     }
 
@@ -608,7 +608,7 @@ impl Printer {
 
         result.push(Span::styled(space, Style::default()));
 
-        return PrintElementData::Line(Line::from(result));
+        PrintElementData::Line(Line::from(result))
     }
 
     ///
@@ -661,9 +661,9 @@ impl Printer {
         }
 
         if self.is_batch {
-            return PrintData::Strings(result_str);
+            PrintData::Strings(result_str)
         } else {
-            return PrintData::Lines(result_line);
+            PrintData::Lines(result_line)
         }
     }
 
@@ -730,10 +730,10 @@ impl Printer {
         };
 
         // create result_line and result_str
-        result_line_spans.push(Span::styled(format!("{line_header}"), tui_line_style));
+        result_line_spans.push(Span::styled(line_header.to_string(), tui_line_style));
         result_str_elements.push(
             str_line_style
-                .paint(format!("{line_header}").to_string())
+                .paint(line_header.to_string().to_string())
                 .to_string(),
         );
         for (emphasized, value) in change.iter_strings_lossy() {
@@ -742,14 +742,14 @@ impl Printer {
                 // word highlight
                 // line push
                 result_line_spans.push(Span::styled(
-                    format!("{line_data}"),
+                    line_data.to_string(),
                     tui_line_highlight_style,
                 ));
 
                 // str push
                 result_str_elements.push(
                     str_line_highlight_style
-                        .paint(format!("{line_data}"))
+                        .paint(line_data.to_string())
                         .to_string(),
                 );
             } else {
@@ -759,7 +759,7 @@ impl Printer {
                         if self.is_color {
                             result_line_spans = vec![Span::from(line_header)];
                             let colored_data =
-                                ansi::bytes_to_text(format!("{line_data}").as_bytes());
+                                ansi::bytes_to_text(line_data.to_string().as_bytes());
 
                             for d in colored_data.lines {
                                 for x in d.spans {
@@ -768,16 +768,16 @@ impl Printer {
                             }
                             result_str_elements.push(
                                 str_line_style
-                                    .paint(format!("{line_data}").to_string())
+                                    .paint(line_data.to_string().to_string())
                                     .to_string(),
                             );
                         } else {
                             let color_strip_data = get_ansi_strip_str(&line_data);
                             result_line_spans
-                                .push(Span::styled(format!("{line_data}"), tui_line_style));
+                                .push(Span::styled(line_data.to_string(), tui_line_style));
                             result_str_elements.push(
                                 str_line_style
-                                    .paint(format!("{color_strip_data}").to_string())
+                                    .paint(color_strip_data.to_string().to_string())
                                     .to_string(),
                             );
                         }
@@ -788,10 +788,10 @@ impl Printer {
                             .trim_end_matches('\n')
                             .to_string();
                         result_line_spans
-                            .push(Span::styled(format!("{line_data}"), tui_line_style));
+                            .push(Span::styled(line_data.to_string(), tui_line_style));
                         result_str_elements.push(
                             str_line_style
-                                .paint(format!("{color_strip_data}").to_string())
+                                .paint(color_strip_data.to_string().to_string())
                                 .to_string(),
                         );
                     }
@@ -825,9 +825,9 @@ impl Printer {
         }
 
         if self.is_batch {
-            return PrintElementData::String(result_str.trim_end_matches('\n').to_string());
+            PrintElementData::String(result_str.trim_end_matches('\n').to_string())
         } else {
-            return PrintElementData::Line(result_line);
+            PrintElementData::Line(result_line)
         }
     }
 
@@ -909,10 +909,10 @@ fn expand_print_element_data(is_batch: bool, data: Vec<PrintElementData>) -> Pri
     }
 
     if is_batch {
-        return PrintData::Strings(strings);
+        PrintData::Strings(strings)
     } else {
-        return PrintData::Lines(lines);
-    };
+        PrintData::Lines(lines)
+    }
 }
 
 ///

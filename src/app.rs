@@ -235,7 +235,7 @@ pub struct App<'a> {
 }
 
 /// Trail at watch view window.
-impl<'a> App<'a> {
+impl App<'_> {
     ///
     pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: SharedInterval) -> Self {
         // method at create new view trail.
@@ -301,7 +301,7 @@ impl<'a> App<'a> {
         self.history_area
             .set_enable_char_diff(self.enable_summary_char);
 
-        if self.results.len() > 0 {
+        if !self.results.is_empty() {
             let selected = self.history_area.get_state_select();
             let new_selected = self.reset_history(selected);
             self.set_output_data(new_selected);
@@ -490,21 +490,21 @@ impl<'a> App<'a> {
         &self,
         terminal_event: &crossterm::event::Event,
     ) -> Option<&InputEventContents> {
-        match terminal_event {
-            &Event::Key(_) => {
-                return self.keymap.get(terminal_event);
+        match *terminal_event {
+            Event::Key(_) => {
+                self.keymap.get(terminal_event)
             }
-            &Event::Mouse(mouse) => {
+            Event::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.kind,
                     column: 0,
                     row: 0,
                     modifiers: KeyModifiers::empty(),
                 };
-                return self.keymap.get(&Event::Mouse(mouse_event));
+                self.keymap.get(&Event::Mouse(mouse_event))
             }
             _ => {
-                return None;
+                None
             }
         }
     }
@@ -586,7 +586,7 @@ impl<'a> App<'a> {
         self.printer.set_output_mode(mode);
 
         // set output data
-        if self.results.len() > 0 {
+        if !self.results.is_empty() {
             // Switch the result depending on the output mode.
             let results = match self.output_mode {
                 OutputMode::Output => &self.results,
@@ -594,7 +594,7 @@ impl<'a> App<'a> {
                 OutputMode::Stderr => &self.results_stderr,
             };
             let selected: usize = self.history_area.get_state_select();
-            let new_selected = get_near_index(&results, selected);
+            let new_selected = get_near_index(results, selected);
             let reseted_select = self.reset_history(new_selected);
             self.set_output_data(reseted_select);
         }
@@ -737,7 +737,7 @@ impl<'a> App<'a> {
 
         let selected = self.history_area.get_state_select();
 
-        if self.results.len() > 0 {
+        if !self.results.is_empty() {
             let reseted_select = self.reset_history(selected);
             self.set_output_data(reseted_select);
         } else {
@@ -755,7 +755,7 @@ impl<'a> App<'a> {
         self.printer.set_only_diffline(is_only_diffline);
 
         let selected = self.history_area.get_state_select();
-        if self.results.len() > 0 {
+        if !self.results.is_empty() {
             let reseted_select = self.reset_history(selected);
             self.set_output_data(reseted_select);
         } else {
@@ -786,7 +786,7 @@ impl<'a> App<'a> {
 
         // append result.
         let mut tmp_history = vec![];
-        let latest_num: usize = get_results_latest_index(&results);
+        let latest_num: usize = get_results_latest_index(results);
         tmp_history.push(History {
             timestamp: "latest                 ".to_string(),
             status: results[&latest_num].command_result.status,
@@ -895,7 +895,7 @@ impl<'a> App<'a> {
         self.history_area.set_state_select(new_select.unwrap());
 
         // result new selected;
-        return new_select.unwrap();
+        new_select.unwrap()
     }
 
     // NOTE: CommandResultを元に、
@@ -973,7 +973,7 @@ impl<'a> App<'a> {
             );
         }
 
-        return true;
+        true
     }
 
     ///
@@ -1195,49 +1195,43 @@ impl<'a> App<'a> {
             }
         }
 
-        return (
+        (
             result_index,
             is_limit_over,
             is_stdout_update,
             is_stderr_update,
-        );
+        )
     }
 
     ///
     fn get_normal_input_key(&mut self, terminal_event: crossterm::event::Event) {
         // if exit window
-        match self.window {
-            ActiveWindow::Exit => {
-                // match key event
-                match terminal_event {
-                    Event::Key(key) => {
-                        if key.kind == KeyEventKind::Press {
-                            match key.code {
-                                KeyCode::Char('y') => {
-                                    self.exit();
-                                    return;
-                                }
-                                KeyCode::Char('q') => {
-                                    self.exit();
-                                    return;
-                                }
-                                KeyCode::Char('n') => {
-                                    self.window = ActiveWindow::Normal;
-                                    return;
-                                }
-                                KeyCode::Char('h') => {
-                                    self.window = ActiveWindow::Help;
-                                    return;
-                                }
-                                // default
-                                _ => {}
-                            }
+        if self.window == ActiveWindow::Exit {
+            // match key event
+            if let Event::Key(key) = terminal_event {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('y') => {
+                            self.exit();
+                            return;
                         }
+                        KeyCode::Char('q') => {
+                            self.exit();
+                            return;
+                        }
+                        KeyCode::Char('n') => {
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('h') => {
+                            self.window = ActiveWindow::Help;
+                            return;
+                        }
+                        // default
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
-            _ => {}
         }
 
         if let Some(event_content) = self.get_input_action(&terminal_event) {
@@ -1408,8 +1402,6 @@ impl<'a> App<'a> {
                     }
                 }
             }
-
-            return;
         }
     }
 
@@ -1725,7 +1717,7 @@ impl<'a> App<'a> {
     fn action_watch_pgup(&mut self) {
         let mut page_height = self.watch_area.get_area_size();
         if page_height > 1 {
-            page_height = page_height - 1
+            page_height -= 1
         }
 
         // scroll up watch
@@ -1768,7 +1760,7 @@ impl<'a> App<'a> {
     fn action_watch_pgdn(&mut self) {
         let mut page_height = self.watch_area.get_area_size();
         if page_height > 1 {
-            page_height = page_height - 1
+            page_height -= 1
         }
 
         // scroll up watch
@@ -2007,15 +1999,11 @@ fn get_near_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize 
     let keys = results.keys().cloned().collect::<Vec<usize>>();
 
     if keys.contains(&index) {
-        return index;
+        index
     } else if index == 0 {
         return index;
     } else {
-        let min = if let Some(min_value) = keys.iter().min() {
-            min_value
-        } else {
-            &0
-        };
+        let min = keys.iter().min().unwrap_or(&0);
         if *min >= index {
             // return get_results_previous_index(results, index);
             return get_results_next_index(results, index);
@@ -2034,7 +2022,7 @@ fn get_results_latest_index(results: &HashMap<usize, ResultItems>) -> usize {
         None => 0,
     };
 
-    return max;
+    max
 }
 
 fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
@@ -2050,7 +2038,7 @@ fn get_results_previous_index(results: &HashMap<usize, ResultItems>, index: usiz
         previous_index = k;
     }
 
-    return previous_index;
+    previous_index
 }
 
 fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -> usize {
@@ -2066,7 +2054,7 @@ fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -
         }
     }
 
-    return next_index;
+    next_index
 }
 
 fn gen_result_items(
@@ -2120,11 +2108,11 @@ fn gen_result_items(
 
     // TODO: is_appじゃない場合、tx.sendじゃないやり方で追加する方法を考える必要がありそう？？ → 呼び出し元で処理をさせるようにする？？？(log load時にうまく動作しない原因がこれ)
     // let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
-    return (
+    (
         output_result_items,
         stdout_result_items,
         stderr_result_items,
-    );
+    )
 }
 
 fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
@@ -2138,10 +2126,7 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
                 ChangeTag::Delete | ChangeTag::Insert => {
                     let value = change
                         .to_string()
-                        .as_bytes()
-                        .iter()
-                        .map(|&x| x)
-                        .collect::<Vec<u8>>();
+                        .as_bytes().to_vec();
                     diff_only_data.extend(value);
                 }
             }
