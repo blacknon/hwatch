@@ -2,6 +2,7 @@ complete -c hwatch -s A -l aftercommand -d 'Executes the specified command if th
 complete -c hwatch -s l -l logfile -d 'logging file' -r -F
 complete -c hwatch -s s -l shell -d 'shell to use at runtime. can  also insert the command to the location specified by {COMMAND}.' -r -f -a "(__fish_complete_command)"
 complete -c hwatch -s n -l interval -d 'seconds to wait between updates' -r
+complete -c hwatch -s b -l precise -d 'Attempt to run as close to the interval as possible, regardless of how long the command takes to run'
 complete -c hwatch -s L -l limit -d 'Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000)' -r
 complete -c hwatch -l tab-size -d 'Specifying tab display size' -r
 complete -c hwatch -s d -l differences -d 'highlight changes between updates' -r -f -a "{none\t'',watch\t'',line\t'',word\t''}"

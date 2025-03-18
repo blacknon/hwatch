@@ -71,6 +71,7 @@ That records the result of command execution and can display it history and diff
           -l, --logfile [<logfile>]           logging file. if a log file is already used, its contents will be read and executed.
           -s, --shell <shell_command>         shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
           -n, --interval <interval>           seconds to wait between updates [default: 2]
+              --precise                       Attempt to run as close to the interval as possible, regardless of how long the command takes to run
           -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000) [default: 5000]
               --tab-size <tab_size>           Specifying tab display size [default: 4]
           -d, --differences [<differences>]   highlight changes between updates [possible values: none, watch, line, word]
