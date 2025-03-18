@@ -52,6 +52,11 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features
 /etc/bash_completion.d/%{name}.bash
 
 %changelog
+* Wed Mar 19 2025 blacknon - 0.3.19-1
+ - [FR] add precise interval option #111
+ - [FR] Pause/freeze command execution #133
+ - Process freeze and terminal corruption on FreeBSD (Fixed in #178) #179
+ - [FR] Disable line wrapping #182
 * Fri Nov 15 2024 blacknon - 0.3.18-1
  - fix hwatch 0.3.17 freezes in a narrow terminal  #171
  - fix hwatch 0.3.17 no longer prints blank lines. #172
