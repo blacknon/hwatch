@@ -127,9 +127,9 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn get_area_size(&mut self) -> i16 {
-        let height = self.area.height as i16;
+        
 
-        return height;
+        self.area.height as i16
     }
 
     ///
@@ -153,7 +153,7 @@ impl<'a> WatchArea<'a> {
             self.wrap_data = self.data.clone()
         }
 
-        if self.keyword.len() > 0 {
+        if !self.keyword.is_empty() {
             // update keyword position
             self.keyword_position = get_keyword_positions(
                 &self.wrap_data,
@@ -192,7 +192,7 @@ impl<'a> WatchArea<'a> {
             self.wrap_data = self.data.clone()
         }
 
-        if self.keyword.len() > 0 {
+        if !self.keyword.is_empty() {
             // update keyword position
             self.keyword_position = get_keyword_positions(
                 &self.wrap_data,
@@ -246,7 +246,7 @@ impl<'a> WatchArea<'a> {
             self.wrap_data = self.data.clone()
         }
 
-        if self.keyword.len() > 0 {
+        if !self.keyword.is_empty() {
             // update keyword position
             self.keyword_position = get_keyword_positions(
                 &self.wrap_data,
@@ -255,7 +255,7 @@ impl<'a> WatchArea<'a> {
                 self.is_line_number,
                 self.is_line_diff_head,
             );
-            if self.keyword_position.len() > 0 {
+            if !self.keyword_position.is_empty() {
                 self.next_keyword();
             }
         } else {
@@ -300,7 +300,7 @@ impl<'a> WatchArea<'a> {
             self.is_line_diff_head,
         );
 
-        if self.keyword_position.len() > 0 {
+        if !self.keyword_position.is_empty() {
             if self.selected_keyword > 0 {
                 self.selected_keyword -= 1;
             } else if self.selected_keyword == 0 {
@@ -339,7 +339,7 @@ impl<'a> WatchArea<'a> {
             self.is_line_diff_head,
         );
 
-        if self.keyword_position.len() > 0 {
+        if !self.keyword_position.is_empty() {
             // get selected keyword position
             if self.keyword_position.len() < self.selected_keyword as usize {
                 self.selected_keyword = -1;
@@ -353,7 +353,7 @@ impl<'a> WatchArea<'a> {
                 self.selected_keyword = self.keyword_position.len() as i16 - 1;
             }
 
-            if self.keyword_position.len() >= self.selected_keyword as usize + 1
+            if self.keyword_position.len() > self.selected_keyword as usize
                 && self.selected_keyword >= 0
             {
                 let position: (usize, usize, usize) =
@@ -416,9 +416,9 @@ impl<'a> WatchArea<'a> {
             .scroll((self.position as u16, self.horizontal_position as u16));
 
         // get self.lines
-        let mut pane_width: u16 = self.area.width as u16;
+        let mut pane_width: u16 = self.area.width;
         if self.border {
-            pane_width = pane_width - 1;
+            pane_width -= 1;
         }
 
         self.lines = block.line_count(pane_width) as i16;
@@ -474,10 +474,8 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn scroll_down(&mut self, num: i16) {
         let mut height: u16 = self.area.height;
-        if self.border {
-            if !self.hide_header {
-                height = height - 1;
-            }
+        if self.border && !self.hide_header {
+            height -= 1;
         }
 
         if self.lines > height as i16 {
@@ -490,7 +488,7 @@ impl<'a> WatchArea<'a> {
         let width: u16 = self.area.width;
 
         if self.width > self.horizontal_position + width as i16 + num {
-            self.horizontal_position = self.horizontal_position + num
+            self.horizontal_position += num
         }
     }
 
@@ -519,10 +517,8 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn scroll_end(&mut self) {
         let mut height: i16 = self.area.height as i16;
-        if self.border {
-            if !self.hide_header {
-                height = height - 1;
-            }
+        if self.border && !self.hide_header {
+            height -= 1;
         }
 
         if self.lines > height {
@@ -533,17 +529,14 @@ impl<'a> WatchArea<'a> {
     ///
     pub fn scroll_move(&mut self, position: i16) {
         let mut height: i16 = self.area.height as i16;
-        if self.border {
-            if !self.hide_header {
-                height = height - 1;
-            }
+        if self.border && !self.hide_header {
+            height -= 1;
         }
 
         let start = self.position;
         let end = std::cmp::min(self.position + height, self.lines);
 
         if start < position && position < end {
-            return;
         } else if start > position {
             self.position = position;
         } else if end < position + 1 {
@@ -634,7 +627,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
         for span in &line.spans {
             let words = span
                 .content
-                .split_inclusive(|c| c == ' ' || c == '\u{00a0}' || c == '\u{200b}');
+                .split_inclusive([' ', '\u{00a0}', '\u{200b}']);
             for word in words {
                 let word_width = unicode_width::UnicodeWidthStr::width(word);
 
@@ -646,15 +639,15 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
                     current_width = 0;
 
                     if word_width > width {
-                        let mut grapheme_iter = UnicodeSegmentation::graphemes(word, true);
-                        while let Some(grapheme) = grapheme_iter.next() {
+                        let grapheme_iter = UnicodeSegmentation::graphemes(word, true);
+                        for grapheme in grapheme_iter {
                             let grapheme_width = unicode_width::UnicodeWidthStr::width(grapheme);
                             if current_width + grapheme_width > width {
                                 wrapped_lines.push(current_line);
                                 current_line = Line::default();
                                 current_width = 0;
                             }
-                            let style = span.style().clone();
+                            let style = span.style();
                             current_line
                                 .spans
                                 .push(Span::styled(grapheme.to_string(), style));
@@ -666,7 +659,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
 
                 current_line
                     .spans
-                    .push(Span::styled(word.to_string(), span.style().clone()));
+                    .push(Span::styled(word.to_string(), span.style()));
                 current_width += word_width;
             }
         }
