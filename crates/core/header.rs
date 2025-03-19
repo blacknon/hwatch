@@ -84,7 +84,7 @@ pub struct HeaderArea<'a> {
 }
 
 /// Header Area Object Trait
-impl<'a> HeaderArea<'a> {
+impl HeaderArea<'_> {
     pub fn new(interval: SharedInterval, diffmode: Arc<Mutex<Box<dyn DiffMode>>>) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),

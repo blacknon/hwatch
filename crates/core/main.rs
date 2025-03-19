@@ -9,7 +9,6 @@
 
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
-// TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
@@ -85,7 +84,7 @@ use std::env::args;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 // local modules
 mod app;
@@ -361,6 +360,14 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
+        // Precise Interval Mode
+        //   [--precise] default:false
+        .arg(
+            Arg::new("precise")
+                .help("Attempt to run as close to the interval as possible, regardless of how long the command takes to run")
+                .long("precise")
+                .action(ArgAction::SetTrue)
+        )
         // set limit option
         //   [--limit,-L] size(default:5000)
         .arg(
@@ -444,6 +451,7 @@ fn main() {
     // Get options flag
     let batch = matcher.get_flag("batch");
     let compress = matcher.get_flag("compress");
+    let precise = matcher.get_flag("precise");
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
@@ -573,13 +581,13 @@ fn main() {
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().map(|s| s.clone()).collect()
+        command_line = value.into_iter().cloned().collect()
     } else {
         // check load_results
         if load_results.is_empty() {
             let err = cmd_app.error(
                 ErrorKind::InvalidValue,
-                format!("command not specified and logfile is empty."),
+                "command not specified and logfile is empty.".to_string(),
             );
             err.exit();
         }
@@ -599,11 +607,12 @@ fn main() {
         let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
             let run_interval = run_interval_ptr.read().expect("Non poisoned block");
-            let paused = run_interval.paused.clone();
-            let interval = run_interval.interval.clone();
+            let paused = run_interval.paused;
+            let interval = run_interval.interval;
             drop(run_interval); // We manually drop here or else it locks anything else from reading/writing the interval
+            let mut time_to_sleep: f64 = interval;
 
-            if paused == false {
+            if !paused {
                 // Create cmd..
                 let mut exe = exec::ExecuteCommand::new(tx.clone());
 
@@ -619,11 +628,23 @@ fn main() {
                 // Set is exec flag.
                 exe.is_exec = is_exec;
 
+                let before_start = SystemTime::now();
                 // Exec command
                 exe.exec_command();
+
+                if precise {
+                    let elapsed: f64 = SystemTime::now()
+                        .duration_since(before_start)
+                        .unwrap_or_default()
+                        .as_secs_f64();
+                    time_to_sleep = match elapsed > time_to_sleep {
+                        true => 0_f64,
+                        false => time_to_sleep - elapsed,
+                    };
+                }
             }
 
-            std::thread::sleep(Duration::from_secs_f64(interval));
+            std::thread::sleep(Duration::from_secs_f64(time_to_sleep));
         });
     }
 
@@ -721,15 +742,15 @@ mod tests {
     #[test]
     fn test_run_interval() {
         let mut actual = RunInterval::default();
-        assert_eq!(actual.paused, false);
+        assert!(!actual.paused);
         assert_eq!(actual.interval, 2.0);
         actual.increase(1.5);
         actual.toggle_pause();
-        assert_eq!(actual.paused, true);
+        assert!(actual.paused);
         assert_eq!(actual.interval, 3.5);
         actual.decrease(0.5);
         actual.toggle_pause();
-        assert_eq!(actual.paused, false);
+        assert!(!actual.paused);
         assert_eq!(actual.interval, 3.0);
     }
 }
