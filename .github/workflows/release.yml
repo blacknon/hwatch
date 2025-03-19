@@ -45,14 +45,14 @@ jobs:
             artifact: build-aarch64-unknown-linux-musl
             os: ubuntu-latest
             ext: tar.gz
-          - target: aarch64-unknown-linux-musl
-            artifact: build-aarch64-unknown-linux-musl-rpm
-            os: ubuntu-latest
-            ext: rpm
-          - target: aarch64-unknown-linux-musl
-            artifact: build-aarch64-unknown-linux-musl-deb
-            os: ubuntu-latest
-            ext: deb
+          # - target: aarch64-unknown-linux-musl
+          #   artifact: build-aarch64-unknown-linux-musl-rpm
+          #   os: ubuntu-latest
+          #   ext: rpm
+          # - target: aarch64-unknown-linux-musl
+          #   artifact: build-aarch64-unknown-linux-musl-deb
+          #   os: ubuntu-latest
+          #   ext: deb
           - target: x86_64-apple-darwin
             artifact: build-x86_64-apple-darwin
             os: macos-latest
