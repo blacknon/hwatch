@@ -5,14 +5,14 @@
 use ratatui::text::Span;
 use tui::{
     layout::Rect,
-    style::{Color, Style},
     prelude::Line,
+    style::{Color, Style},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 
-use crate::keymap::{get_input_action_description, InputAction, Keymap};
 use crate::common::centered_rect;
+use crate::keymap::{get_input_action_description, InputAction, Keymap};
 
 pub struct KeyData {
     pub key: String,
@@ -97,7 +97,8 @@ impl HelpWindow<'_> {
     pub fn page_down(&mut self) {
         let height: u16 = self.area.height - 2; // top/bottom border = 2
         if self.lines > height as i16 {
-            self.position = std::cmp::min(self.position + height as i16, self.lines - height as i16);
+            self.position =
+                std::cmp::min(self.position + height as i16, self.lines - height as i16);
         }
     }
 
@@ -111,8 +112,6 @@ impl HelpWindow<'_> {
             self.position = self.lines - height as i16;
         }
     }
-
-
 }
 
 fn gen_help_text_from_key_data<'a>(data: Vec<KeyData>) -> Vec<Line<'a>> {
@@ -120,32 +119,15 @@ fn gen_help_text_from_key_data<'a>(data: Vec<KeyData>) -> Vec<Line<'a>> {
 
     for key_data in data {
         let line1 = Line::from(vec![
-            Span::styled(
-                " - [",
-                Style::default().fg(Color::LightGreen),
-            ),
-            Span::styled(
-                key_data.key,
-                Style::default().fg(Color::Yellow),
-            ),
-            Span::styled(
-                "] key :",
-                Style::default().fg(Color::LightGreen),
-            )
-            ]
-        );
+            Span::styled(" - [", Style::default().fg(Color::LightGreen)),
+            Span::styled(key_data.key, Style::default().fg(Color::Yellow)),
+            Span::styled("] key :", Style::default().fg(Color::LightGreen)),
+        ]);
 
         let line2 = Line::from(vec![
-            Span::styled(
-                "         ",
-                Style::default(),
-            ),
-            Span::styled(
-                key_data.description,
-                Style::default().fg(Color::White),
-            ),
-            ]
-        );
+            Span::styled("         ", Style::default()),
+            Span::styled(key_data.description, Style::default().fg(Color::White)),
+        ]);
 
         text.push(line1);
         text.push(line2);
@@ -162,8 +144,12 @@ fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
         let key = input_event_content.input.to_str();
         let description = get_input_action_description(input_event_content.action);
 
-        keydata_list.push(KeyData { key, description, action: input_event_content.action});
-    };
+        keydata_list.push(KeyData {
+            key,
+            description,
+            action: input_event_content.action,
+        });
+    }
 
     // sort
     keydata_list.sort_by(|a, b| a.action.cmp(&b.action));

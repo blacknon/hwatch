@@ -126,10 +126,17 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    // TODO: Rename to get_area_height?
     pub fn get_area_size(&mut self) -> i16 {
-        
-
         self.area.height as i16
+    }
+
+    pub fn get_pane_width(&self) -> u16 {
+        let mut pane_width: u16 = self.area.width;
+        if self.border && pane_width > 0 {
+            pane_width -= 1;
+        }
+        pane_width
     }
 
     ///
@@ -416,12 +423,7 @@ impl<'a> WatchArea<'a> {
             .scroll((self.position as u16, self.horizontal_position as u16));
 
         // get self.lines
-        let mut pane_width: u16 = self.area.width;
-        if self.border {
-            pane_width -= 1;
-        }
-
-        self.lines = block.line_count(pane_width) as i16;
+        self.lines = block.line_count(self.get_pane_width()) as i16;
 
         frame.render_widget(block, self.area);
 
@@ -625,9 +627,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
         let mut current_width = 0;
 
         for span in &line.spans {
-            let words = span
-                .content
-                .split_inclusive([' ', '\u{00a0}', '\u{200b}']);
+            let words = span.content.split_inclusive([' ', '\u{00a0}', '\u{200b}']);
             for word in words {
                 let word_width = unicode_width::UnicodeWidthStr::width(word);
 

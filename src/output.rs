@@ -406,9 +406,7 @@ impl Printer {
                     if self.is_batch {
                         self.create_watch_diff_output_line(src_line, dest_line)
                     } else {
-                        self.create_watch_diff_output_line_with_ansi_for_watch(
-                            src_line, dest_line,
-                        )
+                        self.create_watch_diff_output_line_with_ansi_for_watch(src_line, dest_line)
                     }
                 }
             };
@@ -787,8 +785,7 @@ impl Printer {
                         let color_strip_data = get_ansi_strip_str(&line_data)
                             .trim_end_matches('\n')
                             .to_string();
-                        result_line_spans
-                            .push(Span::styled(line_data.to_string(), tui_line_style));
+                        result_line_spans.push(Span::styled(line_data.to_string(), tui_line_style));
                         result_str_elements.push(
                             str_line_style
                                 .paint(color_strip_data.to_string().to_string())

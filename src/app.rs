@@ -49,9 +49,10 @@ use crate::{
 };
 
 // local const
-use crate::HISTORY_WIDTH;
-use crate::DEFAULT_TAB_SIZE;
 use crate::SharedInterval;
+use crate::DEFAULT_TAB_SIZE;
+use crate::HISTORY_WIDTH;
+use crate::OutputWidthShared;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -197,6 +198,9 @@ pub struct App<'a> {
     interval: SharedInterval,
 
     ///
+    output_width: OutputWidthShared,
+
+    ///
     tab_size: u16,
 
     ///
@@ -237,7 +241,12 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl App<'_> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: SharedInterval) -> Self {
+    pub fn new(
+        tx: Sender<AppEvent>,
+        rx: Receiver<AppEvent>,
+        interval: SharedInterval,
+        output_width: OutputWidthShared,
+    ) -> Self {
         // method at create new view trail.
         Self {
             keymap: default_keymap(),
@@ -275,6 +284,7 @@ impl App<'_> {
             enable_summary_char: false,
 
             interval: interval.clone(),
+            output_width,
             tab_size: DEFAULT_TAB_SIZE,
 
             header_area: HeaderArea::new(interval.clone()),
@@ -388,7 +398,14 @@ impl App<'_> {
 
     ///
     pub fn draw(&mut self, f: &mut Frame) {
+        // !!
         self.define_subareas(f.area());
+
+        {
+            let mut cur_output_width = self.output_width.write().unwrap();
+            // TODO: Account for the border
+            *cur_output_width = Some(self.watch_area.get_pane_width() as usize);
+        }
 
         if self.show_header {
             // Draw header area.
@@ -491,9 +508,7 @@ impl App<'_> {
         terminal_event: &crossterm::event::Event,
     ) -> Option<&InputEventContents> {
         match *terminal_event {
-            Event::Key(_) => {
-                self.keymap.get(terminal_event)
-            }
+            Event::Key(_) => self.keymap.get(terminal_event),
             Event::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.kind,
@@ -503,9 +518,7 @@ impl App<'_> {
                 };
                 self.keymap.get(&Event::Mouse(mouse_event))
             }
-            _ => {
-                None
-            }
+            _ => None,
         }
     }
 
@@ -1312,10 +1325,12 @@ impl App<'_> {
                         InputAction::ToggleWrapMode => self.watch_area.toggle_wrap_mode(),
                         InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
                         InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
-                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
-                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
-                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
-                        InputAction::TogglePause => self.toggle_pause(), // TogglePause
+                        InputAction::ToggleHistorySummary => {
+                            self.set_history_summary(!self.is_history_summary)
+                        } // ToggleHistorySummary
+                        InputAction::IntervalPlus => self.increase_interval(),      // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(),     // IntervalMinus
+                        InputAction::TogglePause => self.toggle_pause(),            // TogglePause
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
                         InputAction::ChangeRegexFilterMode => {
                             self.set_input_mode(InputMode::RegexFilter)
@@ -2124,9 +2139,7 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
             match change.tag() {
                 ChangeTag::Equal => {}
                 ChangeTag::Delete | ChangeTag::Insert => {
-                    let value = change
-                        .to_string()
-                        .as_bytes().to_vec();
+                    let value = change.to_string().as_bytes().to_vec();
                     diff_only_data.extend(value);
                 }
             }

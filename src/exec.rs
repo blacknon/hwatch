@@ -7,12 +7,12 @@
 
 // module
 use crossbeam_channel::Sender;
+use flate2::{read::GzDecoder, write::GzEncoder};
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use flate2::{write::GzEncoder, read::GzDecoder};
 
 // local module
 use crate::common;
@@ -35,9 +35,6 @@ impl CommandResultData {
         let output = self.output.as_bytes().to_vec();
         let stdout = self.stdout.as_bytes().to_vec();
         let stderr = self.stderr.as_bytes().to_vec();
-
-
-        
 
         CommandResult {
             timestamp: self.timestamp.clone(),
@@ -174,6 +171,7 @@ pub struct ExecuteCommand {
     pub command: Vec<String>,
     pub is_exec: bool,
     pub is_compress: bool,
+    pub output_width: Option<usize>,
     pub tx: Sender<AppEvent>,
 }
 
@@ -185,6 +183,7 @@ impl ExecuteCommand {
             command: vec![],
             is_exec: false,
             is_compress: false,
+            output_width: None,
             tx,
         }
     }
@@ -196,15 +195,25 @@ impl ExecuteCommand {
         let command_str = self.command.clone().join(" ");
 
         // create exec_commands...
-        let exec_commands = create_exec_cmd_args(self.is_exec,self.shell_command.clone(),command_str.clone());
+        let exec_commands = create_exec_cmd_args(
+            self.is_exec,
+            self.shell_command.clone(),
+            command_str.clone(),
+        );
 
         // exec command...
         let length = exec_commands.len();
-        let child_result = Command::new(&exec_commands[0])
+        let mut child_command = Command::new(&exec_commands[0]);
+        child_command
             .args(&exec_commands[1..length])
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn();
+            .stderr(Stdio::piped());
+        if let Some(cols) = self.output_width {
+            child_command
+                .env("COLUMNS", cols.to_string())
+                .env("HWATCH_COLUMNS", cols.to_string());
+        }
+        let child_result = child_command.spawn();
 
         // merge stdout and stderr
         let mut vec_output = Vec::new();
@@ -237,7 +246,10 @@ impl ExecuteCommand {
                     // write to vector
                     stdout.read_to_end(&mut buf).expect("Failed to read stdout");
                     arc_vec_stdout_clone.lock().unwrap().extend_from_slice(&buf);
-                    arc_vec_output_stdout_clone.lock().unwrap().extend_from_slice(&buf);
+                    arc_vec_output_stdout_clone
+                        .lock()
+                        .unwrap()
+                        .extend_from_slice(&buf);
                 });
 
                 // start stderr thread
@@ -249,7 +261,10 @@ impl ExecuteCommand {
                     // write to vector
                     stderr.read_to_end(&mut buf).expect("Failed to read stderr");
                     arc_vec_stderr_clone.lock().unwrap().extend_from_slice(&buf);
-                    arc_vec_output_stderr_clone.lock().unwrap().extend_from_slice(&buf);
+                    arc_vec_output_stderr_clone
+                        .lock()
+                        .unwrap()
+                        .extend_from_slice(&buf);
                 });
 
                 // with thread stdout/stderr
@@ -257,9 +272,18 @@ impl ExecuteCommand {
                 stderr_thread.join().expect("Failed to join stderr thread");
 
                 // Unwrap Arc, get MutexGuard and extract vector
-                vec_output = Arc::try_unwrap(arc_vec_output).unwrap().into_inner().unwrap();
-                vec_stdout = Arc::try_unwrap(arc_vec_stdout).unwrap().into_inner().unwrap();
-                vec_stderr = Arc::try_unwrap(arc_vec_stderr).unwrap().into_inner().unwrap();
+                vec_output = Arc::try_unwrap(arc_vec_output)
+                    .unwrap()
+                    .into_inner()
+                    .unwrap();
+                vec_stdout = Arc::try_unwrap(arc_vec_stdout)
+                    .unwrap()
+                    .into_inner()
+                    .unwrap();
+                vec_stderr = Arc::try_unwrap(arc_vec_stderr)
+                    .unwrap()
+                    .into_inner()
+                    .unwrap();
 
                 // get command status
                 let exit_status = child.wait().expect("");
@@ -304,7 +328,12 @@ pub struct ExecuteAfterResultData {
     pub after_result: CommandResultData,
 }
 
-pub fn exec_after_command(shell_command: String, after_command: String, before: CommandResult, after: CommandResult) {
+pub fn exec_after_command(
+    shell_command: String,
+    after_command: String,
+    before: CommandResult,
+    after: CommandResult,
+) {
     let before_result: CommandResultData = before.export_data();
     let after_result = after.export_data();
 
@@ -353,11 +382,8 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
             for shell_command_arg in shell_command_args {
                 let exec_cmd_arg: String;
                 if shell_command_arg.contains("{COMMAND}") {
-                    exec_cmd_arg = str::replace(
-                        &shell_command_arg,
-                        crate::SHELL_COMMAND_EXECCMD,
-                        &command,
-                    );
+                    exec_cmd_arg =
+                        str::replace(&shell_command_arg, crate::SHELL_COMMAND_EXECCMD, &command);
                     is_shellcmd_template = true;
                 } else {
                     exec_cmd_arg = shell_command_arg;
@@ -375,7 +401,6 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
     }
 
     exec_commands
-
 }
 
 #[cfg(test)]
