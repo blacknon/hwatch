@@ -38,8 +38,6 @@ pub struct Input {
 
 impl Input {
     pub fn to_str(&self) -> String {
-        
-
         match &self.input {
             // keyboard
             InputType::Key(key) => {
@@ -405,7 +403,7 @@ pub type Keymap = HashMap<Event, InputEventContents>;
 
 pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
     let keymap = default_keymap();
-    
+
     create_keymap(keymap, keymap_options)
 }
 

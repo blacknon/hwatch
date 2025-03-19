@@ -2,17 +2,17 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+use rayon::prelude::*;
+use similar::{Change, ChangeTag, TextDiff};
+use std::sync::{Arc, Mutex};
 use tui::{
     layout::Constraint,
     style::{Color, Modifier, Style},
-    text::{Text, Line, Span},
     symbols,
-    widgets::{Block, Cell, Row, Table, TableState, Borders},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Cell, Row, Table, TableState},
     Frame,
 };
-use similar::{TextDiff, Change, ChangeTag};
-use rayon::prelude::*;
-use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct History {
@@ -72,13 +72,13 @@ impl HistorySummary {
                 match change.tag() {
                     ChangeTag::Insert => {
                         *line_add_lock += 1;
-                    },
+                    }
                     ChangeTag::Delete => {
                         *line_rem_lock += 1;
-                    },
+                    }
                     ChangeTag::Equal => {
                         // 行が変更されていない場合はスキップ
-                    },
+                    }
                 }
             }
         });
@@ -91,7 +91,6 @@ impl HistorySummary {
             *char_add_lock = char_add as u64;
             *char_rem_lock = char_rem as u64;
         }
-
 
         // 結果を取得
         self.line_add = *line_add.lock().unwrap();
@@ -114,19 +113,34 @@ fn calc_char_diff<'a>(change_set: Vec<Change<&str>>) -> (usize, usize) {
         match change.tag() {
             ChangeTag::Delete => {
                 if previous_tag == ChangeTag::Insert && !remove_changes.is_empty() {
-                    get_char_diff(&mut remove_changes, &mut insert_changes, &mut char_add, &mut char_rem);
+                    get_char_diff(
+                        &mut remove_changes,
+                        &mut insert_changes,
+                        &mut char_add,
+                        &mut char_rem,
+                    );
                 }
                 remove_changes.push(change);
             }
             ChangeTag::Insert => {
                 if previous_tag == ChangeTag::Delete && !insert_changes.is_empty() {
-                    get_char_diff(&mut remove_changes, &mut insert_changes, &mut char_add, &mut char_rem);
+                    get_char_diff(
+                        &mut remove_changes,
+                        &mut insert_changes,
+                        &mut char_add,
+                        &mut char_rem,
+                    );
                 }
                 insert_changes.push(change);
             }
             ChangeTag::Equal => {
                 if previous_tag != ChangeTag::Equal {
-                    get_char_diff(&mut remove_changes, &mut insert_changes, &mut char_add, &mut char_rem);
+                    get_char_diff(
+                        &mut remove_changes,
+                        &mut insert_changes,
+                        &mut char_add,
+                        &mut char_rem,
+                    );
                 }
             }
         }
@@ -134,29 +148,39 @@ fn calc_char_diff<'a>(change_set: Vec<Change<&str>>) -> (usize, usize) {
     }
 
     if !remove_changes.is_empty() || !insert_changes.is_empty() {
-        get_char_diff(&mut remove_changes, &mut insert_changes, &mut char_add, &mut char_rem);
+        get_char_diff(
+            &mut remove_changes,
+            &mut insert_changes,
+            &mut char_add,
+            &mut char_rem,
+        );
     }
 
     (char_add, char_rem)
 }
 
 ///
-fn get_char_diff(remove_changes: &mut Vec<Change<&str>>, insert_changes: &mut Vec<Change<&str>>, char_add: &mut usize, char_rem: &mut usize) {
-        let remove_string: String = remove_changes.iter().map(|c| c.value()).collect();
-        let insert_string: String = insert_changes.iter().map(|c| c.value()).collect();
+fn get_char_diff(
+    remove_changes: &mut Vec<Change<&str>>,
+    insert_changes: &mut Vec<Change<&str>>,
+    char_add: &mut usize,
+    char_rem: &mut usize,
+) {
+    let remove_string: String = remove_changes.iter().map(|c| c.value()).collect();
+    let insert_string: String = insert_changes.iter().map(|c| c.value()).collect();
 
-        let char_diff_set = TextDiff::from_chars(&remove_string, &insert_string);
-        for char_change in char_diff_set.iter_all_changes() {
-            let length = char_change.value().len();
-            match char_change.tag() {
-                ChangeTag::Insert => *char_add += length,
-                ChangeTag::Delete => *char_rem += length,
-                _ => {}
-            }
+    let char_diff_set = TextDiff::from_chars(&remove_string, &insert_string);
+    for char_change in char_diff_set.iter_all_changes() {
+        let length = char_change.value().len();
+        match char_change.tag() {
+            ChangeTag::Insert => *char_add += length,
+            ChangeTag::Delete => *char_rem += length,
+            _ => {}
         }
+    }
 
-        remove_changes.clear();
-        insert_changes.clear();
+    remove_changes.clear();
+    insert_changes.clear();
 }
 
 pub struct HistoryArea {
@@ -255,7 +279,13 @@ impl HistoryArea {
     }
 
     ///
-    pub fn update(&mut self, timestamp: String, status: bool, num: u16, history_summary: HistorySummary) {
+    pub fn update(
+        &mut self,
+        timestamp: String,
+        status: bool,
+        num: u16,
+        history_summary: HistorySummary,
+    ) {
         // set result statu to latest
         self.set_latest_status(status);
 
@@ -301,7 +331,7 @@ impl HistoryArea {
                     } else {
                         1
                     }
-                },
+                }
             };
 
             // set cell data
@@ -316,31 +346,35 @@ impl HistoryArea {
                 });
 
                 // line1: timestamp
-                let line1 = Line::from(
-                    vec![
-                        Span::styled(c.timestamp.as_str(), cell_style)
-                    ]
-                );
+                let line1 = Line::from(vec![Span::styled(c.timestamp.as_str(), cell_style)]);
 
                 // line2: line summary
-                let line2 = Line::from(
-                    vec![
-                        Span::styled("Line: ", Color::Reset),
-                        Span::styled(format!("+{:>7}" ,c.summary.line_add.to_string()), Color::Green),
-                        Span::styled(" ", Color::Reset),
-                        Span::styled(format!("-{:>7}" ,c.summary.line_rem.to_string()), Color::Red),
-                    ]
-                );
+                let line2 = Line::from(vec![
+                    Span::styled("Line: ", Color::Reset),
+                    Span::styled(
+                        format!("+{:>7}", c.summary.line_add.to_string()),
+                        Color::Green,
+                    ),
+                    Span::styled(" ", Color::Reset),
+                    Span::styled(
+                        format!("-{:>7}", c.summary.line_rem.to_string()),
+                        Color::Red,
+                    ),
+                ]);
 
                 // line3: char summary
-                let line3 = Line::from(
-                    vec![
-                        Span::styled("Char: ", Color::Reset),
-                        Span::styled(format!("+{:>7}" ,c.summary.char_add.to_string()), Color::Green),
-                        Span::styled(" ", Color::Reset),
-                        Span::styled(format!("-{:>7}" ,c.summary.char_rem.to_string()), Color::Red),
-                    ]
-                );
+                let line3 = Line::from(vec![
+                    Span::styled("Char: ", Color::Reset),
+                    Span::styled(
+                        format!("+{:>7}", c.summary.char_add.to_string()),
+                        Color::Green,
+                    ),
+                    Span::styled(" ", Color::Reset),
+                    Span::styled(
+                        format!("-{:>7}", c.summary.char_rem.to_string()),
+                        Color::Red,
+                    ),
+                ]);
 
                 // set text
                 let text = match self.summary {
@@ -350,7 +384,7 @@ impl HistoryArea {
                         } else {
                             Text::from(vec![line1, line2])
                         }
-                    },
+                    }
                     false => Text::from(vec![line1]),
                 };
 
@@ -361,7 +395,9 @@ impl HistoryArea {
             Row::new(cells).height(height as u16)
         });
 
-        let base_selected_style = Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD);
+        let base_selected_style = Style::default()
+            .bg(Color::DarkGray)
+            .add_modifier(Modifier::BOLD);
         let selected_style = match self.active {
             true => match self.get_state_select() == 0 {
                 true => base_selected_style.fg(Color::Gray).bg(LATEST_COLOR), // Necessary to make >> blue
@@ -380,12 +416,10 @@ impl HistoryArea {
                 pane_block = Block::default()
                     .borders(Borders::TOP)
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(
-                        symbols::border::Set {
-                            top_left: symbols::line::NORMAL.horizontal_down,
-                            ..symbols::border::PLAIN
-                        }
-                    );
+                    .border_set(symbols::border::Set {
+                        top_left: symbols::line::NORMAL.horizontal_down,
+                        ..symbols::border::PLAIN
+                    });
             }
         } else {
             history_width = crate::HISTORY_WIDTH;
@@ -448,9 +482,7 @@ impl HistoryArea {
     ///
     pub fn next(&mut self, num: usize) {
         let i = match self.state.selected() {
-            Some(i) =>{
-            i.saturating_sub(num)
-            },
+            Some(i) => i.saturating_sub(num),
             None => 0,
         };
         self.state.select(Some(i));
@@ -458,14 +490,14 @@ impl HistoryArea {
 
     ///
     pub fn previous(&mut self, num: usize) {
-        let i= match self.state.selected() {
+        let i = match self.state.selected() {
             Some(i) => {
                 if i + num < self.data.len() - 1 {
                     i + num
                 } else {
                     self.data.len() - 1
                 }
-            },
+            }
             None => 0,
         };
         self.state.select(Some(i));
