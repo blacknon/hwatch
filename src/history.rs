@@ -137,7 +137,7 @@ fn calc_char_diff<'a>(change_set: Vec<Change<&str>>) -> (usize, usize) {
         get_char_diff(&mut remove_changes, &mut insert_changes, &mut char_add, &mut char_rem);
     }
 
-    return (char_add, char_rem)
+    (char_add, char_rem)
 }
 
 ///
@@ -396,7 +396,7 @@ impl HistoryArea {
             .block(pane_block)
             .highlight_style(selected_style)
             .highlight_symbol(">>")
-            .widths(&[Constraint::Percentage(100)]);
+            .widths([Constraint::Percentage(100)]);
 
         // render table
         frame.render_stateful_widget(table, self.area, &mut self.state);
@@ -411,9 +411,9 @@ impl HistoryArea {
     ///
     pub fn get_results_latest_index(&self) -> usize {
         if self.data.len() > 1 {
-            return self.data[1][0].num as usize;
+            self.data[1][0].num as usize
         } else {
-            return 0;
+            0
         }
     }
 
@@ -425,9 +425,9 @@ impl HistoryArea {
         };
 
         if self.data.len() > i {
-            return self.data[i][0].num as usize;
+            self.data[i][0].num as usize
         } else {
-            return 0;
+            0
         }
     }
 
@@ -449,11 +449,7 @@ impl HistoryArea {
     pub fn next(&mut self, num: usize) {
         let i = match self.state.selected() {
             Some(i) =>{
-            if i > num {
-                    i - num
-                } else {
-                    0
-                }
+            i.saturating_sub(num)
             },
             None => 0,
         };
@@ -484,7 +480,7 @@ impl HistoryArea {
         let border_row_num: usize = if self.border { 1 } else { 0 };
 
         if self.summary {
-            if row == (0 + border_row_num as u16) {
+            if row == (border_row_num as u16) {
                 select_num = row as usize - border_row_num;
             } else if row < border_row_num as u16 {
                 select_num = 0;

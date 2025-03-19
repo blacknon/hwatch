@@ -16,7 +16,7 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::app::{ActiveArea, InputMode};
+use crate::{app::{ActiveArea, InputMode}, SharedInterval};
 use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
 
@@ -31,7 +31,7 @@ pub struct HeaderArea<'a> {
     pub area: tui::layout::Rect,
 
     ///
-    interval: f64,
+    interval: SharedInterval,
 
     ///
     command: String,
@@ -80,8 +80,8 @@ pub struct HeaderArea<'a> {
 }
 
 /// Header Area Object Trait
-impl<'a> HeaderArea<'a> {
-    pub fn new(interval: f64) -> Self {
+impl HeaderArea<'_> {
+    pub fn new(interval: SharedInterval) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
@@ -142,10 +142,6 @@ impl<'a> HeaderArea<'a> {
         self.command = result.command;
         self.timestamp = result.timestamp;
         self.exec_status = result.status;
-    }
-
-    pub fn set_interval(&mut self, interval: f64) {
-        self.interval = interval;
     }
 
     pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
@@ -221,8 +217,12 @@ impl<'a> HeaderArea<'a> {
                 .add_modifier(Modifier::BOLD);
         }
 
+        let interval = self.interval.read().unwrap();
         // Get the data to display at header.
-        let interval = format!("{:.3}", self.interval);
+        let interval = match interval.paused {
+            true => "Paused".into(),
+            false => format!("{:.3}", interval.interval),
+        };
 
         // Set Number flag value
         let value_number: Span = match self.line_number {
@@ -297,7 +297,7 @@ impl<'a> HeaderArea<'a> {
                 format!("{:>wid$}", interval, wid = 9),
                 Style::default().fg(Color::Cyan),
             ),
-            Span::raw("s:"),
+            Span::raw(":"),
             Span::styled(
                 format!("{:wid$}", self.command, wid = command_width),
                 Style::default().fg(command_color),

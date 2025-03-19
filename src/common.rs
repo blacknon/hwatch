@@ -35,7 +35,7 @@ pub enum OutputMode {
 ///
 pub fn now_str() -> String {
     let date = Local::now();
-    return date.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+    date.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
 }
 
 pub enum LoadLogfileError {
@@ -44,15 +44,15 @@ pub enum LoadLogfileError {
     JsonParseError(serde_json::Error),
 }
 
-pub fn load_logfile(log_path: &str, is_compress: bool) -> Result<Vec<CommandResult>, LoadLogfileError> {
+pub fn load_logfile(
+    log_path: &str,
+    is_compress: bool,
+) -> Result<Vec<CommandResult>, LoadLogfileError> {
     // fileのサイズをチェックするし、0だった場合commandが必須であるエラーを返す
-    match fs::metadata(log_path) {
-        Ok(metadata) => {
-            if metadata.len() == 0 {
-                return Err(LoadLogfileError::LogfileEmpty);
-            }
+    if let Ok(metadata) = fs::metadata(log_path) {
+        if metadata.len() == 0 {
+            return Err(LoadLogfileError::LogfileEmpty);
         }
-        Err(_) => {},
     }
 
     // load log file
@@ -60,7 +60,7 @@ pub fn load_logfile(log_path: &str, is_compress: bool) -> Result<Vec<CommandResu
         Ok(f) => f,
         Err(e) => {
             return Err(LoadLogfileError::LoadFileError(e));
-        },
+        }
     };
 
     // create file reader
@@ -73,24 +73,21 @@ pub fn load_logfile(log_path: &str, is_compress: bool) -> Result<Vec<CommandResu
     let mut result_data = vec![];
     for log_data in stream {
         match log_data {
-            Ok(data) => {
-                result_data.push(data.generate_result(is_compress))
-            },
+            Ok(data) => result_data.push(data.generate_result(is_compress)),
             Err(e) => {
                 return Err(LoadLogfileError::JsonParseError(e));
-            },
+            }
         }
     }
 
     Ok(result_data)
 }
 
-
 /// logging result data to log file(_logpath).
 pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<dyn Error>> {
     // try open logfile
     let mut logfile = match OpenOptions::new()
-        .write(true)
+        
         .create(true)
         .append(true)
         .open(_logpath)
