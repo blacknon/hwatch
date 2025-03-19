@@ -3,18 +3,17 @@
 // that can be found in the LICENSE file.
 
 // v0.3.19
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する(un wrap mode)
+//                 [[FR] Disable line wrapping #182](https://github.com/blacknon/hwatch/issues/182)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
 //                 - DiffModeのPlugin化の布石としての対応
 //                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
-// TODO(blacknon): [[FR] Pause/freeze command execution](https://github.com/blacknon/hwatch/issues/133)
 // TODO(blacknon): Github Actionsをきれいにする
 
 // v0.3.xx
 // TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
-// TODO(blacknon): [[FR] add precise interval option](https://github.com/blacknon/hwatch/issues/111)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
@@ -37,9 +36,9 @@
 extern crate ansi_parser;
 extern crate ansi_term;
 extern crate async_std;
-extern crate config;
-extern crate chrono;
 extern crate chardetng;
+extern crate chrono;
+extern crate config;
 extern crate crossbeam_channel;
 extern crate crossterm;
 extern crate ctrlc;
@@ -47,19 +46,19 @@ extern crate encoding_rs;
 extern crate flate2;
 extern crate futures;
 extern crate heapless;
+extern crate nix;
 extern crate question;
+extern crate ratatui as tui;
 extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
 extern crate termwiz;
 extern crate tokio;
-extern crate nix;
-extern crate ratatui as tui;
-extern crate unicode_width;
 extern crate unicode_segmentation;
+extern crate unicode_width;
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 extern crate termios;
 
 // macro crate
@@ -71,15 +70,15 @@ extern crate serde_derive;
 extern crate serde_json;
 
 // modules
-use clap::{Arg, ArgAction, Command, error::ErrorKind, ValueHint, builder::ArgPredicate};
+use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
+use common::{load_logfile, DiffMode};
+use crossbeam_channel::unbounded;
 use question::{Answer, Question};
 use std::env::args;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use crossbeam_channel::unbounded;
 use std::thread;
-use std::time::Duration;
-use common::{DiffMode, load_logfile};
+use std::time::{Duration, SystemTime};
 
 // local modules
 mod ansi;
@@ -99,12 +98,42 @@ mod view;
 mod watch;
 
 // const
-pub const DEFAULT_INTERVAL: f64 = 2.0;
 pub const DEFAULT_TAB_SIZE: u16 = 4;
 pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
-type Interval = Arc<RwLock<f64>>;
+type SharedInterval = Arc<RwLock<RunInterval>>;
+
+#[derive(Clone, Debug)]
+struct RunInterval {
+    interval: f64,
+    paused: bool,
+}
+
+impl RunInterval {
+    fn new(interval: f64) -> Self {
+        Self {
+            interval,
+            paused: false,
+        }
+    }
+    fn increase(&mut self, seconds: f64) {
+        self.interval += seconds;
+    }
+    fn decrease(&mut self, seconds: f64) {
+        if self.interval > seconds {
+            self.interval -= seconds;
+        }
+    }
+    fn toggle_pause(&mut self) {
+        self.paused = !self.paused;
+    }
+}
+impl Default for RunInterval {
+    fn default() -> Self {
+        Self::new(2.0)
+    }
+}
 
 // const at Windows
 #[cfg(windows)]
@@ -323,6 +352,14 @@ fn build_app() -> clap::Command {
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
+        // Precise Interval Mode
+        //   [--precise] default:false
+        .arg(
+            Arg::new("precise")
+                .help("Attempt to run as close to the interval as possible, regardless of how long the command takes to run")
+                .long("precise")
+                .action(ArgAction::SetTrue)
+        )
         // set limit option
         //   [--limit,-L] size(default:5000)
         .arg(
@@ -377,7 +414,6 @@ fn build_app() -> clap::Command {
                 .long("keymap")
                 .action(ArgAction::Append),
         )
-
 }
 
 fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
@@ -407,6 +443,7 @@ fn main() {
     // Get options flag
     let batch = matcher.get_flag("batch");
     let compress = matcher.get_flag("compress");
+    let precise = matcher.get_flag("precise");
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
@@ -438,29 +475,27 @@ fn main() {
         match load_logfile(abs_log_path.to_str().unwrap(), compress) {
             Ok(results) => {
                 load_results = results;
-            },
+            }
             Err(e) => {
                 let mut is_overwrite_question = false;
                 match e {
                     common::LoadLogfileError::LogfileEmpty => {
                         eprintln!("file {abs_log_path:?} is exists and empty.");
                         is_overwrite_question = true;
-                    },
-                    common::LoadLogfileError::LoadFileError(err) => {
-                        match err.kind() {
-                            std::io::ErrorKind::NotFound => {},
-                            _ => {
-                                eprintln!("file {abs_log_path:?} is exists and load error.");
-                                eprintln!("{err:?}");
-                                is_overwrite_question = true;
-                            },
+                    }
+                    common::LoadLogfileError::LoadFileError(err) => match err.kind() {
+                        std::io::ErrorKind::NotFound => {}
+                        _ => {
+                            eprintln!("file {abs_log_path:?} is exists and load error.");
+                            eprintln!("{err:?}");
+                            is_overwrite_question = true;
                         }
                     },
                     common::LoadLogfileError::JsonParseError(err) => {
                         eprintln!("file {abs_log_path:?} is exists and json parse error.");
                         eprintln!("{err:?}");
                         is_overwrite_question = true;
-                    },
+                    }
                 }
 
                 if is_overwrite_question {
@@ -481,15 +516,19 @@ fn main() {
     let (tx, rx) = unbounded();
 
     // interval
-    let override_interval: f64 = *matcher.get_one::<f64>("interval").unwrap_or(&DEFAULT_INTERVAL);
-    let interval = Interval::new(override_interval.into());
+    let shared_interval: SharedInterval = match matcher.get_one::<f64>("interval") {
+        Some(override_interval) => SharedInterval::new(RunInterval::new(*override_interval).into()),
+        None => SharedInterval::default(),
+    };
 
     // history limit
-    let default_limit:u32 = HISTORY_LIMIT.parse().unwrap();
+    let default_limit: u32 = HISTORY_LIMIT.parse().unwrap();
     let limit = matcher.get_one::<u32>("limit").unwrap_or(&default_limit);
 
     // tab size
-    let tab_size = *matcher.get_one::<u16>("tab_size").unwrap_or(&DEFAULT_TAB_SIZE);
+    let tab_size = *matcher
+        .get_one::<u16>("tab_size")
+        .unwrap_or(&DEFAULT_TAB_SIZE);
 
     // enable summary char
     let enable_summary_char = matcher.get_flag("enable_summary_char");
@@ -516,7 +555,8 @@ fn main() {
     };
 
     // Get Add keymap
-    let keymap_options: Vec<&str> = matcher.get_many::<String>("keymap")
+    let keymap_options: Vec<&str> = matcher
+        .get_many::<String>("keymap")
         .unwrap_or_default()
         .map(|s| s.as_str())
         .collect();
@@ -533,13 +573,13 @@ fn main() {
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().map(|s| s.clone()).collect()
+        command_line = value.into_iter().cloned().collect()
     } else {
         // check load_results
         if load_results.is_empty() {
             let err = cmd_app.error(
                 ErrorKind::InvalidValue,
-                format!("command not specified and logfile is empty."),
+                "command not specified and logfile is empty.".to_string(),
             );
             err.exit();
         }
@@ -556,28 +596,47 @@ fn main() {
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
-        let interval = interval.clone();
+        let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
-            // Create cmd..
-            let mut exe = exec::ExecuteCommand::new(tx.clone());
+            let run_interval = run_interval_ptr.read().expect("Non poisoned block");
+            let paused = run_interval.paused;
+            let interval = run_interval.interval;
+            drop(run_interval); // We manually drop here or else it locks anything else from reading/writing the interval
+            let mut time_to_sleep: f64 = interval;
 
-            // Set shell command
-            exe.shell_command = shell_command.clone();
+            if !paused {
+                // Create cmd..
+                let mut exe = exec::ExecuteCommand::new(tx.clone());
 
-            // Set command
-            exe.command = command.clone();
+                // Set shell command
+                exe.shell_command = shell_command.clone();
 
-            // Set compress
-            exe.is_compress = compress;
+                // Set command
+                exe.command = command.clone();
 
-            // Set is exec flag.
-            exe.is_exec = is_exec;
+                // Set compress
+                exe.is_compress = compress;
 
-            // Exec command
-            exe.exec_command();
+                // Set is exec flag.
+                exe.is_exec = is_exec;
 
-            let sleep_interval = *interval.read().unwrap();
-            std::thread::sleep(Duration::from_secs_f64(sleep_interval));
+                let before_start = SystemTime::now();
+                // Exec command
+                exe.exec_command();
+
+                if precise {
+                    let elapsed: f64 = SystemTime::now()
+                        .duration_since(before_start)
+                        .unwrap_or_default()
+                        .as_secs_f64();
+                    time_to_sleep = match elapsed > time_to_sleep {
+                        true => 0_f64,
+                        false => time_to_sleep - elapsed,
+                    };
+                }
+            }
+
+            std::thread::sleep(Duration::from_secs_f64(time_to_sleep));
         });
     }
 
@@ -585,38 +644,28 @@ fn main() {
     if !batch {
         // is watch mode
         // Create view
-        let mut view = view::View::new(interval.clone())
-            // Set interval on view.header
-            .set_interval(interval)
+        let mut view = view::View::new(shared_interval.clone())
             .set_tab_size(tab_size)
             .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
-
             // set keymap
             .set_keymap(keymap)
-
             // Set color in view
             .set_color(matcher.get_flag("color"))
-
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
-
             // Set reverse mode in view
             .set_reverse(matcher.get_flag("reverse"))
-
             // Set output in view
             .set_output_mode(output_mode)
-
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
-
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
-
             .set_show_ui(!matcher.get_flag("no_title"))
             .set_show_help_banner(!matcher.get_flag("no_help_banner"));
 
@@ -654,5 +703,24 @@ fn main() {
 
         // start batch.
         let _res = batch.run();
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_run_interval() {
+        let mut actual = RunInterval::default();
+        assert!(!actual.paused);
+        assert_eq!(actual.interval, 2.0);
+        actual.increase(1.5);
+        actual.toggle_pause();
+        assert!(actual.paused);
+        assert_eq!(actual.interval, 3.5);
+        actual.decrease(0.5);
+        actual.toggle_pause();
+        assert!(!actual.paused);
+        assert_eq!(actual.interval, 3.0);
     }
 }
