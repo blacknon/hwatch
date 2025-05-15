@@ -88,9 +88,9 @@ const DEFAULT_KEYMAP: [&str; 46] = [
     "pagedown=page_down",                    // PageDown
     "home=move_top",                         // MoveTop: Home
     "end=move_end",                          // MoveEnd: End
-    "tab=toggle_forcus",                     // ToggleForcus: Tab
-    "left=forcus_watch_pane",                // ForcusWatchPane: Left
-    "right=forcus_history_pane",             // ForcusHistoryPane: Right
+    "tab=toggle_focus",                      // ToggleFocus: Tab
+    "left=focus_watch_pane",                 // FocusWatchPane: Left
+    "right=focus_history_pane",              // FocusHistoryPane: Right
     "alt-left=scroll_left",                  // Watch window scrll left: Alt + Left
     "shift-alt-left=scroll_horizontal_home", // Watch window scrll End left: Shift + Alt + Left
     "alt-right=scroll_right",                // Watch window scrll right: Alt + Right
@@ -543,14 +543,14 @@ pub enum InputAction {
     #[serde(rename = "history_pane_move_end")]
     HistoryPaneMoveEnd,
 
-    // Forcus
+    // Focus
     // ==========
-    #[serde(rename = "toggle_forcus")]
-    ToggleForcus,
-    #[serde(rename = "forcus_watch_pane")]
-    ForcusWatchPane,
-    #[serde(rename = "forcus_history_pane")]
-    ForcusHistoryPane,
+    #[serde(rename = "toggle_focus")]
+    ToggleFocus,
+    #[serde(rename = "focus_watch_pane")]
+    FocusWatchPane,
+    #[serde(rename = "focus_history_pane")]
+    FocusHistoryPane,
 
     // quit
     // ==========
@@ -733,10 +733,10 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::WatchPaneMoveEnd => "Move end in watch pane".to_string(),
         InputAction::HistoryPaneMoveEnd => "Move end in history pane".to_string(),
 
-        // Forcus
-        InputAction::ToggleForcus => "Toggle forcus window".to_string(),
-        InputAction::ForcusWatchPane => "Forcus watch pane".to_string(),
-        InputAction::ForcusHistoryPane => "Forcus history pane".to_string(),
+        // Focus
+        InputAction::ToggleFocus => "Toggle focus window".to_string(),
+        InputAction::FocusWatchPane => "Focus watch pane".to_string(),
+        InputAction::FocusHistoryPane => "Focus history pane".to_string(),
 
         // Quit
         InputAction::Quit => "Quit hwatch".to_string(),
@@ -790,8 +790,8 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::SetOutputModeStderr => "Set output mode stderr".to_string(),
 
         // Keyword search
-        InputAction::NextKeyword => "Forcus next keyword".to_string(),
-        InputAction::PrevKeyword => "Forcus previous keyword".to_string(),
+        InputAction::NextKeyword => "Focus next keyword".to_string(),
+        InputAction::PrevKeyword => "Focus previous keyword".to_string(),
 
         // Toggle Wrap
         InputAction::ToggleWrapMode => "Toggle wrap mode".to_string(),

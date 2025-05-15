@@ -160,9 +160,9 @@ Keybind functions that can be specified are as follows.
 | move_end                 | Move end                                   |
 | watch_pane_move_end      | Move end in watch pane                     |
 | history_pane_move_end    | Move end in history pane                   |
-| toggle_forcus            | Toggle forcus window                       |
-| forcus_watch_pane        | Forcus watch pane                          |
-| forcus_history_pane      | Forcus history pane                        |
+| toggle_focus             | Toggle focus window                        |
+| focus_watch_pane         | Focus watch pane                           |
+| focus_history_pane       | Focus history pane                         |
 | quit                     | Quit hwatch                                |
 | reset                    | filter reset                               |
 | cancel                   | Cancel                                     |
@@ -192,8 +192,8 @@ Keybind functions that can be specified are as follows.
 | interval_plus            | Interval +0.5sec                           |
 | interval_minus           | Interval -0.5sec                           |
 | toggle_pause             | Toggle pause execution                     |
-| prev_keyword             | Forcus previous keyword                    |
-| next_keyword             | Forcus next keyword                        |
+| prev_keyword             | Focus previous keyword                     |
+| next_keyword             | Focus next keyword                         |
 | change_filter_mode       | Change filter mode                         |
 | change_regex_filter_mode | Change regex filter mode                   |
 
