@@ -1277,9 +1277,9 @@ impl App<'_> {
                         InputAction::MoveEnd => self.action_end(),                    // MoveEnd
                         InputAction::WatchPaneMoveEnd => self.watch_area.scroll_end(), // Watch Pane MoveEnd
                         InputAction::HistoryPaneMoveEnd => self.action_history_end(), // History Pane MoveEnd
-                        InputAction::ToggleForcus => self.toggle_area(), // ToggleForcus
-                        InputAction::ForcusWatchPane => self.select_watch_pane(), // ForcusWatchPane
-                        InputAction::ForcusHistoryPane => self.select_history_pane(), // ForcusHistoryPane
+                        InputAction::ToggleFocus => self.toggle_area(),               // ToggleFocus
+                        InputAction::FocusWatchPane => self.select_watch_pane(), // FocusWatchPane
+                        InputAction::FocusHistoryPane => self.select_history_pane(), // FocusHistoryPane
                         InputAction::Quit => {
                             if self.disable_exit_dialog {
                                 self.exit();
