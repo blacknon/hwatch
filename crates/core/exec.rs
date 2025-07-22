@@ -4,6 +4,7 @@
 
 // TODO(blacknon): outputやcommandの型をbyteに変更する
 // TODO(blacknon): `command`は別のトコで保持するように変更する？(メモリの節約のため)
+// TODO(blacknon): HWATCH_DATAのサイズが大きくなりすぎる場合、環境変数に出力できなくなるのでファイルへの出力をするオプションを追加する
 
 // module
 use crossbeam_channel::Sender;
