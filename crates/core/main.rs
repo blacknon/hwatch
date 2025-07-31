@@ -54,6 +54,7 @@ extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
+extern crate tempfile;
 extern crate termwiz;
 extern crate tokio;
 extern crate unicode_segmentation;
@@ -323,6 +324,13 @@ fn build_app() -> clap::Command {
                 .value_hint(ValueHint::CommandString)
                 .action(ArgAction::Append)
         )
+        .arg(
+            Arg::new("after_command_result_write_file")
+                .help("TODO: あとでかく")
+                .long("after-command-result-write-file")
+                .requires("after_command")
+                .action(ArgAction::SetTrue),
+        )
         // Logging option
         //   [--logfile,-l] /path/to/logfile
         // ex.)
@@ -455,6 +463,7 @@ fn main() {
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
+    let after_command_result_write_file = matcher.get_flag("after_command_result_write_file");
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
@@ -707,6 +716,7 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             view = view.set_after_command(after_command.to_string());
+            view = view.set_after_command_result_write_file(after_command_result_write_file);
         }
 
         // start app.
@@ -729,6 +739,7 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             batch = batch.set_after_command(after_command.to_string());
+            batch = batch.set_after_command_result_write_file(after_command_result_write_file);
         }
 
         // start batch.

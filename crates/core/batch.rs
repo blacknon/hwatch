@@ -20,6 +20,9 @@ pub struct Batch {
     after_command: String,
 
     ///
+    after_command_result_write_file: bool,
+
+    ///
     line_number: bool,
 
     ///
@@ -65,6 +68,7 @@ impl Batch {
 
         Self {
             after_command: "".to_string(),
+            after_command_result_write_file: false,
             line_number: false,
             is_color: true,
             is_beep: false,
@@ -144,6 +148,8 @@ impl Batch {
             let before_result = results[&latest_num].clone();
             let after_result = _result.clone();
 
+            let after_command_result_write_file = self.after_command_result_write_file;
+
             {
                 thread::spawn(move || {
                     exec_after_command(
@@ -151,6 +157,7 @@ impl Batch {
                         after_command.clone(),
                         before_result,
                         after_result,
+                        after_command_result_write_file,
                     );
                 });
             }
@@ -195,6 +202,11 @@ impl Batch {
     ///
     pub fn set_after_command(mut self, after_command: String) -> Self {
         self.after_command = after_command;
+        self
+    }
+
+    pub fn set_after_command_result_write_file(mut self, write_file: bool) -> Self {
+        self.after_command_result_write_file = write_file;
         self
     }
 

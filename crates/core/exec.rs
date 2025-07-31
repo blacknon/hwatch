@@ -14,6 +14,7 @@ use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use tempfile::NamedTempFile;
 
 // local module
 use crate::common;
@@ -326,6 +327,7 @@ pub fn exec_after_command(
     after_command: String,
     before: CommandResult,
     after: CommandResult,
+    after_command_result_write_file: bool,
 ) {
     let before_result: CommandResultData = before.export_data();
     let after_result = after.export_data();
@@ -342,13 +344,38 @@ pub fn exec_after_command(
     let exec_commands = create_exec_cmd_args(false, shell_command, after_command);
     let length = exec_commands.len();
 
-    let mut child = Command::new(&exec_commands[0])
-        .args(&exec_commands[1..length])
-        .env("HWATCH_DATA", json_data)
-        .spawn()
-        .expect("Failed to execute after command");
+    // let mut hwatch_result_data = String::new();
+    if after_command_result_write_file {
+        let mut file =
+            NamedTempFile::new().expect("Failed to create temporary file for after command result");
 
-    let _ = child.wait();
+        // write json_data to file
+        file.write_all(json_data.as_bytes())
+            .expect("Failed to write to file");
+        file.flush().expect("Failed to flush file");
+
+        let hwatch_result_data = file.path().to_str().unwrap().to_string();
+
+        let mut child = Command::new(&exec_commands[0])
+            .args(&exec_commands[1..length])
+            .env("HWATCH_DATA", hwatch_result_data)
+            .spawn()
+            .expect("Failed to execute after command");
+
+        let _ = child.wait();
+
+        file.close().expect("Failed to close temporary file");
+    } else {
+        let hwatch_result_data = json_data;
+
+        let mut child = Command::new(&exec_commands[0])
+            .args(&exec_commands[1..length])
+            .env("HWATCH_DATA", hwatch_result_data)
+            .spawn()
+            .expect("Failed to execute after command");
+
+        let _ = child.wait();
+    }
 }
 
 //

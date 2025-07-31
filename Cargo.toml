@@ -50,6 +50,7 @@ unicode-truncate = "1"
 unicode-width = "=0.1.13"
 hwatch-diffmode = { version = "0.3.19", path = "crates/diffmode" }
 hwatch-ansi = { version = "0.3.19", path = "crates/ansi" }
+tempfile = "3.20.0"
 
 [[bin]]
 bench = false

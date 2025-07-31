@@ -125,6 +125,9 @@ pub struct App<'a> {
     after_command: String,
 
     ///
+    after_command_result_write_file: bool,
+
+    ///
     limit: u32,
 
     ///
@@ -262,6 +265,7 @@ impl App<'_> {
             limit: 0,
 
             after_command: "".to_string(),
+            after_command_result_write_file: false,
             ansi_color: false,
             line_number: false,
             reverse: false,
@@ -506,9 +510,7 @@ impl App<'_> {
         terminal_event: &crossterm::event::Event,
     ) -> Option<&InputEventContents> {
         match *terminal_event {
-            Event::Key(_) => {
-                self.keymap.get(terminal_event)
-            }
+            Event::Key(_) => self.keymap.get(terminal_event),
             Event::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.kind,
@@ -518,9 +520,7 @@ impl App<'_> {
                 };
                 self.keymap.get(&Event::Mouse(mouse_event))
             }
-            _ => {
-                None
-            }
+            _ => None,
         }
     }
 
@@ -593,6 +593,11 @@ impl App<'_> {
     ///
     pub fn set_after_command(&mut self, command: String) {
         self.after_command = command;
+    }
+
+    ///
+    pub fn set_after_command_result_write_file(&mut self, write_file: bool) {
+        self.after_command_result_write_file = write_file;
     }
 
     ///
@@ -1016,6 +1021,8 @@ impl App<'_> {
             let before_result: CommandResult = self.results[&latest_num].command_result.clone();
             let after_result = output_result_items.command_result.clone();
 
+            let after_command_result_write_file = self.after_command_result_write_file;
+
             {
                 thread::spawn(move || {
                     exec_after_command(
@@ -1023,6 +1030,7 @@ impl App<'_> {
                         after_command.clone(),
                         before_result,
                         after_result,
+                        after_command_result_write_file,
                     );
                 });
             }
@@ -2140,9 +2148,7 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
             match change.tag() {
                 ChangeTag::Equal => {}
                 ChangeTag::Delete | ChangeTag::Insert => {
-                    let value = change
-                        .to_string()
-                        .as_bytes().to_vec();
+                    let value = change.to_string().as_bytes().to_vec();
                     diff_only_data.extend(value);
                 }
             }

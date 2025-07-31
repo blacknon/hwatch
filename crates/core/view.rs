@@ -37,6 +37,7 @@ use crate::DEFAULT_TAB_SIZE;
 #[derive(Clone)]
 pub struct View {
     after_command: String,
+    after_command_result_write_file: bool,
     interval: SharedInterval,
     tab_size: u16,
     limit: u32,
@@ -63,6 +64,7 @@ impl View {
     pub fn new(interval: SharedInterval, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
         Self {
             after_command: "".to_string(),
+            after_command_result_write_file: false,
             interval,
             tab_size: DEFAULT_TAB_SIZE,
             limit: 0,
@@ -87,6 +89,11 @@ impl View {
 
     pub fn set_after_command(mut self, command: String) -> Self {
         self.after_command = command;
+        self
+    }
+
+    pub fn set_after_command_result_write_file(mut self, write_file: bool) -> Self {
+        self.after_command_result_write_file = write_file;
         self
     }
 
@@ -210,6 +217,7 @@ impl View {
 
         // set after command
         app.set_after_command(self.after_command.clone());
+        app.set_after_command_result_write_file(self.after_command_result_write_file);
 
         // set mouse events
         // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCapture can be used
