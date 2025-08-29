@@ -364,7 +364,7 @@ fn build_app() -> clap::Command {
         //   [--limit,-L] size(default:5000)
         .arg(
             Arg::new("limit")
-                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000)")
+                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording.")
                 .short('L')
                 .long("limit")
                 .value_parser(clap::value_parser!(u32))
