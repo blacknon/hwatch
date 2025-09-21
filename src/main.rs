@@ -75,11 +75,11 @@ use common::{load_logfile, DiffMode};
 use crossbeam_channel::unbounded;
 use question::{Answer, Question};
 use std::env::args;
+use std::ffi::OsString;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use std::ffi::OsString;
 
 // local modules
 mod ansi;
@@ -89,7 +89,7 @@ mod common;
 mod errors;
 mod event;
 mod exec;
-mod exit;
+mod popup;
 mod header;
 mod help;
 mod history;
@@ -170,7 +170,7 @@ fn build_app() -> clap::Command {
                 // This specification may prevent parsing with "option with concatenated argument".
                  // So, this line commented out.
                  // -----
-                // .allow_hyphen_values(true) 
+                // .allow_hyphen_values(true)
                 .num_args(1..)
                 .value_hint(ValueHint::CommandWithArguments)
                 .trailing_var_arg(true)
@@ -442,11 +442,12 @@ fn build_app() -> clap::Command {
 //     cmd_app.get_matches_from(args)
 // }
 
-
 fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
     // 1) まず program 名
     let mut os_args = std::env::args_os();
-    let program = os_args.next().unwrap_or_else(|| OsString::from("args-join-sample"));
+    let program = os_args
+        .next()
+        .unwrap_or_else(|| OsString::from("args-join-sample"));
 
     // 2) ENV 側（HWATCH）を取り込む（クォート対応）
     let env_config = std::env::var("HWATCH").unwrap_or_default();
@@ -463,9 +464,7 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
     };
 
     // 3) CLI 側（program を除いた残り全部）
-    let cli_tokens: Vec<String> = os_args
-        .map(|s| s.to_string_lossy().into_owned())
-        .collect();
+    let cli_tokens: Vec<String> = os_args.map(|s| s.to_string_lossy().into_owned()).collect();
 
     // 4) 単純結合（[program, ENV..., CLI...]）
     let mut joined: Vec<OsString> = Vec::with_capacity(1 + env_tokens.len() + cli_tokens.len());
@@ -481,13 +480,10 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
     cmd_app.get_matches_from(joined)
 }
 
-
 fn main() {
     // Get command args matches
     let mut cmd_app = build_app();
     let matcher = get_clap_matcher(cmd_app.clone());
-
-    eprintln!("debug: {:?}", matcher);
 
     // Get options flag
     let batch = matcher.get_flag("batch");

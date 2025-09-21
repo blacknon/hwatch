@@ -38,8 +38,6 @@ pub struct Input {
 
 impl Input {
     pub fn to_str(&self) -> String {
-        
-
         match &self.input {
             // keyboard
             InputType::Key(key) => {
@@ -81,48 +79,49 @@ impl Input {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 46] = [
-    "up=up",                                 // Up
-    "down=down",                             // Down
-    "pageup=page_up",                        // PageUp
-    "pagedown=page_down",                    // PageDown
-    "home=move_top",                         // MoveTop: Home
-    "end=move_end",                          // MoveEnd: End
-    "tab=toggle_focus",                      // ToggleFocus: Tab
-    "left=focus_watch_pane",                 // FocusWatchPane: Left
-    "right=focus_history_pane",              // FocusHistoryPane: Right
-    "alt-left=scroll_left",                  // Watch window scrll left: Alt + Left
-    "shift-alt-left=scroll_horizontal_home", // Watch window scrll End left: Shift + Alt + Left
-    "alt-right=scroll_right",                // Watch window scrll right: Alt + Right
-    "shift-alt-right=scroll_horizontal_end", // Watch window scrll End right: Shift + Alt + Right
-    "q=quit",                                // Quit: q
-    "esc=reset",                             // Reset: ESC
-    "ctrl-c=cancel",                         // Cancel: Ctrl + c
-    "h=help",                                // Help: h
-    "b=toggle_border_with_scroll_bar",       // Toggle Border: b
-    "c=toggle_color",                        // Toggle Color: c
-    "n=toggle_line_number",                  // Toggle Line Number: n
-    "r=toggle_reverse",                      // Toggle Reverse: r
-    "m=toggle_mouse_support",                // Toggle Mouse Support: m
-    "t=toggle_view_pane_ui",                 // Toggle View Pane UI: t
-    "backspace=toggle_view_history_pane",    // Toggle View History Pane: Backspace
-    "d=toggle_diff_mode",                    // Toggle Diff Mode: d
-    "0=set_diff_mode_plane",                 // Set Diff Mode Plane: 0
-    "1=set_diff_mode_watch",                 // Set Diff Mode Watch: 1
-    "2=set_diff_mode_line",                  // Set Diff Mode Line: 2
-    "3=set_diff_mode_word",                  // Set Diff Mode Word: 3
-    "shift-o=set_diff_only",                 // Set Diff Only: Shift + o
-    "o=toggle_output_mode",                  // Toggle Output Mode: o
-    "w=toggle_wrap_mode",                    // Toggle Wrap Mode: w
-    "f3=set_output_mode_output",             // Set Output Mode Output: F3
-    "f1=set_output_mode_stdout",             // Set Output Mode Stdout: F1
-    "f2=set_output_mode_stderr",             // Set Output Mode Stderr: F2
-    "ctrl-n=next_keyword",
-    "ctrl-p=prev_keyword",
-    "shift-s=toggle_history_summary",
-    "plus=interval_plus",   // Interval Plus: +
-    "minus=interval_minus", // Interval Minus: -
-    "p=toggle_pause",
+const DEFAULT_KEYMAP: [&str; 47] = [
+    "up=up",                                    // Up
+    "down=down",                                // Down
+    "pageup=page_up",                           // PageUp
+    "pagedown=page_down",                       // PageDown
+    "home=move_top",                            // MoveTop: Home
+    "end=move_end",                             // MoveEnd: End
+    "tab=toggle_focus",                         // ToggleFocus: Tab
+    "left=focus_watch_pane",                    // FocusWatchPane: Left
+    "right=focus_history_pane",                 // FocusHistoryPane: Right
+    "alt-left=scroll_left",                     // Watch window scrll left: Alt + Left
+    "shift-alt-left=scroll_horizontal_home",    // Watch window scrll End left: Shift + Alt + Left
+    "alt-right=scroll_right",                   // Watch window scrll right: Alt + Right
+    "shift-alt-right=scroll_horizontal_end",    // Watch window scrll End right: Shift + Alt + Right
+    "q=quit",                                   // Quit: q
+    "esc=reset",                                // Reset: ESC
+    "shift-d=delete",                           // Delete: Shift + d
+    "ctrl-c=cancel",                            // Cancel: Ctrl + c
+    "h=help",                                   // Help: h
+    "b=toggle_border_with_scroll_bar",          // Toggle Border: b
+    "c=toggle_color",                           // Toggle Color: c
+    "n=toggle_line_number",                     // Toggle Line Number: n
+    "r=toggle_reverse",                         // Toggle Reverse: r
+    "m=toggle_mouse_support",                   // Toggle Mouse Support: m
+    "t=toggle_view_pane_ui",                    // Toggle View Pane UI: t
+    "backspace=toggle_view_history_pane",       // Toggle View History Pane: Backspace
+    "d=toggle_diff_mode",                       // Toggle Diff Mode: d
+    "0=set_diff_mode_plane",                    // Set Diff Mode Plane: 0
+    "1=set_diff_mode_watch",                    // Set Diff Mode Watch: 1
+    "2=set_diff_mode_line",                     // Set Diff Mode Line: 2
+    "3=set_diff_mode_word",                     // Set Diff Mode Word: 3
+    "shift-o=set_diff_only",                    // Set Diff Only: Shift + o
+    "o=toggle_output_mode",                     // Toggle Output Mode: o
+    "w=toggle_wrap_mode",                       // Toggle Wrap Mode: w
+    "f3=set_output_mode_output",                // Set Output Mode Output: F3
+    "f1=set_output_mode_stdout",                // Set Output Mode Stdout: F1
+    "f2=set_output_mode_stderr",                // Set Output Mode Stderr: F2
+    "ctrl-n=next_keyword",                      // Next Keyword: Ctrl + n
+    "ctrl-p=prev_keyword",                      // Previous Keyword: Ctrl + p
+    "shift-s=toggle_history_summary",           // Toggle History Summary: Shift + s
+    "plus=interval_plus",                       // Interval Plus: +
+    "minus=interval_minus",                     // Interval Minus: -
+    "p=toggle_pause",                           // Toggle Pause: p
     "/=change_filter_mode",                     // Change Filter Mode: /
     "*=change_regex_filter_mode",               // Change Regex Filter Mode: *
     "mouse-scroll_up=mouse_scroll_up",          // Mouse Scroll Up: Mouse Scroll Up
@@ -405,7 +404,7 @@ pub type Keymap = HashMap<Event, InputEventContents>;
 
 pub fn generate_keymap(keymap_options: Vec<&str>) -> Result<Keymap, ConfigError> {
     let keymap = default_keymap();
-    
+
     create_keymap(keymap, keymap_options)
 }
 
@@ -561,6 +560,11 @@ pub enum InputAction {
     // ==========
     #[serde(rename = "reset")]
     Reset,
+
+    // delete
+    // ==========
+    #[serde(rename = "delete")]
+    Delete,
 
     // Cancel
     // ==========
@@ -743,6 +747,9 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
 
         // Reset
         InputAction::Reset => "filter reset".to_string(),
+
+        // Delete
+        InputAction::Delete => "Delete selected history".to_string(),
 
         // Cancel
         InputAction::Cancel => "Cancel".to_string(),
