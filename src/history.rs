@@ -305,12 +305,12 @@ impl HistoryArea {
     pub fn delete(&mut self, index: usize) {
         // find index
         let mut i = 0;
-        // for d in self.data.iter() {
-        //     if d[0].num == index as u16 {
-        //         break;
-        //     }
-        //     i += 1;
-        // }
+        for d in self.data.iter() {
+            if d[0].num == index as u16 {
+                break;
+            }
+            i += 1;
+        }
 
         if i < self.data.len() {
             self.data.remove(index);

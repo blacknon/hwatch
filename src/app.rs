@@ -577,6 +577,29 @@ impl App<'_> {
         self.watch_area.update_output(output_data);
     }
 
+    /// Delete the history and result data of the specified number.
+    fn delete_output_data(&mut self, num: usize) {
+        let selected = self.history_area.get_state_select();
+        if num != 0 && self.history_area.get_history_size() > 0 {
+            // Switch the result depending on the output mode.
+            let results = match self.output_mode {
+                OutputMode::Output => &mut self.results,
+                OutputMode::Stdout => &mut self.results_stdout,
+                OutputMode::Stderr => &mut self.results_stderr,
+            };
+
+            // remove result data.
+            results.remove(&num);
+
+            // delete history data.
+            // self.history_area.delete(num);
+
+            let new_selected = self.reset_history(selected);
+
+            self.set_output_data(new_selected);
+        }
+    }
+
     ///
     pub fn set_keymap(&mut self, keymap: Keymap) {
         self.keymap = keymap.clone();
@@ -1916,7 +1939,7 @@ impl App<'_> {
     fn action_delete_history(&mut self) {
         let selected = self.history_area.get_state_select();
         if selected != 0 && self.history_area.get_history_size() > 0 {
-            self.history_area.delete(selected);
+            self.delete_output_data(selected);
 
             let new_selected = self.reset_history(selected);
 
