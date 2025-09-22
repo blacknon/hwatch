@@ -1338,7 +1338,6 @@ impl App<'_> {
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::Delete => {
                             self.show_delete_popup();
-                            self.action_delete_history()
                         } // Delete
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::ForceCancel => self.action_force_reset(),
