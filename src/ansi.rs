@@ -117,7 +117,7 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                         ColorSpec::TrueColor(rgb) => {
                             let rgb_tuple = rgb.to_srgb_u8();
                             span_style =
-                                span_style.bg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
+                                span_style.fg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
                         }
                     },
                     Sgr::Background(c) => match c {
