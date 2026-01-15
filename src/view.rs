@@ -190,7 +190,7 @@ impl View {
             let input_tx = tx.clone();
             let _ = std::thread::spawn(move || {
                 // non blocking io
-                #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+                #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos", target_os = "windows"))]
                 loop {
                     let _ = send_input(input_tx.clone());
                 }
