@@ -86,13 +86,13 @@ Watch mode keybind(Default).
 
 | Key                                                                                        | Action                                                      |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| <kbd>↑</kbd>, <kbd>↓</kbd>                                                                 | move selected screen(history/watch).                        |
+| <kbd>↑</kbd>, <kbd>↓</kbd>                                                               | move selected screen(history/watch).                        |
 | <kbd>pageup</kbd>, <kbd>pagedn</kbd>                                                       | move selected screen(history/watch).                        |
 | <kbd>home</kbd>, <kbd>end</kbd>                                                            | move selected screen(history/watch).                        |
 | <kbd>Tab</kbd>                                                                             | toggle select screen(history/watch).                        |
-| <kbd>←</kbd>                                                                               | select watch screen.                                        |
-| <kbd>→</kbd>                                                                               | select history screen.                                      |
-| <kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Alt</kbd>+<kbd>→</kbd>                                   | Watch window scrll left/right.                              |
+| <kbd>←</kbd>                                                                              | select watch screen.                                        |
+| <kbd>→</kbd>                                                                              | select history screen.                                      |
+| <kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Alt</kbd>+<kbd>→</kbd>                                 | Watch window scrll left/right.                              |
 | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>→</kbd> | Watch window scrll start/end.                               |
 | <kbd>Q</kbd>                                                                               | exit hwatch.                                                |
 | <kbd>Esc</kbd>                                                                             | unfiltering.                                                |
