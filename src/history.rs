@@ -313,7 +313,7 @@ impl HistoryArea {
         }
 
         if i < self.data.len() {
-            self.data.remove(index);
+            self.data.remove(i);
         }
 
         // set select num

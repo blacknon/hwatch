@@ -6,19 +6,21 @@
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
 use tui::{
+    prelude::Line,
     style::{Color, Modifier, Style},
     text::Span,
-
     widgets::Paragraph,
     Frame,
-    prelude::Line,
 };
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::{app::{ActiveArea, InputMode}, SharedInterval};
 use crate::common::{DiffMode, OutputMode};
 use crate::exec::CommandResult;
+use crate::{
+    app::{ActiveArea, InputMode},
+    SharedInterval,
+};
 
 //const
 // const POSITION_X_HELP_TEXT: usize = 47;
@@ -180,7 +182,8 @@ impl HeaderArea<'_> {
         // 1 ... `:`
         // self.banner.len() ... banner length
         // 1 ... space
-        let command_width_offset = WIDTH_TEXT_INTERVAL + (2 + 1 + self.banner.len() + 1 + WIDTH_TIMESTAMP);
+        let command_width_offset =
+            WIDTH_TEXT_INTERVAL + (2 + 1 + self.banner.len() + 1 + WIDTH_TIMESTAMP);
         if command_width_offset < width {
             command_width = width - command_width_offset;
             timestamp_width = WIDTH_TIMESTAMP;
@@ -207,7 +210,7 @@ impl HeaderArea<'_> {
                 InputMode::Filter => self.input_prompt = "/".to_string(),
                 InputMode::RegexFilter => self.input_prompt = "*".to_string(),
 
-                _ => {},
+                _ => {}
             }
 
             filter_keyword_style = Style::default().fg(Color::Gray);
@@ -320,11 +323,20 @@ impl HeaderArea<'_> {
             Span::styled(self.input_prompt.clone(), Style::default().fg(Color::Gray)),
             Span::styled(filter_keyword, filter_keyword_style),
             // Line number flag
-            Span::raw("["), value_number, Span::raw("]"), Span::raw(" "),
+            Span::raw("["),
+            value_number,
+            Span::raw("]"),
+            Span::raw(" "),
             // Color flag
-            Span::raw("["), value_color, Span::raw("]"), Span::raw(" "),
+            Span::raw("["),
+            value_color,
+            Span::raw("]"),
+            Span::raw(" "),
             // Reverse flag
-            Span::raw("["), value_reverse, Span::raw("]"), Span::raw(" "),
+            Span::raw("["),
+            value_reverse,
+            Span::raw("]"),
+            Span::raw(" "),
             // Output Type
             Span::raw("["),
             // Span::styled("Output:", Style::default().add_modifier(Modifier::BOLD)),

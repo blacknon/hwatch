@@ -79,7 +79,7 @@ impl Input {
     }
 }
 
-const DEFAULT_KEYMAP: [&str; 47] = [
+const DEFAULT_KEYMAP: [&str; 48] = [
     "up=up",                                    // Up
     "down=down",                                // Down
     "pageup=page_up",                           // PageUp
@@ -96,6 +96,7 @@ const DEFAULT_KEYMAP: [&str; 47] = [
     "q=quit",                                   // Quit: q
     "esc=reset",                                // Reset: ESC
     "shift-d=delete",                           // Delete: Shift + d
+    "shift-x=clear_except_selected",            // Clear Except Selected: Shift + x
     "ctrl-c=cancel",                            // Cancel: Ctrl + c
     "h=help",                                   // Help: h
     "b=toggle_border_with_scroll_bar",          // Toggle Border: b
@@ -565,6 +566,8 @@ pub enum InputAction {
     // ==========
     #[serde(rename = "delete")]
     Delete,
+    #[serde(rename = "clear_except_selected")]
+    ClearExceptSelected,
 
     // Cancel
     // ==========
@@ -750,6 +753,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
 
         // Delete
         InputAction::Delete => "Delete selected history".to_string(),
+        InputAction::ClearExceptSelected => "Clear all history except selected history".to_string(),
 
         // Cancel
         InputAction::Cancel => "Cancel".to_string(),

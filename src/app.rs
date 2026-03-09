@@ -65,6 +65,7 @@ pub enum ActiveWindow {
     Help,
     Exit,
     Delete,
+    Clear,
 }
 
 ///
@@ -426,6 +427,18 @@ impl App<'_> {
             popup_window.draw(f);
         }
 
+        if let ActiveWindow::Clear = self.window {
+            let mut popup_window = PopupWindow::new(
+                "clear",
+                vec![
+                    " Clear all history except selected?".to_string(),
+                    "   Press 'Y'         : Clear.".to_string(),
+                    "   Press 'N' or 'Esc': Stay.".to_string(),
+                ],
+            );
+            popup_window.draw(f);
+        }
+
         if self.window != ActiveWindow::Normal {
             return;
         }
@@ -596,6 +609,17 @@ impl App<'_> {
 
             self.set_output_data(new_selected);
         }
+    }
+
+    /// Clear all history except selected.
+    fn clear_history_except_selected(&mut self) {
+        let selected = self.history_area.get_state_select();
+        retain_selected_and_latest_result_only(&mut self.results, selected);
+        retain_selected_and_latest_result_only(&mut self.results_stdout, selected);
+        retain_selected_and_latest_result_only(&mut self.results_stderr, selected);
+
+        let new_selected = self.reset_history(selected);
+        self.set_output_data(new_selected);
     }
 
     ///
@@ -1294,6 +1318,32 @@ impl App<'_> {
             }
         }
 
+        // if clear window
+        if self.window == ActiveWindow::Clear {
+            // match key event
+            if let Event::Key(key) = terminal_event {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('y') => {
+                            self.clear_history_except_selected();
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('n') => {
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('h') => {
+                            self.window = ActiveWindow::Help;
+                            return;
+                        }
+                        // default
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         if let Some(event_content) = self.get_input_action(&terminal_event) {
             let action = event_content.action;
             match self.window {
@@ -1337,6 +1387,9 @@ impl App<'_> {
                         InputAction::Delete => {
                             self.show_delete_popup();
                         } // Delete
+                        InputAction::ClearExceptSelected => {
+                            self.show_clear_popup();
+                        } // ClearExceptSelected
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::ForceCancel => self.action_force_reset(),
                         InputAction::Help => self.toggle_window(), // Help
@@ -1474,6 +1527,14 @@ impl App<'_> {
                         _ => {}
                     }
                 }
+                ActiveWindow::Clear => {
+                    match action {
+                        InputAction::Quit => self.clear_history_except_selected(), // Quit
+                        InputAction::Cancel => self.window = ActiveWindow::Normal, // Cancel
+                        InputAction::Reset => self.window = ActiveWindow::Normal,  // Reset
+                        _ => {}
+                    }
+                }
             }
         }
     }
@@ -1599,6 +1660,11 @@ impl App<'_> {
     ///
     fn show_delete_popup(&mut self) {
         self.window = ActiveWindow::Delete;
+    }
+
+    ///
+    fn show_clear_popup(&mut self) {
+        self.window = ActiveWindow::Clear;
     }
 
     ///
@@ -2146,6 +2212,18 @@ fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -
     }
 
     next_index
+}
+
+fn retain_selected_and_latest_result_only(
+    results: &mut HashMap<usize, ResultItems>,
+    selected: usize,
+) {
+    if results.is_empty() {
+        return;
+    }
+
+    let latest = get_results_latest_index(results);
+    results.retain(|k, _| *k == 0 || *k == latest || *k == selected);
 }
 
 fn gen_result_items(
