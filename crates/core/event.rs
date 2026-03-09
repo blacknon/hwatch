@@ -2,8 +2,8 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crate::exec::CommandResult;
 use crate::app::ResultItems;
+use crate::exec::CommandResult;
 
 pub enum AppEvent {
     OutputUpdate(CommandResult),
