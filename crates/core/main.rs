@@ -3,6 +3,8 @@
 // that can be found in the LICENSE file.
 
 // v0.3.20
+// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する(un wrap mode)
+//                 [[FR] Disable line wrapping #182](https://github.com/blacknon/hwatch/issues/182)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): Github Actionsをきれいにする
@@ -82,6 +84,7 @@ use crossbeam_channel::unbounded;
 use hwatch_diffmode::DiffMode;
 use question::{Answer, Question};
 use std::env::args;
+use std::ffi::OsString;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -97,12 +100,12 @@ mod diffmode_watch;
 mod errors;
 mod event;
 mod exec;
-mod exit;
 mod header;
 mod help;
 mod history;
 mod keymap;
 mod output;
+mod popup;
 mod view;
 mod watch;
 
@@ -167,16 +170,21 @@ fn build_app() -> clap::Command {
     Command::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
-        .trailing_var_arg(true)
+        // .trailing_var_arg(true)
         .author(crate_authors!())
 
         // -- command --
         .arg(
             Arg::new("command")
                 .action(ArgAction::Append)
-                .allow_hyphen_values(true)
-                .num_args(0..)
+                 // -----
+                // This specification may prevent parsing with "option with concatenated argument".
+                 // So, this line commented out.
+                 // -----
+                // .allow_hyphen_values(true)
+                .num_args(1..)
                 .value_hint(ValueHint::CommandWithArguments)
+                .trailing_var_arg(true)
         )
 
         // -- flags --
@@ -364,7 +372,8 @@ fn build_app() -> clap::Command {
                 .help("seconds to wait between updates")
                 .short('n')
                 .long("interval")
-                .action(ArgAction::Append)
+                // .action(ArgAction::Append)
+                .num_args(1)
                 .value_parser(clap::value_parser!(f64))
                 .default_value("2"),
         )
@@ -380,7 +389,7 @@ fn build_app() -> clap::Command {
         //   [--limit,-L] size(default:5000)
         .arg(
             Arg::new("limit")
-                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000)")
+                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording.")
                 .short('L')
                 .long("limit")
                 .value_parser(clap::value_parser!(u32))
@@ -432,23 +441,61 @@ fn build_app() -> clap::Command {
         )
 }
 
+// fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
+//     let env_config = std::env::var("HWATCH").unwrap_or_default();
+//     let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
+//     let mut os_args = std::env::args_os();
+//     let mut args: Vec<std::ffi::OsString> = vec![];
+
+//     // First argument is the program name
+//     args.push(os_args.next().unwrap());
+
+//     // Environment variables go next so that they can be overridded
+//     // TODO: Currently, the opposites of command-line options are not
+//     // yet implemented. E.g., there is no `--no-color` to override
+//     // `--color` in the HWATCH environment variable.
+//     args.extend(env_args.iter().map(std::ffi::OsString::from));
+//     args.extend(os_args);
+
+//     cmd_app.get_matches_from(args)
+// }
+
 fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
-    let env_config = std::env::var("HWATCH").unwrap_or_default();
-    let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
+    // 1) まず program 名
     let mut os_args = std::env::args_os();
-    let mut args: Vec<std::ffi::OsString> = vec![];
+    let program = os_args
+        .next()
+        .unwrap_or_else(|| OsString::from("args-join-sample"));
 
-    // First argument is the program name
-    args.push(os_args.next().unwrap());
+    // 2) ENV 側（HWATCH）を取り込む（クォート対応）
+    let env_config = std::env::var("HWATCH").unwrap_or_default();
+    let env_tokens: Vec<String> = if env_config.is_empty() {
+        Vec::new()
+    } else {
+        match shell_words::split(&env_config) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("warning: failed to parse $HWATCH: {}", e);
+                Vec::new()
+            }
+        }
+    };
 
-    // Environment variables go next so that they can be overridded
-    // TODO: Currently, the opposites of command-line options are not
-    // yet implemented. E.g., there is no `--no-color` to override
-    // `--color` in the HWATCH environment variable.
-    args.extend(env_args.iter().map(std::ffi::OsString::from));
-    args.extend(os_args);
+    // 3) CLI 側（program を除いた残り全部）
+    let cli_tokens: Vec<String> = os_args.map(|s| s.to_string_lossy().into_owned()).collect();
 
-    cmd_app.get_matches_from(args)
+    // 4) 単純結合（[program, ENV..., CLI...]）
+    let mut joined: Vec<OsString> = Vec::with_capacity(1 + env_tokens.len() + cli_tokens.len());
+    joined.push(program);
+    for t in env_tokens {
+        joined.push(OsString::from(t));
+    }
+    for t in cli_tokens {
+        joined.push(OsString::from(t));
+    }
+
+    // 5) clap にそのまま渡す
+    cmd_app.get_matches_from(joined)
 }
 
 fn main() {
