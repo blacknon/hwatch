@@ -89,12 +89,12 @@ mod common;
 mod errors;
 mod event;
 mod exec;
-mod popup;
 mod header;
 mod help;
 mod history;
 mod keymap;
 mod output;
+mod popup;
 mod view;
 mod watch;
 
