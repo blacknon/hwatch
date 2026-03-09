@@ -86,12 +86,7 @@ pub fn load_logfile(
 /// logging result data to log file(_logpath).
 pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<dyn Error>> {
     // try open logfile
-    let mut logfile = match OpenOptions::new()
-        
-        .create(true)
-        .append(true)
-        .open(_logpath)
-    {
+    let mut logfile = match OpenOptions::new().create(true).append(true).open(_logpath) {
         Err(why) => return Err(Box::new(why)),
         Ok(file) => file,
     };

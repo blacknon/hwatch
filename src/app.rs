@@ -6,8 +6,6 @@
 // TODO: log load時の追加処理がなんか変(たぶん、log load時に処理したresultをログに記録しちゃってる？？？)
 //       →多分直った？と思うけど、要テスト
 
-// TODO: keyword filter有効時に、マッチしないResult Itemも表示中のhistoryに追加されてしまうため、追加されないようにする
-
 // module
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
@@ -36,12 +34,12 @@ use unicode_width::UnicodeWidthStr;
 use crate::ansi::get_ansi_strip_str;
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
-use crate::exit::ExitWindow;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea, HistorySummary};
 use crate::keymap::{default_keymap, InputAction, Keymap};
 use crate::output;
+use crate::popup::PopupWindow;
 use crate::watch::WatchArea;
 use crate::{
     common::{logging_result, DiffMode, OutputMode},
@@ -49,9 +47,9 @@ use crate::{
 };
 
 // local const
-use crate::HISTORY_WIDTH;
-use crate::DEFAULT_TAB_SIZE;
 use crate::SharedInterval;
+use crate::DEFAULT_TAB_SIZE;
+use crate::HISTORY_WIDTH;
 
 ///
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -66,6 +64,8 @@ pub enum ActiveWindow {
     Normal,
     Help,
     Exit,
+    Delete,
+    Clear,
 }
 
 ///
@@ -211,9 +211,6 @@ pub struct App<'a> {
     ///
     help_window: HelpWindow<'a>,
 
-    ///
-    exit_window: ExitWindow<'a>,
-
     /// Enable mouse wheel support.
     mouse_events: bool,
 
@@ -282,7 +279,6 @@ impl App<'_> {
             watch_area: WatchArea::new(),
 
             help_window: HelpWindow::new(default_keymap()),
-            exit_window: ExitWindow::new(),
 
             mouse_events: false,
 
@@ -408,7 +404,39 @@ impl App<'_> {
         }
 
         if let ActiveWindow::Exit = self.window {
-            self.exit_window.draw(f);
+            let mut popup_window = PopupWindow::new(
+                "exit",
+                vec![
+                    " Exit hwatch?".to_string(),
+                    "   Press 'Y' or 'Q'  : Quit.".to_string(),
+                    "   Press 'N' or 'Esc': Stay.".to_string(),
+                ],
+            );
+            popup_window.draw(f);
+        }
+
+        if let ActiveWindow::Delete = self.window {
+            let mut popup_window = PopupWindow::new(
+                "delete",
+                vec![
+                    " Delete this history?".to_string(),
+                    "   Press 'Y'         : Delete.".to_string(),
+                    "   Press 'N' or 'Esc': Stay.".to_string(),
+                ],
+            );
+            popup_window.draw(f);
+        }
+
+        if let ActiveWindow::Clear = self.window {
+            let mut popup_window = PopupWindow::new(
+                "clear",
+                vec![
+                    " Clear all history except selected?".to_string(),
+                    "   Press 'Y'         : Clear.".to_string(),
+                    "   Press 'N' or 'Esc': Stay.".to_string(),
+                ],
+            );
+            popup_window.draw(f);
         }
 
         if self.window != ActiveWindow::Normal {
@@ -491,9 +519,7 @@ impl App<'_> {
         terminal_event: &crossterm::event::Event,
     ) -> Option<&InputEventContents> {
         match *terminal_event {
-            Event::Key(_) => {
-                self.keymap.get(terminal_event)
-            }
+            Event::Key(_) => self.keymap.get(terminal_event),
             Event::Mouse(mouse) => {
                 let mouse_event = MouseEvent {
                     kind: mouse.kind,
@@ -503,9 +529,7 @@ impl App<'_> {
                 };
                 self.keymap.get(&Event::Mouse(mouse_event))
             }
-            _ => {
-                None
-            }
+            _ => None,
         }
     }
 
@@ -562,6 +586,40 @@ impl App<'_> {
             }
         }
         self.watch_area.update_output(output_data);
+    }
+
+    /// Delete the history and result data of the specified number.
+    fn delete_output_data(&mut self, num: usize) {
+        let selected = self.history_area.get_state_select();
+        if num != 0 && self.history_area.get_history_size() > 0 {
+            // Switch the result depending on the output mode.
+            let results = match self.output_mode {
+                OutputMode::Output => &mut self.results,
+                OutputMode::Stdout => &mut self.results_stdout,
+                OutputMode::Stderr => &mut self.results_stderr,
+            };
+
+            // remove result data.
+            results.remove(&num);
+
+            // delete history data.
+            self.history_area.delete(num);
+
+            let new_selected = self.reset_history(selected);
+
+            self.set_output_data(new_selected);
+        }
+    }
+
+    /// Clear all history except selected.
+    fn clear_history_except_selected(&mut self) {
+        let selected = self.history_area.get_state_select();
+        retain_selected_and_latest_result_only(&mut self.results, selected);
+        retain_selected_and_latest_result_only(&mut self.results_stdout, selected);
+        retain_selected_and_latest_result_only(&mut self.results_stderr, selected);
+
+        let new_selected = self.reset_history(selected);
+        self.set_output_data(new_selected);
     }
 
     ///
@@ -1234,6 +1292,58 @@ impl App<'_> {
             }
         }
 
+        // if delete window
+        if self.window == ActiveWindow::Delete {
+            // match key event
+            if let Event::Key(key) = terminal_event {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('y') => {
+                            self.action_delete_history();
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('n') => {
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('h') => {
+                            self.window = ActiveWindow::Help;
+                            return;
+                        }
+                        // default
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        // if clear window
+        if self.window == ActiveWindow::Clear {
+            // match key event
+            if let Event::Key(key) = terminal_event {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('y') => {
+                            self.clear_history_except_selected();
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('n') => {
+                            self.window = ActiveWindow::Normal;
+                            return;
+                        }
+                        KeyCode::Char('h') => {
+                            self.window = ActiveWindow::Help;
+                            return;
+                        }
+                        // default
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         if let Some(event_content) = self.get_input_action(&terminal_event) {
             let action = event_content.action;
             match self.window {
@@ -1274,6 +1384,12 @@ impl App<'_> {
                             }
                         } // Quit
                         InputAction::Reset => self.action_normal_reset(), // Reset   TODO: method分離したらちゃんとResetとしての機能を実装
+                        InputAction::Delete => {
+                            self.show_delete_popup();
+                        } // Delete
+                        InputAction::ClearExceptSelected => {
+                            self.show_clear_popup();
+                        } // ClearExceptSelected
                         InputAction::Cancel => self.action_normal_reset(), // Cancel   TODO: method分離したらちゃんとResetとしての機能を実装
                         InputAction::ForceCancel => self.action_force_reset(),
                         InputAction::Help => self.toggle_window(), // Help
@@ -1312,10 +1428,12 @@ impl App<'_> {
                         InputAction::ToggleWrapMode => self.watch_area.toggle_wrap_mode(),
                         InputAction::NextKeyword => self.action_next_keyword(), // NextKeyword
                         InputAction::PrevKeyword => self.action_previous_keyword(), // PreviousKeyword
-                        InputAction::ToggleHistorySummary => self.set_history_summary(!self.is_history_summary), // ToggleHistorySummary
-                        InputAction::IntervalPlus => self.increase_interval(), // IntervalPlus
-                        InputAction::IntervalMinus => self.decrease_interval(), // IntervalMinus
-                        InputAction::TogglePause => self.toggle_pause(), // TogglePause
+                        InputAction::ToggleHistorySummary => {
+                            self.set_history_summary(!self.is_history_summary)
+                        } // ToggleHistorySummary
+                        InputAction::IntervalPlus => self.increase_interval(),      // IntervalPlus
+                        InputAction::IntervalMinus => self.decrease_interval(),     // IntervalMinus
+                        InputAction::TogglePause => self.toggle_pause(),            // TogglePause
                         InputAction::ChangeFilterMode => self.set_input_mode(InputMode::Filter), // Change Filter Mode(plane text).
                         InputAction::ChangeRegexFilterMode => {
                             self.set_input_mode(InputMode::RegexFilter)
@@ -1398,6 +1516,22 @@ impl App<'_> {
                         InputAction::Quit => self.exit(),                         // Quit
                         InputAction::Cancel => self.exit(),                       // Cancel
                         InputAction::Reset => self.window = ActiveWindow::Normal, // Reset
+                        _ => {}
+                    }
+                }
+                ActiveWindow::Delete => {
+                    match action {
+                        InputAction::Quit => self.action_delete_history(), // Quit
+                        InputAction::Cancel => self.window = ActiveWindow::Normal, // Cancel
+                        InputAction::Reset => self.window = ActiveWindow::Normal, // Reset
+                        _ => {}
+                    }
+                }
+                ActiveWindow::Clear => {
+                    match action {
+                        InputAction::Quit => self.clear_history_except_selected(), // Quit
+                        InputAction::Cancel => self.window = ActiveWindow::Normal, // Cancel
+                        InputAction::Reset => self.window = ActiveWindow::Normal,  // Reset
                         _ => {}
                     }
                 }
@@ -1521,6 +1655,16 @@ impl App<'_> {
     ///
     fn show_exit_popup(&mut self) {
         self.window = ActiveWindow::Exit;
+    }
+
+    ///
+    fn show_delete_popup(&mut self) {
+        self.window = ActiveWindow::Delete;
+    }
+
+    ///
+    fn show_clear_popup(&mut self) {
+        self.window = ActiveWindow::Clear;
     }
 
     ///
@@ -1855,6 +1999,19 @@ impl App<'_> {
     }
 
     ///
+    fn action_delete_history(&mut self) {
+        let selected = self.history_area.get_state_select();
+        if selected != 0 && self.history_area.get_history_size() > 0 {
+            self.delete_output_data(selected);
+
+            let new_selected = self.reset_history(selected);
+
+            // update WatchArea
+            self.set_output_data(new_selected);
+        }
+    }
+
+    ///
     fn action_next_keyword(&mut self) {
         self.watch_area.next_keyword();
     }
@@ -2057,6 +2214,18 @@ fn get_results_next_index(results: &HashMap<usize, ResultItems>, index: usize) -
     next_index
 }
 
+fn retain_selected_and_latest_result_only(
+    results: &mut HashMap<usize, ResultItems>,
+    selected: usize,
+) {
+    if results.is_empty() {
+        return;
+    }
+
+    let latest = get_results_latest_index(results);
+    results.retain(|k, _| *k == 0 || *k == latest || *k == selected);
+}
+
 fn gen_result_items(
     _result: CommandResult,
     enable_summary_char: bool,
@@ -2124,9 +2293,7 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
             match change.tag() {
                 ChangeTag::Equal => {}
                 ChangeTag::Delete | ChangeTag::Insert => {
-                    let value = change
-                        .to_string()
-                        .as_bytes().to_vec();
+                    let value = change.to_string().as_bytes().to_vec();
                     diff_only_data.extend(value);
                 }
             }
