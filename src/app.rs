@@ -6,8 +6,6 @@
 // TODO: log load時の追加処理がなんか変(たぶん、log load時に処理したresultをログに記録しちゃってる？？？)
 //       →多分直った？と思うけど、要テスト
 
-// TODO: keyword filter有効時に、マッチしないResult Itemも表示中のhistoryに追加されてしまうため、追加されないようにする
-
 // module
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
@@ -592,7 +590,7 @@ impl App<'_> {
             results.remove(&num);
 
             // delete history data.
-            // self.history_area.delete(num);
+            self.history_area.delete(num);
 
             let new_selected = self.reset_history(selected);
 
