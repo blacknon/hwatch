@@ -96,6 +96,8 @@ Watch mode keybind(Default).
 | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>→</kbd> | Watch window scrll start/end.                               |
 | <kbd>Q</kbd>                                                                               | exit hwatch.                                                |
 | <kbd>Esc</kbd>                                                                             | unfiltering.                                                |
+| <kbd>Shift</kbd>+<kbd>D</kbd>                                                              | delete selected history.                                    |
+| <kbd>Shift</kbd>+<kbd>X</kbd>                                                              | clear all history except selected history.                  |
 | <kbd>Ctrl</kbd>+<kbd>c</kbd>                                                               | cancel.                                                     |
 | <kbd>H</kbd>                                                                               | show help window.                                           |
 | <kbd>B</kbd>                                                                               | toggle enable/disable border.                               |
@@ -165,6 +167,8 @@ Keybind functions that can be specified are as follows.
 | focus_history_pane       | Focus history pane                         |
 | quit                     | Quit hwatch                                |
 | reset                    | filter reset                               |
+| delete                   | Delete selected history                     |
+| clear_except_selected    | Clear all history except selected history   |
 | cancel                   | Cancel                                     |
 | force_cancel             | Cancel without displaying the exit dialog  |
 | help                     | Show and hide help window                  |
