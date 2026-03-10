@@ -446,14 +446,21 @@ impl App<'_> {
         // match input_mode
         match self.input_mode {
             InputMode::Filter | InputMode::RegexFilter => {
-                let input_text_x = self.header_area.input_text.width() as u16 + 1;
-                let input_text_y = self.header_area.area.y + 1;
+                if self.show_header {
+                    // Put the cursor after prompt(1 cell) + input text.
+                    let cursor_x =
+                        self.header_area.area.x + self.header_area.input_text.width() as u16 + 1;
+                    let cursor_y = self.header_area.area.y + 1;
 
-                // set cursor
-                f.set_cursor_position(Position {
-                    x: input_text_x,
-                    y: input_text_y,
-                });
+                    // Clamp cursor position to the frame area.
+                    let area = f.area();
+                    let max_x = area.width.saturating_sub(1);
+                    let max_y = area.height.saturating_sub(1);
+                    let x = cursor_x.min(max_x);
+                    let y = cursor_y.min(max_y);
+
+                    f.set_cursor_position(Position { x, y });
+                }
             }
 
             _ => {}

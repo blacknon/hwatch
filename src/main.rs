@@ -73,6 +73,7 @@ extern crate serde_json;
 use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
 use common::{load_logfile, DiffMode};
 use crossbeam_channel::unbounded;
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use question::{Answer, Question};
 use std::env::args;
 use std::ffi::OsString;
@@ -687,6 +688,18 @@ fn main() {
 
     // check batch mode
     if !batch {
+        // On Windows, Ctrl+C can be delivered as a process signal before key input is read.
+        // Convert it into the same key event as the default keymap (`ctrl-c=cancel`).
+        let tx_ctrlc = tx.clone();
+        let _ = ctrlc::set_handler(move || {
+            let _ = tx_ctrlc.send(event::AppEvent::TerminalEvent(Event::Key(KeyEvent {
+                code: KeyCode::Char('c'),
+                modifiers: KeyModifiers::CONTROL,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::NONE,
+            })));
+        });
+
         // is watch mode
         // Create view
         let mut view = view::View::new(shared_interval.clone())
