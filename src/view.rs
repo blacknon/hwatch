@@ -190,7 +190,12 @@ impl View {
             let input_tx = tx.clone();
             let _ = std::thread::spawn(move || {
                 // non blocking io
-                #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos", target_os = "windows"))]
+                #[cfg(any(
+                    target_os = "freebsd",
+                    target_os = "linux",
+                    target_os = "macos",
+                    target_os = "windows"
+                ))]
                 loop {
                     let _ = send_input(input_tx.clone());
                 }
@@ -259,7 +264,7 @@ impl View {
         let res = app.run(&mut terminal);
 
         // exit app and restore terminal
-        restore_terminal();
+        restore_terminal(&mut terminal);
         if let Err(err) = res {
             println!("{err:?}")
         }
@@ -268,14 +273,8 @@ impl View {
     }
 }
 
-fn restore_terminal() {
+fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) {
     let _ = disable_raw_mode();
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = match Terminal::new(backend) {
-        Ok(t) => t,
-        _ => return,
-    };
-
     let _ = execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,

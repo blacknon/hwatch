@@ -6,6 +6,7 @@
 // TODO(blacknon): `command`は別のトコで保持するように変更する？(メモリの節約のため)
 
 // module
+use chardetng::EncodingDetector;
 use crossbeam_channel::Sender;
 use flate2::{read::GzDecoder, write::GzEncoder};
 use std::io::prelude::*;
@@ -133,11 +134,11 @@ impl CommandResult {
 
         if self.is_compress {
             let mut decoder = GzDecoder::new(&data[..]);
-            let mut s = String::new();
-            decoder.read_to_string(&mut s).unwrap();
-            s
+            let mut decoded = Vec::new();
+            let _ = decoder.read_to_end(&mut decoded);
+            decode_bytes(&decoded)
         } else {
-            String::from_utf8_lossy(data).to_string()
+            decode_bytes(data)
         }
     }
 
@@ -163,6 +164,18 @@ impl CommandResult {
             stderr: self.get_stderr(),
         }
     }
+}
+
+fn decode_bytes(data: &[u8]) -> String {
+    if data.is_empty() {
+        return String::new();
+    }
+
+    let mut detector = EncodingDetector::new();
+    detector.feed(data, true);
+    let encoding = detector.guess(None, true);
+    let (cow, _, _) = encoding.decode(data);
+    cow.into_owned()
 }
 
 // TODO(blacknon): commandは削除？
@@ -398,6 +411,7 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use encoding_rs::SHIFT_JIS;
 
     #[test]
     fn test_command_result_comparison() {
@@ -469,5 +483,12 @@ mod tests {
         let command_result1 = CommandResult::default();
         let command_result2 = CommandResult::default().set_stderr("different".as_bytes().to_vec());
         assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_decode_shift_jis_bytes() {
+        let (encoded, _, _) = SHIFT_JIS.encode("日本語テスト");
+        let command_result = CommandResult::default().set_output(encoded.into_owned());
+        assert_eq!(command_result.get_output(), "日本語テスト");
     }
 }
