@@ -637,7 +637,7 @@ fn main() {
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().cloned().collect()
+        command_line = value.into_iter().cloned().collect();
     } else {
         // check load_results
         if load_results.is_empty() {
@@ -848,4 +848,5 @@ mod tests {
             vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
         );
     }
+
 }
