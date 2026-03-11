@@ -334,26 +334,29 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     let mut command = Command::new(&exec_commands[0]);
     command.args(&exec_commands[1..length]);
 
+    let mut stdin_master = None;
     let stdout_reader;
     let stderr_reader;
 
     if is_pty {
+        let stdin_pty = create_raw_pty();
         let stdout_pty = create_raw_pty();
         let stderr_pty = create_raw_pty();
 
-        let (stdout_pty, stderr_pty) = match (stdout_pty, stderr_pty) {
-            (Ok(stdout_pty), Ok(stderr_pty)) => (stdout_pty, stderr_pty),
-            (Err(err), _) | (_, Err(err)) => {
+        let (stdin_pty, stdout_pty, stderr_pty) = match (stdin_pty, stdout_pty, stderr_pty) {
+            (Ok(stdin_pty), Ok(stdout_pty), Ok(stderr_pty)) => (stdin_pty, stdout_pty, stderr_pty),
+            (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
                 let error_msg = err.to_string().into_bytes();
                 return (false, Vec::new(), Vec::new(), error_msg);
             }
         };
 
+        stdin_master = Some(stdin_pty.master);
         stdout_reader = ReaderHandle::Fd(stdout_pty.master);
         stderr_reader = ReaderHandle::Fd(stderr_pty.master);
 
         command
-            .stdin(Stdio::null())
+            .stdin(Stdio::from(stdin_pty.slave))
             .stdout(Stdio::from(stdout_pty.slave))
             .stderr(Stdio::from(stderr_pty.slave));
     } else {
@@ -364,6 +367,7 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
 
     let child_result = command.spawn();
     drop(command);
+    drop(stdin_master);
     let mut vec_output = Vec::new();
     let mut vec_stdout = Vec::new();
     let mut vec_stderr = Vec::new();
@@ -563,6 +567,18 @@ mod tests {
             "sh".to_string(),
             "-c".to_string(),
             "if [ -t 1 ]; then printf tty; else printf notty; fi".to_string(),
+        ];
+
+        let (_, _, stdout, _) = exec_command(&exec_commands, true);
+        assert_eq!(String::from_utf8(stdout).unwrap(), "tty");
+    }
+
+    #[test]
+    fn test_exec_command_with_force_color_stdin_is_tty() {
+        let exec_commands = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "if [ -t 0 ]; then printf tty; else printf notty; fi".to_string(),
         ];
 
         let (_, _, stdout, _) = exec_command(&exec_commands, true);
