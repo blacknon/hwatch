@@ -207,7 +207,6 @@ impl ExecuteCommand {
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
     pub fn exec_command(&mut self) {
-        // set string command.
         let command_str = self.command.clone().join(" ");
 
         // create exec_commands...
@@ -298,14 +297,23 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
 
             // shell_command_args to exec_cmd_args
             for shell_command_arg in shell_command_args {
-                let exec_cmd_arg: String;
-                if shell_command_arg.contains("{COMMAND}") {
-                    exec_cmd_arg =
-                        str::replace(&shell_command_arg, crate::SHELL_COMMAND_EXECCMD, &command);
-                    is_shellcmd_template = true;
-                } else {
-                    exec_cmd_arg = shell_command_arg;
+                if shell_command_arg == crate::SHELL_COMMAND_EXECCMD
+                    && should_append_command_to_previous_arg(&exec_commands)
+                {
+                    if let Some(previous_arg) = exec_commands.last_mut() {
+                        previous_arg.push(' ');
+                        previous_arg.push_str(&command);
+                        is_shellcmd_template = true;
+                        continue;
+                    }
                 }
+
+                let exec_cmd_arg = if shell_command_arg.contains("{COMMAND}") {
+                    is_shellcmd_template = true;
+                    str::replace(&shell_command_arg, crate::SHELL_COMMAND_EXECCMD, &command)
+                } else {
+                    shell_command_arg
+                };
 
                 // push exec_cmd_arg to exec_cmd_args
                 exec_commands.push(exec_cmd_arg);
@@ -449,6 +457,10 @@ fn read_from_pipe<R: Read>(reader: R, label: &str) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
+fn should_append_command_to_previous_arg(exec_commands: &[String]) -> bool {
+    exec_commands.len() >= 3 && exec_commands[1] == "-c"
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,5 +567,45 @@ mod tests {
 
         let (_, _, stdout, _) = exec_command(&exec_commands, true);
         assert_eq!(String::from_utf8(stdout).unwrap(), "tty");
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_replaces_template_in_argument() {
+        let exec_commands =
+            create_exec_cmd_args(false, "bash -c {COMMAND}".to_string(), "ls -la".to_string());
+
+        assert_eq!(
+            exec_commands,
+            vec!["bash".to_string(), "-c".to_string(), "ls -la".to_string(),]
+        );
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_keeps_shell_command_string() {
+        let exec_commands =
+            create_exec_cmd_args(false, "sh -c".to_string(), "ls -la;pwd".to_string());
+
+        assert_eq!(
+            exec_commands,
+            vec!["sh".to_string(), "-c".to_string(), "ls -la;pwd".to_string(),]
+        );
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_appends_command_after_dash_c_script() {
+        let exec_commands = create_exec_cmd_args(
+            false,
+            "bash -c \"source ~/.bashrc\"; {COMMAND}".to_string(),
+            "ls -la".to_string(),
+        );
+
+        assert_eq!(
+            exec_commands,
+            vec![
+                "bash".to_string(),
+                "-c".to_string(),
+                "source ~/.bashrc; ls -la".to_string(),
+            ]
+        );
     }
 }

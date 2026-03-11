@@ -167,7 +167,7 @@ fn build_app() -> clap::Command {
         .arg(
             Arg::new("command")
                 .action(ArgAction::Append)
-                .allow_hyphen_values(true)
+                // .allow_hyphen_values(true)
                 .num_args(1..)
                 .value_hint(ValueHint::CommandWithArguments)
                 .trailing_var_arg(true)
@@ -645,7 +645,7 @@ fn main() {
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().cloned().collect()
+        command_line = value.into_iter().cloned().collect();
     } else {
         // check load_results
         if load_results.is_empty() {
@@ -858,4 +858,5 @@ mod tests {
             vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
         );
     }
+
 }
