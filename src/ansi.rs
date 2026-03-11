@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon.
+// Copyright (c) 2026 Blacknon.
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
 use ansi_parser::{AnsiParser, AnsiSequence, Output};
