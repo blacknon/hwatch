@@ -167,7 +167,7 @@ fn build_app() -> clap::Command {
         .arg(
             Arg::new("command")
                 .action(ArgAction::Append)
-                .allow_hyphen_values(true)
+                // .allow_hyphen_values(true)
                 .num_args(1..)
                 .value_hint(ValueHint::CommandWithArguments)
                 .trailing_var_arg(true)
