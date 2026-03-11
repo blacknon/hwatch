@@ -284,7 +284,6 @@ fn build_app() -> clap::Command {
                 .long("no-summary")
                 .action(ArgAction::SetTrue),
         )
-        //
         // exec flag.
         //     [-x,--exec]
         .arg(
@@ -294,6 +293,15 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("exec"),
 
+        )
+        // use pty flag.
+        //     [-p,--use-pty]
+        .arg(
+            Arg::new("use_pty")
+                .help("Run the command through a pseudo-TTY so commands that colorize on terminals can keep color output.")
+                .long("use-pty")
+                .short('p')
+                .action(ArgAction::SetTrue),
         )
         // output only flag.
         //     [-O,--diff-output-only]
@@ -660,6 +668,7 @@ fn main() {
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
+        let is_pty = m.get_flag("use_pty");
         let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
             let run_interval = run_interval_ptr.read().expect("Non poisoned block");
@@ -683,6 +692,7 @@ fn main() {
 
                 // Set is exec flag.
                 exe.is_exec = is_exec;
+                exe.is_pty = is_pty;
 
                 let before_start = SystemTime::now();
                 // Exec command
