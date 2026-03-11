@@ -370,6 +370,14 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
         // is -x option enable
         exec_commands = shell_words::split(&command).expect("shell command parse error.");
     } else {
+        if shell_command.contains(crate::SHELL_COMMAND_EXECCMD)
+            && shell_command_contains_control_operator(&shell_command)
+        {
+            let replaced =
+                str::replace(&shell_command, crate::SHELL_COMMAND_EXECCMD, &command);
+            return vec!["sh".to_string(), "-c".to_string(), replaced];
+        }
+
         // if `-e` option disable. (default)
         // split self.shell_command
         let shell_commands =
@@ -406,6 +414,12 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
     }
 
     exec_commands
+}
+
+fn shell_command_contains_control_operator(shell_command: &str) -> bool {
+    shell_command
+        .chars()
+        .any(|c| matches!(c, ';' | '|' | '&' | '<' | '>' | '(' | ')'))
 }
 
 #[cfg(test)]
@@ -490,5 +504,23 @@ mod tests {
         let (encoded, _, _) = SHIFT_JIS.encode("日本語テスト");
         let command_result = CommandResult::default().set_output(encoded.into_owned());
         assert_eq!(command_result.get_output(), "日本語テスト");
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_appends_command_for_dash_c_template() {
+        let exec_commands = create_exec_cmd_args(
+            false,
+            "bash -c \"source ~/.bashrc\"; {COMMAND}".to_string(),
+            "ls -la".to_string(),
+        );
+
+        assert_eq!(
+            exec_commands,
+            vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                "bash -c \"source ~/.bashrc\"; ls -la".to_string(),
+            ]
+        );
     }
 }
