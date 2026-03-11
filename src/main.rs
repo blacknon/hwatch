@@ -3,8 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.3.20
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する(un wrap mode)
-//                 [[FR] Disable line wrapping #182](https://github.com/blacknon/hwatch/issues/182)
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
@@ -167,11 +165,7 @@ fn build_app() -> clap::Command {
         .arg(
             Arg::new("command")
                 .action(ArgAction::Append)
-                 // -----
-                // This specification may prevent parsing with "option with concatenated argument".
-                 // So, this line commented out.
-                 // -----
-                // .allow_hyphen_values(true)
+                .allow_hyphen_values(true)
                 .num_args(1..)
                 .value_hint(ValueHint::CommandWithArguments)
                 .trailing_var_arg(true)
@@ -390,6 +384,7 @@ fn build_app() -> clap::Command {
         )
         // Enable diff mode option
         //   [--differences,-d] [none, watch, line, word]
+        // NOTE: `normalize_args` is preprocessed so that `watch` is selected if no value is set for this option.
         .arg(
             Arg::new("differences")
                 .help("highlight changes between updates")
@@ -424,33 +419,55 @@ fn build_app() -> clap::Command {
         )
 }
 
-// fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
-//     let env_config = std::env::var("HWATCH").unwrap_or_default();
-//     let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
-//     let mut os_args = std::env::args_os();
-//     let mut args: Vec<std::ffi::OsString> = vec![];
+/// Normalize options in args.
+/// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
+fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
+    const DIFF_MODES: [&str; 4] = ["none", "watch", "line", "word"];
+    let mut normalized = Vec::with_capacity(args.len() + 1);
+    let mut iter = args.into_iter();
 
-//     // First argument is the program name
-//     args.push(os_args.next().unwrap());
+    if let Some(program) = iter.next() {
+        normalized.push(program);
+    }
 
-//     // Environment variables go next so that they can be overridded
-//     // TODO: Currently, the opposites of command-line options are not
-//     // yet implemented. E.g., there is no `--no-color` to override
-//     // `--color` in the HWATCH environment variable.
-//     args.extend(env_args.iter().map(std::ffi::OsString::from));
-//     args.extend(os_args);
+    while let Some(arg) = iter.next() {
+        if arg == "--" {
+            normalized.push(arg);
+            normalized.extend(iter);
+            break;
+        }
 
-//     cmd_app.get_matches_from(args)
-// }
+        if arg == "-d" || arg == "--differences" {
+            normalized.push(arg);
+
+            match iter.next() {
+                Some(next) => {
+                    let next_value = next.to_string_lossy();
+                    if DIFF_MODES.contains(&next_value.as_ref()) {
+                        normalized.push(next);
+                    } else {
+                        normalized.push(OsString::from("watch"));
+                        normalized.push(next);
+                    }
+                }
+                None => normalized.push(OsString::from("watch")),
+            }
+
+            continue;
+        }
+
+        normalized.push(arg);
+    }
+
+    return normalized;
+}
 
 fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
-    // 1) まず program 名
     let mut os_args = std::env::args_os();
     let program = os_args
         .next()
         .unwrap_or_else(|| OsString::from("args-join-sample"));
 
-    // 2) ENV 側（HWATCH）を取り込む（クォート対応）
     let env_config = std::env::var("HWATCH").unwrap_or_default();
     let env_tokens: Vec<String> = if env_config.is_empty() {
         Vec::new()
@@ -464,10 +481,8 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
         }
     };
 
-    // 3) CLI 側（program を除いた残り全部）
     let cli_tokens: Vec<String> = os_args.map(|s| s.to_string_lossy().into_owned()).collect();
 
-    // 4) 単純結合（[program, ENV..., CLI...]）
     let mut joined: Vec<OsString> = Vec::with_capacity(1 + env_tokens.len() + cli_tokens.len());
     joined.push(program);
     for t in env_tokens {
@@ -477,7 +492,8 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
         joined.push(OsString::from(t));
     }
 
-    // 5) clap にそのまま渡す
+    let joined = normalize_args(joined);
+
     cmd_app.get_matches_from(joined)
 }
 
@@ -766,6 +782,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
 
     #[test]
     fn test_run_interval() {
@@ -780,5 +797,53 @@ mod tests {
         actual.toggle_pause();
         assert!(!actual.paused);
         assert_eq!(actual.interval, 3.0);
+    }
+
+    #[test]
+    fn normalize_args_keeps_explicit_mode() {
+        let args = vec!["hwatch", "-d", "line", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-d", "line", "echo", "hi"]);
+    }
+
+    #[test]
+    fn normalize_args_inserts_default_mode_before_command() {
+        let args = vec!["hwatch", "-d", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-d", "watch", "echo", "hi"]);
+    }
+
+    #[test]
+    fn normalize_args_inserts_default_mode_before_next_option() {
+        let args = vec!["hwatch", "--differences", "--batch", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(
+            actual,
+            vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
+        );
     }
 }
