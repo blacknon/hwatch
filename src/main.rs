@@ -5,9 +5,6 @@
 // v0.3.20
 // TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
 //                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
-//                 - DiffModeのPlugin化の布石としての対応
-//                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
 // TODO(blacknon): Github Actionsをきれいにする
 
 // v0.3.xx
@@ -20,6 +17,11 @@
 // TODO(blacknon): watchをモダンよりのものに変更する
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
+
+// v0.4.0
+// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
+//                 - DiffModeのPlugin化の布石としての対応
+//                 - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
