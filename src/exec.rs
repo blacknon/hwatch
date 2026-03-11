@@ -15,6 +15,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::os::fd::OwnedFd;
+#[cfg(unix)]
 use std::process::{Command, Stdio};
 use std::thread;
 
