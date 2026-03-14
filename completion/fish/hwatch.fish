@@ -8,6 +8,7 @@ complete -c hwatch -l tab-size -d 'Specifying tab display size' -r
 complete -c hwatch -s d -l differences -d 'highlight changes between updates' -r -f -a "{none\t'',watch\t'',line\t'',word\t''}"
 complete -c hwatch -s o -l output -d 'Select command output.' -r -f -a "{output\t'',stdout\t'',stderr\t''}"
 complete -c hwatch -s K -l keymap -d 'Add keymap' -r
+complete -c hwatch -l completion -d 'Output shell completion script' -r -f -a "bash fish zsh"
 complete -c hwatch -s b -l batch -d 'output exection results to stdout'
 complete -c hwatch -s B -l beep -d 'beep if command has a change result'
 complete -c hwatch -l border -d 'Surround each pane with a border frame'
@@ -23,3 +24,4 @@ complete -c hwatch -s x -l exec -d 'Run the command directly, not through the sh
 complete -c hwatch -s O -l diff-output-only -d 'Display only the lines with differences during `line` diff and `word` diff.'
 complete -c hwatch -s h -l help -d 'Print help'
 complete -c hwatch -s V -l version -d 'Print version'
+complete -c hwatch -f -a "(__fish_complete_command)" -n "not __fish_prev_arg_in -s A -l aftercommand -s l -l logfile -s s -l shell -s n -l interval -s L -l limit -l tab-size -s d -l differences -s o -l output -s K -l keymap -l completion"

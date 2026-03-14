@@ -65,6 +65,7 @@ That records the result of command execution and can display it history and diff
           -t, --no-title                      hide the UI on start. Use `t` to toggle it.
           -N, --line-number                   show line number
               --no-help-banner                hide the "Display help with h key" message
+              --completion <shell>            output shell completion script (bash, fish, zsh)
           -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
           -O, --diff-output-only              Display only the lines with differences during `line` diff and `word` diff.
           -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.

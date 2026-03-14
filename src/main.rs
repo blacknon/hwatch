@@ -293,6 +293,17 @@ fn build_app() -> clap::Command {
                 .long("no-summary")
                 .action(ArgAction::SetTrue),
         )
+        // completion output option
+        //     [--completion]
+        .arg(
+            Arg::new("completion")
+                .help("Output shell completion script")
+                .long("completion")
+                .value_name("SHELL")
+                .value_parser(["bash", "fish", "zsh"])
+                .action(ArgAction::Set)
+                .exclusive(true),
+        )
         // exec flag.
         //     [-x,--exec]
         .arg(
@@ -516,7 +527,87 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
     cmd_app.get_matches_from(joined)
 }
 
+fn output_completion(shell: &str) -> bool {
+    match shell {
+        "bash" => {
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/completion/bash/hwatch-completion.bash"
+                ))
+            );
+            true
+        }
+        "fish" => {
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/completion/fish/hwatch.fish"
+                ))
+            );
+            true
+        }
+        "zsh" => {
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/completion/zsh/_hwatch"
+                ))
+            );
+            true
+        }
+        _ => false,
+    }
+}
+
+fn parse_completion_from_cli() -> Result<Option<String>, String> {
+    let mut args = std::env::args_os();
+    let _ = args.next();
+    let mut iter = args.peekable();
+
+    while let Some(arg) = iter.next() {
+        if arg == "--" {
+            break;
+        }
+
+        let Some(arg_str) = arg.to_str() else {
+            continue;
+        };
+
+        if arg_str == "--completion" {
+            let Some(value) = iter.next() else {
+                return Err("missing value for --completion".to_string());
+            };
+            return Ok(Some(value.to_string_lossy().into_owned()));
+        }
+
+        if let Some(value) = arg_str.strip_prefix("--completion=") {
+            return Ok(Some(value.to_string()));
+        }
+    }
+
+    Ok(None)
+}
+
 fn main() {
+    match parse_completion_from_cli() {
+        Ok(Some(shell)) => {
+            if !output_completion(&shell) {
+                eprintln!("unknown shell for --completion: {shell}");
+                std::process::exit(2);
+            }
+            return;
+        }
+        Ok(None) => {}
+        Err(message) => {
+            eprintln!("{message}");
+            std::process::exit(2);
+        }
+    }
+
     // Get command args matches
     let mut cmd_app = build_app();
     let matcher = get_clap_matcher(cmd_app.clone());
