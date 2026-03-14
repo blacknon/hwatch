@@ -188,9 +188,12 @@ pub fn parse_ansi_color(value: &str) -> Result<Color, String> {
 
     if let Some(hex) = lower.strip_prefix('#') {
         if hex.len() == 6 {
-            let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "invalid hex value".to_string())?;
-            let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "invalid hex value".to_string())?;
-            let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "invalid hex value".to_string())?;
+            let r =
+                u8::from_str_radix(&hex[0..2], 16).map_err(|_| "invalid hex value".to_string())?;
+            let g =
+                u8::from_str_radix(&hex[2..4], 16).map_err(|_| "invalid hex value".to_string())?;
+            let b =
+                u8::from_str_radix(&hex[4..6], 16).map_err(|_| "invalid hex value".to_string())?;
             return Ok(Color::Rgb(r, g, b));
         }
     }
@@ -199,9 +202,18 @@ pub fn parse_ansi_color(value: &str) -> Result<Color, String> {
     if rgb_source.contains(',') {
         let parts: Vec<&str> = rgb_source.split(',').collect();
         if parts.len() == 3 {
-            let r = parts[0].trim().parse::<u8>().map_err(|_| "invalid rgb value".to_string())?;
-            let g = parts[1].trim().parse::<u8>().map_err(|_| "invalid rgb value".to_string())?;
-            let b = parts[2].trim().parse::<u8>().map_err(|_| "invalid rgb value".to_string())?;
+            let r = parts[0]
+                .trim()
+                .parse::<u8>()
+                .map_err(|_| "invalid rgb value".to_string())?;
+            let g = parts[1]
+                .trim()
+                .parse::<u8>()
+                .map_err(|_| "invalid rgb value".to_string())?;
+            let b = parts[2]
+                .trim()
+                .parse::<u8>()
+                .map_err(|_| "invalid rgb value".to_string())?;
             return Ok(Color::Rgb(r, g, b));
         }
     }
