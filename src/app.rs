@@ -26,6 +26,7 @@ use std::{
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Position, Rect},
+    style::Color,
     Frame, Terminal,
 };
 use unicode_width::UnicodeWidthStr;
@@ -718,6 +719,14 @@ impl App<'_> {
         // set scroll_bar
         self.history_area.set_scroll_bar(scroll_bar);
         self.watch_area.set_scroll_bar(scroll_bar);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
+    pub fn set_watch_diff_colors(&mut self, fg: Option<Color>, bg: Option<Color>) {
+        self.printer.set_watch_diff_colors(fg, bg);
 
         let selected = self.history_area.get_state_select();
         self.set_output_data(selected);
