@@ -416,7 +416,7 @@ impl<'a> WatchArea<'a> {
         // get self.lines
         let mut pane_width: u16 = self.area.width;
         if self.border {
-            pane_width -= 1;
+            pane_width = pane_width.saturating_sub(1);
         }
 
         self.lines = block.line_count(pane_width) as i16;
@@ -473,7 +473,7 @@ impl<'a> WatchArea<'a> {
     pub fn scroll_down(&mut self, num: i16) {
         let mut height: u16 = self.area.height;
         if self.border && !self.hide_header {
-            height -= 1;
+            height = height.saturating_sub(1);
         }
 
         if self.lines > height as i16 {
@@ -504,7 +504,7 @@ impl<'a> WatchArea<'a> {
     pub fn scroll_horizontal_end(&mut self) {
         let width: u16 = self.area.width;
 
-        self.horizontal_position = self.width - width as i16;
+        self.horizontal_position = std::cmp::max(0, self.width - width as i16);
     }
 
     ///
