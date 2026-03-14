@@ -94,6 +94,11 @@ Flags
 :   Hide the "Display help with h key" message
 
 
+\--completion *shell*
+
+:   Output shell completion script. Supported shells: bash, fish, zsh.
+
+
 \--no-summary
 
 
