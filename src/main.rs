@@ -268,6 +268,15 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
+        // Disable wrap mode option
+        //   [--wrap,-w]
+        .arg(
+            Arg::new("wrap")
+            .help("disable line wrap mode")
+                .short('w')
+                .action(ArgAction::SetTrue)
+                .long("wrap"),
+        )
         // help banner disable flag.
         //     [--no-help-banner]
         .arg(
@@ -745,6 +754,8 @@ fn main() {
             .set_line_number(matcher.get_flag("line_number"))
             // Set reverse mode in view
             .set_reverse(matcher.get_flag("reverse"))
+            // Set wrap mode in view
+            .set_wrap_mode(!matcher.get_flag("wrap"))
             // Set output in view
             .set_output_mode(output_mode)
             // Set diff(watch diff) in view

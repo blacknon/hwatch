@@ -47,6 +47,7 @@ pub struct View {
     show_help_banner: bool,
     line_number: bool,
     reverse: bool,
+    wrap: bool,
     output_mode: OutputMode,
     diff_mode: DiffMode,
     is_only_diffline: bool,
@@ -72,6 +73,7 @@ impl View {
             show_help_banner: true,
             line_number: false,
             reverse: false,
+            wrap: true,
             output_mode: OutputMode::Output,
             diff_mode: DiffMode::Disable,
             is_only_diffline: false,
@@ -142,6 +144,11 @@ impl View {
 
     pub fn set_reverse(mut self, reverse: bool) -> Self {
         self.reverse = reverse;
+        self
+    }
+
+    pub fn set_wrap_mode(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
         self
     }
 
@@ -246,6 +253,9 @@ impl View {
 
         // set reverse
         app.set_reverse(self.reverse);
+
+        // set wrap mode
+        app.set_wrap_mode(self.wrap);
 
         // set output mode
         app.set_output_mode(self.output_mode);
