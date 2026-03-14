@@ -489,7 +489,7 @@ impl App<'_> {
             .constraints(
                 [
                     Constraint::Length(header_height),
-                    Constraint::Max(total_area.height - header_height),
+                    Constraint::Max(total_area.height.saturating_sub(header_height)),
                 ]
                 .as_ref(),
             )
@@ -499,7 +499,7 @@ impl App<'_> {
         let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(total_area.width - history_width),
+                    Constraint::Max(total_area.width.saturating_sub(history_width)),
                     Constraint::Length(history_width),
                 ]
                 .as_ref(),
