@@ -132,9 +132,9 @@ pub fn centered_rect_with_size(height: u16, width: u16, r: Rect) -> Rect {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length((r.height - height) / 2),
+                Constraint::Length(r.height.saturating_sub(height) / 2),
                 Constraint::Length(height),
-                Constraint::Length((r.height - height) / 2),
+                Constraint::Length(r.height.saturating_sub(height) / 2),
             ]
             .as_ref(),
         )
@@ -143,9 +143,9 @@ pub fn centered_rect_with_size(height: u16, width: u16, r: Rect) -> Rect {
         .direction(Direction::Horizontal)
         .constraints(
             [
-                Constraint::Length((r.width - width) / 2),
+                Constraint::Length(r.width.saturating_sub(width) / 2),
                 Constraint::Length(width),
-                Constraint::Length((r.width - width) / 2),
+                Constraint::Length(r.width.saturating_sub(width) / 2),
             ]
             .as_ref(),
         )
