@@ -11,7 +11,7 @@ use crossterm::{
 };
 use std::time::Duration;
 use std::{error::Error, io};
-use tui::{backend::CrosstermBackend, Terminal};
+use tui::{backend::CrosstermBackend, style::Color, Terminal};
 
 // non blocking io
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
@@ -43,6 +43,8 @@ pub struct View {
     scroll_bar: bool,
     mouse_events: bool,
     color: bool,
+    watch_diff_fg: Option<Color>,
+    watch_diff_bg: Option<Color>,
     show_ui: bool,
     show_help_banner: bool,
     line_number: bool,
@@ -69,6 +71,8 @@ impl View {
             scroll_bar: false,
             mouse_events: false,
             color: false,
+            watch_diff_fg: None,
+            watch_diff_bg: None,
             show_ui: true,
             show_help_banner: true,
             line_number: false,
@@ -124,6 +128,12 @@ impl View {
 
     pub fn set_color(mut self, color: bool) -> Self {
         self.color = color;
+        self
+    }
+
+    pub fn set_watch_diff_colors(mut self, fg: Option<Color>, bg: Option<Color>) -> Self {
+        self.watch_diff_fg = fg;
+        self.watch_diff_bg = bg;
         self
     }
 
@@ -217,6 +227,9 @@ impl View {
 
         // set after command
         app.set_after_command(self.after_command.clone());
+
+        // set watch diff highlight colors
+        app.set_watch_diff_colors(self.watch_diff_fg, self.watch_diff_bg);
 
         // set mouse events
         // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCapture can be used

@@ -450,9 +450,7 @@ impl<'a> WatchArea<'a> {
             // horizontal scrollbar
             if !self.is_line_wrap && self.width > self.horizontal_view_width() {
                 let mut horizontal_scrollbar_state: ScrollbarState = ScrollbarState::default()
-                    .content_length(
-                        (self.width - self.horizontal_view_width()).max(0) as usize,
-                    )
+                    .content_length((self.width - self.horizontal_view_width()).max(0) as usize)
                     .position(self.horizontal_position as usize);
 
                 frame.render_stateful_widget(

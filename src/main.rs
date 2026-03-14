@@ -742,6 +742,34 @@ fn main() {
         }
     };
 
+    let watch_diff_fg = match std::env::var("HWATCH_WATCH_FG") {
+        Ok(value) => match common::parse_ansi_color(&value) {
+            Ok(color) => Some(color),
+            Err(message) => {
+                let err = cmd_app.error(
+                    ErrorKind::ValueValidation,
+                    format!("$HWATCH_WATCH_FG {message}"),
+                );
+                err.exit();
+            }
+        },
+        Err(_) => None,
+    };
+
+    let watch_diff_bg = match std::env::var("HWATCH_WATCH_BG") {
+        Ok(value) => match common::parse_ansi_color(&value) {
+            Ok(color) => Some(color),
+            Err(message) => {
+                let err = cmd_app.error(
+                    ErrorKind::ValueValidation,
+                    format!("$HWATCH_WATCH_BG {message}"),
+                );
+                err.exit();
+            }
+        },
+        Err(_) => None,
+    };
+
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
@@ -841,6 +869,8 @@ fn main() {
             .set_keymap(keymap)
             // Set color in view
             .set_color(matcher.get_flag("color"))
+            // Set watch diff highlight colors
+            .set_watch_diff_colors(watch_diff_fg, watch_diff_bg)
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
             // Set reverse mode in view
