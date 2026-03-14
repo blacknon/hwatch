@@ -767,6 +767,14 @@ impl App<'_> {
     }
 
     ///
+    pub fn set_wrap_mode(&mut self, wrap: bool) {
+        self.watch_area.set_wrap_mode(wrap);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
     pub fn add_results(&mut self, results: Vec<CommandResult>) {
         for result in results {
             self.create_result_items(result, false);
