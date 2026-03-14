@@ -81,21 +81,21 @@ impl HelpWindow<'_> {
 
     ///
     pub fn scroll_down(&mut self, num: i16) {
-        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        let height: u16 = self.area.height.saturating_sub(2); // top/bottom border = 2
         if self.lines > height as i16 {
             self.position = std::cmp::min(self.position + num, self.lines - height as i16);
         }
     }
 
     pub fn page_up(&mut self) {
-        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        let height: u16 = self.area.height.saturating_sub(2); // top/bottom border = 2
         if self.lines > height as i16 {
             self.position = std::cmp::max(0, self.position - height as i16);
         }
     }
 
     pub fn page_down(&mut self) {
-        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        let height: u16 = self.area.height.saturating_sub(2); // top/bottom border = 2
         if self.lines > height as i16 {
             self.position =
                 std::cmp::min(self.position + height as i16, self.lines - height as i16);
@@ -107,7 +107,7 @@ impl HelpWindow<'_> {
     }
 
     pub fn scroll_end(&mut self) {
-        let height: u16 = self.area.height - 2; // top/bottom border = 2
+        let height: u16 = self.area.height.saturating_sub(2); // top/bottom border = 2
         if self.lines > height as i16 {
             self.position = self.lines - height as i16;
         }
