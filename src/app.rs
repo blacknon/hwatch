@@ -16,6 +16,7 @@ use crossterm::{
     execute,
 };
 use regex::Regex;
+use unicode_normalization::UnicodeNormalization;
 use similar::{ChangeTag, TextDiff};
 use std::{
     collections::HashMap,
@@ -923,15 +924,19 @@ impl App<'_> {
 
                 match self.is_regex_filter {
                     true => {
-                        let re = Regex::new(&self.filtered_text.clone()).unwrap();
-                        let regex_match = re.is_match(&result_text);
+                        let filter = self.filtered_text.nfc().collect::<String>();
+                        let target = result_text.nfc().collect::<String>();
+                        let re = Regex::new(&filter).unwrap();
+                        let regex_match = re.is_match(&target);
                         if !regex_match {
                             is_push = false;
                         }
                     }
 
                     false => {
-                        if !result_text.contains(&self.filtered_text) {
+                        let filter = self.filtered_text.nfc().collect::<String>();
+                        let target = result_text.nfc().collect::<String>();
+                        if !target.contains(&filter) {
                             is_push = false;
                         }
                     }
@@ -1149,15 +1154,19 @@ impl App<'_> {
 
             match self.is_regex_filter {
                 true => {
-                    let re = Regex::new(&self.filtered_text).unwrap();
-                    let regex_match = re.is_match(&result_text);
+                    let filter = self.filtered_text.nfc().collect::<String>();
+                    let target = result_text.nfc().collect::<String>();
+                    let re = Regex::new(&filter).unwrap();
+                    let regex_match = re.is_match(&target);
                     if !regex_match {
                         is_push = false;
                     }
                 }
 
                 false => {
-                    if !result_text.contains(&self.filtered_text) {
+                    let filter = self.filtered_text.nfc().collect::<String>();
+                    let target = result_text.nfc().collect::<String>();
+                    if !target.contains(&filter) {
                         is_push = false;
                     }
                 }

@@ -13,6 +13,7 @@ use tui::{
     Frame,
 };
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_normalization::UnicodeNormalization;
 
 // set highlight style
 static KEYWORD_HIGHLIGHT_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Yellow);
@@ -228,7 +229,8 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn set_keyword(&mut self, keyword: String, is_regex: bool) {
-        self.keyword = keyword;
+        // Normalize keyword to NFC to avoid NFD/NFC mismatches (macOS decomposed filenames)
+        self.keyword = keyword.nfc().collect::<String>();
         self.keyword_is_regex = is_regex;
         self.selected_keyword = -1;
 
@@ -595,26 +597,30 @@ fn get_keyword_positions(
             .iter()
             .map(|span| span.content.as_ref())
             .collect();
-        let combined_text: String = base_combined_text.chars().skip(ignore_head_count).collect();
+        // Normalize to NFC to match input keyword normalization (macOS uses NFD for filenames)
+        let base_combined_text = base_combined_text.nfc().collect::<String>();
+        let combined_text: String = base_combined_text.graphemes(true).skip(ignore_head_count).collect();
 
         if let Some(re) = &re {
+            let byte_to_grapheme_index = |byte_idx: usize| -> usize {
+                combined_text[..byte_idx].graphemes(true).count()
+            };
+
             for mat in re.find_iter(&combined_text) {
-                hits.push((
-                    line_index,
-                    mat.start() + ignore_head_count,
-                    mat.end() + ignore_head_count,
-                ));
+                let start_char = byte_to_grapheme_index(mat.start()) + ignore_head_count;
+                let end_char = byte_to_grapheme_index(mat.end()) + ignore_head_count;
+
+                hits.push((line_index, start_char, end_char));
             }
         } else {
             let mut start_position = 0;
-            let keyword_len = keyword.chars().count();
-            let combined_text_chars: Vec<char> = combined_text.chars().collect();
+            let keyword_len = keyword.graphemes(true).count();
+            let combined_text_graphemes: Vec<&str> = combined_text.graphemes(true).collect();
 
-            while start_position + keyword_len <= combined_text_chars.len() {
-                let current_slice: String = combined_text_chars
+            while start_position + keyword_len <= combined_text_graphemes.len() {
+                let current_slice: String = combined_text_graphemes
                     [start_position..(start_position + keyword_len)]
-                    .iter()
-                    .collect();
+                    .concat();
                 if current_slice == keyword {
                     hits.push((
                         line_index,
@@ -710,9 +716,10 @@ fn highlight_text(
 
         // Process each Span to generate a new Span
         for span in &line.spans {
-            let span_text = span.content.as_ref().to_string();
+            // Normalize span text to NFC for correct grapheme indexing and matching
+            let span_text = span.content.as_ref().nfc().collect::<String>();
             let span_start = current_pos;
-            let span_end = current_pos + span_text.len();
+            let span_end = current_pos + span_text.graphemes(true).count();
 
             // Processing when the highlight range spans Span
             if !line_hits.is_empty() {
@@ -730,18 +737,20 @@ fn highlight_text(
 
                     if highlight_start > last_pos {
                         let before_highlight_text: String = span_text
-                            .chars()
+                            .graphemes(true)
                             .skip(last_pos)
                             .take(highlight_start - last_pos)
-                            .collect();
+                            .collect::<Vec<&str>>()
+                            .concat();
                         new_spans.push(Span::styled(before_highlight_text, span.style));
                     }
 
                     let text_str: String = span_text
-                        .chars()
+                        .graphemes(true)
                         .skip(highlight_start)
                         .take(highlight_end - highlight_start)
-                        .collect();
+                        .collect::<Vec<&str>>()
+                        .concat();
 
                     if text_str.chars().count() > 0 {
                         if current_count == selected_keyword {
@@ -755,8 +764,12 @@ fn highlight_text(
                     last_pos = highlight_end;
                 }
 
-                if last_pos < span_text.chars().count() {
-                    let after_highlight_text: String = span_text.chars().skip(last_pos).collect();
+                if last_pos < span_text.graphemes(true).count() {
+                    let after_highlight_text: String = span_text
+                        .graphemes(true)
+                        .skip(last_pos)
+                        .collect::<Vec<&str>>()
+                        .concat();
                     new_spans.push(Span::styled(after_highlight_text, span.style));
                 }
             } else {
@@ -764,11 +777,35 @@ fn highlight_text(
                 new_spans.push(Span::styled(span_text.clone(), span.style));
             }
 
-            current_pos += span_text.chars().count();
+            current_pos += span_text.graphemes(true).count();
         }
 
         new_lines.push(Line::from(new_spans));
     }
 
     new_lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tui::text::Span;
+
+    #[test]
+    fn test_get_keyword_positions_multibyte_plain() {
+        let line = Line::from(vec![Span::from("あいうえお日本語テスト")]);
+        let lines = vec![line];
+        let positions = get_keyword_positions(&lines, "日本語", false, false, false);
+        assert_eq!(positions.len(), 1);
+        assert_eq!(positions[0].1, 5); // "あいうえお" = 5 chars
+    }
+
+    #[test]
+    fn test_get_keyword_positions_multibyte_regex() {
+        let line = Line::from(vec![Span::from("abc日本語def")]);
+        let lines = vec![line];
+        let positions = get_keyword_positions(&lines, "日本語", true, false, false);
+        assert_eq!(positions.len(), 1);
+        assert_eq!(positions[0].1, 3); // "abc" = 3 chars
+    }
 }
