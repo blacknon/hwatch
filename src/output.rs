@@ -9,7 +9,6 @@
 
 // modules
 use ansi_term::Colour;
-use ratatui::style::Stylize;
 use similar::{ChangeTag, InlineChange, TextDiff};
 use std::cmp;
 use std::fmt::Write;
@@ -63,14 +62,14 @@ enum DifferenceType {
 }
 
 pub trait StringExt {
-    fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
+    fn expand_tabs(&self, tab_size: u16) -> Cow<'_, str>;
 }
 
 impl<T> StringExt for T
 where
     T: AsRef<str>,
 {
-    fn expand_tabs(&self, tab_size: u16) -> Cow<str> {
+    fn expand_tabs(&self, tab_size: u16) -> Cow<'_, str> {
         let s = self.as_ref();
         let tab = '\t';
 
