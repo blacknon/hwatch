@@ -13,6 +13,7 @@ use flate2::{read::GzDecoder, write::GzEncoder};
 use nix::pty::{openpty, OpenptyResult, Winsize};
 #[cfg(unix)]
 use nix::sys::termios::{cfmakeraw, tcgetattr, tcsetattr, SetArg};
+#[cfg(unix)]
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -337,7 +338,10 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     let mut command = Command::new(&exec_commands[0]);
     command.args(&exec_commands[1..length]);
 
-    let mut stdin_master = None;
+    #[cfg(unix)]
+    let mut stdin_master: Option<OwnedFd> = None;
+    #[cfg(not(unix))]
+    let stdin_master: Option<()> = None;
     let stdout_reader;
     let stderr_reader;
 
@@ -383,7 +387,7 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
 
     let child_result = command.spawn();
     drop(command);
-    drop(stdin_master);
+    let _ = stdin_master;
     let mut vec_output = Vec::new();
     let mut vec_stdout = Vec::new();
     let mut vec_stderr = Vec::new();
@@ -391,6 +395,7 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     let status = match child_result {
         Ok(mut child) => {
             let stdout_thread = match stdout_reader {
+                #[cfg(unix)]
                 ReaderHandle::Fd(fd) => thread::spawn(move || read_from_fd(fd, "stdout")),
                 ReaderHandle::Pipe => {
                     let child_stdout = child.stdout.take().expect("");
@@ -398,6 +403,7 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
                 }
             };
             let stderr_thread = match stderr_reader {
+                #[cfg(unix)]
                 ReaderHandle::Fd(fd) => thread::spawn(move || read_from_fd(fd, "stderr")),
                 ReaderHandle::Pipe => {
                     let child_stderr = child.stderr.take().expect("");
