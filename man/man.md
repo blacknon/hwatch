@@ -94,6 +94,11 @@ Flags
 :   Hide the "Display help with h key" message
 
 
+\--completion *shell*
+
+:   Output shell completion script. Supported shells: bash, fish, zsh.
+
+
 \--no-summary
 
 
@@ -289,11 +294,11 @@ F3
 
 Ctrl+P
 
-:   Forcus before keyword.
+:   Focus before keyword.
 
 Ctrl+N
 
-:   Forcus next keyword.
+:   Focus next keyword.
 
 Shif+O
 
