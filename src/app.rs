@@ -324,7 +324,9 @@ impl App<'_> {
 
             // Draw data
             if update_draw {
-                terminal.draw(|f| self.draw(f))?;
+                terminal
+                    .draw(|f| self.draw(f))
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
                 update_draw = false
             }
 

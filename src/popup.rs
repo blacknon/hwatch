@@ -2,7 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use ratatui::style::Stylize;
 use tui::{
     layout::Rect,
     prelude::Line,

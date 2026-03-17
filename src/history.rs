@@ -447,7 +447,7 @@ impl HistoryArea {
 
         let table = Table::new(rows, [Constraint::Length(history_width)])
             .block(pane_block)
-            .highlight_style(selected_style)
+            .row_highlight_style(selected_style)
             .highlight_symbol(">>")
             .widths([Constraint::Percentage(100)]);
 
