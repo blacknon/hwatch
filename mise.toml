@@ -1,0 +1,12 @@
+# Enviroment
+# ====================
+# [env]
+# mise.file = "env"
+
+# Tasks(binary)
+# ====================
+[tasks.generate-gif]
+description = "generate hwatch.gif"
+run = """
+vhs img/demo.tape -o img/hwatch.gif
+"""

@@ -1,24 +1,18 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-// v0.3.20
-// TODO(blacknon): watchウィンドウの表示を折り返しだけではなく、横方向にスクロールして出力するモードも追加する(un wrap mode)
-//                 [[FR] Disable line wrapping #182](https://github.com/blacknon/hwatch/issues/182)
-// TODO(blacknon): コマンドが終了していなくても、インターバル間隔でコマンドを実行する
-//                 (パラレルで実行してもよいコマンドじゃないといけないよ、という機能か。投げっぱなしにしてintervalで待つようにするオプションを付ける)
-// TODO(blacknon): Github Actionsをきれいにする
-
-// v0.3.xx
-// TODO(blacknon): [FR: add "completion" subcommand](https://github.com/blacknon/hwatch/issues/107)
+// v0.4.0
+// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
+//                 - DiffModeのPlugin化の布石としての対応
+//                 - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
+// TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
+// TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
+// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
-// TODO(blacknon): UTF-8以外のエンコードでも動作するよう対応する(エンコード対応)
-// TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
 // TODO(blacknon): watchをモダンよりのものに変更する
-// TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
-// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 
 // v0.4.0
 // TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
@@ -82,6 +76,7 @@ use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, Val
 use common::load_logfile;
 use crossbeam_channel::unbounded;
 use hwatch_diffmode::DiffMode;
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use question::{Answer, Question};
 use std::env::args;
 use std::ffi::OsString;
@@ -177,10 +172,6 @@ fn build_app() -> clap::Command {
         .arg(
             Arg::new("command")
                 .action(ArgAction::Append)
-                 // -----
-                // This specification may prevent parsing with "option with concatenated argument".
-                 // So, this line commented out.
-                 // -----
                 // .allow_hyphen_values(true)
                 .num_args(1..)
                 .value_hint(ValueHint::CommandWithArguments)
@@ -282,6 +273,15 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("line-number"),
         )
+        // Disable wrap mode option
+        //   [--wrap,-w]
+        .arg(
+            Arg::new("wrap")
+            .help("disable line wrap mode")
+                .short('w')
+                .action(ArgAction::SetTrue)
+                .long("wrap"),
+        )
         // help banner disable flag.
         //     [--no-help-banner]
         .arg(
@@ -298,7 +298,17 @@ fn build_app() -> clap::Command {
                 .long("no-summary")
                 .action(ArgAction::SetTrue),
         )
-        //
+        // completion output option
+        //     [--completion]
+        .arg(
+            Arg::new("completion")
+                .help("Output shell completion script")
+                .long("completion")
+                .value_name("SHELL")
+                .value_parser(["bash", "fish", "zsh"])
+                .action(ArgAction::Set)
+                .exclusive(true),
+        )
         // exec flag.
         //     [-x,--exec]
         .arg(
@@ -308,6 +318,15 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("exec"),
 
+        )
+        // use pty flag.
+        //     [-p,--use-pty]
+        .arg(
+            Arg::new("use_pty")
+                .help("Run the command through a pseudo-TTY so commands that colorize on terminals can keep color output.")
+                .long("use-pty")
+                .short('p')
+                .action(ArgAction::SetTrue),
         )
         // output only flag.
         //     [-O,--diff-output-only]
@@ -407,6 +426,7 @@ fn build_app() -> clap::Command {
         )
         // Enable diff mode option
         //   [--differences,-d] [none, watch, line, word]
+        // NOTE: `normalize_args` is preprocessed so that `watch` is selected if no value is set for this option.
         .arg(
             Arg::new("differences")
                 .help("highlight changes between updates")
@@ -441,33 +461,55 @@ fn build_app() -> clap::Command {
         )
 }
 
-// fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
-//     let env_config = std::env::var("HWATCH").unwrap_or_default();
-//     let env_args: Vec<&str> = env_config.split_ascii_whitespace().collect();
-//     let mut os_args = std::env::args_os();
-//     let mut args: Vec<std::ffi::OsString> = vec![];
+/// Normalize options in args.
+/// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
+fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
+    const DIFF_MODES: [&str; 4] = ["none", "watch", "line", "word"];
+    let mut normalized = Vec::with_capacity(args.len() + 1);
+    let mut iter = args.into_iter();
 
-//     // First argument is the program name
-//     args.push(os_args.next().unwrap());
+    if let Some(program) = iter.next() {
+        normalized.push(program);
+    }
 
-//     // Environment variables go next so that they can be overridded
-//     // TODO: Currently, the opposites of command-line options are not
-//     // yet implemented. E.g., there is no `--no-color` to override
-//     // `--color` in the HWATCH environment variable.
-//     args.extend(env_args.iter().map(std::ffi::OsString::from));
-//     args.extend(os_args);
+    while let Some(arg) = iter.next() {
+        if arg == "--" {
+            normalized.push(arg);
+            normalized.extend(iter);
+            break;
+        }
 
-//     cmd_app.get_matches_from(args)
-// }
+        if arg == "-d" || arg == "--differences" {
+            normalized.push(arg);
+
+            match iter.next() {
+                Some(next) => {
+                    let next_value = next.to_string_lossy();
+                    if DIFF_MODES.contains(&next_value.as_ref()) {
+                        normalized.push(next);
+                    } else {
+                        normalized.push(OsString::from("watch"));
+                        normalized.push(next);
+                    }
+                }
+                None => normalized.push(OsString::from("watch")),
+            }
+
+            continue;
+        }
+
+        normalized.push(arg);
+    }
+
+    return normalized;
+}
 
 fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
-    // 1) まず program 名
     let mut os_args = std::env::args_os();
     let program = os_args
         .next()
         .unwrap_or_else(|| OsString::from("args-join-sample"));
 
-    // 2) ENV 側（HWATCH）を取り込む（クォート対応）
     let env_config = std::env::var("HWATCH").unwrap_or_default();
     let env_tokens: Vec<String> = if env_config.is_empty() {
         Vec::new()
@@ -481,10 +523,8 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
         }
     };
 
-    // 3) CLI 側（program を除いた残り全部）
     let cli_tokens: Vec<String> = os_args.map(|s| s.to_string_lossy().into_owned()).collect();
 
-    // 4) 単純結合（[program, ENV..., CLI...]）
     let mut joined: Vec<OsString> = Vec::with_capacity(1 + env_tokens.len() + cli_tokens.len());
     joined.push(program);
     for t in env_tokens {
@@ -494,11 +534,92 @@ fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
         joined.push(OsString::from(t));
     }
 
-    // 5) clap にそのまま渡す
+    let joined = normalize_args(joined);
+
     cmd_app.get_matches_from(joined)
 }
 
+fn output_completion(shell: &str) -> bool {
+    match shell {
+        "bash" => {
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/completion/bash/hwatch-completion.bash"
+                ))
+            );
+            true
+        }
+        "fish" => {
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/completion/fish/hwatch.fish"
+                ))
+            );
+            true
+        }
+        "zsh" => {
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/completion/zsh/_hwatch"
+                ))
+            );
+            true
+        }
+        _ => false,
+    }
+}
+
+fn parse_completion_from_cli() -> Result<Option<String>, String> {
+    let mut args = std::env::args_os();
+    let _ = args.next();
+    let mut iter = args.peekable();
+
+    while let Some(arg) = iter.next() {
+        if arg == "--" {
+            break;
+        }
+
+        let Some(arg_str) = arg.to_str() else {
+            continue;
+        };
+
+        if arg_str == "--completion" {
+            let Some(value) = iter.next() else {
+                return Err("missing value for --completion".to_string());
+            };
+            return Ok(Some(value.to_string_lossy().into_owned()));
+        }
+
+        if let Some(value) = arg_str.strip_prefix("--completion=") {
+            return Ok(Some(value.to_string()));
+        }
+    }
+
+    Ok(None)
+}
+
 fn main() {
+    match parse_completion_from_cli() {
+        Ok(Some(shell)) => {
+            if !output_completion(&shell) {
+                eprintln!("unknown shell for --completion: {shell}");
+                std::process::exit(2);
+            }
+            return;
+        }
+        Ok(None) => {}
+        Err(message) => {
+            eprintln!("{message}");
+            std::process::exit(2);
+        }
+    }
+
     // Get command args matches
     let mut cmd_app = build_app();
     let matcher = get_clap_matcher(cmd_app.clone());
@@ -634,10 +755,38 @@ fn main() {
         }
     };
 
+    let watch_diff_fg = match std::env::var("HWATCH_WATCH_FG") {
+        Ok(value) => match common::parse_ansi_color(&value) {
+            Ok(color) => Some(color),
+            Err(message) => {
+                let err = cmd_app.error(
+                    ErrorKind::ValueValidation,
+                    format!("$HWATCH_WATCH_FG {message}"),
+                );
+                err.exit();
+            }
+        },
+        Err(_) => None,
+    };
+
+    let watch_diff_bg = match std::env::var("HWATCH_WATCH_BG") {
+        Ok(value) => match common::parse_ansi_color(&value) {
+            Ok(color) => Some(color),
+            Err(message) => {
+                let err = cmd_app.error(
+                    ErrorKind::ValueValidation,
+                    format!("$HWATCH_WATCH_BG {message}"),
+                );
+                err.exit();
+            }
+        },
+        Err(_) => None,
+    };
+
     // set command
     let command_line: Vec<String>;
     if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().cloned().collect()
+        command_line = value.into_iter().cloned().collect();
     } else {
         // check load_results
         if load_results.is_empty() {
@@ -660,6 +809,7 @@ fn main() {
         let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
+        let is_pty = m.get_flag("use_pty");
         let run_interval_ptr = shared_interval.clone();
         let _ = thread::spawn(move || loop {
             let run_interval = run_interval_ptr.read().expect("Non poisoned block");
@@ -683,6 +833,7 @@ fn main() {
 
                 // Set is exec flag.
                 exe.is_exec = is_exec;
+                exe.is_pty = is_pty;
 
                 let before_start = SystemTime::now();
                 // Exec command
@@ -728,6 +879,18 @@ fn main() {
 
     // check batch mode
     if !batch {
+        // On Windows, Ctrl+C can be delivered as a process signal before key input is read.
+        // Convert it into the same key event as the default keymap (`ctrl-c=cancel`).
+        let tx_ctrlc = tx.clone();
+        let _ = ctrlc::set_handler(move || {
+            let _ = tx_ctrlc.send(event::AppEvent::TerminalEvent(Event::Key(KeyEvent {
+                code: KeyCode::Char('c'),
+                modifiers: KeyModifiers::CONTROL,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::NONE,
+            })));
+        });
+
         // is watch mode
         // Create view
         let mut view = view::View::new(shared_interval.clone(), diff_modes)
@@ -741,10 +904,14 @@ fn main() {
             .set_keymap(keymap)
             // Set color in view
             .set_color(matcher.get_flag("color"))
+            // Set watch diff highlight colors
+            .set_watch_diff_colors(watch_diff_fg, watch_diff_bg)
             // Set line number in view
             .set_line_number(matcher.get_flag("line_number"))
             // Set reverse mode in view
             .set_reverse(matcher.get_flag("reverse"))
+            // Set wrap mode in view
+            .set_wrap_mode(!matcher.get_flag("wrap"))
             // Set output in view
             .set_output_mode(output_mode)
             // Set diff(watch diff) in view
@@ -796,6 +963,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
 
     #[test]
     fn test_run_interval() {
@@ -810,5 +978,53 @@ mod tests {
         actual.toggle_pause();
         assert!(!actual.paused);
         assert_eq!(actual.interval, 3.0);
+    }
+
+    #[test]
+    fn normalize_args_keeps_explicit_mode() {
+        let args = vec!["hwatch", "-d", "line", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-d", "line", "echo", "hi"]);
+    }
+
+    #[test]
+    fn normalize_args_inserts_default_mode_before_command() {
+        let args = vec!["hwatch", "-d", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-d", "watch", "echo", "hi"]);
+    }
+
+    #[test]
+    fn normalize_args_inserts_default_mode_before_next_option() {
+        let args = vec!["hwatch", "--differences", "--batch", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(
+            actual,
+            vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
+        );
     }
 }

@@ -4,7 +4,7 @@ version = "0.3.19"
 edition = "2021"
 
 [dependencies]
-ratatui = { version = "0.28.0", default-features = false, features = [
+ratatui = { version = "0.30.0", default-features = false, features = [
     'crossterm',
     'unstable-rendered-line-info',
 ] }

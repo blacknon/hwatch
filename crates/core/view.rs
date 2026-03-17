@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -12,7 +12,7 @@ use crossterm::{
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{error::Error, io};
-use tui::{backend::CrosstermBackend, Terminal};
+use tui::{backend::CrosstermBackend, style::Color, Terminal};
 
 // non blocking io
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
@@ -47,10 +47,13 @@ pub struct View {
     scroll_bar: bool,
     mouse_events: bool,
     color: bool,
+    watch_diff_fg: Option<Color>,
+    watch_diff_bg: Option<Color>,
     show_ui: bool,
     show_help_banner: bool,
     line_number: bool,
     reverse: bool,
+    wrap: bool,
     output_mode: OutputMode,
     diff_mode: usize,
     diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
@@ -74,10 +77,13 @@ impl View {
             scroll_bar: false,
             mouse_events: false,
             color: false,
+            watch_diff_fg: None,
+            watch_diff_bg: None,
             show_ui: true,
             show_help_banner: true,
             line_number: false,
             reverse: false,
+            wrap: true,
             output_mode: OutputMode::Output,
             diff_mode: 0,
             diff_modes: diff_modes,
@@ -137,6 +143,12 @@ impl View {
         self
     }
 
+    pub fn set_watch_diff_colors(mut self, fg: Option<Color>, bg: Option<Color>) -> Self {
+        self.watch_diff_fg = fg;
+        self.watch_diff_bg = bg;
+        self
+    }
+
     pub fn set_show_ui(mut self, show_ui: bool) -> Self {
         self.show_ui = show_ui;
         self
@@ -154,6 +166,11 @@ impl View {
 
     pub fn set_reverse(mut self, reverse: bool) -> Self {
         self.reverse = reverse;
+        self
+    }
+
+    pub fn set_wrap_mode(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
         self
     }
 
@@ -202,7 +219,12 @@ impl View {
             let input_tx = tx.clone();
             let _ = std::thread::spawn(move || {
                 // non blocking io
-                #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos", target_os = "windows"))]
+                #[cfg(any(
+                    target_os = "freebsd",
+                    target_os = "linux",
+                    target_os = "macos",
+                    target_os = "windows"
+                ))]
                 loop {
                     let _ = send_input(input_tx.clone());
                 }
@@ -218,6 +240,9 @@ impl View {
         // set after command
         app.set_after_command(self.after_command.clone());
         app.set_after_command_result_write_file(self.after_command_result_write_file);
+
+        // set watch diff highlight colors
+        app.set_watch_diff_colors(self.watch_diff_fg, self.watch_diff_bg);
 
         // set mouse events
         // Windows mouse capture implemention requires EnableMouseCapture be invoked before DisableMouseCapture can be used
@@ -255,6 +280,9 @@ impl View {
         // set reverse
         app.set_reverse(self.reverse);
 
+        // set wrap mode
+        app.set_wrap_mode(self.wrap);
+
         // set output mode
         app.set_output_mode(self.output_mode);
 
@@ -272,7 +300,7 @@ impl View {
         let res = app.run(&mut terminal);
 
         // exit app and restore terminal
-        restore_terminal();
+        restore_terminal(&mut terminal);
         if let Err(err) = res {
             println!("{err:?}")
         }
@@ -281,14 +309,8 @@ impl View {
     }
 }
 
-fn restore_terminal() {
+fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) {
     let _ = disable_raw_mode();
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = match Terminal::new(backend) {
-        Ok(t) => t,
-        _ => return,
-    };
-
     let _ = execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,

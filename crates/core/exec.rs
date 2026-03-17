@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -7,12 +7,20 @@
 // TODO(blacknon): HWATCH_DATAのサイズが大きくなりすぎる場合、環境変数に出力できなくなるのでファイルへの出力をするオプションを追加する
 
 // module
+use chardetng::EncodingDetector;
 use crossbeam_channel::Sender;
 use flate2::{read::GzDecoder, write::GzEncoder};
+#[cfg(unix)]
+use nix::pty::{openpty, OpenptyResult, Winsize};
+#[cfg(unix)]
+use nix::sys::termios::{cfmakeraw, tcgetattr, tcsetattr, SetArg};
+#[cfg(unix)]
+use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+#[cfg(unix)]
+use std::os::fd::OwnedFd;
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
 use std::thread;
 use tempfile::NamedTempFile;
 
@@ -135,11 +143,11 @@ impl CommandResult {
 
         if self.is_compress {
             let mut decoder = GzDecoder::new(&data[..]);
-            let mut s = String::new();
-            decoder.read_to_string(&mut s).unwrap();
-            s
+            let mut decoded = Vec::new();
+            let _ = decoder.read_to_end(&mut decoded);
+            decode_bytes(&decoded)
         } else {
-            String::from_utf8_lossy(data).to_string()
+            decode_bytes(data)
         }
     }
 
@@ -167,12 +175,25 @@ impl CommandResult {
     }
 }
 
+fn decode_bytes(data: &[u8]) -> String {
+    if data.is_empty() {
+        return String::new();
+    }
+
+    let mut detector = EncodingDetector::new();
+    detector.feed(data, true);
+    let encoding = detector.guess(None, true);
+    let (cow, _, _) = encoding.decode(data);
+    cow.into_owned()
+}
+
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {
     pub shell_command: String,
     pub command: Vec<String>,
     pub is_exec: bool,
     pub is_compress: bool,
+    pub is_pty: bool,
     pub tx: Sender<AppEvent>,
 }
 
@@ -184,6 +205,7 @@ impl ExecuteCommand {
             command: vec![],
             is_exec: false,
             is_compress: false,
+            is_pty: false,
             tx,
         }
     }
@@ -191,7 +213,6 @@ impl ExecuteCommand {
     // exec command
     // TODO(blacknon): Resultからcommandを削除して、実行時はこのfunctionの引数として受け付けるように改修する？
     pub fn exec_command(&mut self) {
-        // set string command.
         let command_str = self.command.clone().join(" ");
 
         // create exec_commands...
@@ -201,100 +222,8 @@ impl ExecuteCommand {
             command_str.clone(),
         );
 
-        // exec command...
-        let length = exec_commands.len();
-        let child_result = Command::new(&exec_commands[0])
-            .args(&exec_commands[1..length])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn();
-
-        // merge stdout and stderr
-        let mut vec_output = Vec::new();
-        let mut vec_stdout = Vec::new();
-        let mut vec_stderr = Vec::new();
-
-        // get output data
-        let status = match child_result {
-            Ok(mut child) => {
-                let child_stdout = child.stdout.take().expect("");
-                let child_stderr = child.stderr.take().expect("");
-
-                // Prepare vector for collapsing stdout and stderr output
-                let arc_vec_output = Arc::new(Mutex::new(Vec::new()));
-                let arc_vec_stdout = Arc::new(Mutex::new(Vec::new()));
-                let arc_vec_stderr = Arc::new(Mutex::new(Vec::new()));
-
-                // Using Arc and Mutex to share sequential writes between threads
-                let arc_vec_output_stdout_clone = Arc::clone(&arc_vec_output);
-                let arc_vec_output_stderr_clone = Arc::clone(&arc_vec_output);
-                let arc_vec_stdout_clone = Arc::clone(&arc_vec_stdout);
-                let arc_vec_stderr_clone = Arc::clone(&arc_vec_stderr);
-
-                // start stdout thread
-                let stdout_thread = thread::spawn(move || {
-                    // Use BufReader to read child process stdout
-                    let mut stdout = BufReader::new(child_stdout);
-                    let mut buf = Vec::new();
-
-                    // write to vector
-                    stdout.read_to_end(&mut buf).expect("Failed to read stdout");
-                    arc_vec_stdout_clone.lock().unwrap().extend_from_slice(&buf);
-                    arc_vec_output_stdout_clone
-                        .lock()
-                        .unwrap()
-                        .extend_from_slice(&buf);
-                });
-
-                // start stderr thread
-                let stderr_thread = thread::spawn(move || {
-                    // Use BufReader to read child process stderr
-                    let mut stderr = BufReader::new(child_stderr);
-                    let mut buf = Vec::new();
-
-                    // write to vector
-                    stderr.read_to_end(&mut buf).expect("Failed to read stderr");
-                    arc_vec_stderr_clone.lock().unwrap().extend_from_slice(&buf);
-                    arc_vec_output_stderr_clone
-                        .lock()
-                        .unwrap()
-                        .extend_from_slice(&buf);
-                });
-
-                // with thread stdout/stderr
-                stdout_thread.join().expect("Failed to join stdout thread");
-                stderr_thread.join().expect("Failed to join stderr thread");
-
-                // Unwrap Arc, get MutexGuard and extract vector
-                vec_output = Arc::try_unwrap(arc_vec_output)
-                    .unwrap()
-                    .into_inner()
-                    .unwrap();
-                vec_stdout = Arc::try_unwrap(arc_vec_stdout)
-                    .unwrap()
-                    .into_inner()
-                    .unwrap();
-                vec_stderr = Arc::try_unwrap(arc_vec_stderr)
-                    .unwrap()
-                    .into_inner()
-                    .unwrap();
-
-                // get command status
-                let exit_status = child.wait().expect("");
-                exit_status.success()
-            }
-            Err(err) => {
-                let error_msg = err.to_string();
-
-                let mut stdout_text: Vec<u8> = error_msg.as_bytes().to_vec();
-                let mut stderr_text: Vec<u8> = error_msg.as_bytes().to_vec();
-                vec_output.append(&mut stdout_text);
-                vec_stderr.append(&mut stderr_text);
-
-                // get command status
-                false
-            }
-        };
+        let (status, vec_output, vec_stdout, vec_stderr) =
+            exec_command(&exec_commands, self.is_pty);
 
         // Set result
         let result = CommandResult {
@@ -403,14 +332,23 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
 
             // shell_command_args to exec_cmd_args
             for shell_command_arg in shell_command_args {
-                let exec_cmd_arg: String;
-                if shell_command_arg.contains("{COMMAND}") {
-                    exec_cmd_arg =
-                        str::replace(&shell_command_arg, crate::SHELL_COMMAND_EXECCMD, &command);
-                    is_shellcmd_template = true;
-                } else {
-                    exec_cmd_arg = shell_command_arg;
+                if shell_command_arg == crate::SHELL_COMMAND_EXECCMD
+                    && should_append_command_to_previous_arg(&exec_commands)
+                {
+                    if let Some(previous_arg) = exec_commands.last_mut() {
+                        previous_arg.push(' ');
+                        previous_arg.push_str(&command);
+                        is_shellcmd_template = true;
+                        continue;
+                    }
                 }
+
+                let exec_cmd_arg = if shell_command_arg.contains("{COMMAND}") {
+                    is_shellcmd_template = true;
+                    str::replace(&shell_command_arg, crate::SHELL_COMMAND_EXECCMD, &command)
+                } else {
+                    shell_command_arg
+                };
 
                 // push exec_cmd_arg to exec_cmd_args
                 exec_commands.push(exec_cmd_arg);
@@ -426,9 +364,172 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
     exec_commands
 }
 
+fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u8>, Vec<u8>) {
+    let length = exec_commands.len();
+    let mut command = Command::new(&exec_commands[0]);
+    command.args(&exec_commands[1..length]);
+
+    #[cfg(unix)]
+    let mut stdin_master: Option<OwnedFd> = None;
+    #[cfg(not(unix))]
+    let stdin_master: Option<()> = None;
+    let stdout_reader;
+    let stderr_reader;
+
+    #[cfg(unix)]
+    {
+        if is_pty {
+            let stdin_pty = create_raw_pty();
+            let stdout_pty = create_raw_pty();
+            let stderr_pty = create_raw_pty();
+
+            let (stdin_pty, stdout_pty, stderr_pty) = match (stdin_pty, stdout_pty, stderr_pty) {
+                (Ok(stdin_pty), Ok(stdout_pty), Ok(stderr_pty)) => {
+                    (stdin_pty, stdout_pty, stderr_pty)
+                }
+                (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
+                    let error_msg = err.to_string().into_bytes();
+                    return (false, Vec::new(), Vec::new(), error_msg);
+                }
+            };
+
+            stdin_master = Some(stdin_pty.master);
+            stdout_reader = ReaderHandle::Fd(stdout_pty.master);
+            stderr_reader = ReaderHandle::Fd(stderr_pty.master);
+
+            command
+                .stdin(Stdio::from(stdin_pty.slave))
+                .stdout(Stdio::from(stdout_pty.slave))
+                .stderr(Stdio::from(stderr_pty.slave));
+        } else {
+            command.stdout(Stdio::piped()).stderr(Stdio::piped());
+            stdout_reader = ReaderHandle::Pipe;
+            stderr_reader = ReaderHandle::Pipe;
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        // On non-unix targets PTY support isn't available; always use pipes.
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        stdout_reader = ReaderHandle::Pipe;
+        stderr_reader = ReaderHandle::Pipe;
+    }
+
+    let child_result = command.spawn();
+    drop(command);
+    let _ = stdin_master;
+    let mut vec_output = Vec::new();
+    let mut vec_stdout = Vec::new();
+    let mut vec_stderr = Vec::new();
+
+    let status = match child_result {
+        Ok(mut child) => {
+            let stdout_thread = match stdout_reader {
+                #[cfg(unix)]
+                ReaderHandle::Fd(fd) => thread::spawn(move || read_from_fd(fd, "stdout")),
+                ReaderHandle::Pipe => {
+                    let child_stdout = child.stdout.take().expect("");
+                    thread::spawn(move || read_from_pipe(child_stdout, "stdout"))
+                }
+            };
+            let stderr_thread = match stderr_reader {
+                #[cfg(unix)]
+                ReaderHandle::Fd(fd) => thread::spawn(move || read_from_fd(fd, "stderr")),
+                ReaderHandle::Pipe => {
+                    let child_stderr = child.stderr.take().expect("");
+                    thread::spawn(move || read_from_pipe(child_stderr, "stderr"))
+                }
+            };
+
+            let status = if is_pty {
+                child.wait().expect("").success()
+            } else {
+                false
+            };
+            vec_stdout = stdout_thread
+                .join()
+                .unwrap_or_else(|_| Err("Failed to join stdout thread".to_string()))
+                .unwrap_or_else(|err| format!("{err}\n").into_bytes());
+            vec_stderr = stderr_thread
+                .join()
+                .unwrap_or_else(|_| Err("Failed to join stderr thread".to_string()))
+                .unwrap_or_else(|err| format!("{err}\n").into_bytes());
+            vec_output = vec_stdout.clone();
+            vec_output.extend_from_slice(&vec_stderr);
+
+            if is_pty {
+                status
+            } else {
+                child.wait().expect("").success()
+            }
+        }
+        Err(err) => {
+            let error_msg = err.to_string();
+
+            let mut stdout_text: Vec<u8> = error_msg.as_bytes().to_vec();
+            let mut stderr_text: Vec<u8> = error_msg.as_bytes().to_vec();
+            vec_output.append(&mut stdout_text);
+            vec_stderr.append(&mut stderr_text);
+
+            false
+        }
+    };
+
+    (status, vec_output, vec_stdout, vec_stderr)
+}
+
+#[cfg(unix)]
+enum ReaderHandle {
+    Pipe,
+    Fd(OwnedFd),
+}
+
+#[cfg(not(unix))]
+enum ReaderHandle {
+    Pipe,
+}
+
+#[cfg(unix)]
+fn create_raw_pty() -> Result<OpenptyResult, nix::Error> {
+    let winsize = Winsize {
+        ws_row: 24,
+        ws_col: 80,
+        ws_xpixel: 0,
+        ws_ypixel: 0,
+    };
+    let result = openpty(Some(&winsize), None)?;
+
+    let mut termios = tcgetattr(&result.slave)?;
+    cfmakeraw(&mut termios);
+    tcsetattr(&result.slave, SetArg::TCSANOW, &termios)?;
+
+    Ok(result)
+}
+
+#[cfg(unix)]
+fn read_from_fd(fd: OwnedFd, label: &str) -> Result<Vec<u8>, String> {
+    let file = File::from(fd);
+    read_from_pipe(file, label)
+}
+
+fn read_from_pipe<R: Read>(reader: R, label: &str) -> Result<Vec<u8>, String> {
+    let mut reader = BufReader::new(reader);
+    let mut buf = Vec::new();
+    reader
+        .read_to_end(&mut buf)
+        .map_err(|err| format!("Failed to read {label}: {err}"))?;
+    Ok(buf)
+}
+
+fn should_append_command_to_previous_arg(exec_commands: &[String]) -> bool {
+    exec_commands.len() >= 3 && exec_commands[1] == "-c"
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use encoding_rs::SHIFT_JIS;
 
     #[test]
     fn test_command_result_comparison() {
@@ -500,5 +601,88 @@ mod tests {
         let command_result1 = CommandResult::default();
         let command_result2 = CommandResult::default().set_stderr("different".as_bytes().to_vec());
         assert!(command_result1 != command_result2);
+    }
+
+    #[test]
+    fn test_decode_shift_jis_bytes() {
+        let (encoded, _, _) = SHIFT_JIS.encode("日本語テスト");
+        let command_result = CommandResult::default().set_output(encoded.into_owned());
+        assert_eq!(command_result.get_output(), "日本語テスト");
+    }
+
+    #[test]
+    fn test_exec_command_without_force_color_stdout_is_not_tty() {
+        let exec_commands = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "if [ -t 1 ]; then printf tty; else printf notty; fi".to_string(),
+        ];
+
+        let (_, _, stdout, _) = exec_command(&exec_commands, false);
+        assert_eq!(String::from_utf8(stdout).unwrap(), "notty");
+    }
+
+    #[test]
+    fn test_exec_command_with_force_color_stdout_is_tty() {
+        let exec_commands = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "if [ -t 1 ]; then printf tty; else printf notty; fi".to_string(),
+        ];
+
+        let (_, _, stdout, _) = exec_command(&exec_commands, true);
+        assert_eq!(String::from_utf8(stdout).unwrap(), "tty");
+    }
+
+    #[test]
+    fn test_exec_command_with_force_color_stdin_is_tty() {
+        let exec_commands = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "if [ -t 0 ]; then printf tty; else printf notty; fi".to_string(),
+        ];
+
+        let (_, _, stdout, _) = exec_command(&exec_commands, true);
+        assert_eq!(String::from_utf8(stdout).unwrap(), "tty");
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_replaces_template_in_argument() {
+        let exec_commands =
+            create_exec_cmd_args(false, "bash -c {COMMAND}".to_string(), "ls -la".to_string());
+
+        assert_eq!(
+            exec_commands,
+            vec!["bash".to_string(), "-c".to_string(), "ls -la".to_string(),]
+        );
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_keeps_shell_command_string() {
+        let exec_commands =
+            create_exec_cmd_args(false, "sh -c".to_string(), "ls -la;pwd".to_string());
+
+        assert_eq!(
+            exec_commands,
+            vec!["sh".to_string(), "-c".to_string(), "ls -la;pwd".to_string(),]
+        );
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_appends_command_after_dash_c_script() {
+        let exec_commands = create_exec_cmd_args(
+            false,
+            "bash -c \"source ~/.bashrc\"; {COMMAND}".to_string(),
+            "ls -la".to_string(),
+        );
+
+        assert_eq!(
+            exec_commands,
+            vec![
+                "bash".to_string(),
+                "-c".to_string(),
+                "source ~/.bashrc; ls -la".to_string(),
+            ]
+        );
     }
 }
