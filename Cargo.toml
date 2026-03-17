@@ -15,18 +15,18 @@ async-std = { version = "1.12" }
 chardetng = "0.1.17"
 chrono = "0.4.34"
 clap = { version = "4.5.3", features = ["cargo", "derive"] }
-config = { version = "0.14", default-features = false, features = ["ini"] }
+config = { version = "0.15.21", default-features = false, features = ["ini"] }
 crossbeam-channel = "0.5.12"
-crossterm = "0.28.1"
+crossterm = "0.29.0"
 ctrlc = { version = "3.4.2", features = ["termination"] }
 encoding_rs = "0.8"
-error-stack = "0.4.1"
+error-stack = "0.6.0"
 flate2 = "1.0.19"
 futures = "0.3.30"
 heapless = "0.8.0"
 nix = { version = "0.29", features = ["fs", "term", "process", "signal"] }
 question = "0.2.2"
-ratatui = { version = "0.28.0", default-features = false, features = [
+ratatui = { version = "0.30.0", default-features = false, features = [
     'crossterm',
     'unstable-rendered-line-info',
 ] }
@@ -43,13 +43,13 @@ similar = { version = "2.5.0", features = [
     "inline",
     "bytes",
 ] }
-termwiz = "0.22.0"
+termwiz = "0.23.3"
 tokio = { version = "1.16", features = ["full"] }
 unicode-segmentation = "1.10"
-unicode-truncate = "1"
-unicode-width = "=0.1.13"
-hwatch-diffmode = { version = "0.3.19", path = "crates/diffmode" }
-hwatch-ansi = { version = "0.3.19", path = "crates/ansi" }
+unicode-truncate = "2.0.1"
+unicode-width = "0.1.14"
+hwatch-diffmode = { path = "crates/diffmode" }
+hwatch-ansi = { path = "crates/ansi" }
 tempfile = "3.20.0"
 
 [[bin]]

@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -447,7 +447,7 @@ impl HistoryArea {
 
         let table = Table::new(rows, [Constraint::Length(history_width)])
             .block(pane_block)
-            .highlight_style(selected_style)
+            .row_highlight_style(selected_style)
             .highlight_symbol(">>")
             .widths([Constraint::Percentage(100)]);
 

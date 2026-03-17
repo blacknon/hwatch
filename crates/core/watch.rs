@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -378,6 +378,11 @@ impl<'a> WatchArea<'a> {
     }
 
     ///
+    pub fn set_wrap_mode(&mut self, wrap: bool) {
+        self.is_line_wrap = wrap;
+    }
+
+    ///
     pub fn draw(&mut self, frame: &mut Frame) {
         let block_data = self.highlight_data.clone();
 
@@ -416,7 +421,7 @@ impl<'a> WatchArea<'a> {
         // get self.lines
         let mut pane_width: u16 = self.area.width;
         if self.border {
-            pane_width -= 1;
+            pane_width = pane_width.saturating_sub(1);
         }
 
         self.lines = block.line_count(pane_width) as i16;
@@ -443,9 +448,9 @@ impl<'a> WatchArea<'a> {
             );
 
             // horizontal scrollbar
-            if !self.is_line_wrap && self.width > self.area.width as i16 {
+            if !self.is_line_wrap && self.width > self.horizontal_view_width() {
                 let mut horizontal_scrollbar_state: ScrollbarState = ScrollbarState::default()
-                    .content_length(self.width as usize - self.area.width as usize)
+                    .content_length((self.width - self.horizontal_view_width()).max(0) as usize)
                     .position(self.horizontal_position as usize);
 
                 frame.render_stateful_widget(
@@ -464,6 +469,17 @@ impl<'a> WatchArea<'a> {
         }
     }
 
+    fn horizontal_view_width(&self) -> i16 {
+        let mut width = self.area.width as i16;
+        if self.border {
+            width = width.saturating_sub(1);
+        }
+        if self.border && self.scroll_bar && self.lines > self.area.height as i16 {
+            width = width.saturating_sub(1);
+        }
+        width
+    }
+
     ///
     pub fn scroll_up(&mut self, num: i16) {
         self.position = std::cmp::max(0, self.position - num);
@@ -473,7 +489,7 @@ impl<'a> WatchArea<'a> {
     pub fn scroll_down(&mut self, num: i16) {
         let mut height: u16 = self.area.height;
         if self.border && !self.hide_header {
-            height -= 1;
+            height = height.saturating_sub(1);
         }
 
         if self.lines > height as i16 {
@@ -483,10 +499,10 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn scroll_right(&mut self, num: i16) {
-        let width: u16 = self.area.width;
+        let view_width = self.horizontal_view_width();
 
-        if self.width > self.horizontal_position + width as i16 + num {
-            self.horizontal_position += num
+        if self.horizontal_position + view_width + num <= self.width {
+            self.horizontal_position += num;
         }
     }
 
@@ -502,9 +518,9 @@ impl<'a> WatchArea<'a> {
 
     ///
     pub fn scroll_horizontal_end(&mut self) {
-        let width: u16 = self.area.width;
+        let view_width = self.horizontal_view_width();
 
-        self.horizontal_position = self.width - width as i16;
+        self.horizontal_position = std::cmp::max(0, self.width - view_width);
     }
 
     ///

@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -27,6 +27,7 @@ use std::{
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Position, Rect},
+    style::Color,
     Frame, Terminal,
 };
 use unicode_width::UnicodeWidthStr;
@@ -342,7 +343,9 @@ impl App<'_> {
 
             // Draw data
             if update_draw {
-                terminal.draw(|f| self.draw(f))?;
+                terminal
+                    .draw(|f| self.draw(f))
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
                 update_draw = false
             }
 
@@ -465,14 +468,21 @@ impl App<'_> {
         // match input_mode
         match self.input_mode {
             InputMode::Filter | InputMode::RegexFilter => {
-                let input_text_x = self.header_area.input_text.width() as u16 + 1;
-                let input_text_y = self.header_area.area.y + 1;
+                if self.show_header {
+                    // Put the cursor after prompt(1 cell) + input text.
+                    let cursor_x =
+                        self.header_area.area.x + self.header_area.input_text.width() as u16 + 1;
+                    let cursor_y = self.header_area.area.y + 1;
 
-                // set cursor
-                f.set_cursor_position(Position {
-                    x: input_text_x,
-                    y: input_text_y,
-                });
+                    // Clamp cursor position to the frame area.
+                    let area = f.area();
+                    let max_x = area.width.saturating_sub(1);
+                    let max_y = area.height.saturating_sub(1);
+                    let x = cursor_x.min(max_x);
+                    let y = cursor_y.min(max_y);
+
+                    f.set_cursor_position(Position { x, y });
+                }
             }
 
             _ => {}
@@ -501,7 +511,7 @@ impl App<'_> {
             .constraints(
                 [
                     Constraint::Length(header_height),
-                    Constraint::Max(total_area.height - header_height),
+                    Constraint::Max(total_area.height.saturating_sub(header_height)),
                 ]
                 .as_ref(),
             )
@@ -511,7 +521,7 @@ impl App<'_> {
         let main_chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Max(total_area.width - history_width),
+                    Constraint::Max(total_area.width.saturating_sub(history_width)),
                     Constraint::Length(history_width),
                 ]
                 .as_ref(),
@@ -746,6 +756,14 @@ impl App<'_> {
     }
 
     ///
+    pub fn set_watch_diff_colors(&mut self, fg: Option<Color>, bg: Option<Color>) {
+        self.printer.set_watch_diff_colors(fg, bg);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
+    }
+
+    ///
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
 
@@ -786,6 +804,14 @@ impl App<'_> {
     pub fn set_mouse_events(&mut self, mouse_events: bool) {
         self.mouse_events = mouse_events;
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
+    }
+
+    ///
+    pub fn set_wrap_mode(&mut self, wrap: bool) {
+        self.watch_area.set_wrap_mode(wrap);
+
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     ///

@@ -12,6 +12,7 @@
 // use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use tui::prelude::Line;
+use tui::style::Color;
 
 // local const
 use crate::DEFAULT_TAB_SIZE;
@@ -176,6 +177,14 @@ impl Printer {
     /// set tab size.
     pub fn set_tab_size(&mut self, tab_size: u16) -> &mut Self {
         self.tab_size = tab_size;
+        self
+    }
+
+    /// set watch diff highlight colors (no-op placeholder)
+    pub fn set_watch_diff_colors(&mut self, _fg: Option<Color>, _bg: Option<Color>) -> &mut Self {
+        // Currently colors are handled by diffmode implementations; keep this
+        // method as a no-op to preserve API compatibility until diffmode
+        // supports runtime color changes.
         self
     }
 }
