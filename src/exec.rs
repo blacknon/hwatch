@@ -9,13 +9,15 @@
 use chardetng::EncodingDetector;
 use crossbeam_channel::Sender;
 use flate2::{read::GzDecoder, write::GzEncoder};
+#[cfg(unix)]
 use nix::pty::{openpty, OpenptyResult, Winsize};
+#[cfg(unix)]
 use nix::sys::termios::{cfmakeraw, tcgetattr, tcsetattr, SetArg};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::os::fd::OwnedFd;
 #[cfg(unix)]
+use std::os::fd::OwnedFd;
 use std::process::{Command, Stdio};
 use std::thread;
 
@@ -339,28 +341,41 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     let stdout_reader;
     let stderr_reader;
 
-    if is_pty {
-        let stdin_pty = create_raw_pty();
-        let stdout_pty = create_raw_pty();
-        let stderr_pty = create_raw_pty();
+    #[cfg(unix)]
+    {
+        if is_pty {
+            let stdin_pty = create_raw_pty();
+            let stdout_pty = create_raw_pty();
+            let stderr_pty = create_raw_pty();
 
-        let (stdin_pty, stdout_pty, stderr_pty) = match (stdin_pty, stdout_pty, stderr_pty) {
-            (Ok(stdin_pty), Ok(stdout_pty), Ok(stderr_pty)) => (stdin_pty, stdout_pty, stderr_pty),
-            (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
-                let error_msg = err.to_string().into_bytes();
-                return (false, Vec::new(), Vec::new(), error_msg);
-            }
-        };
+            let (stdin_pty, stdout_pty, stderr_pty) = match (stdin_pty, stdout_pty, stderr_pty) {
+                (Ok(stdin_pty), Ok(stdout_pty), Ok(stderr_pty)) => {
+                    (stdin_pty, stdout_pty, stderr_pty)
+                }
+                (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
+                    let error_msg = err.to_string().into_bytes();
+                    return (false, Vec::new(), Vec::new(), error_msg);
+                }
+            };
 
-        stdin_master = Some(stdin_pty.master);
-        stdout_reader = ReaderHandle::Fd(stdout_pty.master);
-        stderr_reader = ReaderHandle::Fd(stderr_pty.master);
+            stdin_master = Some(stdin_pty.master);
+            stdout_reader = ReaderHandle::Fd(stdout_pty.master);
+            stderr_reader = ReaderHandle::Fd(stderr_pty.master);
 
-        command
-            .stdin(Stdio::from(stdin_pty.slave))
-            .stdout(Stdio::from(stdout_pty.slave))
-            .stderr(Stdio::from(stderr_pty.slave));
-    } else {
+            command
+                .stdin(Stdio::from(stdin_pty.slave))
+                .stdout(Stdio::from(stdout_pty.slave))
+                .stderr(Stdio::from(stderr_pty.slave));
+        } else {
+            command.stdout(Stdio::piped()).stderr(Stdio::piped());
+            stdout_reader = ReaderHandle::Pipe;
+            stderr_reader = ReaderHandle::Pipe;
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        // On non-unix targets PTY support isn't available; always use pipes.
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
         stdout_reader = ReaderHandle::Pipe;
         stderr_reader = ReaderHandle::Pipe;
@@ -427,11 +442,18 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     (status, vec_output, vec_stdout, vec_stderr)
 }
 
+#[cfg(unix)]
 enum ReaderHandle {
     Pipe,
     Fd(OwnedFd),
 }
 
+#[cfg(not(unix))]
+enum ReaderHandle {
+    Pipe,
+}
+
+#[cfg(unix)]
 fn create_raw_pty() -> Result<OpenptyResult, nix::Error> {
     let winsize = Winsize {
         ws_row: 24,
@@ -448,6 +470,7 @@ fn create_raw_pty() -> Result<OpenptyResult, nix::Error> {
     Ok(result)
 }
 
+#[cfg(unix)]
 fn read_from_fd(fd: OwnedFd, label: &str) -> Result<Vec<u8>, String> {
     let file = File::from(fd);
     read_from_pipe(file, label)
