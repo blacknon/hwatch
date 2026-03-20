@@ -48,6 +48,7 @@ tokio = { version = "1.16", features = ["full"] }
 unicode-segmentation = "1.10"
 unicode-truncate = "2.0.1"
 unicode-width = "0.1.14"
+libloading = "0.8.9"
 hwatch-diffmode = { path = "crates/diffmode" }
 hwatch-ansi = { path = "crates/ansi" }
 tempfile = "3.20.0"

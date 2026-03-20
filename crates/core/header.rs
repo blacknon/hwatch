@@ -22,7 +22,7 @@ use crate::{
     app::{ActiveArea, InputMode},
     SharedInterval,
 };
-use hwatch_diffmode::DiffMode;
+use hwatch_diffmode::{DiffMode, DiffModeOptions};
 
 //const
 // const POSITION_X_HELP_TEXT: usize = 47;
@@ -280,7 +280,15 @@ impl HeaderArea<'_> {
 
         // Set Diff mode value
         let value_diff: String;
-        value_diff = self.diff_mode.lock().unwrap().get_header_text();
+        {
+            let mut diff_mode = self.diff_mode.lock().unwrap();
+            let mut options = DiffModeOptions::new();
+            options.set_color(self.ansi_color);
+            options.set_line_number(self.line_number);
+            options.set_only_diffline(self.is_only_diffline);
+            diff_mode.set_option(options);
+            value_diff = diff_mode.get_header_text();
+        }
 
         // Set Color
         let command_color = match self.exec_status {

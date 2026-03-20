@@ -8,6 +8,7 @@ extern crate ratatui as tui;
 // extern crate hwatch_ansi as ansi;
 
 use ansi_term::Colour;
+use std::ffi::c_char;
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use std::{borrow::Cow, vec};
@@ -27,9 +28,47 @@ pub const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
 pub const COLOR_WATCH_LINE_ADD: Color = Color::Green;
 pub const COLOR_WATCH_LINE_REM: Color = Color::Red;
 pub const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
+pub const PLUGIN_ABI_VERSION: u32 = 1;
+pub const PLUGIN_OUTPUT_BATCH: u32 = 0;
+pub const PLUGIN_OUTPUT_WATCH: u32 = 1;
 
 // type
 pub type DiffModeMutex = Arc<Mutex<Box<dyn DiffMode>>>;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PluginSlice {
+    pub ptr: *const u8,
+    pub len: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PluginOwnedBytes {
+    pub ptr: *mut u8,
+    pub len: usize,
+    pub cap: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PluginDiffRequest {
+    pub dest: PluginSlice,
+    pub src: PluginSlice,
+    pub output_kind: u32,
+    pub color: bool,
+    pub line_number: bool,
+    pub only_diffline: bool,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PluginMetadata {
+    pub abi_version: u32,
+    pub supports_only_diffline: bool,
+    pub plugin_name: *const c_char,
+    pub header_text: *const c_char,
+}
 
 // OutputVecData is ...
 pub enum OutputVecData<'a> {

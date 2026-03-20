@@ -6,4 +6,7 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[dependencies]
+hwatch-diffmode = { path = "../../crates/diffmode" }
+
 [workspace]

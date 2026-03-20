@@ -75,9 +75,10 @@ extern crate serde_json;
 use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
 use common::load_logfile;
 use crossbeam_channel::unbounded;
-use hwatch_diffmode::DiffMode;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
+use hwatch_diffmode::DiffMode;
 use question::{Answer, Question};
+use std::collections::HashMap;
 use std::env::args;
 use std::ffi::OsString;
 use std::path::Path;
@@ -91,6 +92,7 @@ mod batch;
 mod common;
 mod diffmode_line;
 mod diffmode_plane;
+mod plugin_diffmode;
 mod diffmode_watch;
 mod errors;
 mod event;
@@ -428,12 +430,18 @@ fn build_app() -> clap::Command {
         //   [--differences,-d] [none, watch, line, word]
         // NOTE: `normalize_args` is preprocessed so that `watch` is selected if no value is set for this option.
         .arg(
+            Arg::new("diff_plugin")
+                .help("Load a diffmode plugin dynamic library.")
+                .long("diff-plugin")
+                .value_hint(ValueHint::FilePath)
+                .action(ArgAction::Append),
+        )
+        .arg(
             Arg::new("differences")
                 .help("highlight changes between updates")
                 .long("differences")
                 .short('d')
                 .num_args(0..=1)
-                .value_parser(["none", "watch", "line", "word"])
                 .default_missing_value("watch")
                 .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
                 .action(ArgAction::Append),
@@ -726,19 +734,6 @@ fn main() {
         _ => common::OutputMode::Output,
     };
 
-    // diff mode
-    let diff_mode = if matcher.contains_id("differences") {
-        match matcher.get_one::<String>("differences").unwrap().as_str() {
-            "none" => 0,
-            "watch" => 1,
-            "line" => 2,
-            "word" => 3,
-            _ => 0,
-        }
-    } else {
-        0
-    };
-
     // Get Add keymap
     let keymap_options: Vec<&str> = matcher
         .get_many::<String>("keymap")
@@ -855,6 +850,8 @@ fn main() {
         });
     }
 
+    let mut diff_mode_name_to_index: HashMap<String, usize> = HashMap::new();
+
     // create diff_mode(plane)
     let diff_mode_plane = diffmode_plane::DiffModeAtPlane::new();
 
@@ -870,12 +867,64 @@ fn main() {
     diff_mode_word.is_word_highlight = true;
 
     // set diff_modes
-    let diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> = vec![
+    let mut diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> = vec![
         Arc::new(Mutex::new(Box::new(diff_mode_plane))),
         Arc::new(Mutex::new(Box::new(diff_mode_watch))),
         Arc::new(Mutex::new(Box::new(diff_mode_line))),
         Arc::new(Mutex::new(Box::new(diff_mode_word))),
     ];
+
+    for (index, name) in ["none", "watch", "line", "word"].into_iter().enumerate() {
+        diff_mode_name_to_index.insert(name.to_string(), index);
+    }
+
+    if let Some(plugin_paths) = matcher.get_many::<String>("diff_plugin") {
+        for plugin_path in plugin_paths {
+            let plugin_path = Path::new(plugin_path);
+            let registration = match plugin_diffmode::load_plugin(plugin_path) {
+                Ok(registration) => registration,
+                Err(message) => {
+                    let err = cmd_app.error(ErrorKind::Io, message);
+                    err.exit();
+                }
+            };
+
+            let plugin_name = registration.name;
+            if diff_mode_name_to_index.contains_key(&plugin_name) {
+                let err = cmd_app.error(
+                    ErrorKind::ArgumentConflict,
+                    format!("duplicate diff mode name: '{plugin_name}'"),
+                );
+                err.exit();
+            }
+
+            let index = diff_modes.len();
+            diff_modes.push(Arc::new(Mutex::new(registration.mode)));
+            diff_mode_name_to_index.insert(plugin_name, index);
+        }
+    }
+
+    // diff mode
+    let diff_mode = if matcher.contains_id("differences") {
+        let requested = matcher.get_one::<String>("differences").unwrap();
+        match diff_mode_name_to_index.get(requested) {
+            Some(index) => *index,
+            None => {
+                let available = diff_mode_name_to_index
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let err = cmd_app.error(
+                    ErrorKind::InvalidValue,
+                    format!("unknown diff mode '{requested}'. Available: {available}"),
+                );
+                err.exit();
+            }
+        }
+    } else {
+        0
+    };
 
     // check batch mode
     if !batch {
