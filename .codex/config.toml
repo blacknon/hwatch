@@ -1,0 +1,18 @@
+approval_policy = "on-failure"
+
+#
+sandbox_mode = "read-only"
+
+[sandbox_workspace_write]
+writable_roots = ["/tmp"]
+network_access = true
+
+[shell_environment_policy]
+inherit = "core"
+
+[history]
+persistence = "save-all"
+max_bytes = 1000000      # 現在未実装
+
+[tools]
+view_image = true
