@@ -369,10 +369,12 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     let mut command = Command::new(&exec_commands[0]);
     command.args(&exec_commands[1..length]);
 
+    // Switch depending on OS type
     #[cfg(unix)]
     let mut stdin_master: Option<OwnedFd> = None;
     #[cfg(not(unix))]
-    let stdin_master: Option<()> = None;
+    let mut stdin_master: Option<()> = None;
+
     let stdout_reader;
     let stderr_reader;
 
