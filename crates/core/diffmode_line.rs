@@ -3,11 +3,7 @@
 // that can be found in the LICENSE file.
 
 #[warn(unused)]
-use tui::{
-    prelude::Line,
-    style::{Style, Stylize},
-    text::Span,
-};
+use tui::{prelude::Line, style::Style, text::Span};
 
 use hwatch_ansi as ansi;
 use hwatch_diffmode::{
