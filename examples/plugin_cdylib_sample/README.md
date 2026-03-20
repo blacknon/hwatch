@@ -30,14 +30,25 @@ The resulting dynamic library will be created under:
 ```json
 {
   "schema_version": 1,
-  "header_text": "Summary",
+  "header_text": "LineNum",
   "lines": [
-    "  1 |   same text",
-    "  2 | ~ before -> after"
+    "  1 |    count: 10",
+    "    | ^  numeric delta: 10 -> 15 (+5)",
+    "  2 | -  count: 10",
+    "  2 | +  count: 15"
   ]
 }
 ```
 
-The sample mode is intentionally simple: it emits a summary-oriented diff rather
-than line, word, or watch highlighting.
+## Behavior
 
+The sample mode is line-diff based.
+
+- Equal lines are rendered like a normal line diff.
+- Replaced lines are rendered as `-` and `+`.
+- If a replaced line only changes numeric values with the same surrounding text,
+  the plugin inserts extra helper line(s) above the change and shows each
+  numeric delta on its own line.
+- `--diff-output-only` is supported.
+
+The plugin name is `line-num-diff`.
