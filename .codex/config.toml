@@ -12,7 +12,7 @@ inherit = "core"
 
 [history]
 persistence = "save-all"
-max_bytes = 1000000      # 現在未実装
+max_bytes = 1000000
 
 [tools]
 view_image = true
