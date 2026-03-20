@@ -1,49 +1,19 @@
-use std::ffi::c_char;
 use std::slice;
 use std::str;
 
-const ABI_VERSION: u32 = 1;
-const OUTPUT_BATCH: u32 = 0;
-const OUTPUT_WATCH: u32 = 1;
+use hwatch_diffmode::{
+    PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
+    PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
+    PLUGIN_OUTPUT_BATCH as OUTPUT_BATCH, PLUGIN_OUTPUT_WATCH as OUTPUT_WATCH,
+};
 
 static PLUGIN_NAME: &[u8] = b"summary-diff\0";
 static HEADER_TEXT: &[u8] = b"Summary\0";
 
-#[repr(C)]
-pub struct HwatchSlice {
-    pub ptr: *const u8,
-    pub len: usize,
-}
-
-#[repr(C)]
-pub struct HwatchOwnedBytes {
-    pub ptr: *mut u8,
-    pub len: usize,
-    pub cap: usize,
-}
-
-#[repr(C)]
-pub struct HwatchDiffRequest {
-    pub dest: HwatchSlice,
-    pub src: HwatchSlice,
-    pub output_kind: u32,
-    pub color: bool,
-    pub line_number: bool,
-    pub only_diffline: bool,
-}
-
-#[repr(C)]
-pub struct HwatchPluginMetadata {
-    pub abi_version: u32,
-    pub supports_only_diffline: bool,
-    pub plugin_name: *const c_char,
-    pub header_text: *const c_char,
-}
-
 #[no_mangle]
 pub extern "C" fn hwatch_diffmode_metadata() -> HwatchPluginMetadata {
     HwatchPluginMetadata {
-        abi_version: ABI_VERSION,
+        abi_version: PLUGIN_ABI_VERSION,
         supports_only_diffline: true,
         plugin_name: PLUGIN_NAME.as_ptr().cast(),
         header_text: HEADER_TEXT.as_ptr().cast(),
@@ -136,7 +106,10 @@ fn generate_summary_lines(
 }
 
 fn render_json_response(header_text: &str, lines: &[String]) -> String {
-    let mut json = String::from("{\"schema_version\":1,\"header_text\":\"");
+    let mut json = format!(
+        "{{\"schema_version\":{},\"header_text\":\"",
+        PLUGIN_ABI_VERSION
+    );
     json.push_str(&escape_json(header_text));
     json.push_str("\",\"lines\":[");
 
