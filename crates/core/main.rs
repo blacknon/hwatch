@@ -5,17 +5,11 @@
 // v0.4.0
 // TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
-// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
+// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)q
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): watchをモダンよりのものに変更する
-
-// v0.4.0
-// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
-//                 [Create an interface for each Diff Mode #156](https://github.com/blacknon/hwatch/issues/156)
-//                 - DiffModeのPlugin化の布石としての対応
-//                   - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
