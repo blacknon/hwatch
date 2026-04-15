@@ -1,6 +1,6 @@
 Name:           hwatch
-Version:        0.3.19
-Release:        3%{?dist}
+Version:        0.3.20
+Release:        1%{?dist}
 Summary:        A modern alternative to the 'watch' command, it records differences in execution results and allows for examination of these differences afterward.
 URL:            https://github.com/blacknon/hwatch/
 License:        MIT
@@ -52,6 +52,7 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features
 /etc/bash_completion.d/%{name}.bash
 
 %changelog
+* Wed Apr 15 2025 - Danie de Jager - 0.3.20-1
 * Mon Oct 20 2025 - Danie de Jager - 0.3.19-3
 * Sun Jul 13 2025 - Danie de Jager - 0.3.19-2
 * Wed Mar 19 2025 - blacknon - 0.3.19-1
