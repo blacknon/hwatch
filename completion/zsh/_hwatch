@@ -33,6 +33,7 @@ _hwatch() {
 '*--output=[Select command output.]' \
 '*-K+[Add keymap]: : ' \
 '*--keymap=[Add keymap]: : ' \
+'--completion=[Output shell completion script]: :(bash fish zsh)' \
 '-b[output exection results to stdout]' \
 '--batch[output exection results to stdout]' \
 '-B[beep if command has a change result]' \
@@ -59,7 +60,7 @@ _hwatch() {
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'*::command:_cmdambivalent' \
+'*::command:_hwatch_command' \
 && ret=0
 }
 
@@ -67,6 +68,53 @@ _hwatch() {
 _hwatch_commands() {
     local commands; commands=()
     _describe -t commands 'hwatch commands' commands "$@"
+}
+
+_hwatch_command() {
+    local -a cmd_words
+    local cmd_index i
+
+    cmd_words=("${words[@]}")
+    cmd_index=0
+
+    for ((i=2; i<=${#cmd_words}; i++)); do
+        case "${cmd_words[i]}" in
+            --)
+                cmd_index=$((i + 1))
+                break
+                ;;
+            -A|--aftercommand|-l|--logfile|-s|--shell|-n|--interval|-L|--limit|--tab-size|-K|--keymap|--completion)
+                i=$((i + 1))
+                ;;
+            -d|--differences)
+                if [[ "${cmd_words[i+1]}" == "none" || "${cmd_words[i+1]}" == "watch" || "${cmd_words[i+1]}" == "line" || "${cmd_words[i+1]}" == "word" ]]; then
+                    i=$((i + 1))
+                fi
+                ;;
+            -o|--output)
+                if [[ "${cmd_words[i+1]}" == "output" || "${cmd_words[i+1]}" == "stdout" || "${cmd_words[i+1]}" == "stderr" ]]; then
+                    i=$((i + 1))
+                fi
+                ;;
+            -* )
+                ;;
+            *)
+                cmd_index=$i
+                break
+                ;;
+        esac
+    done
+
+    if (( cmd_index > 0 )); then
+        words=("${words[@]:$((cmd_index - 1))}")
+        CURRENT=$((CURRENT - cmd_index + 1))
+        if (( CURRENT < 1 )); then
+            CURRENT=1
+        fi
+        _normal
+    else
+        _command_names -e
+    fi
 }
 
 if [ "$funcstack[1]" = "_hwatch" ]; then
