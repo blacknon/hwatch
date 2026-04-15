@@ -33,6 +33,7 @@ Features:
 # Install Rust using curl
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 export PATH="$PATH:$HOME/.cargo/bin"
+export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
 $HOME/.cargo/bin/cargo build --release --all-features
 strip target/release/%{name}
 
@@ -43,6 +44,7 @@ install -D -m 644 LICENSE %{buildroot}/usr/share/licenses/%{name}/LICENSE
 install -D -m 644 README.md %{buildroot}/usr/share/doc/%{name}/README.md
 
 %check
+export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
 $HOME/.cargo/bin/cargo test --release --locked --all-features
 
 %files
