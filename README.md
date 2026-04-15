@@ -65,6 +65,7 @@ That records the result of command execution and can display it history and diff
           -t, --no-title                      hide the UI on start. Use `t` to toggle it.
           -N, --line-number                   show line number
               --no-help-banner                hide the "Display help with h key" message
+              --completion <shell>            output shell completion script (bash, fish, zsh)
           -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
           -O, --diff-output-only              Display only the lines with differences during `line` diff and `word` diff.
           -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
@@ -72,7 +73,7 @@ That records the result of command execution and can display it history and diff
           -s, --shell <shell_command>         shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
           -n, --interval <interval>           seconds to wait between updates [default: 2]
               --precise                       Attempt to run as close to the interval as possible, regardless of how long the command takes to run
-          -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. (default: 5000) [default: 5000]
+          -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. [default: 5000]
               --tab-size <tab_size>           Specifying tab display size [default: 4]
           -d, --differences [<differences>]   highlight changes between updates [possible values: none, watch, line, word]
           -o, --output [<output>]             Select command output. [default: output] [possible values: output, stdout, stderr]
@@ -86,16 +87,18 @@ Watch mode keybind(Default).
 
 | Key                                                                                        | Action                                                      |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| <kbd>↑</kbd>, <kbd>↓</kbd>                                                                 | move selected screen(history/watch).                        |
+| <kbd>↑</kbd>, <kbd>↓</kbd>                                                               | move selected screen(history/watch).                        |
 | <kbd>pageup</kbd>, <kbd>pagedn</kbd>                                                       | move selected screen(history/watch).                        |
 | <kbd>home</kbd>, <kbd>end</kbd>                                                            | move selected screen(history/watch).                        |
 | <kbd>Tab</kbd>                                                                             | toggle select screen(history/watch).                        |
-| <kbd>←</kbd>                                                                               | select watch screen.                                        |
-| <kbd>→</kbd>                                                                               | select history screen.                                      |
-| <kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Alt</kbd>+<kbd>→</kbd>                                   | Watch window scrll left/right.                              |
+| <kbd>←</kbd>                                                                              | select watch screen.                                        |
+| <kbd>→</kbd>                                                                              | select history screen.                                      |
+| <kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Alt</kbd>+<kbd>→</kbd>                                 | Watch window scrll left/right.                              |
 | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd>, <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>→</kbd> | Watch window scrll start/end.                               |
 | <kbd>Q</kbd>                                                                               | exit hwatch.                                                |
 | <kbd>Esc</kbd>                                                                             | unfiltering.                                                |
+| <kbd>Shift</kbd>+<kbd>D</kbd>                                                              | delete selected history.                                    |
+| <kbd>Shift</kbd>+<kbd>X</kbd>                                                              | clear all history except selected history.                  |
 | <kbd>Ctrl</kbd>+<kbd>c</kbd>                                                               | cancel.                                                     |
 | <kbd>H</kbd>                                                                               | show help window.                                           |
 | <kbd>B</kbd>                                                                               | toggle enable/disable border.                               |
@@ -160,11 +163,13 @@ Keybind functions that can be specified are as follows.
 | move_end                 | Move end                                   |
 | watch_pane_move_end      | Move end in watch pane                     |
 | history_pane_move_end    | Move end in history pane                   |
-| toggle_forcus            | Toggle forcus window                       |
-| forcus_watch_pane        | Forcus watch pane                          |
-| forcus_history_pane      | Forcus history pane                        |
+| toggle_focus             | Toggle focus window                        |
+| focus_watch_pane         | Focus watch pane                           |
+| focus_history_pane       | Focus history pane                         |
 | quit                     | Quit hwatch                                |
 | reset                    | filter reset                               |
+| delete                   | Delete selected history                     |
+| clear_except_selected    | Clear all history except selected history   |
 | cancel                   | Cancel                                     |
 | force_cancel             | Cancel without displaying the exit dialog  |
 | help                     | Show and hide help window                  |
@@ -192,8 +197,8 @@ Keybind functions that can be specified are as follows.
 | interval_plus            | Interval +0.5sec                           |
 | interval_minus           | Interval -0.5sec                           |
 | toggle_pause             | Toggle pause execution                     |
-| prev_keyword             | Forcus previous keyword                    |
-| next_keyword             | Forcus next keyword                        |
+| prev_keyword             | Focus previous keyword                     |
+| next_keyword             | Focus next keyword                         |
 | change_filter_mode       | Change filter mode                         |
 | change_regex_filter_mode | Change regex filter mode                   |
 
@@ -234,10 +239,10 @@ If you want the shell function to be executed periodically, you can specify the 
 
 ```bash
 # bash
-hwatch -n 3 -s 'bash -c "source ~/.bashrc"; {COMMAND}' command...
+hwatch -n 3 -s 'bash -c "source ~/.bashrc; {COMMAND}"' command...
 
 # zsh
-hwatch -n 3 -s 'zsh -c "source ~/.zshrc"; {COMMAND}' command...
+hwatch -n 3 -s 'zsh -c "source ~/.zshrc; {COMMAND}"' command...
 ```
 
 ### ANSI Color code

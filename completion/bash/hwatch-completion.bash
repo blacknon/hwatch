@@ -1,10 +1,12 @@
 _hwatch() {
-    local i cur prev opts cmd
+    local i cur prev opts cmd cmd_index skip_next
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     cmd=""
     opts=""
+    cmd_index=-1
+    skip_next=0
 
     for i in ${COMP_WORDS[@]}
     do
@@ -19,7 +21,7 @@ _hwatch() {
 
     case "${cmd}" in
         hwatch)
-            opts="-b -B -c -r -C -t -N -x -O -A -l -s -n -L -d -o -K -h -V --batch --beep --border --with-scrollbar --mouse --color --reverse --compress --no-title --line-number --no-help-banner --exec --diff-output-only --aftercommand --logfile --shell --interval --precise --limit --tab-size --differences --output --keymap --help --version [command]..."
+            opts="-b -B -c -r -C -t -N -x -O -A -l -s -n -L -d -o -K -h -V --batch --beep --border --with-scrollbar --mouse --color --reverse --compress --no-title --line-number --no-help-banner --completion --exec --diff-output-only --aftercommand --logfile --shell --interval --precise --limit --tab-size --differences --output --keymap --help --version [command]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -119,10 +121,65 @@ _hwatch() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --completion)
+                    COMPREPLY=($(compgen -W "bash fish zsh" -- "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
             esac
+
+            for ((i=1; i<${#COMP_WORDS[@]}; i++)); do
+                if [[ ${skip_next} -eq 1 ]]; then
+                    skip_next=0
+                    continue
+                fi
+
+                case "${COMP_WORDS[i]}" in
+                    --)
+                        cmd_index=$((i + 1))
+                        break
+                        ;;
+                    -A|--aftercommand|-l|--logfile|-s|--shell|-n|--interval|-L|--limit|--tab-size|-K|--keymap|--completion)
+                        skip_next=1
+                        ;;
+                    -d|--differences)
+                        case "${COMP_WORDS[i+1]}" in
+                            none|watch|line|word)
+                                skip_next=1
+                                ;;
+                        esac
+                        ;;
+                    -o|--output)
+                        case "${COMP_WORDS[i+1]}" in
+                            output|stdout|stderr)
+                                skip_next=1
+                                ;;
+                        esac
+                        ;;
+                    -* )
+                        ;;
+                    *)
+                        cmd_index=$i
+                        break
+                        ;;
+                esac
+            done
+
+            if [[ ${cmd_index} -ge 1 && ${COMP_CWORD} -ge ${cmd_index} ]]; then
+                if declare -F _command_offset >/dev/null 2>&1; then
+                    _command_offset "${cmd_index}"
+                    return 0
+                fi
+                if declare -F __start_command >/dev/null 2>&1; then
+                    __start_command
+                    return 0
+                fi
+                COMPREPLY=($(compgen -c -- "${cur}"))
+                return 0
+            fi
+
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;

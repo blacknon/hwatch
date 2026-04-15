@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Blacknon. All rights reserved.
+// Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 
 // modules
 use ansi_term::Colour;
-use ratatui::style::Stylize;
 use similar::{ChangeTag, InlineChange, TextDiff};
 use std::cmp;
 use std::fmt::Write;
@@ -63,14 +62,14 @@ enum DifferenceType {
 }
 
 pub trait StringExt {
-    fn expand_tabs(&self, tab_size: u16) -> Cow<str>;
+    fn expand_tabs(&self, tab_size: u16) -> Cow<'_, str>;
 }
 
 impl<T> StringExt for T
 where
     T: AsRef<str>,
 {
-    fn expand_tabs(&self, tab_size: u16) -> Cow<str> {
+    fn expand_tabs(&self, tab_size: u16) -> Cow<'_, str> {
         let s = self.as_ref();
         let tab = '\t';
 
@@ -133,6 +132,12 @@ pub struct Printer {
 
     // watch window header width.
     header_width: usize,
+
+    // watch diff highlight foreground color.
+    watch_diff_fg: Option<Color>,
+
+    // watch diff highlight background color.
+    watch_diff_bg: Option<Color>,
 }
 
 impl Printer {
@@ -148,7 +153,15 @@ impl Printer {
             is_only_diffline: false,
             tab_size: DEFAULT_TAB_SIZE,
             header_width: 0,
+            watch_diff_fg: None,
+            watch_diff_bg: None,
         }
+    }
+
+    ///
+    pub fn set_watch_diff_colors(&mut self, fg: Option<Color>, bg: Option<Color>) {
+        self.watch_diff_fg = fg;
+        self.watch_diff_bg = bg;
     }
 
     ///
@@ -406,9 +419,7 @@ impl Printer {
                     if self.is_batch {
                         self.create_watch_diff_output_line(src_line, dest_line)
                     } else {
-                        self.create_watch_diff_output_line_with_ansi_for_watch(
-                            src_line, dest_line,
-                        )
+                        self.create_watch_diff_output_line_with_ansi_for_watch(src_line, dest_line)
                     }
                 }
             };
@@ -477,6 +488,19 @@ impl Printer {
 
         let mut is_escape = false;
         let mut escape_code = "".to_string();
+        let highlight_style = if self.watch_diff_fg.is_none() && self.watch_diff_bg.is_none() {
+            None
+        } else {
+            let mut style = Style::default();
+            if let Some(fg) = self.watch_diff_fg {
+                style = style.fg(fg);
+            }
+            if let Some(bg) = self.watch_diff_bg {
+                style = style.bg(bg);
+            }
+            Some(style)
+        };
+
         for x in 0..max_char {
             if src_chars.len() <= x {
                 src_chars.push(space);
@@ -492,7 +516,13 @@ impl Printer {
             if src_char != dest_char {
                 // create spans
                 let span_data = if dest_char == space {
-                    Span::from(' '.to_string())
+                    if let Some(style) = highlight_style {
+                        Span::styled(' '.to_string(), style)
+                    } else {
+                        Span::from(' '.to_string())
+                    }
+                } else if let Some(style) = highlight_style {
+                    Span::styled(dest_chars[x].to_string(), style)
                 } else {
                     Span::styled(
                         dest_chars[x].to_string(),
@@ -576,6 +606,19 @@ impl Printer {
         let max_span = cmp::max(src_spans.len(), dest_spans.len());
         //
         let mut result = vec![];
+        let highlight_style = if self.watch_diff_fg.is_none() && self.watch_diff_bg.is_none() {
+            None
+        } else {
+            let mut style = Style::default();
+            if let Some(fg) = self.watch_diff_fg {
+                style = style.fg(fg);
+            }
+            if let Some(bg) = self.watch_diff_bg {
+                style = style.bg(bg);
+            }
+            Some(style)
+        };
+
         for x in 0..max_span {
             //
             if src_spans.len() <= x {
@@ -593,13 +636,21 @@ impl Printer {
             {
                 if dest_spans[x].content == space {
                     let mut data = Span::from(' '.to_string());
-                    data.style = Style::default().add_modifier(Modifier::REVERSED);
+                    data.style = if let Some(style) = highlight_style {
+                        data.style.patch(style)
+                    } else {
+                        Style::default().add_modifier(Modifier::REVERSED)
+                    };
                     dest_spans[x] = data;
                 } else {
                     // add span
-                    dest_spans[x].style = dest_spans[x]
-                        .style
-                        .patch(Style::default().add_modifier(Modifier::REVERSED));
+                    dest_spans[x].style = if let Some(style) = highlight_style {
+                        dest_spans[x].style.patch(style)
+                    } else {
+                        dest_spans[x]
+                            .style
+                            .patch(Style::default().add_modifier(Modifier::REVERSED))
+                    };
                 }
             }
 
@@ -787,8 +838,7 @@ impl Printer {
                         let color_strip_data = get_ansi_strip_str(&line_data)
                             .trim_end_matches('\n')
                             .to_string();
-                        result_line_spans
-                            .push(Span::styled(line_data.to_string(), tui_line_style));
+                        result_line_spans.push(Span::styled(line_data.to_string(), tui_line_style));
                         result_str_elements.push(
                             str_line_style
                                 .paint(color_strip_data.to_string().to_string())
