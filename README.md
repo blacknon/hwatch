@@ -25,21 +25,31 @@ That records the result of command execution and can display it history and diff
 
 ## Install
 
-### macOS (brew)
+### macOS
 
-    brew install hwatch
+```bash
+# brew
+brew install hwatch
 
-### macOS (MacPorts)
-
-    sudo port install hwatch
+# MacPorts
+sudo port install hwatch
+```
 
 ### Arch Linux (AUR)
 
-    paru -S hwatch
+```bash
+# paru
+paru -S hwatch
+
+# yay
+yay -S hwatch
+```
 
 ### Cargo Install
 
-    cargo install hwatch
+```bash
+cargo install hwatch
+```
 
 ## Usage
 
@@ -298,6 +308,7 @@ hwatch -b command...
 ```
 
 ## Alternatives
+
 - The original [`watch`](https://man7.org/linux/man-pages/man1/watch.1.html);
   the newest version seems to be distributed as a part of
   [`procps`](https://gitlab.com/procps-ng/procps).

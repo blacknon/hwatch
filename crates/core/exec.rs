@@ -613,6 +613,48 @@ mod tests {
     }
 
     #[test]
+    fn test_command_result_data_generate_result_round_trips_compressed_fields() {
+        let data = CommandResultData {
+            timestamp: "2026-04-08 12:00:00.000".to_string(),
+            command: "echo hi".to_string(),
+            status: true,
+            output: "joined".to_string(),
+            stdout: "stdout".to_string(),
+            stderr: "stderr".to_string(),
+        };
+
+        let result = data.generate_result(true);
+
+        assert!(result.is_compress);
+        assert_eq!(result.get_output(), "joined");
+        assert_eq!(result.get_stdout(), "stdout");
+        assert_eq!(result.get_stderr(), "stderr");
+    }
+
+    #[test]
+    fn test_command_result_export_data_decodes_compressed_buffers() {
+        let result = CommandResult {
+            timestamp: "2026-04-08 12:00:00.000".to_string(),
+            command: "echo hi".to_string(),
+            status: false,
+            is_compress: true,
+            output: vec![],
+            stdout: vec![],
+            stderr: vec![],
+        }
+        .set_output(b"joined".to_vec())
+        .set_stdout(b"out".to_vec())
+        .set_stderr(b"err".to_vec());
+
+        let exported = result.export_data();
+
+        assert_eq!(exported.output, "joined");
+        assert_eq!(exported.stdout, "out");
+        assert_eq!(exported.stderr, "err");
+        assert!(!exported.status);
+    }
+
+    #[test]
     fn test_exec_command_without_force_color_stdout_is_not_tty() {
         let exec_commands = vec![
             "sh".to_string(),
@@ -686,5 +728,12 @@ mod tests {
                 "source ~/.bashrc; ls -la".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_splits_exec_mode_command() {
+        let exec_commands = create_exec_cmd_args(true, "ignored".to_string(), "echo hello".to_string());
+
+        assert_eq!(exec_commands, vec!["echo".to_string(), "hello".to_string()]);
     }
 }

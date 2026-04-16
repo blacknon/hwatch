@@ -268,3 +268,88 @@ pub fn expand_output_vec_element_data(
         return OutputVecData::Lines(lines);
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tui::text::Span;
+
+    #[test]
+    fn expand_tabs_replaces_tabs_with_spaces() {
+        assert_eq!("a\tb".expand_tabs(4), "a   b");
+    }
+
+    #[test]
+    fn expand_tabs_with_zero_tab_size_removes_tab_padding() {
+        assert_eq!("a\tb".expand_tabs(0), "ab");
+    }
+
+    #[test]
+    fn diff_mode_options_round_trip_each_flag() {
+        let mut options = DiffModeOptions::new();
+        options.set_color(true);
+        options.set_line_number(true);
+        options.set_only_diffline(true);
+
+        assert!(options.get_color());
+        assert!(options.get_line_number());
+        assert!(options.get_only_diffline());
+    }
+
+    #[test]
+    fn expand_line_tab_expands_each_line_independently() {
+        assert_eq!(expand_line_tab("a\tb\n12\tc", 4), "a   b\n12  c");
+    }
+
+    #[test]
+    fn gen_counter_str_without_color_is_plain_text() {
+        assert_eq!(gen_counter_str(false, 12, 4, DifferenceType::Same), "  12 | ");
+    }
+
+    #[test]
+    fn gen_counter_str_with_color_wraps_output_in_ansi_sequences() {
+        let counter = gen_counter_str(true, 7, 3, DifferenceType::Add);
+
+        assert!(counter.contains("\u{1b}["));
+        assert!(counter.contains("7"));
+        assert!(counter.ends_with(" | \u{1b}[0m"));
+    }
+
+    #[test]
+    fn expand_output_vec_element_data_returns_batch_strings() {
+        let output = expand_output_vec_element_data(
+            true,
+            vec![
+                OutputVecElementData::String("first".to_string()),
+                OutputVecElementData::Line(Line::from(vec![Span::raw("ignored")])),
+                OutputVecElementData::String("second".to_string()),
+            ],
+        );
+
+        match output {
+            OutputVecData::Strings(strings) => {
+                assert_eq!(strings, vec!["first".to_string(), "second".to_string()]);
+            }
+            OutputVecData::Lines(_) => panic!("expected string output"),
+        }
+    }
+
+    #[test]
+    fn expand_output_vec_element_data_returns_watch_lines() {
+        let output = expand_output_vec_element_data(
+            false,
+            vec![
+                OutputVecElementData::String("ignored".to_string()),
+                OutputVecElementData::Line(Line::from("watch line")),
+            ],
+        );
+
+        match output {
+            OutputVecData::Lines(lines) => {
+                assert_eq!(lines.len(), 1);
+                assert_eq!(lines[0].spans[0].content.as_ref(), "watch line");
+            }
+            OutputVecData::Strings(_) => panic!("expected line output"),
+        }
+    }
+}

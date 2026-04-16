@@ -1021,6 +1021,17 @@ mod tests {
     }
 
     #[test]
+    /// Test that decreasing the interval does not go below zero and does not cause underflow.
+    fn run_interval_decrease_does_not_go_below_threshold() {
+        let mut actual = RunInterval::new(1.0);
+        actual.decrease(1.0);
+        actual.decrease(2.0);
+
+        assert_eq!(actual.interval, 1.0);
+        assert!(!actual.paused);
+    }
+
+    #[test]
     fn normalize_args_keeps_explicit_mode() {
         let args = vec!["hwatch", "-d", "line", "echo", "hi"]
             .into_iter()
