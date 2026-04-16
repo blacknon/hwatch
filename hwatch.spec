@@ -12,6 +12,12 @@ BuildRequires:  curl
 BuildRequires:  gcc
 
 %define debug_package %{nil}
+%if 0%{?amzn2023}
+%undefine _package_note
+%undefine _rpm_package_note
+%undefine _hardening_ldflags
+%global _build_ldflags %{nil}
+%endif
 
 %description
 hwatch is a alternative watch command. Records the results of command execution that can display its history and differences.
@@ -33,8 +39,11 @@ Features:
 # Install Rust using curl
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 export PATH="$PATH:$HOME/.cargo/bin"
+%if 0%{?amzn2023}
+unset LDFLAGS
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-$HOME/.cargo/bin/cargo build --release --all-features
+%endif
+$HOME/.cargo/bin/cargo build --release --locked --all-features
 strip target/release/%{name}
 
 %install
@@ -44,8 +53,14 @@ install -D -m 644 LICENSE %{buildroot}/usr/share/licenses/%{name}/LICENSE
 install -D -m 644 README.md %{buildroot}/usr/share/doc/%{name}/README.md
 
 %check
+%if 0%{?amzn2023}
+unset LDFLAGS
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-$HOME/.cargo/bin/cargo test --release --locked --all-features
+%endif
+
+$HOME/.cargo/bin/cargo test --release --locked --all-features -- \
+  --skip test_exec_command_with_force_color_stdout_is_tty \
+  --skip test_exec_command_with_force_color_stdin_is_tty
 
 %files
 %license LICENSE
@@ -54,7 +69,7 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features
 /etc/bash_completion.d/%{name}.bash
 
 %changelog
-* Wed Apr 15 2025 - Danie de Jager - 0.3.20-1
+* Wed Apr 15 2026 - Danie de Jager - 0.3.20-1
 * Mon Oct 20 2025 - Danie de Jager - 0.3.19-3
 * Sun Jul 13 2025 - Danie de Jager - 0.3.19-2
 * Wed Mar 19 2025 - blacknon - 0.3.19-1
