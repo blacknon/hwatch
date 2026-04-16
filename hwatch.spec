@@ -4,12 +4,11 @@ Release:        1%{?dist}
 Summary:        A modern alternative to the 'watch' command, it records differences in execution results and allows for examination of these differences afterward.
 URL:            https://github.com/blacknon/hwatch/
 License:        MIT
-Source0:        https://github.com/blacknon/hwatch/archive/refs/tags/%{version}.tar.gz
+Source0:        %{name}-%{version}.tar.gz
 
-BuildRequires:  git
-BuildRequires:  python3
-BuildRequires:  curl
+BuildRequires:  cargo
 BuildRequires:  gcc
+BuildRequires:  rust
 
 %define debug_package %{nil}
 
@@ -30,28 +29,31 @@ Features:
 %setup -q
 
 %build
-# Install Rust using curl
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-export PATH="$PATH:$HOME/.cargo/bin"
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-$HOME/.cargo/bin/cargo build --release --all-features
+cargo build --release --all-features
 strip target/release/%{name}
 
 %install
 install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}/etc/bash_completion.d/%{name}.bash
+install -D -m 644 completion/fish/%{name}.fish %{buildroot}/usr/share/fish/vendor_completions.d/%{name}.fish
+install -D -m 644 completion/zsh/_%{name} %{buildroot}/usr/share/zsh/site-functions/_%{name}
 install -D -m 755 target/release/%{name} %{buildroot}/usr/bin/%{name}
 install -D -m 644 LICENSE %{buildroot}/usr/share/licenses/%{name}/LICENSE
 install -D -m 644 README.md %{buildroot}/usr/share/doc/%{name}/README.md
+install -D -m 644 man/%{name}.1 %{buildroot}/usr/share/man/man1/%{name}.1
 
 %check
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-$HOME/.cargo/bin/cargo test --release --locked --all-features
+cargo test --release --locked --all-features
 
 %files
 %license LICENSE
 %doc README.md
 /usr/bin/%{name}
 /etc/bash_completion.d/%{name}.bash
+/usr/share/fish/vendor_completions.d/%{name}.fish
+/usr/share/zsh/site-functions/_%{name}
+/usr/share/man/man1/%{name}.1*
 
 %changelog
 * Wed Apr 15 2025 - Danie de Jager - 0.3.20-1
