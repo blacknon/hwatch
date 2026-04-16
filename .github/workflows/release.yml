@@ -152,7 +152,7 @@ jobs:
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
           cp hwatch.spec "$SPECDIR/"
-          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/hwatch-${VERSION}.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
