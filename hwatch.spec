@@ -36,6 +36,7 @@ Features:
 %setup -q
 
 %build
+export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
 # Install Rust using curl
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 export PATH="$PATH:$HOME/.cargo/bin"
