@@ -218,6 +218,65 @@ pub fn get_ansi_strip_str(text: &str) -> String {
 }
 
 ///
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tui::style::{Color, Modifier};
+
+    #[test]
+    fn bytes_to_text_preserves_lines_and_styles() {
+        let text = bytes_to_text(b"\x1b[31mred\x1b[0m\nplain");
+        let colored_span = text.lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "red")
+            .unwrap();
+
+        assert_eq!(text.lines.len(), 2);
+        assert_eq!(colored_span.style.fg, Some(Color::Indexed(1)));
+        assert_eq!(text.lines[1].spans[0].content.as_ref(), "plain");
+        assert_eq!(text.lines[1].spans[0].style.fg, None);
+    }
+
+    #[test]
+    fn bytes_to_text_tracks_multiple_sgr_modifiers() {
+        let text = bytes_to_text(b"\x1b[1;3;4mstyled\x1b[0m");
+        let style = text.lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "styled")
+            .unwrap()
+            .style;
+
+        assert!(style.add_modifier.contains(Modifier::BOLD));
+        assert!(style.add_modifier.contains(Modifier::ITALIC));
+        assert!(style.add_modifier.contains(Modifier::UNDERLINED));
+    }
+
+    #[test]
+    fn gen_ansi_all_set_str_applies_ansi_per_character() {
+        let rows = gen_ansi_all_set_str("\x1b[32mab");
+        let visible_spans: Vec<_> = rows[0]
+            .iter()
+            .filter(|span| !span.content.is_empty())
+            .collect();
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(visible_spans.len(), 2);
+        assert_eq!(visible_spans[0].content.as_ref(), "a");
+        assert_eq!(visible_spans[1].content.as_ref(), "b");
+        assert_eq!(visible_spans[0].style.fg, Some(Color::Indexed(2)));
+        assert_eq!(visible_spans[1].style.fg, Some(Color::Indexed(2)));
+    }
+
+    #[test]
+    fn get_ansi_strip_str_removes_escape_sequences() {
+        let stripped = get_ansi_strip_str("\x1b[31mhello\x1b[0m world");
+
+        assert_eq!(stripped, "hello world");
+    }
+}
 pub fn escape_ansi(input: &str) -> String {
     let mut result = String::new();
     let mut chars = input.chars().peekable();

@@ -220,3 +220,77 @@ pub fn parse_ansi_color(value: &str) -> Result<Color, String> {
         "invalid ANSI color value: '{trimmed}'. Use a color name, 0-255, #RRGGBB, or R,G,B."
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::exec::CommandResult;
+    use tempfile::NamedTempFile;
+    use tui::layout::Rect;
+
+    #[test]
+    fn centered_rect_places_box_in_middle() {
+        let rect = centered_rect(50, 40, Rect::new(0, 0, 100, 50));
+
+        assert_eq!(rect, Rect::new(25, 15, 50, 20));
+    }
+
+    #[test]
+    fn centered_rect_with_size_places_fixed_box_in_middle() {
+        let rect = centered_rect_with_size(10, 20, Rect::new(0, 0, 80, 30));
+
+        assert_eq!(rect, Rect::new(30, 10, 20, 10));
+    }
+
+    #[test]
+    fn parse_ansi_color_accepts_named_hex_rgb_and_index_values() {
+        assert_eq!(parse_ansi_color("red"), Ok(Color::Red));
+        assert_eq!(parse_ansi_color("#0a141e"), Ok(Color::Rgb(10, 20, 30)));
+        assert_eq!(parse_ansi_color("1, 2, 3"), Ok(Color::Rgb(1, 2, 3)));
+        assert_eq!(parse_ansi_color("255"), Ok(Color::Indexed(255)));
+    }
+
+    #[test]
+    fn parse_ansi_color_rejects_invalid_values() {
+        assert!(parse_ansi_color("").is_err());
+        assert!(parse_ansi_color("999").is_err());
+        assert!(parse_ansi_color("#12").is_err());
+    }
+
+    #[test]
+    fn logging_result_and_load_logfile_round_trip() {
+        let logfile = NamedTempFile::new().unwrap();
+        let path = logfile.path().to_str().unwrap();
+        let result = CommandResult {
+            timestamp: "2026-04-08 12:00:00.000".to_string(),
+            command: "echo test".to_string(),
+            status: true,
+            is_compress: false,
+            output: vec![],
+            stdout: vec![],
+            stderr: vec![],
+        }
+        .set_output(b"joined".to_vec())
+        .set_stdout(b"out".to_vec())
+        .set_stderr(b"err".to_vec());
+
+        logging_result(path, &result).unwrap();
+        let loaded = load_logfile(path, false);
+
+        assert!(loaded.is_ok());
+        let loaded = loaded.ok().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert!(loaded[0] == result);
+        assert_eq!(loaded[0].timestamp, result.timestamp);
+    }
+
+    #[test]
+    fn load_logfile_returns_empty_error_for_zero_byte_file() {
+        let logfile = NamedTempFile::new().unwrap();
+        let path = logfile.path().to_str().unwrap();
+
+        let result = load_logfile(path, false);
+
+        assert!(matches!(result, Err(LoadLogfileError::LogfileEmpty)));
+    }
+}
