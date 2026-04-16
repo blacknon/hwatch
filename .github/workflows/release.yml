@@ -17,7 +17,6 @@ on:
       - "img/**"
       - "package/**"
       - "LICENSE"
-      - "hwatch.spec"
 
 jobs:
   # build rust binary
@@ -102,12 +101,20 @@ jobs:
 
       - name: setup rust
         uses: actions-rs/toolchain@v1
+        if: matrix.ext != 'rpm'
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
 
+      - name: Install rpmbuild
+        if: matrix.ext == 'rpm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
       - name: Build binary
+        if: matrix.ext != 'rpm'
         uses: actions-rs/cargo@v1
         with:
           command: build
@@ -115,7 +122,7 @@ jobs:
           use-cross: true
 
       - name: Create package file
-        if: ${{ (matrix.ext == 'tar.gz') || (matrix.ext == 'rpm') || (matrix.ext == 'deb') }}
+        if: ${{ (matrix.ext == 'tar.gz') || (matrix.ext == 'deb') }}
         run: |
           _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
           mkdir -p package/bin
@@ -133,14 +140,27 @@ jobs:
           _ZIP=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
           7z a "$_ZIP" target/${{ matrix.target }}/release/hwatch.exe
 
-      # use: https://github.com/greymd/tar2package
       - name: Build rpm
         id: rpm
         if: matrix.ext == 'rpm'
         run: |
-          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
-          docker run -i "greymd/tar2rpm:1.0.1" < "$_TAR" > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
-          echo "sha256=$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm | awk '{print $1}' )" >> $GITHUB_OUTPUT
+          VERSION=${{ steps.package_version.outputs.version }}
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+          RPM_PATH="$PWD/hwatch-${VERSION}.${{ matrix.target }}.rpm"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp hwatch.spec "$SPECDIR/"
+          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
+          find "$TOPDIR/RPMS" -name '*.rpm' -type f -print -exec cp {} "$RPM_PATH" \;
+          echo "sha256=$( sha256sum "$RPM_PATH" | awk '{print $1}' )" >> $GITHUB_OUTPUT
 
       # use: https://github.com/greymd/tar2package
       - name: Build deb
