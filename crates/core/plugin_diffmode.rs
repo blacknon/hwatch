@@ -366,28 +366,72 @@ fn render_watch_line(line: PluginLine, use_color: bool) -> Line<'static> {
                     .next()
                     .unwrap_or_else(|| Line::from(String::new()))
             } else {
-                Line::from(text)
+                Line::from(ansi::get_ansi_strip_str(&text))
             }
         }
-        PluginLine::Styled(line) => Line::from(
-            line.spans
-                .into_iter()
-                .map(|span| Span::styled(span.text, to_tui_style(&span.style)))
-                .collect::<Vec<_>>(),
-        ),
+        PluginLine::Styled(line) => {
+            let mut rendered_spans = Vec::new();
+            for span in line.spans {
+                let style = to_tui_style(&span.style);
+                if use_color && span.text.contains('\u{1b}') {
+                    let ansi_line = ansi::bytes_to_text(format!("{}\n", span.text).as_bytes())
+                        .lines
+                        .into_iter()
+                        .next()
+                        .unwrap_or_else(|| Line::from(String::new()));
+                    for ansi_span in ansi_line.spans {
+                        rendered_spans.push(Span::styled(
+                            ansi_span.content.into_owned(),
+                            ansi_span.style.patch(style),
+                        ));
+                    }
+                } else if !use_color && span.text.contains('\u{1b}') {
+                    rendered_spans.push(Span::styled(
+                        ansi::get_ansi_strip_str(&span.text),
+                        style,
+                    ));
+                } else {
+                    rendered_spans.push(Span::styled(span.text, style));
+                }
+            }
+            Line::from(rendered_spans)
+        }
     }
 }
 
 fn render_batch_line(line: PluginLine, use_color: bool) -> String {
     match line {
-        PluginLine::Plain(text) => text,
+        PluginLine::Plain(text) => {
+            if use_color {
+                text
+            } else {
+                ansi::get_ansi_strip_str(&text)
+            }
+        }
         PluginLine::Styled(line) => {
             let mut rendered = String::new();
             for span in line.spans {
-                if use_color {
-                    rendered.push_str(&to_ansi_style(&span.style).paint(span.text).to_string());
+                let style = to_ansi_style(&span.style);
+                if use_color && span.text.contains('\u{1b}') {
+                    let ansi_line = ansi::bytes_to_text(format!("{}\n", span.text).as_bytes())
+                        .lines
+                        .into_iter()
+                        .next()
+                        .unwrap_or_else(|| Line::from(String::new()));
+                    for ansi_span in ansi_line.spans {
+                        rendered.push_str(
+                            &to_ansi_style_from_tui(&ansi_span.style.patch(to_tui_style(&span.style)))
+                                .paint(ansi_span.content.into_owned())
+                                .to_string(),
+                        );
+                    }
                 } else {
-                    rendered.push_str(&span.text);
+                    let text = if use_color {
+                        span.text
+                    } else {
+                        ansi::get_ansi_strip_str(&span.text)
+                    };
+                    rendered.push_str(&style.paint(text).to_string());
                 }
             }
             rendered
@@ -457,6 +501,58 @@ fn parse_color_lossy(value: &str) -> Option<Color> {
 
 fn parse_ansi_colour_lossy(value: &str) -> Option<ansi_term::Colour> {
     match parse_ansi_color(value).ok()? {
+        Color::Black => Some(ansi_term::Colour::Black),
+        Color::Red => Some(ansi_term::Colour::Red),
+        Color::Green => Some(ansi_term::Colour::Green),
+        Color::Yellow => Some(ansi_term::Colour::Yellow),
+        Color::Blue => Some(ansi_term::Colour::Blue),
+        Color::Magenta => Some(ansi_term::Colour::Purple),
+        Color::Cyan => Some(ansi_term::Colour::Cyan),
+        Color::Gray => Some(ansi_term::Colour::White),
+        Color::DarkGray => Some(ansi_term::Colour::Fixed(8)),
+        Color::LightRed => Some(ansi_term::Colour::Fixed(9)),
+        Color::LightGreen => Some(ansi_term::Colour::Fixed(10)),
+        Color::LightYellow => Some(ansi_term::Colour::Fixed(11)),
+        Color::LightBlue => Some(ansi_term::Colour::Fixed(12)),
+        Color::LightMagenta => Some(ansi_term::Colour::Fixed(13)),
+        Color::LightCyan => Some(ansi_term::Colour::Fixed(14)),
+        Color::White => Some(ansi_term::Colour::White),
+        Color::Rgb(r, g, b) => Some(ansi_term::Colour::RGB(r, g, b)),
+        Color::Indexed(index) => Some(ansi_term::Colour::Fixed(index)),
+        Color::Reset => None,
+    }
+}
+
+fn to_ansi_style_from_tui(style: &Style) -> ansi_term::Style {
+    let mut ansi_style = ansi_term::Style::new();
+
+    if let Some(fg) = style.fg.and_then(color_to_ansi_colour_lossy) {
+        ansi_style = ansi_style.fg(fg);
+    }
+    if let Some(bg) = style.bg.and_then(color_to_ansi_colour_lossy) {
+        ansi_style = ansi_style.on(bg);
+    }
+    if style.add_modifier.contains(Modifier::BOLD) {
+        ansi_style = ansi_style.bold();
+    }
+    if style.add_modifier.contains(Modifier::DIM) {
+        ansi_style = ansi_style.dimmed();
+    }
+    if style.add_modifier.contains(Modifier::ITALIC) {
+        ansi_style = ansi_style.italic();
+    }
+    if style.add_modifier.contains(Modifier::UNDERLINED) {
+        ansi_style = ansi_style.underline();
+    }
+    if style.add_modifier.contains(Modifier::REVERSED) {
+        ansi_style = ansi_style.reverse();
+    }
+
+    ansi_style
+}
+
+fn color_to_ansi_colour_lossy(color: Color) -> Option<ansi_term::Colour> {
+    match color {
         Color::Black => Some(ansi_term::Colour::Black),
         Color::Red => Some(ansi_term::Colour::Red),
         Color::Green => Some(ansi_term::Colour::Green),

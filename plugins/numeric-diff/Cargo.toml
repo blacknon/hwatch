@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+hwatch-ansi = { path = "../../crates/ansi" }
 hwatch-diffmode = { path = "../../crates/diffmode" }
 similar = { version = "2.5.0", features = ["text"] }
 
