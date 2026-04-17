@@ -366,8 +366,25 @@ hwatch -b command...
 
 ### Plugins
 
+You can load diffmode plugins as dynamic libraries with `--diff-plugin`.
+This allows you to add custom diff rendering for command output.
 
+#### numeric-diff example
 
+The bundled `numeric-diff` plugin highlights numeric changes when the
+surrounding text stays the same.
+
+Build the plugin:
+
+```bash
+cargo build --manifest-path plugins/numeric-diff/Cargo.toml --release
+```
+
+Then load it with `--diff-plugin`:
+
+```bash
+hwatch --diff-plugin plugins/numeric-diff/target/release/libhwatch_plugin_numeric_diff.dylib -d line "seq 3 | awk '{ print \"value=\" $1 * int(rand() * 10) }'"
+```
 
 ## Alternatives
 
