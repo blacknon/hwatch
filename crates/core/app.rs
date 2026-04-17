@@ -147,6 +147,12 @@ pub struct App<'a> {
     is_beep: bool,
 
     ///
+    exit_on_change: Option<u32>,
+
+    ///
+    exit_on_change_armed: bool,
+
+    ///
     is_border: bool,
 
     ///
@@ -273,6 +279,8 @@ impl App<'_> {
             show_header: true,
 
             is_beep: false,
+            exit_on_change: None,
+            exit_on_change_armed: false,
             is_border: false,
             is_history_summary: false,
             is_scroll_bar: false,
@@ -342,6 +350,9 @@ impl App<'_> {
             .set_only_diffline(self.is_only_diffline);
 
         loop {
+            if matches!(self.exit_on_change, Some(0)) {
+                self.done = true;
+            }
             if self.done {
                 return Ok(());
             }
@@ -373,7 +384,7 @@ impl App<'_> {
                     (output_result_items, stdout_result_items, stderr_result_items),
                     is_running_app,
                 )) => {
-                    let _exec_return = self.update_result(
+                    let changed = self.update_result(
                         output_result_items,
                         stdout_result_items,
                         stderr_result_items,
@@ -381,9 +392,11 @@ impl App<'_> {
                     );
 
                     // beep
-                    if _exec_return && self.is_beep {
+                    if changed && self.is_beep {
                         println!("\x07")
                     }
+
+                    self.handle_exit_on_change(changed);
 
                     update_draw = true;
                 }
@@ -715,9 +728,15 @@ impl App<'_> {
         self.set_output_data(selected);
     }
 
-    ///
+    ///        
     pub fn set_beep(&mut self, beep: bool) {
         self.is_beep = beep;
+    }
+
+    ///
+    pub fn set_exit_on_change(&mut self, exit_on_change: Option<u32>) {
+        self.exit_on_change = exit_on_change;
+        self.exit_on_change_armed = false;
     }
 
     ///
@@ -1226,6 +1245,30 @@ impl App<'_> {
         }
 
         true
+    }
+
+    fn handle_exit_on_change(&mut self, changed: bool) {
+        if self.exit_on_change.is_none() {
+            return;
+        }
+
+        if !self.exit_on_change_armed {
+            self.exit_on_change_armed = true;
+            return;
+        }
+
+        if !changed {
+            return;
+        }
+
+        if let Some(remaining) = self.exit_on_change.as_mut() {
+            if *remaining > 0 {
+                *remaining -= 1;
+            }
+            if *remaining == 0 {
+                self.done = true;
+            }
+        }
     }
 
     /// Insert CommandResult into the results of each output mode.

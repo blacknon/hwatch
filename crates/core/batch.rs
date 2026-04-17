@@ -32,6 +32,12 @@ pub struct Batch {
     is_beep: bool,
 
     ///
+    exit_on_change: Option<u32>,
+
+    ///
+    exit_on_change_armed: bool,
+
+    ///
     is_reverse: bool,
 
     ///
@@ -72,6 +78,8 @@ impl Batch {
             line_number: false,
             is_color: true,
             is_beep: false,
+            exit_on_change: None,
+            exit_on_change_armed: false,
             is_reverse: false,
             results: HashMap::new(),
             output_mode: OutputMode::Output,
@@ -95,14 +103,21 @@ impl Batch {
             .set_output_mode(self.output_mode);
 
         loop {
+            if matches!(self.exit_on_change, Some(0)) {
+                return Ok(());
+            }
             match self.rx.recv() {
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    let _exec_return = self.update_result(exec_result);
+                    let changed = self.update_result(exec_result);
 
                     // beep
-                    if _exec_return && self.is_beep {
+                    if changed && self.is_beep {
                         println!("\x07")
+                    }
+
+                    if self.handle_exit_on_change(changed) {
+                        return Ok(());
                     }
                 }
 
@@ -223,6 +238,13 @@ impl Batch {
     }
 
     ///
+    pub fn set_exit_on_change(mut self, exit_on_change: Option<u32>) -> Self {
+        self.exit_on_change = exit_on_change;
+        self.exit_on_change_armed = false;
+        self
+    }
+
+    ///
     pub fn set_reverse(mut self, is_reverse: bool) -> Self {
         self.is_reverse = is_reverse;
         self
@@ -249,5 +271,29 @@ impl Batch {
     pub fn set_logfile(mut self, logfile: String) -> Self {
         self.logfile = logfile;
         self
+    }
+
+    fn handle_exit_on_change(&mut self, changed: bool) -> bool {
+        if self.exit_on_change.is_none() {
+            return false;
+        }
+
+        if !self.exit_on_change_armed {
+            self.exit_on_change_armed = true;
+            return false;
+        }
+
+        if !changed {
+            return false;
+        }
+
+        if let Some(remaining) = self.exit_on_change.as_mut() {
+            if *remaining > 0 {
+                *remaining -= 1;
+            }
+            return *remaining == 0;
+        }
+
+        false
     }
 }

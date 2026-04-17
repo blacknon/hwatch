@@ -66,6 +66,7 @@ cargo install hwatch
         Options:
           -b, --batch                         output execution results to stdout
           -B, --beep                          beep if command has a change result
+          -g, --chgexit [<chgexit>]           exit when output changes. With no value, exits after the first change; with N, exits after N changes
               --border                        Surround each pane with a border frame
               --with-scrollbar                When the border option is enabled, display scrollbar on the right side of watch pane.
               --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
@@ -231,6 +232,20 @@ Use the -n option to specify the command execution interval.
 
 ```bash
 hwatch -n 3 command...
+```
+
+### exit when output changes
+
+Use `-g` to exit after the first detected change, like `watch -g`.
+
+```bash
+hwatch -g command...
+```
+
+Use `-g N` to exit after `N` detected changes.
+
+```bash
+hwatch -g 3 command...
 ```
 
 ### logging output
