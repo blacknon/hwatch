@@ -44,6 +44,11 @@ Flags
 :   beep if command has a change result.
 
 
+-g, \--chgexit \[*count*\]
+
+:   Exit when output changes. If no value is specified, exit after the first detected change. If `count` is specified, exit after that many detected changes.
+
+
 \--border
 
 :   Surround each pane with a border frame

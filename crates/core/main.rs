@@ -191,6 +191,17 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue)
                 .long("beep"),
         )
+        // exit on change option
+        //     [-g,--chgexit[=COUNT]]
+        .arg(
+            Arg::new("chgexit")
+                .help("exit when output changes. With no value, exits after the first change; with N, exits after N changes")
+                .short('g')
+                .long("chgexit")
+                .num_args(0..=1)
+                .default_missing_value("1")
+                .value_parser(clap::value_parser!(u32)),
+        )
         // border option
         //     [--border]
         .arg(
@@ -498,6 +509,25 @@ fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
             continue;
         }
 
+        if arg == "-g" || arg == "--chgexit" {
+            normalized.push(arg);
+
+            match iter.next() {
+                Some(next) => {
+                    let next_value = next.to_string_lossy();
+                    if next_value.parse::<u32>().is_ok() {
+                        normalized.push(next);
+                    } else {
+                        normalized.push(OsString::from("1"));
+                        normalized.push(next);
+                    }
+                }
+                None => normalized.push(OsString::from("1")),
+            }
+
+            continue;
+        }
+
         normalized.push(arg);
     }
 
@@ -628,6 +658,7 @@ fn main() {
     let batch = matcher.get_flag("batch");
     let compress = matcher.get_flag("compress");
     let precise = matcher.get_flag("precise");
+    let exit_on_change = matcher.get_one::<u32>("chgexit").copied();
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
@@ -940,6 +971,7 @@ fn main() {
             .set_tab_size(tab_size)
             .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
+            .set_exit_on_change(exit_on_change)
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
@@ -983,6 +1015,7 @@ fn main() {
         // is batch mode
         let mut batch = batch::Batch::new(rx, diff_modes)
             .set_beep(matcher.get_flag("beep"))
+            .set_exit_on_change(exit_on_change)
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)
             .set_line_number(matcher.get_flag("line_number"))
@@ -1098,5 +1131,46 @@ mod tests {
             actual,
             vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
         );
+    }
+
+    #[test]
+    fn clap_parses_chgexit_without_value_as_one() {
+        let args = vec!["hwatch", "-g", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        let matches = build_app()
+            .try_get_matches_from(normalize_args(args))
+            .unwrap();
+
+        assert_eq!(matches.get_one::<u32>("chgexit"), Some(&1));
+    }
+
+    #[test]
+    fn clap_parses_chgexit_with_explicit_count() {
+        let args = vec!["hwatch", "-g", "3", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        let matches = build_app()
+            .try_get_matches_from(normalize_args(args))
+            .unwrap();
+
+        assert_eq!(matches.get_one::<u32>("chgexit"), Some(&3));
+    }
+
+    #[test]
+    fn normalize_args_inserts_default_count_for_chgexit() {
+        let args = vec!["hwatch", "-g", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-g", "1", "echo", "hi"]);
     }
 }
