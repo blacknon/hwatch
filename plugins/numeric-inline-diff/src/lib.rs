@@ -1,6 +1,7 @@
 use std::slice;
 use std::str;
 
+use hwatch_ansi as ansi;
 use hwatch_diffmode::{
     PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
     PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
@@ -10,6 +11,11 @@ use similar::{ChangeTag, TextDiff};
 static PLUGIN_NAME: &[u8] = b"numeric-inline-diff\0";
 static HEADER_TEXT: &[u8] = b"NumInline\0";
 const RESPONSE_SCHEMA_VERSION: u32 = 2;
+const WATCH_LINE_NUMBER_DEFAULT: &str = "darkgray";
+const WATCH_LINE_NUMBER_ADD: &str = "56,119,120";
+const WATCH_LINE_NUMBER_REM: &str = "118,0,0";
+const WATCH_LINE_ADD: &str = "green";
+const WATCH_LINE_REM: &str = "red";
 
 #[derive(Clone, Debug, PartialEq)]
 struct NumericToken {
@@ -65,7 +71,8 @@ pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwne
     let dest = unsafe { slice_to_str(req.dest) }.unwrap_or_default();
     let src = unsafe { slice_to_str(req.src) }.unwrap_or_default();
 
-    let lines = generate_numeric_inline_diff(dest, src, req.line_number, req.only_diffline);
+    let lines =
+        generate_numeric_inline_diff(dest, src, req.line_number, req.only_diffline, req.color);
     let header_text = if req.only_diffline {
         "NumInline(Only)"
     } else {
@@ -101,6 +108,7 @@ fn generate_numeric_inline_diff(
     src: &str,
     line_number: bool,
     only_diffline: bool,
+    color: bool,
 ) -> Vec<RenderedLine> {
     let diff = TextDiff::from_lines(src, dest);
     let changes: Vec<_> = diff.iter_all_changes().collect();
@@ -125,11 +133,11 @@ fn generate_numeric_inline_diff(
                 match current.tag() {
                     ChangeTag::Delete => deletes.push(ChangedLine {
                         line_no: current.old_index().map(|value| value + 1),
-                        text: trim_line_end(current.to_string()),
+                        text: strip_changed_line(current.to_string()),
                     }),
                     ChangeTag::Insert => inserts.push(ChangedLine {
                         line_no: current.new_index().map(|value| value + 1),
-                        text: trim_line_end(current.to_string()),
+                        text: strip_changed_line(current.to_string()),
                     }),
                     ChangeTag::Equal => {}
                 }
@@ -151,7 +159,7 @@ fn generate_numeric_inline_diff(
                 change.old_index().map(|value| value + 1),
                 "   ",
                 vec![RenderedSpan {
-                    text: trim_line_end(change.to_string()),
+                    text: normalize_equal_line(change.to_string(), color),
                     fg: None,
                     reversed: false,
                 }],
@@ -370,6 +378,19 @@ fn trim_line_end(mut line: String) -> String {
     line
 }
 
+fn normalize_equal_line(line: String, color: bool) -> String {
+    let line = trim_line_end(line);
+    if color {
+        line
+    } else {
+        ansi::get_ansi_strip_str(&line)
+    }
+}
+
+fn strip_changed_line(line: String) -> String {
+    ansi::get_ansi_strip_str(&trim_line_end(line))
+}
+
 fn extract_numeric_tokens(input: &str) -> (Vec<NumericToken>, String) {
     let chars: Vec<char> = input.chars().collect();
     let mut index = 0;
@@ -467,16 +488,16 @@ fn parse_number_token(chars: &[char], start: usize) -> Option<(usize, String)> {
 fn marker_color(kind: RenderKind) -> Option<&'static str> {
     match kind {
         RenderKind::Equal => None,
-        RenderKind::Remove => Some("red"),
-        RenderKind::Insert => Some("green"),
+        RenderKind::Remove => Some(WATCH_LINE_REM),
+        RenderKind::Insert => Some(WATCH_LINE_ADD),
     }
 }
 
 fn line_number_color(kind: RenderKind) -> Option<&'static str> {
     match kind {
-        RenderKind::Equal => Some("darkgray"),
-        RenderKind::Remove => Some("118,0,0"),
-        RenderKind::Insert => Some("56,119,120"),
+        RenderKind::Equal => Some(WATCH_LINE_NUMBER_DEFAULT),
+        RenderKind::Remove => Some(WATCH_LINE_NUMBER_REM),
+        RenderKind::Insert => Some(WATCH_LINE_NUMBER_ADD),
     }
 }
 
@@ -581,17 +602,21 @@ mod tests {
     #[test]
     fn highlights_inline_numeric_changes() {
         let actual =
-            generate_numeric_inline_diff("count=15 used=92\n", "count=10 used=100\n", true, false);
+            generate_numeric_inline_diff("count=15 used=92\n", "count=10 used=100\n", true, false, false);
 
         assert_eq!(actual.len(), 2);
         assert_eq!(actual[0].spans[0].text, "1 | ");
+        assert_eq!(actual[0].spans[0].fg, Some(WATCH_LINE_NUMBER_REM));
         assert_eq!(actual[0].spans[1].text, "-  ");
+        assert_eq!(actual[0].spans[1].fg, Some(WATCH_LINE_REM));
         assert_eq!(actual[0].spans[3].text, "10");
         assert_eq!(actual[0].spans[3].fg, Some("green"));
         assert!(actual[0].spans[3].reversed);
         assert_eq!(actual[0].spans[5].text, "100");
         assert_eq!(actual[0].spans[5].fg, Some("red"));
         assert!(actual[0].spans[5].reversed);
+        assert_eq!(actual[1].spans[0].fg, Some(WATCH_LINE_NUMBER_ADD));
+        assert_eq!(actual[1].spans[1].fg, Some(WATCH_LINE_ADD));
         assert_eq!(actual[1].spans[3].text, "15");
         assert_eq!(actual[1].spans[3].fg, Some("green"));
         assert!(actual[1].spans[3].reversed);
@@ -605,5 +630,42 @@ mod tests {
         );
 
         assert!(actual.is_some());
+    }
+
+    #[test]
+    fn strips_ansi_from_changed_lines_even_when_color_is_enabled() {
+        let actual = generate_numeric_inline_diff(
+            "\u{1b}[32mvalue=2\u{1b}[0m\n",
+            "\u{1b}[31mvalue=1\u{1b}[0m\n",
+            true,
+            false,
+            true,
+        );
+
+        assert_eq!(actual[0].spans[2].text, "value=");
+        assert_eq!(actual[0].spans[3].text, "1");
+        assert_eq!(actual[1].spans[2].text, "value=");
+        assert_eq!(actual[1].spans[3].text, "2");
+    }
+
+    #[test]
+    fn preserves_ansi_on_equal_lines_only_when_color_is_enabled() {
+        let actual = generate_numeric_inline_diff(
+            "\u{1b}[32msame\u{1b}[0m\n",
+            "\u{1b}[32msame\u{1b}[0m\n",
+            false,
+            false,
+            true,
+        );
+        assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
+
+        let stripped = generate_numeric_inline_diff(
+            "\u{1b}[32msame\u{1b}[0m\n",
+            "\u{1b}[32msame\u{1b}[0m\n",
+            false,
+            false,
+            false,
+        );
+        assert_eq!(stripped[0].spans[0].text, "same");
     }
 }

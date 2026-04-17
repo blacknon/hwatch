@@ -1,6 +1,7 @@
 use std::slice;
 use std::str;
 
+use hwatch_ansi as ansi;
 use hwatch_diffmode::{
     PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
     PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
@@ -10,6 +11,13 @@ use similar::{ChangeTag, TextDiff};
 static PLUGIN_NAME: &[u8] = b"numeric-diff\0";
 static HEADER_TEXT: &[u8] = b"NumDiff\0";
 const RESPONSE_SCHEMA_VERSION: u32 = 2;
+const WATCH_LINE_NUMBER_DEFAULT: &str = "darkgray";
+const WATCH_LINE_NUMBER_ADD: &str = "56,119,120";
+const WATCH_LINE_NUMBER_REM: &str = "118,0,0";
+const WATCH_LINE_ADD: &str = "green";
+const WATCH_LINE_REM: &str = "red";
+const NUMERIC_ANNOTATION: &str = "184,134,11";
+const NUMERIC_ANNOTATION_CARET: &str = "yellow";
 
 #[derive(Clone, Debug, PartialEq)]
 struct NumericToken {
@@ -66,7 +74,7 @@ pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwne
     let dest = unsafe { slice_to_str(req.dest) }.unwrap_or_default();
     let src = unsafe { slice_to_str(req.src) }.unwrap_or_default();
 
-    let lines = generate_numeric_diff(dest, src, req.line_number, req.only_diffline);
+    let lines = generate_numeric_diff(dest, src, req.line_number, req.only_diffline, req.color);
     let header_text = if req.only_diffline {
         "NumDiff(Only)"
     } else {
@@ -97,7 +105,13 @@ unsafe fn slice_to_str(input: HwatchSlice) -> Option<&'static str> {
     str::from_utf8(bytes).ok()
 }
 
-fn generate_numeric_diff(dest: &str, src: &str, line_number: bool, only_diffline: bool) -> Vec<RenderedLine> {
+fn generate_numeric_diff(
+    dest: &str,
+    src: &str,
+    line_number: bool,
+    only_diffline: bool,
+    color: bool,
+) -> Vec<RenderedLine> {
     let diff = TextDiff::from_lines(src, dest);
     let changes: Vec<_> = diff.iter_all_changes().collect();
     let line_width = diff
@@ -121,11 +135,11 @@ fn generate_numeric_diff(dest: &str, src: &str, line_number: bool, only_diffline
                 match current.tag() {
                     ChangeTag::Delete => deletes.push(ChangedLine {
                         line_no: current.old_index().map(|value| value + 1),
-                        text: trim_line_end(current.to_string()),
+                        text: strip_changed_line(current.to_string()),
                     }),
                     ChangeTag::Insert => inserts.push(ChangedLine {
                         line_no: current.new_index().map(|value| value + 1),
-                        text: trim_line_end(current.to_string()),
+                        text: strip_changed_line(current.to_string()),
                     }),
                     ChangeTag::Equal => {}
                 }
@@ -147,7 +161,7 @@ fn generate_numeric_diff(dest: &str, src: &str, line_number: bool, only_diffline
                 change.old_index().map(|value| value + 1),
                 "   ",
                 vec![RenderedSpan {
-                    text: trim_line_end(change.to_string()),
+                    text: normalize_equal_line(change.to_string(), color),
                     fg: None,
                 }],
                 line_number,
@@ -303,6 +317,19 @@ fn trim_line_end(mut line: String) -> String {
     line
 }
 
+fn normalize_equal_line(line: String, color: bool) -> String {
+    let line = trim_line_end(line);
+    if color {
+        line
+    } else {
+        ansi::get_ansi_strip_str(&line)
+    }
+}
+
+fn strip_changed_line(line: String) -> String {
+    ansi::get_ansi_strip_str(&trim_line_end(line))
+}
+
 fn describe_numeric_delta(before: &str, after: &str) -> Option<Vec<NumericDelta>> {
     let (before_numbers, before_skeleton) = extract_numeric_tokens(before);
     let (after_numbers, after_skeleton) = extract_numeric_tokens(after);
@@ -451,12 +478,16 @@ fn build_annotation_spans(source: &str, deltas: &[NumericDelta], use_before: boo
         if start > char_index {
             spans.push(RenderedSpan {
                 text: plain.chars().skip(char_index).take(start - char_index).collect(),
-                fg: Some("184,134,11"),
+                fg: Some(NUMERIC_ANNOTATION),
             });
         }
 
         spans.push(RenderedSpan {
-            text: token.clone(),
+            text: "^".to_string(),
+            fg: Some(NUMERIC_ANNOTATION_CARET),
+        });
+        spans.push(RenderedSpan {
+            text: token.chars().skip(1).collect(),
             fg: delta_color(&token),
         });
         char_index = start + token.chars().count();
@@ -466,7 +497,7 @@ fn build_annotation_spans(source: &str, deltas: &[NumericDelta], use_before: boo
     if char_index < plain_len {
         spans.push(RenderedSpan {
             text: plain.chars().skip(char_index).collect(),
-            fg: Some("184,134,11"),
+            fg: Some(NUMERIC_ANNOTATION),
         });
     }
 
@@ -515,18 +546,18 @@ fn format_signed_number(value: f64) -> String {
 fn marker_color(kind: RenderKind) -> Option<&'static str> {
     match kind {
         RenderKind::Equal => None,
-        RenderKind::Remove => Some("red"),
-        RenderKind::Insert => Some("green"),
-        RenderKind::RemoveAnnotation | RenderKind::InsertAnnotation => Some("184,134,11"),
+        RenderKind::Remove => Some(WATCH_LINE_REM),
+        RenderKind::Insert => Some(WATCH_LINE_ADD),
+        RenderKind::RemoveAnnotation | RenderKind::InsertAnnotation => Some(NUMERIC_ANNOTATION),
     }
 }
 
 fn line_number_color(kind: RenderKind) -> Option<&'static str> {
     match kind {
-        RenderKind::Equal => Some("darkgray"),
-        RenderKind::Remove => Some("118,0,0"),
-        RenderKind::Insert => Some("56,119,120"),
-        RenderKind::RemoveAnnotation | RenderKind::InsertAnnotation => Some("184,134,11"),
+        RenderKind::Equal => Some(WATCH_LINE_NUMBER_DEFAULT),
+        RenderKind::Remove => Some(WATCH_LINE_NUMBER_REM),
+        RenderKind::Insert => Some(WATCH_LINE_NUMBER_ADD),
+        RenderKind::RemoveAnnotation | RenderKind::InsertAnnotation => Some(NUMERIC_ANNOTATION),
     }
 }
 
@@ -610,17 +641,26 @@ mod tests {
 
     #[test]
     fn inserts_numeric_annotation_lines_for_replaced_line() {
-        let actual = generate_numeric_diff("retry=5 timeout=92\n", "retry=3 timeout=100\n", true, false);
+        let actual =
+            generate_numeric_diff("retry=5 timeout=92\n", "retry=3 timeout=100\n", true, false, false);
 
         assert_eq!(actual.len(), 4);
         assert_eq!(actual[0].spans[0].text, "1 | ");
         assert_eq!(actual[0].spans[1].text, "-  ");
         assert_eq!(actual[1].spans[1].text, "*- ");
-        assert_eq!(actual[1].spans[2].fg, Some("184,134,11"));
-        assert_eq!(actual[1].spans[3].text, "^-2");
-        assert_eq!(actual[1].spans[3].fg, Some("magenta"));
-        assert_eq!(actual[1].spans[5].text, "^+8");
-        assert_eq!(actual[1].spans[5].fg, Some("cyan"));
+        assert_eq!(actual[1].spans[0].fg, Some(NUMERIC_ANNOTATION));
+        assert_eq!(actual[1].spans[1].fg, Some(NUMERIC_ANNOTATION));
+        assert_eq!(actual[1].spans[2].fg, Some(NUMERIC_ANNOTATION));
+        assert_eq!(actual[1].spans[3].text, "^");
+        assert_eq!(actual[1].spans[3].fg, Some(NUMERIC_ANNOTATION_CARET));
+        assert_eq!(actual[1].spans[4].text, "-2");
+        assert_eq!(actual[1].spans[4].fg, Some("magenta"));
+        assert_eq!(actual[1].spans[6].text, "^");
+        assert_eq!(actual[1].spans[6].fg, Some(NUMERIC_ANNOTATION_CARET));
+        assert_eq!(actual[1].spans[7].text, "+8");
+        assert_eq!(actual[1].spans[7].fg, Some("cyan"));
+        assert_eq!(actual[3].spans[0].fg, Some(NUMERIC_ANNOTATION));
+        assert_eq!(actual[3].spans[1].fg, Some(NUMERIC_ANNOTATION));
     }
 
     #[test]
@@ -630,6 +670,7 @@ mod tests {
             "same\nretry=3 timeout=100\n",
             true,
             true,
+            false,
         );
 
         assert_eq!(actual.len(), 4);
@@ -652,5 +693,40 @@ mod tests {
                 after_delta: "+1".to_string(),
             }])
         );
+    }
+
+    #[test]
+    fn strips_ansi_from_changed_lines_even_when_color_is_enabled() {
+        let actual = generate_numeric_diff(
+            "\u{1b}[32mvalue=2\u{1b}[0m\n",
+            "\u{1b}[31mvalue=1\u{1b}[0m\n",
+            true,
+            false,
+            true,
+        );
+
+        assert_eq!(actual[0].spans[2].text, "value=1");
+        assert_eq!(actual[2].spans[2].text, "value=2");
+    }
+
+    #[test]
+    fn preserves_ansi_on_equal_lines_only_when_color_is_enabled() {
+        let actual = generate_numeric_diff(
+            "\u{1b}[32msame\u{1b}[0m\n",
+            "\u{1b}[32msame\u{1b}[0m\n",
+            false,
+            false,
+            true,
+        );
+        assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
+
+        let stripped = generate_numeric_diff(
+            "\u{1b}[32msame\u{1b}[0m\n",
+            "\u{1b}[32msame\u{1b}[0m\n",
+            false,
+            false,
+            false,
+        );
+        assert_eq!(stripped[0].spans[0].text, "same");
     }
 }
