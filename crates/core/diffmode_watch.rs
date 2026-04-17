@@ -151,9 +151,11 @@ fn generate_watch_diff<'a>(
         let src_line = vec_src[i];
         let dest_line = vec_dest[i];
 
-        let mut line_data = match is_color {
-            false => create_watch_diff_output_line(&dest_line, &src_line, false),
-            true => create_watch_diff_output_line_with_ansi_for_watch(&dest_line, &src_line),
+        let mut line_data = match (is_color, is_batch) {
+            (false, false) => create_watch_diff_output_line(&dest_line, &src_line, false),
+            (false, true) => create_watch_diff_output_line(&dest_line, &src_line, true),
+            (true, false) => create_watch_diff_output_line_with_ansi_for_watch(&dest_line, &src_line),
+            (true, true) => create_watch_diff_output_line_with_ansi_for_batch(&dest_line, &src_line),
         };
 
         if is_line_number {
@@ -349,4 +351,110 @@ fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
     result.push(Span::styled(space, Style::default()));
 
     return OutputVecElementData::Line(Line::from(result));
+}
+
+fn create_watch_diff_output_line_with_ansi_for_batch<'a>(
+    dest_line: &str,
+    src_line: &str,
+) -> OutputVecElementData<'a> {
+    if src_line == dest_line {
+        return OutputVecElementData::String(dest_line.to_string());
+    }
+
+    let mut rendered = String::new();
+    let src_colored_spans = gen_ansi_all_set_str(src_line);
+    let dest_colored_spans = gen_ansi_all_set_str(dest_line);
+    let mut src_spans = vec![];
+    for mut src_span in src_colored_spans {
+        src_spans.append(&mut src_span);
+    }
+    let mut dest_spans = vec![];
+    for mut dest_span in dest_colored_spans {
+        dest_spans.append(&mut dest_span);
+    }
+
+    let space = '\u{00a0}'.to_string();
+    let max_span = cmp::max(src_spans.len(), dest_spans.len());
+    for x in 0..max_span {
+        if src_spans.len() <= x {
+            src_spans.push(Span::from(space.to_string()));
+        }
+        if dest_spans.len() <= x {
+            dest_spans.push(Span::from(space.to_string()));
+        }
+
+        let mut span = dest_spans[x].clone();
+        if src_spans[x].content != dest_spans[x].content || src_spans[x].style != dest_spans[x].style {
+            if dest_spans[x].content == space {
+                span = Span::raw(" ");
+            } else {
+                span.style = span
+                    .style
+                    .patch(Style::default().add_modifier(Modifier::REVERSED));
+            }
+        }
+
+        let ansi_style = ansi_span_to_style(&span.style);
+        let content = if span.content == space {
+            " ".to_string()
+        } else {
+            span.content.into_owned()
+        };
+        rendered.push_str(&ansi_style.paint(content).to_string());
+    }
+
+    rendered.push_str("\x1b[0m");
+    OutputVecElementData::String(rendered)
+}
+
+fn ansi_span_to_style(style: &Style) -> ansi_term::Style {
+    let mut ansi_style = ansi_term::Style::new();
+
+    if let Some(fg) = style.fg.and_then(tui_color_to_ansi) {
+        ansi_style = ansi_style.fg(fg);
+    }
+    if let Some(bg) = style.bg.and_then(tui_color_to_ansi) {
+        ansi_style = ansi_style.on(bg);
+    }
+    if style.add_modifier.contains(Modifier::BOLD) {
+        ansi_style = ansi_style.bold();
+    }
+    if style.add_modifier.contains(Modifier::DIM) {
+        ansi_style = ansi_style.dimmed();
+    }
+    if style.add_modifier.contains(Modifier::ITALIC) {
+        ansi_style = ansi_style.italic();
+    }
+    if style.add_modifier.contains(Modifier::UNDERLINED) {
+        ansi_style = ansi_style.underline();
+    }
+    if style.add_modifier.contains(Modifier::REVERSED) {
+        ansi_style = ansi_style.reverse();
+    }
+
+    ansi_style
+}
+
+fn tui_color_to_ansi(color: Color) -> Option<ansi_term::Colour> {
+    match color {
+        Color::Black => Some(ansi_term::Colour::Black),
+        Color::Red => Some(ansi_term::Colour::Red),
+        Color::Green => Some(ansi_term::Colour::Green),
+        Color::Yellow => Some(ansi_term::Colour::Yellow),
+        Color::Blue => Some(ansi_term::Colour::Blue),
+        Color::Magenta => Some(ansi_term::Colour::Purple),
+        Color::Cyan => Some(ansi_term::Colour::Cyan),
+        Color::Gray => Some(ansi_term::Colour::White),
+        Color::DarkGray => Some(ansi_term::Colour::Fixed(8)),
+        Color::LightRed => Some(ansi_term::Colour::Fixed(9)),
+        Color::LightGreen => Some(ansi_term::Colour::Fixed(10)),
+        Color::LightYellow => Some(ansi_term::Colour::Fixed(11)),
+        Color::LightBlue => Some(ansi_term::Colour::Fixed(12)),
+        Color::LightMagenta => Some(ansi_term::Colour::Fixed(13)),
+        Color::LightCyan => Some(ansi_term::Colour::Fixed(14)),
+        Color::White => Some(ansi_term::Colour::White),
+        Color::Rgb(r, g, b) => Some(ansi_term::Colour::RGB(r, g, b)),
+        Color::Indexed(index) => Some(ansi_term::Colour::Fixed(index)),
+        Color::Reset => None,
+    }
 }

@@ -55,42 +55,84 @@ cargo install hwatch
 
 ### Command
 
-        $ hwatch --help
-        A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
+```shell
+$ hwatch --help
+A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
-        Usage: hwatch [OPTIONS] [command]...
+Usage: hwatch [OPTIONS] [command]...
 
-        Arguments:
-          [command]...
+Arguments:
+  [command]...
 
-        Options:
-          -b, --batch                         output execution results to stdout
-          -B, --beep                          beep if command has a change result
-          -g, --chgexit [<chgexit>]           exit when output changes. With no value, exits after the first change; with N, exits after N changes
-              --border                        Surround each pane with a border frame
-              --with-scrollbar                When the border option is enabled, display scrollbar on the right side of watch pane.
-              --mouse                         enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
-          -c, --color                         interpret ANSI color and style sequences
-          -r, --reverse                       display text upside down.
-          -C, --compress                      Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.
-          -t, --no-title                      hide the UI on start. Use `t` to toggle it.
-          -N, --line-number                   show line number
-              --no-help-banner                hide the "Display help with h key" message
-              --completion <shell>            output shell completion script (bash, fish, zsh)
-          -x, --exec                          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
-          -O, --diff-output-only              Display only the lines with differences during `line` diff and `word` diff.
-          -A, --aftercommand <after_command>  Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
-          -l, --logfile [<logfile>]           logging file. if a log file is already used, its contents will be read and executed.
-          -s, --shell <shell_command>         shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
-          -n, --interval <interval>           seconds to wait between updates [default: 2]
-              --precise                       Attempt to run as close to the interval as possible, regardless of how long the command takes to run
-          -L, --limit <limit>                 Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. [default: 5000]
-              --tab-size <tab_size>           Specifying tab display size [default: 4]
-          -d, --differences [<differences>]   highlight changes between updates [possible values: none, watch, line, word]
-          -o, --output [<output>]             Select command output. [default: output] [possible values: output, stdout, stderr]
-          -K, --keymap <keymap>               Add keymap
-          -h, --help                          Print help
-          -V, --version                       Print version
+Options:
+  -b, --batch
+          output execution results to stdout
+  -B, --beep
+          beep if command has a change result
+  -g, --chgexit [<chgexit>]
+          exit when output changes. With no value, exits after the first change; with N, exits after N changes
+      --border
+          Surround each pane with a border frame
+      --with-scrollbar
+          When the border option is enabled, display scrollbar on the right side of watch pane.
+      --mouse
+          enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.
+  -c, --color
+          interpret ANSI color and style sequences
+  -r, --reverse
+          display text upside down.
+  -C, --compress
+          Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.
+  -t, --no-title
+          hide the UI on start. Use `t` to toggle it.
+      --enable-summary-char
+          collect character-level diff count in summary.
+  -N, --line-number
+          show line number
+  -w, --wrap
+          disable line wrap mode
+      --no-help-banner
+          hide the "Display help with h key" message
+      --no-summary
+          disable the calculation for summary that is running behind the scenes, and disable the summary function in the first place.
+      --completion <SHELL>
+          Output shell completion script [possible values: bash, fish, zsh]
+  -x, --exec
+          Run the command directly, not through the shell. Much like the `-x` option of the watch command.
+  -p, --use-pty
+          Run the command through a pseudo-TTY so commands that colorize on terminals can keep color output.
+  -O, --diff-output-only
+          Display only the lines with differences during `line` diff and `word` diff.
+  -A, --aftercommand <after_command>
+          Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
+      --after-command-result-write-file
+          TODO: あとでかく
+  -l, --logfile [<logfile>]
+          logging file. if a log file is already used, its contents will be read and executed.
+  -s, --shell <shell_command>
+          shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
+  -n, --interval <interval>
+          seconds to wait between updates [default: 2]
+      --precise
+          Attempt to run as close to the interval as possible, regardless of how long the command takes to run
+  -L, --limit <limit>
+          Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording. [default: 5000]
+      --tab-size <tab_size>
+          Specifying tab display size [default: 4]
+      --diff-plugin <diff_plugin>
+          Load a diffmode plugin dynamic library.
+  -d, --differences [<differences>]
+          highlight changes between updates
+  -o, --output [<output>]
+          Select command output. [default: output] [possible values: output, stdout, stderr]
+  -K, --keymap <keymap>
+          Add keymap
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+
+```
 
 ### Keybind
 
@@ -321,6 +363,11 @@ You can have command diffs output directly to stdout instead with `-b` option of
 ```bash
 hwatch -b command...
 ```
+
+### Plugins
+
+
+
 
 ## Alternatives
 
