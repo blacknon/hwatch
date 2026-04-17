@@ -321,7 +321,11 @@ fn parse_plugin_response(
     })
 }
 
-fn validate_styled_line(path: &Path, line_index: usize, line: &PluginStyledLine) -> Result<(), String> {
+fn validate_styled_line(
+    path: &Path,
+    line_index: usize,
+    line: &PluginStyledLine,
+) -> Result<(), String> {
     for (span_index, span) in line.spans.iter().enumerate() {
         validate_style_color(path, line_index, span_index, "fg", span.style.fg.as_deref())?;
         validate_style_color(path, line_index, span_index, "bg", span.style.bg.as_deref())?;
@@ -365,23 +369,12 @@ fn render_watch_line(line: PluginLine, use_color: bool) -> Line<'static> {
                 Line::from(text)
             }
         }
-        PluginLine::Styled(line) => {
-            if use_color {
-                Line::from(
-                    line.spans
-                        .into_iter()
-                        .map(|span| Span::styled(span.text, to_tui_style(&span.style)))
-                        .collect::<Vec<_>>(),
-                )
-            } else {
-                Line::from(
-                    line.spans
-                        .into_iter()
-                        .map(|span| Span::from(span.text))
-                        .collect::<Vec<_>>(),
-                )
-            }
-        }
+        PluginLine::Styled(line) => Line::from(
+            line.spans
+                .into_iter()
+                .map(|span| Span::styled(span.text, to_tui_style(&span.style)))
+                .collect::<Vec<_>>(),
+        ),
     }
 }
 
