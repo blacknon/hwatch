@@ -248,6 +248,7 @@ impl App<'_> {
         rx: Receiver<AppEvent>,
         interval: SharedInterval,
         diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+        diff_mode_width: usize,
     ) -> Self {
         // Create Default DiffMode
         let diff_mode_counter = 0;
@@ -294,7 +295,11 @@ impl App<'_> {
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
-            header_area: HeaderArea::new(interval.clone(), mutex_diff_mode.clone()),
+            header_area: {
+                let mut header_area = HeaderArea::new(interval.clone(), mutex_diff_mode.clone());
+                header_area.set_diff_mode_width(diff_mode_width);
+                header_area
+            },
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 

@@ -76,6 +76,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
+use unicode_width::UnicodeWidthStr;
 
 // local modules
 mod app;
@@ -917,6 +918,8 @@ fn main() {
         0
     };
 
+    let diff_mode_width = calculate_diff_mode_header_width(&diff_modes);
+
     // check batch mode
     if !batch {
         // On Windows, Ctrl+C can be delivered as a process signal before key input is read.
@@ -956,6 +959,7 @@ fn main() {
             .set_output_mode(output_mode)
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
+            .set_diff_mode_width(diff_mode_width)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
@@ -999,6 +1003,23 @@ fn main() {
         // start batch.
         let _res = batch.run();
     }
+}
+
+fn calculate_diff_mode_header_width(diff_modes: &[Arc<Mutex<Box<dyn DiffMode>>>]) -> usize {
+    let mut max_width = 0;
+
+    for diff_mode in diff_modes {
+        let mut diff_mode = diff_mode.lock().unwrap();
+        for only_diffline in [false, true] {
+            let mut options = hwatch_diffmode::DiffModeOptions::new();
+            options.set_only_diffline(only_diffline);
+            diff_mode.set_option(options);
+            let header_text = diff_mode.get_header_text();
+            max_width = max_width.max(UnicodeWidthStr::width(header_text.as_str()));
+        }
+    }
+
+    max_width
 }
 #[cfg(test)]
 mod tests {
