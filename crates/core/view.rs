@@ -57,6 +57,7 @@ pub struct View {
     output_mode: OutputMode,
     diff_mode: usize,
     diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+    diff_mode_width: usize,
     is_only_diffline: bool,
     enable_summary_char: bool,
     log_path: String,
@@ -87,6 +88,7 @@ impl View {
             output_mode: OutputMode::Output,
             diff_mode: 0,
             diff_modes: diff_modes,
+            diff_mode_width: 0,
             is_only_diffline: false,
             enable_summary_char: false,
             log_path: "".to_string(),
@@ -184,6 +186,11 @@ impl View {
         self
     }
 
+    pub fn set_diff_mode_width(mut self, diff_mode_width: usize) -> Self {
+        self.diff_mode_width = diff_mode_width;
+        self
+    }
+
     pub fn set_only_diffline(mut self, only_diffline: bool) -> Self {
         self.is_only_diffline = only_diffline;
         self
@@ -232,7 +239,13 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone(), self.diff_modes.clone());
+        let mut app = App::new(
+            tx,
+            rx,
+            self.interval.clone(),
+            self.diff_modes.clone(),
+            self.diff_mode_width,
+        );
 
         // set keymap
         app.set_keymap(self.keymap.clone());

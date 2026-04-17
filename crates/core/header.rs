@@ -81,6 +81,9 @@ pub struct HeaderArea<'a> {
 
     ///
     pub input_text: String,
+
+    ///
+    diff_mode_width: usize,
 }
 
 /// Header Area Object Trait
@@ -111,6 +114,7 @@ impl HeaderArea<'_> {
             input_mode: InputMode::None,
             input_prompt: "".to_string(),
             input_text: "".to_string(),
+            diff_mode_width: 0,
         }
     }
 
@@ -150,6 +154,10 @@ impl HeaderArea<'_> {
 
     pub fn set_diff_mode(&mut self, diff_mode: Arc<Mutex<Box<dyn DiffMode>>>) {
         self.diff_mode = diff_mode;
+    }
+
+    pub fn set_diff_mode_width(&mut self, diff_mode_width: usize) {
+        self.diff_mode_width = diff_mode_width;
     }
 
     pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
@@ -192,34 +200,6 @@ impl HeaderArea<'_> {
         } else {
             command_width = 0;
             timestamp_width = 0;
-        }
-
-        // filter keyword.
-        let filter_keyword_width = if width > ((self.banner.len() + 20) + 2 + 14) && width > 59 {
-            // width - POSITION_X_HELP_TEXT - 2 - 14
-            // length("[Number] [Color] [Output] [history] [Line(Only)]") = 48
-            // length("[Number] [Color] [Reverse] [Output] [history] [Line(Only)]") = 58
-            width - 59
-        } else {
-            0
-        };
-        // format!("{:wid$}", self.input_text, wid = filter_keyword_width);
-        let filter_keyword = format_with_multibyte_width(&self.input_text, filter_keyword_width);
-        let filter_keyword_style: Style;
-
-        if self.input_text.is_empty() {
-            match self.input_mode {
-                InputMode::Filter => self.input_prompt = "/".to_string(),
-                InputMode::RegexFilter => self.input_prompt = "*".to_string(),
-
-                _ => {}
-            }
-
-            filter_keyword_style = Style::default().fg(Color::Gray);
-        } else {
-            filter_keyword_style = Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD);
         }
 
         let interval = self.interval.read().unwrap();
@@ -288,6 +268,32 @@ impl HeaderArea<'_> {
             options.set_only_diffline(self.is_only_diffline);
             diff_mode.set_option(options);
             value_diff = diff_mode.get_header_text();
+        }
+        let value_diff = format_with_multibyte_width(&value_diff, self.diff_mode_width);
+
+        let second_line_fixed_width =
+            UnicodeWidthStr::width("[Number] [Color] [Reverse] [Output] [History] [")
+                + self.diff_mode_width
+                + UnicodeWidthStr::width("]")
+                + 1; // input prompt
+
+        let filter_keyword_width = width.saturating_sub(second_line_fixed_width);
+        let filter_keyword = format_with_multibyte_width(&self.input_text, filter_keyword_width);
+        let filter_keyword_style: Style;
+
+        if self.input_text.is_empty() {
+            match self.input_mode {
+                InputMode::Filter => self.input_prompt = "/".to_string(),
+                InputMode::RegexFilter => self.input_prompt = "*".to_string(),
+
+                _ => {}
+            }
+
+            filter_keyword_style = Style::default().fg(Color::Gray);
+        } else {
+            filter_keyword_style = Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD);
         }
 
         // Set Color
@@ -366,7 +372,7 @@ impl HeaderArea<'_> {
             Span::raw("["),
             // Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
-                format!("{:wid$}", value_diff, wid = 10),
+                format!("{:wid$}", value_diff, wid = self.diff_mode_width),
                 Style::default()
                     .fg(Color::Magenta)
                     .add_modifier(Modifier::REVERSED),
