@@ -34,6 +34,11 @@ NOTE: Operations with TUI are not possible in batch mode.
 \-B, \-\-beep
 beep if command has a change result.
 .TP
+\-g, \-\-chgexit \f[I]count\f[R]
+Exit when output changes.
+If no value is specified, exit after the first detected change.
+If \f[I]count\f[R] is specified, exit after that many detected changes.
+.TP
 \-\-mouse
 enable mouse wheel support.
 With this option, copying text with your terminal may be harder.

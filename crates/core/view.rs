@@ -43,6 +43,7 @@ pub struct View {
     limit: u32,
     keymap: Keymap,
     beep: bool,
+    exit_on_change: Option<u32>,
     border: bool,
     scroll_bar: bool,
     mouse_events: bool,
@@ -74,6 +75,7 @@ impl View {
             limit: 0,
             keymap: default_keymap(),
             beep: false,
+            exit_on_change: None,
             border: false,
             scroll_bar: false,
             mouse_events: false,
@@ -122,6 +124,11 @@ impl View {
 
     pub fn set_beep(mut self, beep: bool) -> Self {
         self.beep = beep;
+        self
+    }
+
+    pub fn set_exit_on_change(mut self, exit_on_change: Option<u32>) -> Self {
+        self.exit_on_change = exit_on_change;
         self
     }
 
@@ -270,6 +277,7 @@ impl View {
 
         // set beep
         app.set_beep(self.beep);
+        app.set_exit_on_change(self.exit_on_change);
 
         // set border
         app.set_border(self.border);
