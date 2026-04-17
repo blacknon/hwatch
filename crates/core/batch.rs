@@ -178,13 +178,25 @@ impl Batch {
             }
         }
 
+        let should_print = self.should_print_for_output_mode(&latest_result, &_result);
+
         // add result
         self.results.insert(self.results.len(), _result.clone());
 
         // output result
-        self.printout_result();
+        if should_print {
+            self.printout_result();
+        }
 
         true
+    }
+
+    fn should_print_for_output_mode(&self, before: &CommandResult, after: &CommandResult) -> bool {
+        match self.output_mode {
+            OutputMode::Output => before.get_output() != after.get_output(),
+            OutputMode::Stdout => before.get_stdout() != after.get_stdout(),
+            OutputMode::Stderr => before.get_stderr() != after.get_stderr(),
+        }
     }
 
     ///
@@ -211,6 +223,10 @@ impl Batch {
 
         let printout_data = self.printer.get_batch_text(dest, src);
 
+        if printout_data.is_empty() {
+            return;
+        }
+
         println!("{:}", printout_data.join("\n"));
     }
 
@@ -234,6 +250,12 @@ impl Batch {
     ///
     pub fn set_beep(mut self, is_beep: bool) -> Self {
         self.is_beep = is_beep;
+        self
+    }
+
+    ///
+    pub fn set_color(mut self, is_color: bool) -> Self {
+        self.is_color = is_color;
         self
     }
 

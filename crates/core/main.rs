@@ -69,7 +69,7 @@ use crossbeam_channel::unbounded;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use hwatch_diffmode::DiffMode;
 use question::{Answer, Question};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::ffi::OsString;
 use std::path::Path;
@@ -474,8 +474,38 @@ fn build_app() -> clap::Command {
 
 /// Normalize options in args.
 /// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
+fn collect_known_diff_mode_names(args: &[OsString]) -> HashSet<String> {
+    let mut modes = HashSet::from([
+        "none".to_string(),
+        "watch".to_string(),
+        "line".to_string(),
+        "word".to_string(),
+    ]);
+
+    let mut index = 0;
+    while index < args.len() {
+        let arg = args[index].to_string_lossy();
+        let plugin_path = if arg == "--diff-plugin" {
+            index += 1;
+            args.get(index).map(|value| value.to_string_lossy().into_owned())
+        } else {
+            arg.strip_prefix("--diff-plugin=").map(|value| value.to_string())
+        };
+
+        if let Some(plugin_path) = plugin_path {
+            if let Ok(registration) = plugin_diffmode::load_plugin(Path::new(&plugin_path)) {
+                modes.insert(registration.name);
+            }
+        }
+
+        index += 1;
+    }
+
+    modes
+}
+
 fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
-    const DIFF_MODES: [&str; 4] = ["none", "watch", "line", "word"];
+    let known_diff_modes = collect_known_diff_mode_names(&args);
     let mut normalized = Vec::with_capacity(args.len() + 1);
     let mut iter = args.into_iter();
 
@@ -496,7 +526,7 @@ fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
             match iter.next() {
                 Some(next) => {
                     let next_value = next.to_string_lossy();
-                    if DIFF_MODES.contains(&next_value.as_ref()) {
+                    if known_diff_modes.contains(next_value.as_ref()) {
                         normalized.push(next);
                     } else {
                         normalized.push(OsString::from("watch"));
@@ -1015,6 +1045,7 @@ fn main() {
         // is batch mode
         let mut batch = batch::Batch::new(rx, diff_modes)
             .set_beep(matcher.get_flag("beep"))
+            .set_color(matcher.get_flag("color"))
             .set_exit_on_change(exit_on_change)
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)
