@@ -9,4 +9,5 @@
 description = "generate hwatch.gif"
 run = """
 vhs img/demo.tape -o img/hwatch.gif
+vhs img/plugin.tape -o img/plugin.gif
 """
