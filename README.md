@@ -17,6 +17,7 @@ That records the result of command execution and can display it history and diff
 - Can keep the history when the difference, occurs and check it later.
 - Can check the difference in the history. The display method can be changed in real time.
 - Can output the execution result as log (json format).
+- Can load diffmode plugins as dynamic libraries and add custom diff rendering.
 - Custom keymaps are available.
 - Support ANSI color code.
 - Execution result can be scroll.
@@ -370,6 +371,10 @@ You can load diffmode plugins as dynamic libraries with `--diff-plugin`.
 This allows you to add custom diff rendering for command output.
 
 #### numeric-diff example
+
+<p align="center">
+<img src="./img/plugin.gif" />
+</p>
 
 The bundled `numeric-diff` plugin highlights numeric changes when the
 surrounding text stays the same.
