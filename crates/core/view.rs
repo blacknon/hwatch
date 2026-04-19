@@ -14,12 +14,6 @@ use std::time::Duration;
 use std::{error::Error, io};
 use tui::{backend::CrosstermBackend, style::Color, Terminal};
 
-// non blocking io
-#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
-#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-use std::{io::stdin, os::unix::io::AsRawFd};
-
 // local module
 use crate::app::App;
 use crate::common::OutputMode;
@@ -340,21 +334,9 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) {
     let _ = terminal.show_cursor();
 }
 
-// TODO(blacknon): `Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }`で終了してしまう場合があるので、どこで終了されてしまっているかを調査、対処する
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
-        // non blocking mode
-        #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-        set_nonblocking(true)?;
-
-        // get event
-        let result = crossterm::event::read();
-
-        // blocking mode
-        #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-        set_nonblocking(false)?;
-
-        match result {
+        match crossterm::event::read() {
             Ok(event) => {
                 let _ = tx.send(AppEvent::TerminalEvent(event));
             }
@@ -366,21 +348,5 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
             Err(err) => return Err(err),
         }
     }
-    Ok(())
-}
-
-#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
-    let stdin_fd = stdin().as_raw_fd();
-    let flags = fcntl(stdin_fd, F_GETFL)?;
-
-    if is_nonblocking {
-        let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
-        fcntl(stdin_fd, F_SETFL(new_flags))?;
-    } else {
-        let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
-        fcntl(stdin_fd, F_SETFL(new_flags))?;
-    }
-
     Ok(())
 }
