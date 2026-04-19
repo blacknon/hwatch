@@ -11,6 +11,7 @@ complete -c hwatch -s K -l keymap -d 'Add keymap' -r
 complete -c hwatch -l completion -d 'Output shell completion script' -r -f -a "bash fish zsh"
 complete -c hwatch -s b -l batch -d 'output exection results to stdout'
 complete -c hwatch -s B -l beep -d 'beep if command has a change result'
+complete -c hwatch -s g -l chgexit -d 'exit when output changes. With no value, exits after the first change; with N, exits after N changes' -r
 complete -c hwatch -l border -d 'Surround each pane with a border frame'
 complete -c hwatch -l with-scrollbar -d 'When the border option is enabled, display scrollbar on the right side of watch pane.'
 complete -c hwatch -l mouse -d 'enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.'
@@ -24,4 +25,4 @@ complete -c hwatch -s x -l exec -d 'Run the command directly, not through the sh
 complete -c hwatch -s O -l diff-output-only -d 'Display only the lines with differences during `line` diff and `word` diff.'
 complete -c hwatch -s h -l help -d 'Print help'
 complete -c hwatch -s V -l version -d 'Print version'
-complete -c hwatch -f -a "(__fish_complete_command)" -n "not __fish_prev_arg_in -s A -l aftercommand -s l -l logfile -s s -l shell -s n -l interval -s L -l limit -l tab-size -s d -l differences -s o -l output -s K -l keymap -l completion"
+complete -c hwatch -f -a "(__fish_complete_command)" -n "not __fish_prev_arg_in -s A -l aftercommand -s l -l logfile -s s -l shell -s n -l interval -s L -l limit -l tab-size -s d -l differences -s o -l output -s K -l keymap -l completion -s g -l chgexit"

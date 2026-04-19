@@ -9,6 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{error::Error, io};
 use tui::{backend::CrosstermBackend, style::Color, Terminal};
@@ -21,10 +22,12 @@ use std::{io::stdin, os::unix::io::AsRawFd};
 
 // local module
 use crate::app::App;
-use crate::common::{DiffMode, OutputMode};
+use crate::common::OutputMode;
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::keymap::{default_keymap, Keymap};
+
+use hwatch_diffmode::DiffMode;
 
 // local const
 use crate::SharedInterval;
@@ -34,11 +37,13 @@ use crate::DEFAULT_TAB_SIZE;
 #[derive(Clone)]
 pub struct View {
     after_command: String,
+    after_command_result_write_file: bool,
     interval: SharedInterval,
     tab_size: u16,
     limit: u32,
     keymap: Keymap,
     beep: bool,
+    exit_on_change: Option<u32>,
     border: bool,
     scroll_bar: bool,
     mouse_events: bool,
@@ -51,22 +56,27 @@ pub struct View {
     reverse: bool,
     wrap: bool,
     output_mode: OutputMode,
-    diff_mode: DiffMode,
+    diff_mode: usize,
+    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+    diff_mode_width: usize,
     is_only_diffline: bool,
+    ignore_spaceblock: bool,
     enable_summary_char: bool,
     log_path: String,
 }
 
 ///
 impl View {
-    pub fn new(interval: SharedInterval) -> Self {
+    pub fn new(interval: SharedInterval, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
         Self {
             after_command: "".to_string(),
+            after_command_result_write_file: false,
             interval,
             tab_size: DEFAULT_TAB_SIZE,
             limit: 0,
             keymap: default_keymap(),
             beep: false,
+            exit_on_change: None,
             border: false,
             scroll_bar: false,
             mouse_events: false,
@@ -79,8 +89,11 @@ impl View {
             reverse: false,
             wrap: true,
             output_mode: OutputMode::Output,
-            diff_mode: DiffMode::Disable,
+            diff_mode: 0,
+            diff_modes: diff_modes,
+            diff_mode_width: 0,
             is_only_diffline: false,
+            ignore_spaceblock: false,
             enable_summary_char: false,
             log_path: "".to_string(),
         }
@@ -88,6 +101,11 @@ impl View {
 
     pub fn set_after_command(mut self, command: String) -> Self {
         self.after_command = command;
+        self
+    }
+
+    pub fn set_after_command_result_write_file(mut self, write_file: bool) -> Self {
+        self.after_command_result_write_file = write_file;
         self
     }
 
@@ -108,6 +126,11 @@ impl View {
 
     pub fn set_beep(mut self, beep: bool) -> Self {
         self.beep = beep;
+        self
+    }
+
+    pub fn set_exit_on_change(mut self, exit_on_change: Option<u32>) -> Self {
+        self.exit_on_change = exit_on_change;
         self
     }
 
@@ -167,13 +190,23 @@ impl View {
         self
     }
 
-    pub fn set_diff_mode(mut self, diff_mode: DiffMode) -> Self {
+    pub fn set_diff_mode(mut self, diff_mode: usize) -> Self {
         self.diff_mode = diff_mode;
+        self
+    }
+
+    pub fn set_diff_mode_width(mut self, diff_mode_width: usize) -> Self {
+        self.diff_mode_width = diff_mode_width;
         self
     }
 
     pub fn set_only_diffline(mut self, only_diffline: bool) -> Self {
         self.is_only_diffline = only_diffline;
+        self
+    }
+
+    pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
+        self.ignore_spaceblock = ignore_spaceblock;
         self
     }
 
@@ -220,13 +253,20 @@ impl View {
         }
 
         // Create App
-        let mut app = App::new(tx, rx, self.interval.clone());
+        let mut app = App::new(
+            tx,
+            rx,
+            self.interval.clone(),
+            self.diff_modes.clone(),
+            self.diff_mode_width,
+        );
 
         // set keymap
         app.set_keymap(self.keymap.clone());
 
         // set after command
         app.set_after_command(self.after_command.clone());
+        app.set_after_command_result_write_file(self.after_command_result_write_file);
 
         // set watch diff highlight colors
         app.set_watch_diff_colors(self.watch_diff_fg, self.watch_diff_bg);
@@ -244,6 +284,7 @@ impl View {
 
         // set beep
         app.set_beep(self.beep);
+        app.set_exit_on_change(self.exit_on_change);
 
         // set border
         app.set_border(self.border);
@@ -276,6 +317,7 @@ impl View {
         // set diff mode
         app.set_diff_mode(self.diff_mode);
         app.set_is_only_diffline(self.is_only_diffline);
+        app.set_ignore_spaceblock(self.ignore_spaceblock);
 
         // set enable summary char
         app.set_enable_summary_char(self.enable_summary_char);
@@ -306,10 +348,12 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) {
     let _ = terminal.show_cursor();
 }
 
-// TODO(blacknon): `Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }`で終了してしまう場合があるので、どこで終了されてしまっているかを調査、対処する
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
-        // non blocking mode
+        // On macOS, mouse scroll sequences can be split in a way that makes
+        // blocking stdin reads mis-handle the pending bytes. Keep stdin
+        // temporarily non-blocking only around `event::read()` so scroll input
+        // is consumed without reintroducing the old os error 35 exit path.
         #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
         set_nonblocking(true)?;
 
@@ -320,8 +364,16 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
         set_nonblocking(false)?;
 
-        if let Ok(event) = result {
-            let _ = tx.send(AppEvent::TerminalEvent(event));
+        match result {
+            Ok(event) => {
+                let _ = tx.send(AppEvent::TerminalEvent(event));
+            }
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) => {}
+            Err(err) => return Err(err),
         }
     }
     Ok(())
@@ -331,14 +383,48 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
 pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
     let stdin_fd = stdin().as_raw_fd();
     let flags = fcntl(stdin_fd, F_GETFL)?;
-
-    if is_nonblocking {
-        let new_flags = OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK;
-        fcntl(stdin_fd, F_SETFL(new_flags))?;
-    } else {
-        let new_flags = OFlag::from_bits_truncate(flags) & !OFlag::O_NONBLOCK;
-        fcntl(stdin_fd, F_SETFL(new_flags))?;
-    }
+    let new_flags = next_nonblocking_flags(flags, is_nonblocking);
+    fcntl(stdin_fd, F_SETFL(new_flags))?;
 
     Ok(())
+}
+
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+fn next_nonblocking_flags(current_flags: i32, is_nonblocking: bool) -> OFlag {
+    let current_flags = OFlag::from_bits_truncate(current_flags);
+
+    if is_nonblocking {
+        current_flags | OFlag::O_NONBLOCK
+    } else {
+        current_flags & !OFlag::O_NONBLOCK
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    use super::next_nonblocking_flags;
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    use nix::fcntl::OFlag;
+
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn next_nonblocking_flags_enables_nonblocking_without_dropping_other_flags() {
+        let current_flags = (OFlag::O_APPEND | OFlag::O_CLOEXEC).bits();
+        let next_flags = next_nonblocking_flags(current_flags, true);
+
+        assert!(next_flags.contains(OFlag::O_NONBLOCK));
+        assert!(next_flags.contains(OFlag::O_APPEND));
+        assert!(next_flags.contains(OFlag::O_CLOEXEC));
+    }
+
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn next_nonblocking_flags_disables_nonblocking_without_dropping_other_flags() {
+        let current_flags = (OFlag::O_APPEND | OFlag::O_NONBLOCK).bits();
+        let next_flags = next_nonblocking_flags(current_flags, false);
+
+        assert!(!next_flags.contains(OFlag::O_NONBLOCK));
+        assert!(next_flags.contains(OFlag::O_APPEND));
+    }
 }

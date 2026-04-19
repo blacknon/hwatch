@@ -38,6 +38,8 @@ _hwatch() {
 '--batch[output exection results to stdout]' \
 '-B[beep if command has a change result]' \
 '--beep[beep if command has a change result]' \
+'*-g[exit when output changes. With no value, exits after the first change; with N, exits after N changes]:count: ' \
+'*--chgexit=[exit when output changes. With no value, exits after the first change; with N, exits after N changes]:count: ' \
 '--border[Surround each pane with a border frame]' \
 '--with-scrollbar[When the border option is enabled, display scrollbar on the right side of watch pane.]' \
 '--mouse[enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.]' \
@@ -83,7 +85,7 @@ _hwatch_command() {
                 cmd_index=$((i + 1))
                 break
                 ;;
-            -A|--aftercommand|-l|--logfile|-s|--shell|-n|--interval|-L|--limit|--tab-size|-K|--keymap|--completion)
+            -A|--aftercommand|-l|--logfile|-s|--shell|-n|--interval|-L|--limit|--tab-size|-K|--keymap|--completion|-g|--chgexit)
                 i=$((i + 1))
                 ;;
             -d|--differences)

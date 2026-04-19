@@ -1,5 +1,5 @@
 Name:           hwatch
-Version:        0.3.20
+Version:        0.4.0
 Release:        1%{?dist}
 Summary:        A modern alternative to the 'watch' command, it records differences in execution results and allows for examination of these differences afterward.
 URL:            https://github.com/blacknon/hwatch/
@@ -26,6 +26,7 @@ Features:
 * Can keep the history when the difference, occurs and check it later.
 * Can check the difference in the history. The display method can be changed in real time.
 * Can output the execution result as log (json format).
+* Can load diffmode plugins as dynamic libraries and add custom diff rendering.
 * Custom keymaps are available.
 * Support ANSI color code.
 * Execution result can be scroll.
@@ -70,6 +71,7 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features -- \
 /etc/bash_completion.d/%{name}.bash
 
 %changelog
+* Sun Apr 19 2026 - blacknon - 0.4.0-1
 * Wed Apr 15 2026 - Danie de Jager - 0.3.20-1
 * Mon Oct 20 2025 - Danie de Jager - 0.3.19-3
 * Sun Jul 13 2025 - Danie de Jager - 0.3.19-2

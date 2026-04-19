@@ -3,10 +3,83 @@
 # [env]
 # mise.file = "env"
 
-# Tasks(binary)
+# Tasks(Install)
+# ====================
+[tasks.full_install]
+depends = ["cli_install", "plugin_install"]
+description = "Install hwatch and its plugins"
+
+[tasks.cli_install]
+run = """
+    cargo install -f --path ./
+"""
+description = "Install hwatch cli binary"
+
+[tasks.plugin_install]
+depends = ["plugin_build"]
+run = """
+    mkdir -p ~/.config/hwatch/plugins
+    cp ./plugins/numeric-diff/target/release/libhwatch_plugin_numeric_diff.dylib ~/.config/hwatch/plugins/
+    cp ./plugins/numeric-inline-diff/target/release/libhwatch_plugin_numeric_inline_diff.dylib ~/.config/hwatch/plugins/
+"""
+description = "Install hwatch plugin binaries"
+
+# Tasks(Binary)
+# ====================
+[tasks.full_build]
+depends = ["cli_build", "plugin_build"]
+description = "Build all binaries"
+
+[tasks.cli_build]
+run = """
+  cargo build --release
+"""
+description = "Build cli binary"
+
+[tasks.plugin_build]
+run = """
+    cargo build --manifest-path plugins/numeric-diff/Cargo.toml --release
+    cargo build --manifest-path plugins/numeric-inline-diff/Cargo.toml --release
+"""
+description = "Build plugin binaries"
+
+
+# Tasks(Test)
+# ====================
+[tasks.test]
+run = """
+  cargo test
+"""
+description = "Run tests"
+
+
+# Tasks(image)
 # ====================
 [tasks.generate-gif]
-description = "generate hwatch.gif"
 run = """
+# デモ用のディレクトリ・ファイルを生成
+mkdir -p _demo
+touch _demo/demo.{00..99}.txt
+
+# デモ用のファイルをランダムに変更させるプロセスを走らせる(20秒後に停止させる)
+for i in {1..10}; do
+    sleep 2
+    echo "demo file $i" > _demo/demo.$((RANDOM % 100)).txt
+done &
+
+# デモGIFの作成
 vhs img/demo.tape -o img/hwatch.gif
+
+# デモ用のプロセスを停止
+
+# デモ用のファイルを削除
+rm -rf _demo
+
+vhs img/watch_diff.tape -o img/watch_diff.gif
+vhs img/line_diff.tape -o img/line_diff.gif
+vhs img/word_diff.tape -o img/word_diff.gif
+vhs img/plugin.tape -o img/plugin.gif
 """
+description = "Generate demo GIFs"
+
+#

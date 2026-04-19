@@ -14,6 +14,7 @@ hwatch.sublime-project
 #Cargo.lock
 tmp*
 /target/
+plugins/*/target/
 .rustc_info.json
 
 # tmp files

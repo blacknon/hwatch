@@ -4,6 +4,7 @@
 
 // TODO(blacknon): outputやcommandの型をbyteに変更する
 // TODO(blacknon): `command`は別のトコで保持するように変更する？(メモリの節約のため)
+// TODO(blacknon): HWATCH_DATAのサイズが大きくなりすぎる場合、環境変数に出力できなくなるのでファイルへの出力をするオプションを追加する
 
 // module
 use chardetng::EncodingDetector;
@@ -21,6 +22,7 @@ use std::io::BufReader;
 use std::os::fd::OwnedFd;
 use std::process::{Command, Stdio};
 use std::thread;
+use tempfile::NamedTempFile;
 
 // local module
 use crate::common;
@@ -254,6 +256,7 @@ pub fn exec_after_command(
     after_command: String,
     before: CommandResult,
     after: CommandResult,
+    after_command_result_write_file: bool,
 ) {
     let before_result: CommandResultData = before.export_data();
     let after_result = after.export_data();
@@ -270,10 +273,38 @@ pub fn exec_after_command(
     let exec_commands = create_exec_cmd_args(false, shell_command, after_command);
     let length = exec_commands.len();
 
-    let _ = Command::new(&exec_commands[0])
-        .args(&exec_commands[1..length])
-        .env("HWATCH_DATA", json_data)
-        .spawn();
+    // let mut hwatch_result_data = String::new();
+    if after_command_result_write_file {
+        let mut file =
+            NamedTempFile::new().expect("Failed to create temporary file for after command result");
+
+        // write json_data to file
+        file.write_all(json_data.as_bytes())
+            .expect("Failed to write to file");
+        file.flush().expect("Failed to flush file");
+
+        let hwatch_result_data = file.path().to_str().unwrap().to_string();
+
+        let mut child = Command::new(&exec_commands[0])
+            .args(&exec_commands[1..length])
+            .env("HWATCH_DATA", hwatch_result_data)
+            .spawn()
+            .expect("Failed to execute after command");
+
+        let _ = child.wait();
+
+        file.close().expect("Failed to close temporary file");
+    } else {
+        let hwatch_result_data = json_data;
+
+        let mut child = Command::new(&exec_commands[0])
+            .args(&exec_commands[1..length])
+            .env("HWATCH_DATA", hwatch_result_data)
+            .spawn()
+            .expect("Failed to execute after command");
+
+        let _ = child.wait();
+    }
 }
 
 //
@@ -338,10 +369,12 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     let mut command = Command::new(&exec_commands[0]);
     command.args(&exec_commands[1..length]);
 
+    // Switch depending on OS type
     #[cfg(unix)]
     let mut stdin_master: Option<OwnedFd> = None;
     #[cfg(not(unix))]
-    let stdin_master: Option<()> = None;
+    let mut stdin_master: Option<()> = None;
+
     let stdout_reader;
     let stderr_reader;
 
@@ -478,8 +511,26 @@ fn create_raw_pty() -> Result<OpenptyResult, nix::Error> {
 
 #[cfg(unix)]
 fn read_from_fd(fd: OwnedFd, label: &str) -> Result<Vec<u8>, String> {
-    let file = File::from(fd);
-    read_from_pipe(file, label)
+    use std::io::ErrorKind;
+
+    let mut file = File::from(fd);
+    let mut buf = Vec::new();
+    let mut chunk = [0_u8; 8192];
+
+    loop {
+        match file.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(size) => buf.extend_from_slice(&chunk[..size]),
+            Err(err) if err.kind() == ErrorKind::Interrupted => continue,
+            // PTY masters can report EIO when the slave side closes; treat it as EOF.
+            Err(err) if err.kind() == ErrorKind::UnexpectedEof || err.raw_os_error() == Some(5) => {
+                break;
+            }
+            Err(err) => return Err(format!("Failed to read {label}: {err}")),
+        }
+    }
+
+    Ok(buf)
 }
 
 fn read_from_pipe<R: Read>(reader: R, label: &str) -> Result<Vec<u8>, String> {
@@ -580,6 +631,48 @@ mod tests {
     }
 
     #[test]
+    fn test_command_result_data_generate_result_round_trips_compressed_fields() {
+        let data = CommandResultData {
+            timestamp: "2026-04-08 12:00:00.000".to_string(),
+            command: "echo hi".to_string(),
+            status: true,
+            output: "joined".to_string(),
+            stdout: "stdout".to_string(),
+            stderr: "stderr".to_string(),
+        };
+
+        let result = data.generate_result(true);
+
+        assert!(result.is_compress);
+        assert_eq!(result.get_output(), "joined");
+        assert_eq!(result.get_stdout(), "stdout");
+        assert_eq!(result.get_stderr(), "stderr");
+    }
+
+    #[test]
+    fn test_command_result_export_data_decodes_compressed_buffers() {
+        let result = CommandResult {
+            timestamp: "2026-04-08 12:00:00.000".to_string(),
+            command: "echo hi".to_string(),
+            status: false,
+            is_compress: true,
+            output: vec![],
+            stdout: vec![],
+            stderr: vec![],
+        }
+        .set_output(b"joined".to_vec())
+        .set_stdout(b"out".to_vec())
+        .set_stderr(b"err".to_vec());
+
+        let exported = result.export_data();
+
+        assert_eq!(exported.output, "joined");
+        assert_eq!(exported.stdout, "out");
+        assert_eq!(exported.stderr, "err");
+        assert!(!exported.status);
+    }
+
+    #[test]
     fn test_exec_command_without_force_color_stdout_is_not_tty() {
         let exec_commands = vec![
             "sh".to_string(),
@@ -653,5 +746,13 @@ mod tests {
                 "source ~/.bashrc; ls -la".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_splits_exec_mode_command() {
+        let exec_commands =
+            create_exec_cmd_args(true, "ignored".to_string(), "echo hello".to_string());
+
+        assert_eq!(exec_commands, vec!["echo".to_string(), "hello".to_string()]);
     }
 }

@@ -1,0 +1,14 @@
+[package]
+name = "hwatch-plugin-numeric-inline-diff"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hwatch-ansi = { path = "../../crates/ansi" }
+hwatch-diffmode = { path = "../../crates/diffmode" }
+similar = { version = "2.5.0", features = ["text"] }
+
+[workspace]
