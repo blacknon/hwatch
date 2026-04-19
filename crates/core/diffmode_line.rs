@@ -119,7 +119,86 @@ fn gen_line_diff_rows<'a>(
     (header_width, rows)
 }
 
-//
+fn gen_equal_row_from_line<'a>(
+    line: &str,
+    line_index: usize,
+    options: &DiffModeOptions,
+) -> Option<DiffRow<'a>> {
+    if options.get_only_diffline() {
+        return None;
+    }
+
+    let batch_line = if options.get_color() {
+        line.trim_end_matches('\n').to_string()
+    } else {
+        ansi::get_ansi_strip_str(line)
+            .trim_end_matches('\n')
+            .to_string()
+    };
+
+    let watch_line = if options.get_color() {
+        let mut spans = vec![Span::from("   ")];
+        let colored_data = ansi::bytes_to_text(line.as_bytes());
+        for d in colored_data.lines {
+            for span in d.spans {
+                spans.push(span);
+            }
+        }
+        Line::from(spans)
+    } else {
+        Line::from(vec![
+            Span::from("   "),
+            Span::styled(line.to_string(), Style::default()),
+        ])
+    };
+
+    Some(DiffRow {
+        watch_line,
+        batch_line,
+        line_number: Some(line_index + 1),
+        diff_type: DifferenceType::Same,
+    })
+}
+
+fn gen_simple_line_diff_row<'a>(
+    tag: ChangeTag,
+    line: &str,
+    line_index: usize,
+    options: &DiffModeOptions,
+) -> Option<DiffRow<'a>> {
+    let (line_header, diff_type, tui_line_style, str_line_style) = match tag {
+        ChangeTag::Delete => (
+            "-  ",
+            DifferenceType::Rem,
+            Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_REM),
+            ansi_term::Style::new().fg(hwatch_diffmode::COLOR_BATCH_LINE_REM),
+        ),
+        ChangeTag::Insert => (
+            "+  ",
+            DifferenceType::Add,
+            Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_ADD),
+            ansi_term::Style::new().fg(hwatch_diffmode::COLOR_BATCH_LINE_ADD),
+        ),
+        ChangeTag::Equal => return gen_equal_row_from_line(line, line_index, options),
+    };
+
+    let line_data = ansi::get_ansi_strip_str(line);
+    let line_data = line_data.trim_end_matches('\n').to_string();
+
+    let watch_line = Line::from(vec![
+        Span::styled(line_header.to_string(), tui_line_style),
+        Span::styled(line_data.clone(), tui_line_style),
+    ]);
+    let batch_line = str_line_style.paint(line_data.clone()).to_string();
+
+    Some(DiffRow {
+        watch_line,
+        batch_line,
+        line_number: Some(line_index + 1),
+        diff_type,
+    })
+}
+
 fn gen_line_diff_row<'a>(
     change: &InlineChange<[u8]>,
     is_word_highlight: bool,

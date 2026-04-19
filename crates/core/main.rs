@@ -3,11 +3,6 @@
 // that can be found in the LICENSE file.
 
 // v0.4.0
-// TODO(blacknon):
-//   空白の数だけ違う場合、diffとして扱わないようにするオプションの追加
-//     - 起動のタイミングでフラグが有効になっていないと行けないので、optionとして実装する
-//     - このモードが有効になっている場合、各diff_modeで差分表示する際にも無視する処理が必要
-
 // v0.4.1
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
@@ -358,7 +353,6 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue),
 
         )
-
         // -- options --
         // Option to specify the command to be executed when the output fluctuates.
         //     [-A,--aftercommand]

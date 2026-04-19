@@ -1185,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "hwatch-ansi"
-version = "0.3.19"
+version = "0.4.0"
 dependencies = [
  "ansi-parser",
  "heapless",
@@ -1195,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "hwatch-diffmode"
-version = "0.3.19"
+version = "0.4.0"
 dependencies = [
  "ansi_term",
  "ratatui",
