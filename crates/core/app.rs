@@ -49,7 +49,6 @@ use crate::{
     common::{logging_result, OutputMode},
     keymap::InputEventContents,
 };
-
 // local const
 use crate::SharedInterval;
 use crate::DEFAULT_TAB_SIZE;
@@ -1037,7 +1036,7 @@ impl App<'_> {
         }
 
         // check result diff
-        if latest_result == _result {
+        if command_results_equivalent(&latest_result, &_result) {
             return false;
         }
 
@@ -2357,6 +2356,14 @@ fn is_retryable_terminal_error(message: &str) -> bool {
         || normalized.contains("resource temporarily unavailable")
         || normalized.contains("temporarily unavailable")
         || normalized.contains("operation interrupted")
+}
+
+fn command_results_equivalent(before: &CommandResult, after: &CommandResult) -> bool {
+    before.command == after.command
+        && before.status == after.status
+        && before.get_output() == after.get_output()
+        && before.get_stdout() == after.get_stdout()
+        && before.get_stderr() == after.get_stderr()
 }
 
 fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {

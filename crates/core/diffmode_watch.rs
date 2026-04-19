@@ -32,13 +32,13 @@ impl DiffModeAtWatch {
 
 impl DiffMode for DiffModeAtWatch {
     fn generate_watch_diff(&mut self, dest: &str, src: &str) -> Vec<Line<'static>> {
-        let (header_width, rows) = generate_watch_diff_rows(dest, src, self.options.get_color());
+        let (header_width, rows) = generate_watch_diff_rows(dest, src, &self.options);
         self.header_width = header_width;
         render_diff_rows_as_watch(rows, self.options.get_line_number(), header_width)
     }
 
     fn generate_batch_diff(&mut self, dest: &str, src: &str) -> Vec<String> {
-        let (header_width, rows) = generate_watch_diff_rows(dest, src, self.options.get_color());
+        let (header_width, rows) = generate_watch_diff_rows(dest, src, &self.options);
         self.header_width = header_width;
         render_diff_rows_as_batch(
             rows,
@@ -79,7 +79,7 @@ impl DiffModeExt for DiffModeAtWatch {
 fn generate_watch_diff_rows<'a>(
     dest: &str,
     src: &str,
-    is_color: bool,
+    options: &DiffModeOptions,
 ) -> (usize, Vec<DiffRow<'a>>) {
     let mut result = Vec::new();
 
@@ -130,11 +130,11 @@ fn generate_watch_diff_rows<'a>(
         let src_line = vec_src[i];
         let dest_line = vec_dest[i];
 
-        let watch_line = match is_color {
+        let watch_line = match options.get_color() {
             false => create_watch_diff_output_line(&dest_line, &src_line),
             true => create_watch_diff_output_line_with_ansi_for_watch(&dest_line, &src_line),
         };
-        let batch_line = match is_color {
+        let batch_line = match options.get_color() {
             false => create_watch_diff_output_line_for_batch(&dest_line, &src_line),
             true => create_watch_diff_output_line_with_ansi_for_batch(&dest_line, &src_line),
         };

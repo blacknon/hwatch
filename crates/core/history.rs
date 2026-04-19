@@ -565,7 +565,7 @@ mod tests {
     #[test]
     fn history_summary_calc_counts_line_changes_without_char_diff() {
         let mut summary = HistorySummary::init();
-        summary.calc("alpha\nbeta\n", "alpha\ngamma\n", false);
+        summary.calc("alpha\nbeta\n", "alpha\ngamma\n", false, false);
 
         assert_eq!(summary.line_add, 1);
         assert_eq!(summary.line_rem, 1);
@@ -576,7 +576,7 @@ mod tests {
     #[test]
     fn history_summary_calc_counts_character_changes_when_enabled() {
         let mut summary = HistorySummary::init();
-        summary.calc("abc\n", "adc\n", true);
+        summary.calc("abc\n", "adc\n", true, false);
 
         assert_eq!(summary.line_add, 1);
         assert_eq!(summary.line_rem, 1);
@@ -590,6 +590,17 @@ mod tests {
         let (char_add, char_rem) = calc_char_diff(diff.iter_all_changes().collect());
 
         assert_eq!((char_add, char_rem), (1, 1));
+    }
+
+    #[test]
+    fn history_summary_ignores_whitespace_amount_when_enabled() {
+        let mut summary = HistorySummary::init();
+        summary.calc("alpha  beta\n", "alpha   beta\n", true, true);
+
+        assert_eq!(summary.line_add, 0);
+        assert_eq!(summary.line_rem, 0);
+        assert_eq!(summary.char_add, 0);
+        assert_eq!(summary.char_rem, 0);
     }
 
     #[test]

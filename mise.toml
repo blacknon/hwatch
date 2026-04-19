@@ -3,7 +3,26 @@
 # [env]
 # mise.file = "env"
 
-# Tasks(binary)
+# Tasks(Binary)
+# ====================
+[tasks.full_build]
+depends = ["cli_build", "plugin_build"]
+description = "Build all binaries"
+
+[tasks.cli_build]
+run = """
+  cargo build --release
+"""
+description = "Build cli binary"
+
+[tasks.plugin_build]
+run = """
+    cargo build --manifest-path plugins/numeric-diff/Cargo.toml --release
+    cargo build --manifest-path plugins/numeric-inline-diff/Cargo.toml --release
+"""
+description = "Build plugin binaries"
+
+# Tasks(image)
 # ====================
 [tasks.generate-gif]
 run = """
@@ -31,3 +50,5 @@ vhs img/word_diff.tape -o img/word_diff.gif
 vhs img/plugin.tape -o img/plugin.gif
 """
 description = "Generate demo GIFs"
+
+#

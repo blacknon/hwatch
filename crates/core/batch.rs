@@ -145,7 +145,7 @@ impl Batch {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result == _result {
+        if command_results_equivalent(&latest_result, &_result) {
             return false;
         }
 
@@ -318,4 +318,12 @@ impl Batch {
 
         false
     }
+}
+
+fn command_results_equivalent(before: &CommandResult, after: &CommandResult) -> bool {
+    before.command == after.command
+        && before.status == after.status
+        && before.get_output() == after.get_output()
+        && before.get_stdout() == after.get_stdout()
+        && before.get_stderr() == after.get_stderr()
 }
