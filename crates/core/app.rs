@@ -49,6 +49,7 @@ use crate::{
     common::{logging_result, OutputMode},
     keymap::InputEventContents,
 };
+use hwatch_diffmode::text_eq_ignoring_space_blocks;
 // local const
 use crate::SharedInterval;
 use crate::DEFAULT_TAB_SIZE;
@@ -191,6 +192,9 @@ pub struct App<'a> {
     ///
     is_only_diffline: bool,
 
+    ///
+    ignore_spaceblock: bool,
+
     /// result at output.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
     results: HashMap<usize, ResultItems>,
@@ -293,6 +297,7 @@ impl App<'_> {
             diff_mode: diff_mode_counter,
             diff_modes: diff_modes,
             is_only_diffline: false,
+            ignore_spaceblock: false,
 
             results: HashMap::new(),
             results_stdout: HashMap::new(),
@@ -347,7 +352,8 @@ impl App<'_> {
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
-            .set_only_diffline(self.is_only_diffline);
+            .set_only_diffline(self.is_only_diffline)
+            .set_ignore_spaceblock(self.ignore_spaceblock);
 
         loop {
             if matches!(self.exit_on_change, Some(0)) {
@@ -888,6 +894,19 @@ impl App<'_> {
         }
     }
 
+    pub fn set_ignore_spaceblock(&mut self, ignore_spaceblock: bool) {
+        self.ignore_spaceblock = ignore_spaceblock;
+        self.printer.set_ignore_spaceblock(ignore_spaceblock);
+
+        let selected = self.history_area.get_state_select();
+        if !self.results.is_empty() {
+            let reseted_select = self.reset_history(selected);
+            self.set_output_data(reseted_select);
+        } else {
+            self.set_output_data(selected);
+        }
+    }
+
     ///
     pub fn set_logpath(&mut self, logpath: String) {
         self.logfile = logpath;
@@ -1036,7 +1055,7 @@ impl App<'_> {
         }
 
         // check result diff
-        if command_results_equivalent(&latest_result, &_result) {
+        if command_results_equivalent(&latest_result, &_result, self.ignore_spaceblock) {
             return false;
         }
 
@@ -1059,6 +1078,7 @@ impl App<'_> {
         let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
             _result,
             self.enable_summary_char,
+            self.ignore_spaceblock,
             &latest_result,
             &stdout_latest_result,
             &stderr_latest_result,
@@ -1256,7 +1276,11 @@ impl App<'_> {
             .get_stdout();
         let result_stdout = &stdout_result_items.command_result.get_stdout();
         let mut is_stdout_update = false;
-        if before_result_stdout != result_stdout {
+        if !text_eq_ignoring_space_blocks(
+            before_result_stdout,
+            result_stdout,
+            self.ignore_spaceblock,
+        ) {
             is_stdout_update = true;
             self.results_stdout
                 .insert(result_index, stdout_result_items);
@@ -1269,7 +1293,11 @@ impl App<'_> {
             .get_stderr();
         let result_stderr = &stderr_result_items.command_result.get_stderr();
         let mut is_stderr_update = false;
-        if before_result_stderr != result_stderr {
+        if !text_eq_ignoring_space_blocks(
+            before_result_stderr,
+            result_stderr,
+            self.ignore_spaceblock,
+        ) {
             is_stderr_update = true;
             self.results_stderr
                 .insert(result_index, stderr_result_items);
@@ -2294,13 +2322,17 @@ fn retain_selected_and_latest_result_only(
 fn gen_result_items(
     _result: CommandResult,
     enable_summary_char: bool,
+    ignore_spaceblock: bool,
     output_latest_result: &CommandResult,
     stdout_latest_result: &CommandResult,
     stderr_latest_result: &CommandResult,
 ) -> (ResultItems, ResultItems, ResultItems) {
     // create output ResultItems
-    let output_diff_only_data =
-        gen_diff_only_data(&output_latest_result.get_output(), &_result.get_output());
+    let output_diff_only_data = gen_diff_only_data(
+        &output_latest_result.get_output(),
+        &_result.get_output(),
+        ignore_spaceblock,
+    );
     let mut output_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2310,11 +2342,15 @@ fn gen_result_items(
         &output_latest_result.get_output(),
         &output_result_items.command_result.get_output(),
         enable_summary_char,
+        ignore_spaceblock,
     );
 
     // create stdout ResultItems
-    let stdout_diff_only_data =
-        gen_diff_only_data(&stdout_latest_result.get_stdout(), &_result.get_stdout());
+    let stdout_diff_only_data = gen_diff_only_data(
+        &stdout_latest_result.get_stdout(),
+        &_result.get_stdout(),
+        ignore_spaceblock,
+    );
     let mut stdout_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2324,11 +2360,15 @@ fn gen_result_items(
         &stdout_latest_result.get_stdout(),
         &stdout_result_items.command_result.get_stdout(),
         enable_summary_char,
+        ignore_spaceblock,
     );
 
     // create stderr ResultItems
-    let stderr_diff_only_data =
-        gen_diff_only_data(&stderr_latest_result.get_stderr(), &_result.get_stderr());
+    let stderr_diff_only_data = gen_diff_only_data(
+        &stderr_latest_result.get_stderr(),
+        &_result.get_stderr(),
+        ignore_spaceblock,
+    );
     let mut stderr_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2338,6 +2378,7 @@ fn gen_result_items(
         &stderr_latest_result.get_stderr(),
         &stderr_result_items.command_result.get_stderr(),
         enable_summary_char,
+        ignore_spaceblock,
     );
 
     (
@@ -2358,18 +2399,45 @@ fn is_retryable_terminal_error(message: &str) -> bool {
         || normalized.contains("operation interrupted")
 }
 
-fn command_results_equivalent(before: &CommandResult, after: &CommandResult) -> bool {
+fn command_results_equivalent(
+    before: &CommandResult,
+    after: &CommandResult,
+    ignore_spaceblock: bool,
+) -> bool {
     before.command == after.command
         && before.status == after.status
-        && before.get_output() == after.get_output()
-        && before.get_stdout() == after.get_stdout()
-        && before.get_stderr() == after.get_stderr()
+        && text_eq_ignoring_space_blocks(
+            &before.get_output(),
+            &after.get_output(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stdout(),
+            &after.get_stdout(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stderr(),
+            &after.get_stderr(),
+            ignore_spaceblock,
+        )
 }
 
-fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
+fn gen_diff_only_data(before: &str, after: &str, ignore_spaceblock: bool) -> Vec<u8> {
     let mut diff_only_data = vec![];
 
-    let diff_set = TextDiff::from_lines(before, after);
+    let before = if ignore_spaceblock {
+        hwatch_diffmode::normalize_space_blocks(before)
+    } else {
+        before.to_string()
+    };
+    let after = if ignore_spaceblock {
+        hwatch_diffmode::normalize_space_blocks(after)
+    } else {
+        after.to_string()
+    };
+
+    let diff_set = TextDiff::from_lines(&before, &after);
     for op in diff_set.ops() {
         for change in diff_set.iter_changes(op) {
             match change.tag() {

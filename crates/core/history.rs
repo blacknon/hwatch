@@ -48,7 +48,7 @@ impl HistorySummary {
         }
     }
 
-    pub fn calc(&mut self, src: &str, dest: &str, enable_char_diff: bool) {
+    pub fn calc(&mut self, src: &str, dest: &str, enable_char_diff: bool, ignore_spaceblock: bool) {
         // reset
         self.line_add = 0;
         self.line_rem = 0;
@@ -62,7 +62,18 @@ impl HistorySummary {
         let char_rem = Arc::new(Mutex::new(0));
 
         // 行単位の差分
-        let line_diff = TextDiff::from_lines(src, dest);
+        let src = if ignore_spaceblock {
+            hwatch_diffmode::normalize_space_blocks(src)
+        } else {
+            src.to_string()
+        };
+        let dest = if ignore_spaceblock {
+            hwatch_diffmode::normalize_space_blocks(dest)
+        } else {
+            dest.to_string()
+        };
+
+        let line_diff = TextDiff::from_lines(&src, &dest);
 
         // 行ごとの変更を処理し、変更が発生した行だけ文字単位の差分を計算
         line_diff.ops().par_iter().for_each(|l_op| {

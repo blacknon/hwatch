@@ -5,6 +5,7 @@ use hwatch_ansi as ansi;
 use hwatch_diffmode::{
     PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
     PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
+    text_eq_ignoring_space_blocks,
 };
 use similar::{ChangeTag, TextDiff};
 
@@ -35,11 +36,15 @@ struct RenderedLine {
 struct RenderedSpan {
     text: String,
     fg: Option<&'static str>,
+    bg: Option<&'static str>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct NumericDelta {
-    start: usize,
+    before_start: usize,
+    before_len: usize,
+    after_start: usize,
+    after_len: usize,
     before_delta: String,
     after_delta: String,
 }
@@ -74,7 +79,14 @@ pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwne
     let dest = unsafe { slice_to_str(req.dest) }.unwrap_or_default();
     let src = unsafe { slice_to_str(req.src) }.unwrap_or_default();
 
-    let lines = generate_numeric_diff(dest, src, req.line_number, req.only_diffline, req.color);
+    let lines = generate_numeric_diff(
+        dest,
+        src,
+        req.line_number,
+        req.only_diffline,
+        req.color,
+        req.ignore_spaceblock,
+    );
     let header_text = if req.only_diffline {
         "NumDiff(Only)"
     } else {
@@ -111,6 +123,7 @@ fn generate_numeric_diff(
     _line_number: bool,
     only_diffline: bool,
     color: bool,
+    ignore_spaceblock: bool,
 ) -> Vec<RenderedLine> {
     let diff = TextDiff::from_lines(src, dest);
     let changes: Vec<_> = diff.iter_all_changes().collect();
@@ -140,11 +153,7 @@ fn generate_numeric_diff(
                 index += 1;
             }
 
-            render_changed_block(
-                &mut rendered,
-                deletes,
-                inserts,
-            );
+            render_changed_block(&mut rendered, deletes, inserts, only_diffline, color, ignore_spaceblock);
             continue;
         }
 
@@ -155,6 +164,7 @@ fn generate_numeric_diff(
                 vec![RenderedSpan {
                     text: normalize_equal_line(change.to_string(), color),
                     fg: None,
+                    bg: None,
                 }],
                 RenderKind::Equal,
             ));
@@ -170,28 +180,64 @@ fn render_changed_block(
     rendered: &mut Vec<RenderedLine>,
     deletes: Vec<ChangedLine>,
     inserts: Vec<ChangedLine>,
+    only_diffline: bool,
+    color: bool,
+    ignore_spaceblock: bool,
+) {
+    if ignore_spaceblock && deletes.len() == inserts.len() {
+        for (delete, insert) in deletes.into_iter().zip(inserts.into_iter()) {
+            if text_eq_ignoring_space_blocks(&delete.text, &insert.text, true) {
+                if !only_diffline {
+                    rendered.push(render_line(
+                        delete.line_no,
+                        "   ",
+                        vec![RenderedSpan {
+                            text: normalize_equal_line(delete.text, color),
+                            fg: None,
+                            bg: None,
+                        }],
+                        RenderKind::Equal,
+                    ));
+                }
+            } else {
+                render_changed_pairs(rendered, vec![delete], vec![insert]);
+            }
+        }
+        return;
+    }
+
+    render_changed_pairs(rendered, deletes, inserts);
+}
+
+fn render_changed_pairs(
+    rendered: &mut Vec<RenderedLine>,
+    deletes: Vec<ChangedLine>,
+    inserts: Vec<ChangedLine>,
 ) {
     let mut used_inserts = vec![false; inserts.len()];
 
     for delete in &deletes {
-        rendered.push(render_plain_changed_line(
-            delete.line_no,
-            "-  ",
-            delete.text.clone(),
-            RenderKind::Remove,
-        ));
-
         if let Some((insert, deltas)) = find_matching_insert(&delete.text, &inserts, &mut used_inserts) {
+            rendered.push(render_numeric_changed_line(
+                delete.line_no,
+                "-  ",
+                delete.text.clone(),
+                &deltas,
+                true,
+                RenderKind::Remove,
+            ));
             rendered.push(render_line(
                 delete.line_no,
                 "*- ",
                 build_annotation_spans(&delete.text, &deltas, true),
                 RenderKind::RemoveAnnotation,
             ));
-            rendered.push(render_plain_changed_line(
+            rendered.push(render_numeric_changed_line(
                 insert.line_no,
                 "+  ",
                 insert.text.clone(),
+                &deltas,
+                false,
                 RenderKind::Insert,
             ));
             rendered.push(render_line(
@@ -199,6 +245,13 @@ fn render_changed_block(
                 "*+ ",
                 build_annotation_spans(&insert.text, &deltas, false),
                 RenderKind::InsertAnnotation,
+            ));
+        } else {
+            rendered.push(render_plain_changed_line(
+                delete.line_no,
+                "-  ",
+                delete.text.clone(),
+                RenderKind::Remove,
             ));
         }
     }
@@ -250,7 +303,24 @@ fn render_plain_changed_line(
                 RenderKind::Insert => Some("green"),
                 _ => None,
             },
+            bg: None,
         }],
+        kind,
+    )
+}
+
+fn render_numeric_changed_line(
+    line_no: Option<usize>,
+    marker: &'static str,
+    text: String,
+    deltas: &[NumericDelta],
+    use_before: bool,
+    kind: RenderKind,
+) -> RenderedLine {
+    render_line(
+        line_no,
+        marker,
+        build_numeric_highlight_spans(&text, deltas, use_before),
         kind,
     )
 }
@@ -266,6 +336,7 @@ fn render_line(
     spans.push(RenderedSpan {
         text: marker.to_string(),
         fg: marker_color(kind),
+        bg: None,
     });
     spans.extend(body_spans);
 
@@ -315,7 +386,10 @@ fn describe_numeric_delta(before: &str, after: &str) -> Option<Vec<NumericDelta>
         }
 
         deltas.push(NumericDelta {
-            start: before_token.start,
+            before_start: before_token.start,
+            before_len: before_token.raw.chars().count(),
+            after_start: after_token.start,
+            after_len: after_token.raw.chars().count(),
             before_delta: format_signed_number(before_token.value - after_token.value),
             after_delta: format_signed_number(after_token.value - before_token.value),
         });
@@ -432,8 +506,13 @@ fn build_annotation_spans(source: &str, deltas: &[NumericDelta], use_before: boo
         } else {
             format!("^{}", delta.after_delta)
         };
+        let start = if use_before {
+            delta.before_start
+        } else {
+            delta.after_start
+        };
 
-        let start = write_overlay(&mut chars, delta.start, &text);
+        let start = write_overlay(&mut chars, start, &text);
         overlays.push((start, text));
     }
 
@@ -446,16 +525,19 @@ fn build_annotation_spans(source: &str, deltas: &[NumericDelta], use_before: boo
             spans.push(RenderedSpan {
                 text: plain.chars().skip(char_index).take(start - char_index).collect(),
                 fg: Some(NUMERIC_ANNOTATION),
+                bg: None,
             });
         }
 
         spans.push(RenderedSpan {
             text: "^".to_string(),
             fg: Some(NUMERIC_ANNOTATION_CARET),
+            bg: None,
         });
         spans.push(RenderedSpan {
             text: token.chars().skip(1).collect(),
             fg: delta_color(&token),
+            bg: None,
         });
         char_index = start + token.chars().count();
     }
@@ -465,6 +547,53 @@ fn build_annotation_spans(source: &str, deltas: &[NumericDelta], use_before: boo
         spans.push(RenderedSpan {
             text: plain.chars().skip(char_index).collect(),
             fg: Some(NUMERIC_ANNOTATION),
+            bg: None,
+        });
+    }
+
+    spans
+}
+
+fn build_numeric_highlight_spans(
+    source: &str,
+    deltas: &[NumericDelta],
+    use_before: bool,
+) -> Vec<RenderedSpan> {
+    let chars: Vec<char> = source.chars().collect();
+    let mut spans = Vec::new();
+    let mut cursor = 0;
+
+    for delta in deltas {
+        let (start, len, delta_text) = if use_before {
+            (delta.before_start, delta.before_len, delta.before_delta.as_str())
+        } else {
+            (delta.after_start, delta.after_len, delta.after_delta.as_str())
+        };
+
+        if start > cursor {
+            spans.push(RenderedSpan {
+                text: chars[cursor..start].iter().collect(),
+                fg: Some(if use_before { WATCH_LINE_REM } else { WATCH_LINE_ADD }),
+                bg: None,
+            });
+        }
+
+        let end = (start + len).min(chars.len());
+        if end > start {
+            spans.push(RenderedSpan {
+                text: chars[start..end].iter().collect(),
+                fg: Some("white"),
+                bg: delta_color(delta_text),
+            });
+        }
+        cursor = end;
+    }
+
+    if cursor < chars.len() {
+        spans.push(RenderedSpan {
+            text: chars[cursor..].iter().collect(),
+            fg: Some(if use_before { WATCH_LINE_REM } else { WATCH_LINE_ADD }),
+            bg: None,
         });
     }
 
@@ -579,10 +708,24 @@ fn render_json_response(header_text: &str, lines: &[RenderedLine]) -> String {
             json.push_str(&escape_json(&span.text));
             json.push('"');
 
-            if let Some(fg) = span.fg {
-                json.push_str(",\"style\":{\"fg\":\"");
-                json.push_str(&escape_json(fg));
-                json.push_str("\"}");
+            if span.fg.is_some() || span.bg.is_some() {
+                json.push_str(",\"style\":{");
+                let mut has_prev = false;
+                if let Some(fg) = span.fg {
+                    json.push_str("\"fg\":\"");
+                    json.push_str(&escape_json(fg));
+                    json.push('"');
+                    has_prev = true;
+                }
+                if let Some(bg) = span.bg {
+                    if has_prev {
+                        json.push(',');
+                    }
+                    json.push_str("\"bg\":\"");
+                    json.push_str(&escape_json(bg));
+                    json.push('"');
+                }
+                json.push('}');
             }
 
             json.push('}');
@@ -629,7 +772,7 @@ mod tests {
     #[test]
     fn inserts_numeric_annotation_lines_for_replaced_line() {
         let actual =
-            generate_numeric_diff("retry=5 timeout=92\n", "retry=3 timeout=100\n", true, false, false);
+            generate_numeric_diff("retry=5 timeout=92\n", "retry=3 timeout=100\n", true, false, false, false);
 
         assert_eq!(actual.len(), 4);
         assert_eq!(actual[0].line_no, Some(1));
@@ -657,6 +800,7 @@ mod tests {
             true,
             true,
             false,
+            false,
         );
 
         assert_eq!(actual.len(), 4);
@@ -674,7 +818,10 @@ mod tests {
         assert_eq!(
             actual,
             Some(vec![NumericDelta {
-                start: 31,
+                before_start: 31,
+                before_len: 3,
+                after_start: 30,
+                after_len: 4,
                 before_delta: "-1".to_string(),
                 after_delta: "+1".to_string(),
             }])
@@ -689,10 +836,13 @@ mod tests {
             true,
             false,
             true,
+            false,
         );
 
-        assert_eq!(actual[0].spans[2].text, "value=1");
-        assert_eq!(actual[2].spans[2].text, "value=2");
+        assert_eq!(actual[0].spans[1].text, "value=");
+        assert_eq!(actual[0].spans[2].text, "1");
+        assert_eq!(actual[2].spans[1].text, "value=");
+        assert_eq!(actual[2].spans[2].text, "2");
     }
 
     #[test]
@@ -703,6 +853,7 @@ mod tests {
             false,
             false,
             true,
+            false,
         );
         assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
 
@@ -712,7 +863,52 @@ mod tests {
             false,
             false,
             false,
+            false,
         );
         assert_eq!(stripped[0].spans[0].text, "same");
+    }
+
+    #[test]
+    fn treats_spaceblock_only_line_changes_as_equal_when_enabled() {
+        let actual = generate_numeric_diff("value=1   ms\n", "value=1 ms\n", true, false, false, true);
+
+        assert_eq!(actual.len(), 1);
+        assert_eq!(actual[0].diff_type, "same");
+        assert_eq!(actual[0].spans[0].text, "   ");
+        assert_eq!(actual[0].spans[1].text, "value=1 ms");
+    }
+
+    #[test]
+    fn keeps_replacement_block_order_when_spaceblock_ignore_is_enabled() {
+        let actual = generate_numeric_diff(
+            "alpha=2\nvalue=1   ms\n",
+            "alpha=1\nvalue=1 ms\n",
+            true,
+            false,
+            false,
+            true,
+        );
+
+        assert_eq!(actual[0].diff_type, "rem");
+        assert_eq!(actual[0].spans[2].text, "alpha=1");
+        assert_eq!(actual[2].diff_type, "add");
+        assert_eq!(actual[2].spans[2].text, "alpha=2");
+        assert_eq!(actual[4].diff_type, "same");
+        assert_eq!(actual[4].spans[1].text, "value=1 ms");
+    }
+
+    #[test]
+    fn highlights_changed_numeric_tokens_with_signed_backgrounds() {
+        let actual =
+            generate_numeric_diff("retry=5 timeout=92\n", "retry=3 timeout=100\n", true, false, false, false);
+
+        assert_eq!(actual[0].spans[2].text, "3");
+        assert_eq!(actual[0].spans[2].bg, Some("magenta"));
+        assert_eq!(actual[0].spans[4].text, "100");
+        assert_eq!(actual[0].spans[4].bg, Some("cyan"));
+        assert_eq!(actual[2].spans[2].text, "5");
+        assert_eq!(actual[2].spans[2].bg, Some("cyan"));
+        assert_eq!(actual[2].spans[4].text, "92");
+        assert_eq!(actual[2].spans[4].bg, Some("magenta"));
     }
 }

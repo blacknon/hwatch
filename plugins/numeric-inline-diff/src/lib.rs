@@ -5,6 +5,7 @@ use hwatch_ansi as ansi;
 use hwatch_diffmode::{
     PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
     PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
+    text_eq_ignoring_space_blocks,
 };
 use similar::{ChangeTag, TextDiff};
 
@@ -70,8 +71,14 @@ pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwne
     let dest = unsafe { slice_to_str(req.dest) }.unwrap_or_default();
     let src = unsafe { slice_to_str(req.src) }.unwrap_or_default();
 
-    let lines =
-        generate_numeric_inline_diff(dest, src, req.line_number, req.only_diffline, req.color);
+    let lines = generate_numeric_inline_diff(
+        dest,
+        src,
+        req.line_number,
+        req.only_diffline,
+        req.color,
+        req.ignore_spaceblock,
+    );
     let header_text = if req.only_diffline {
         "NumInline(Only)"
     } else {
@@ -108,6 +115,7 @@ fn generate_numeric_inline_diff(
     _line_number: bool,
     only_diffline: bool,
     color: bool,
+    ignore_spaceblock: bool,
 ) -> Vec<RenderedLine> {
     let diff = TextDiff::from_lines(src, dest);
     let changes: Vec<_> = diff.iter_all_changes().collect();
@@ -137,11 +145,7 @@ fn generate_numeric_inline_diff(
                 index += 1;
             }
 
-            render_changed_block(
-                &mut rendered,
-                deletes,
-                inserts,
-            );
+            render_changed_block(&mut rendered, deletes, inserts, only_diffline, color, ignore_spaceblock);
             continue;
         }
 
@@ -165,6 +169,39 @@ fn generate_numeric_inline_diff(
 }
 
 fn render_changed_block(
+    rendered: &mut Vec<RenderedLine>,
+    deletes: Vec<ChangedLine>,
+    inserts: Vec<ChangedLine>,
+    only_diffline: bool,
+    color: bool,
+    ignore_spaceblock: bool,
+) {
+    if ignore_spaceblock && deletes.len() == inserts.len() {
+        for (delete, insert) in deletes.into_iter().zip(inserts.into_iter()) {
+            if text_eq_ignoring_space_blocks(&delete.text, &insert.text, true) {
+                if !only_diffline {
+                    rendered.push(render_line(
+                        delete.line_no,
+                        "   ",
+                        vec![RenderedSpan {
+                            text: normalize_equal_line(delete.text, color),
+                            fg: None,
+                            reversed: false,
+                        }],
+                        RenderKind::Equal,
+                    ));
+                }
+            } else {
+                render_changed_pairs(rendered, vec![delete], vec![insert]);
+            }
+        }
+        return;
+    }
+
+    render_changed_pairs(rendered, deletes, inserts);
+}
+
+fn render_changed_pairs(
     rendered: &mut Vec<RenderedLine>,
     deletes: Vec<ChangedLine>,
     inserts: Vec<ChangedLine>,
@@ -576,7 +613,7 @@ mod tests {
     #[test]
     fn highlights_inline_numeric_changes() {
         let actual =
-            generate_numeric_inline_diff("count=15 used=92\n", "count=10 used=100\n", true, false, false);
+            generate_numeric_inline_diff("count=15 used=92\n", "count=10 used=100\n", true, false, false, false);
 
         assert_eq!(actual.len(), 2);
         assert_eq!(actual[0].line_no, Some(1));
@@ -614,6 +651,7 @@ mod tests {
             true,
             false,
             true,
+            false,
         );
 
         assert_eq!(actual[0].spans[2].text, "value=");
@@ -630,6 +668,7 @@ mod tests {
             false,
             false,
             true,
+            false,
         );
         assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
 
@@ -639,7 +678,38 @@ mod tests {
             false,
             false,
             false,
+            false,
         );
         assert_eq!(stripped[0].spans[0].text, "same");
+    }
+
+    #[test]
+    fn treats_spaceblock_only_line_changes_as_equal_when_enabled() {
+        let actual =
+            generate_numeric_inline_diff("count=10   used=100\n", "count=10 used=100\n", true, false, false, true);
+
+        assert_eq!(actual.len(), 1);
+        assert_eq!(actual[0].diff_type, "same");
+        assert_eq!(actual[0].spans[0].text, "   ");
+        assert_eq!(actual[0].spans[1].text, "count=10 used=100");
+    }
+
+    #[test]
+    fn keeps_replacement_block_order_when_spaceblock_ignore_is_enabled() {
+        let actual = generate_numeric_inline_diff(
+            "count=15 used=100\nvalue=1   ms\n",
+            "count=10 used=100\nvalue=1 ms\n",
+            true,
+            false,
+            false,
+            true,
+        );
+
+        assert_eq!(actual[0].diff_type, "rem");
+        assert_eq!(actual[0].spans[2].text, "10");
+        assert_eq!(actual[1].diff_type, "add");
+        assert_eq!(actual[1].spans[2].text, "15");
+        assert_eq!(actual[2].diff_type, "same");
+        assert_eq!(actual[2].spans[1].text, "value=1 ms");
     }
 }

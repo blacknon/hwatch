@@ -353,6 +353,12 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue),
 
         )
+        .arg(
+            Arg::new("ignore_spaceblock")
+                .help("Ignore diffs where only consecutive whitespace blocks differ.")
+                .long("ignore-spaceblock")
+                .action(ArgAction::SetTrue),
+        )
         // -- options --
         // Option to specify the command to be executed when the output fluctuates.
         //     [-A,--aftercommand]
@@ -1035,6 +1041,7 @@ fn main() {
             .set_diff_mode(diff_mode)
             .set_diff_mode_width(diff_mode_width)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
+            .set_ignore_spaceblock(matcher.get_flag("ignore_spaceblock"))
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
             .set_show_ui(!matcher.get_flag("no_title"))
@@ -1063,7 +1070,8 @@ fn main() {
             .set_diff_mode(diff_mode)
             .set_line_number(matcher.get_flag("line_number"))
             .set_reverse(matcher.get_flag("reverse"))
-            .set_only_diffline(matcher.get_flag("diff_output_only"));
+            .set_only_diffline(matcher.get_flag("diff_output_only"))
+            .set_ignore_spaceblock(matcher.get_flag("ignore_spaceblock"));
 
         // Set logfile
         if let Some(logfile) = logfile {

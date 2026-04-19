@@ -12,7 +12,7 @@ use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
 
-use hwatch_diffmode::DiffMode;
+use hwatch_diffmode::{text_eq_ignoring_space_blocks, DiffMode};
 
 /// Struct at watch view window.
 pub struct Batch {
@@ -56,6 +56,9 @@ pub struct Batch {
     is_only_diffline: bool,
 
     ///
+    ignore_spaceblock: bool,
+
+    ///
     logfile: String,
 
     ///
@@ -86,6 +89,7 @@ impl Batch {
             diff_mode: 0,
             diff_modes: diff_modes,
             is_only_diffline: false,
+            ignore_spaceblock: false,
             logfile: "".to_string(),
             printer: output::Printer::new(mutex_diff_mode),
             rx,
@@ -100,6 +104,7 @@ impl Batch {
             .set_line_number(self.line_number)
             .set_reverse(self.is_reverse)
             .set_only_diffline(self.is_only_diffline)
+            .set_ignore_spaceblock(self.ignore_spaceblock)
             .set_output_mode(self.output_mode);
 
         loop {
@@ -145,7 +150,7 @@ impl Batch {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if command_results_equivalent(&latest_result, &_result) {
+        if command_results_equivalent(&latest_result, &_result, self.ignore_spaceblock) {
             return false;
         }
 
@@ -193,9 +198,21 @@ impl Batch {
 
     fn should_print_for_output_mode(&self, before: &CommandResult, after: &CommandResult) -> bool {
         match self.output_mode {
-            OutputMode::Output => before.get_output() != after.get_output(),
-            OutputMode::Stdout => before.get_stdout() != after.get_stdout(),
-            OutputMode::Stderr => before.get_stderr() != after.get_stderr(),
+            OutputMode::Output => !text_eq_ignoring_space_blocks(
+                &before.get_output(),
+                &after.get_output(),
+                self.ignore_spaceblock,
+            ),
+            OutputMode::Stdout => !text_eq_ignoring_space_blocks(
+                &before.get_stdout(),
+                &after.get_stdout(),
+                self.ignore_spaceblock,
+            ),
+            OutputMode::Stderr => !text_eq_ignoring_space_blocks(
+                &before.get_stderr(),
+                &after.get_stderr(),
+                self.ignore_spaceblock,
+            ),
         }
     }
 
@@ -290,6 +307,11 @@ impl Batch {
         self
     }
 
+    pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
+        self.ignore_spaceblock = ignore_spaceblock;
+        self
+    }
+
     pub fn set_logfile(mut self, logfile: String) -> Self {
         self.logfile = logfile;
         self
@@ -320,10 +342,26 @@ impl Batch {
     }
 }
 
-fn command_results_equivalent(before: &CommandResult, after: &CommandResult) -> bool {
+fn command_results_equivalent(
+    before: &CommandResult,
+    after: &CommandResult,
+    ignore_spaceblock: bool,
+) -> bool {
     before.command == after.command
         && before.status == after.status
-        && before.get_output() == after.get_output()
-        && before.get_stdout() == after.get_stdout()
-        && before.get_stderr() == after.get_stderr()
+        && text_eq_ignoring_space_blocks(
+            &before.get_output(),
+            &after.get_output(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stdout(),
+            &after.get_stdout(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stderr(),
+            &after.get_stderr(),
+            ignore_spaceblock,
+        )
 }

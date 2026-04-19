@@ -9,10 +9,11 @@ use std::slice;
 use crate::common::parse_ansi_color;
 use hwatch_ansi as ansi;
 use hwatch_diffmode::{
-    DiffMode, DiffModeOptions, DifferenceType, PluginDiffRequest, PluginMetadata, PluginOwnedBytes,
-    PluginSlice, COLOR_BATCH_LINE_NUMBER_ADD, COLOR_BATCH_LINE_NUMBER_DEFAULT,
-    COLOR_BATCH_LINE_NUMBER_REM, COLOR_WATCH_LINE_NUMBER_ADD, COLOR_WATCH_LINE_NUMBER_DEFAULT,
-    COLOR_WATCH_LINE_NUMBER_REM, PLUGIN_ABI_VERSION, PLUGIN_OUTPUT_BATCH, PLUGIN_OUTPUT_WATCH,
+    DiffMode, DiffModeOptions, DifferenceType, PluginDiffRequest, PluginDiffRequestV1,
+    PluginMetadata, PluginOwnedBytes, PluginSlice, COLOR_BATCH_LINE_NUMBER_ADD,
+    COLOR_BATCH_LINE_NUMBER_DEFAULT, COLOR_BATCH_LINE_NUMBER_REM, COLOR_WATCH_LINE_NUMBER_ADD,
+    COLOR_WATCH_LINE_NUMBER_DEFAULT, COLOR_WATCH_LINE_NUMBER_REM, PLUGIN_ABI_VERSION,
+    PLUGIN_ABI_VERSION_V1, PLUGIN_OUTPUT_BATCH, PLUGIN_OUTPUT_WATCH,
 };
 use libloading::{Library, Symbol};
 use serde::Deserialize;
@@ -27,8 +28,14 @@ const PLUGIN_RESPONSE_SCHEMA_V2: u32 = 2;
 const PLUGIN_RESPONSE_SCHEMA_V3: u32 = 3;
 
 type PluginMetadataFn = unsafe extern "C" fn() -> PluginMetadata;
-type PluginGenerateFn = unsafe extern "C" fn(PluginDiffRequest) -> PluginOwnedBytes;
+type PluginGenerateFnV1 = unsafe extern "C" fn(PluginDiffRequestV1) -> PluginOwnedBytes;
+type PluginGenerateFnV2 = unsafe extern "C" fn(PluginDiffRequest) -> PluginOwnedBytes;
 type PluginFreeBytesFn = unsafe extern "C" fn(PluginOwnedBytes);
+
+enum PluginGenerateFn {
+    V1(PluginGenerateFnV1),
+    V2(PluginGenerateFnV2),
+}
 
 pub struct PluginRegistration {
     pub name: String,
@@ -148,9 +155,6 @@ impl PluginDiffMode {
             let metadata_fn: Symbol<PluginMetadataFn> = library
                 .get(b"hwatch_diffmode_metadata\0")
                 .map_err(|err| format!("missing metadata symbol in '{}': {err}", path.display()))?;
-            let generate_fn: Symbol<PluginGenerateFn> = library
-                .get(b"hwatch_diffmode_generate\0")
-                .map_err(|err| format!("missing generate symbol in '{}': {err}", path.display()))?;
             let free_bytes_fn: Symbol<PluginFreeBytesFn> = library
                 .get(b"hwatch_diffmode_free_bytes\0")
                 .map_err(|err| {
@@ -160,11 +164,29 @@ impl PluginDiffMode {
             let metadata = metadata_fn();
             validate_metadata(path, metadata)?;
 
+            let generate_fn = match metadata.abi_version {
+                PLUGIN_ABI_VERSION_V1 => PluginGenerateFn::V1(
+                    *library
+                        .get::<PluginGenerateFnV1>(b"hwatch_diffmode_generate\0")
+                        .map_err(|err| {
+                            format!("missing generate symbol in '{}': {err}", path.display())
+                        })?,
+                ),
+                PLUGIN_ABI_VERSION => PluginGenerateFn::V2(
+                    *library
+                        .get::<PluginGenerateFnV2>(b"hwatch_diffmode_generate\0")
+                        .map_err(|err| {
+                            format!("missing generate symbol in '{}': {err}", path.display())
+                        })?,
+                ),
+                _ => unreachable!(),
+            };
+
             let plugin_name = cstr_to_string(metadata.plugin_name, "plugin_name", path)?;
             let header_text = cstr_to_string(metadata.header_text, "header_text", path)?;
 
             (
-                *generate_fn,
+                generate_fn,
                 *free_bytes_fn,
                 plugin_name,
                 header_text,
@@ -190,22 +212,36 @@ impl PluginDiffMode {
         dest: &str,
         src: &str,
     ) -> Result<ParsedPluginDiffResponse, String> {
-        let request = PluginDiffRequest {
-            dest: PluginSlice {
-                ptr: dest.as_ptr(),
-                len: dest.len(),
-            },
-            src: PluginSlice {
-                ptr: src.as_ptr(),
-                len: src.len(),
-            },
-            output_kind,
-            color: self.options.get_color(),
-            line_number: self.options.get_line_number(),
-            only_diffline: self.options.get_only_diffline(),
+        let dest = PluginSlice {
+            ptr: dest.as_ptr(),
+            len: dest.len(),
+        };
+        let src = PluginSlice {
+            ptr: src.as_ptr(),
+            len: src.len(),
         };
 
-        let bytes = unsafe { (self.generate)(request) };
+        let bytes = unsafe {
+            match self.generate {
+                PluginGenerateFn::V1(generate) => generate(PluginDiffRequestV1 {
+                    dest,
+                    src,
+                    output_kind,
+                    color: self.options.get_color(),
+                    line_number: self.options.get_line_number(),
+                    only_diffline: self.options.get_only_diffline(),
+                }),
+                PluginGenerateFn::V2(generate) => generate(PluginDiffRequest {
+                    dest,
+                    src,
+                    output_kind,
+                    color: self.options.get_color(),
+                    line_number: self.options.get_line_number(),
+                    only_diffline: self.options.get_only_diffline(),
+                    ignore_spaceblock: self.options.get_ignore_spaceblock(),
+                }),
+            }
+        };
         let response = parse_plugin_response(bytes, self.free_bytes, &self.plugin_path)?;
         self.header_text = response.header_text.clone();
         Ok(response)
@@ -316,11 +352,12 @@ unsafe fn cstr_to_string(
 }
 
 fn validate_metadata(path: &Path, metadata: PluginMetadata) -> Result<(), String> {
-    if metadata.abi_version != PLUGIN_ABI_VERSION {
+    if metadata.abi_version != PLUGIN_ABI_VERSION && metadata.abi_version != PLUGIN_ABI_VERSION_V1 {
         return Err(format!(
-            "plugin '{}' ABI mismatch: expected {}, got {}",
+            "plugin '{}' ABI mismatch: expected {} or {}, got {}",
             path.display(),
             PLUGIN_ABI_VERSION,
+            PLUGIN_ABI_VERSION_V1,
             metadata.abi_version
         ));
     }
