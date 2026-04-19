@@ -5,7 +5,7 @@
 // module
 use crossbeam_channel::{Receiver, Sender};
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture, Event},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -13,6 +13,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{error::Error, io};
 use tui::{backend::CrosstermBackend, style::Color, Terminal};
+
+// non blocking io
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+use std::{io::stdin, os::unix::io::AsRawFd};
 
 // local module
 use crate::app::App;
@@ -336,7 +342,21 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) {
 
 fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
     if crossterm::event::poll(Duration::from_millis(100))? {
-        match crossterm::event::read() {
+        // On macOS, mouse scroll sequences can be split in a way that makes
+        // blocking stdin reads mis-handle the pending bytes. Keep stdin
+        // temporarily non-blocking only around `event::read()` so scroll input
+        // is consumed without reintroducing the old os error 35 exit path.
+        #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+        set_nonblocking(true)?;
+
+        // get event
+        let result = crossterm::event::read();
+
+        // blocking mode
+        #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+        set_nonblocking(false)?;
+
+        match result {
             Ok(event) => {
                 let _ = tx.send(AppEvent::TerminalEvent(event));
             }
@@ -349,4 +369,54 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
+    let stdin_fd = stdin().as_raw_fd();
+    let flags = fcntl(stdin_fd, F_GETFL)?;
+    let new_flags = next_nonblocking_flags(flags, is_nonblocking);
+    fcntl(stdin_fd, F_SETFL(new_flags))?;
+
+    Ok(())
+}
+
+#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+fn next_nonblocking_flags(current_flags: i32, is_nonblocking: bool) -> OFlag {
+    let current_flags = OFlag::from_bits_truncate(current_flags);
+
+    if is_nonblocking {
+        current_flags | OFlag::O_NONBLOCK
+    } else {
+        current_flags & !OFlag::O_NONBLOCK
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    use super::next_nonblocking_flags;
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    use nix::fcntl::OFlag;
+
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn next_nonblocking_flags_enables_nonblocking_without_dropping_other_flags() {
+        let current_flags = (OFlag::O_APPEND | OFlag::O_CLOEXEC).bits();
+        let next_flags = next_nonblocking_flags(current_flags, true);
+
+        assert!(next_flags.contains(OFlag::O_NONBLOCK));
+        assert!(next_flags.contains(OFlag::O_APPEND));
+        assert!(next_flags.contains(OFlag::O_CLOEXEC));
+    }
+
+    #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn next_nonblocking_flags_disables_nonblocking_without_dropping_other_flags() {
+        let current_flags = (OFlag::O_APPEND | OFlag::O_NONBLOCK).bits();
+        let next_flags = next_nonblocking_flags(current_flags, false);
+
+        assert!(!next_flags.contains(OFlag::O_NONBLOCK));
+        assert!(next_flags.contains(OFlag::O_APPEND));
+    }
 }
