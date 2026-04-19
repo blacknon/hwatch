@@ -3,18 +3,24 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::Receiver;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{collections::HashMap, io};
 
-use crate::common::{logging_result, DiffMode, OutputMode};
+use crate::common::{logging_result, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
+
+use hwatch_diffmode::{text_eq_ignoring_space_blocks, DiffMode};
 
 /// Struct at watch view window.
 pub struct Batch {
     ///
     after_command: String,
+
+    ///
+    after_command_result_write_file: bool,
 
     ///
     line_number: bool,
@@ -26,6 +32,12 @@ pub struct Batch {
     is_beep: bool,
 
     ///
+    exit_on_change: Option<u32>,
+
+    ///
+    exit_on_change_armed: bool,
+
+    ///
     is_reverse: bool,
 
     ///
@@ -35,10 +47,16 @@ pub struct Batch {
     output_mode: OutputMode,
 
     ///
-    diff_mode: DiffMode,
+    diff_mode: usize,
+
+    ///
+    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
 
     ///
     is_only_diffline: bool,
+
+    ///
+    ignore_spaceblock: bool,
 
     ///
     logfile: String,
@@ -52,19 +70,28 @@ pub struct Batch {
 
 impl Batch {
     ///
-    pub fn new(rx: Receiver<AppEvent>) -> Self {
+    pub fn new(rx: Receiver<AppEvent>, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
+        // Create Default DiffMode
+        let diff_mode_counter = 0;
+        let mutex_diff_mode = Arc::clone(&diff_modes[diff_mode_counter]);
+
         Self {
             after_command: "".to_string(),
+            after_command_result_write_file: false,
             line_number: false,
             is_color: true,
             is_beep: false,
+            exit_on_change: None,
+            exit_on_change_armed: false,
             is_reverse: false,
             results: HashMap::new(),
             output_mode: OutputMode::Output,
-            diff_mode: DiffMode::Disable,
+            diff_mode: 0,
+            diff_modes: diff_modes,
             is_only_diffline: false,
+            ignore_spaceblock: false,
             logfile: "".to_string(),
-            printer: output::Printer::new(),
+            printer: output::Printer::new(mutex_diff_mode),
             rx,
         }
     }
@@ -73,21 +100,29 @@ impl Batch {
         self.printer
             .set_batch(true)
             .set_color(self.is_color)
-            .set_diff_mode(self.diff_mode)
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone())
             .set_line_number(self.line_number)
             .set_reverse(self.is_reverse)
             .set_only_diffline(self.is_only_diffline)
+            .set_ignore_spaceblock(self.ignore_spaceblock)
             .set_output_mode(self.output_mode);
 
         loop {
+            if matches!(self.exit_on_change, Some(0)) {
+                return Ok(());
+            }
             match self.rx.recv() {
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    let _exec_return = self.update_result(exec_result);
+                    let changed = self.update_result(exec_result);
 
                     // beep
-                    if _exec_return && self.is_beep {
+                    if changed && self.is_beep {
                         println!("\x07")
+                    }
+
+                    if self.handle_exit_on_change(changed) {
+                        return Ok(());
                     }
                 }
 
@@ -115,7 +150,7 @@ impl Batch {
 
         // check result diff
         // NOTE: ここで実行結果の差分を比較している // 0.3.12リリースしたら消す
-        if latest_result == _result {
+        if command_results_equivalent(&latest_result, &_result, self.ignore_spaceblock) {
             return false;
         }
 
@@ -133,6 +168,8 @@ impl Batch {
             let before_result = results[&latest_num].clone();
             let after_result = _result.clone();
 
+            let after_command_result_write_file = self.after_command_result_write_file;
+
             {
                 thread::spawn(move || {
                     exec_after_command(
@@ -140,18 +177,43 @@ impl Batch {
                         after_command.clone(),
                         before_result,
                         after_result,
+                        after_command_result_write_file,
                     );
                 });
             }
         }
 
+        let should_print = self.should_print_for_output_mode(&latest_result, &_result);
+
         // add result
         self.results.insert(self.results.len(), _result.clone());
 
         // output result
-        self.printout_result();
+        if should_print {
+            self.printout_result();
+        }
 
         true
+    }
+
+    fn should_print_for_output_mode(&self, before: &CommandResult, after: &CommandResult) -> bool {
+        match self.output_mode {
+            OutputMode::Output => !text_eq_ignoring_space_blocks(
+                &before.get_output(),
+                &after.get_output(),
+                self.ignore_spaceblock,
+            ),
+            OutputMode::Stdout => !text_eq_ignoring_space_blocks(
+                &before.get_stdout(),
+                &after.get_stdout(),
+                self.ignore_spaceblock,
+            ),
+            OutputMode::Stderr => !text_eq_ignoring_space_blocks(
+                &before.get_stderr(),
+                &after.get_stderr(),
+                self.ignore_spaceblock,
+            ),
+        }
     }
 
     ///
@@ -178,12 +240,21 @@ impl Batch {
 
         let printout_data = self.printer.get_batch_text(dest, src);
 
+        if printout_data.is_empty() {
+            return;
+        }
+
         println!("{:}", printout_data.join("\n"));
     }
 
     ///
     pub fn set_after_command(mut self, after_command: String) -> Self {
         self.after_command = after_command;
+        self
+    }
+
+    pub fn set_after_command_result_write_file(mut self, write_file: bool) -> Self {
+        self.after_command_result_write_file = write_file;
         self
     }
 
@@ -200,6 +271,19 @@ impl Batch {
     }
 
     ///
+    pub fn set_color(mut self, is_color: bool) -> Self {
+        self.is_color = is_color;
+        self
+    }
+
+    ///
+    pub fn set_exit_on_change(mut self, exit_on_change: Option<u32>) -> Self {
+        self.exit_on_change = exit_on_change;
+        self.exit_on_change_armed = false;
+        self
+    }
+
+    ///
     pub fn set_reverse(mut self, is_reverse: bool) -> Self {
         self.is_reverse = is_reverse;
         self
@@ -212,7 +296,7 @@ impl Batch {
     }
 
     ///
-    pub fn set_diff_mode(mut self, diff_mode: DiffMode) -> Self {
+    pub fn set_diff_mode(mut self, diff_mode: usize) -> Self {
         self.diff_mode = diff_mode;
         self
     }
@@ -223,8 +307,61 @@ impl Batch {
         self
     }
 
+    pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
+        self.ignore_spaceblock = ignore_spaceblock;
+        self
+    }
+
     pub fn set_logfile(mut self, logfile: String) -> Self {
         self.logfile = logfile;
         self
     }
+
+    fn handle_exit_on_change(&mut self, changed: bool) -> bool {
+        if self.exit_on_change.is_none() {
+            return false;
+        }
+
+        if !self.exit_on_change_armed {
+            self.exit_on_change_armed = true;
+            return false;
+        }
+
+        if !changed {
+            return false;
+        }
+
+        if let Some(remaining) = self.exit_on_change.as_mut() {
+            if *remaining > 0 {
+                *remaining -= 1;
+            }
+            return *remaining == 0;
+        }
+
+        false
+    }
+}
+
+fn command_results_equivalent(
+    before: &CommandResult,
+    after: &CommandResult,
+    ignore_spaceblock: bool,
+) -> bool {
+    before.command == after.command
+        && before.status == after.status
+        && text_eq_ignoring_space_blocks(
+            &before.get_output(),
+            &after.get_output(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stdout(),
+            &after.get_stdout(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stderr(),
+            &after.get_stderr(),
+            ignore_spaceblock,
+        )
 }

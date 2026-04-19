@@ -1,0 +1,13 @@
+[package]
+name = "hwatch-plugin-cdylib-sample"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hwatch-diffmode = { path = "../../crates/diffmode" }
+similar = { version = "2.5.0", features = ["text"] }
+
+[workspace]

@@ -5,6 +5,7 @@
 // TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える??(v0.3.9)
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
+use std::sync::{Arc, Mutex};
 use tui::{
     prelude::Line,
     style::{Color, Modifier, Style},
@@ -15,12 +16,13 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::common::{DiffMode, OutputMode};
+use crate::common::OutputMode;
 use crate::exec::CommandResult;
 use crate::{
     app::{ActiveArea, InputMode},
     SharedInterval,
 };
+use hwatch_diffmode::{DiffMode, DiffModeOptions};
 
 //const
 // const POSITION_X_HELP_TEXT: usize = 47;
@@ -60,7 +62,7 @@ pub struct HeaderArea<'a> {
     active_area: ActiveArea,
 
     ///
-    diff_mode: DiffMode,
+    diff_mode: Arc<Mutex<Box<dyn DiffMode>>>,
 
     ///
     is_only_diffline: bool,
@@ -79,11 +81,14 @@ pub struct HeaderArea<'a> {
 
     ///
     pub input_text: String,
+
+    ///
+    diff_mode_width: usize,
 }
 
 /// Header Area Object Trait
 impl HeaderArea<'_> {
-    pub fn new(interval: SharedInterval) -> Self {
+    pub fn new(interval: SharedInterval, diffmode: Arc<Mutex<Box<dyn DiffMode>>>) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
@@ -101,7 +106,7 @@ impl HeaderArea<'_> {
 
             active_area: ActiveArea::History,
 
-            diff_mode: DiffMode::Disable,
+            diff_mode: diffmode,
             is_only_diffline: false,
 
             output_mode: OutputMode::Output,
@@ -109,6 +114,7 @@ impl HeaderArea<'_> {
             input_mode: InputMode::None,
             input_prompt: "".to_string(),
             input_text: "".to_string(),
+            diff_mode_width: 0,
         }
     }
 
@@ -146,8 +152,12 @@ impl HeaderArea<'_> {
         self.exec_status = result.status;
     }
 
-    pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
+    pub fn set_diff_mode(&mut self, diff_mode: Arc<Mutex<Box<dyn DiffMode>>>) {
         self.diff_mode = diff_mode;
+    }
+
+    pub fn set_diff_mode_width(&mut self, diff_mode_width: usize) {
+        self.diff_mode_width = diff_mode_width;
     }
 
     pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
@@ -190,34 +200,6 @@ impl HeaderArea<'_> {
         } else {
             command_width = 0;
             timestamp_width = 0;
-        }
-
-        // filter keyword.
-        let filter_keyword_width = if width > ((self.banner.len() + 20) + 2 + 14) && width > 59 {
-            // width - POSITION_X_HELP_TEXT - 2 - 14
-            // length("[Number] [Color] [Output] [history] [Line(Only)]") = 48
-            // length("[Number] [Color] [Reverse] [Output] [history] [Line(Only)]") = 58
-            width - 59
-        } else {
-            0
-        };
-        // format!("{:wid$}", self.input_text, wid = filter_keyword_width);
-        let filter_keyword = format_with_multibyte_width(&self.input_text, filter_keyword_width);
-        let filter_keyword_style: Style;
-
-        if self.input_text.is_empty() {
-            match self.input_mode {
-                InputMode::Filter => self.input_prompt = "/".to_string(),
-                InputMode::RegexFilter => self.input_prompt = "*".to_string(),
-
-                _ => {}
-            }
-
-            filter_keyword_style = Style::default().fg(Color::Gray);
-        } else {
-            filter_keyword_style = Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD);
         }
 
         let interval = self.interval.read().unwrap();
@@ -276,16 +258,43 @@ impl HeaderArea<'_> {
             ActiveArea::Watch => "Watch".to_string(),
         };
 
-        // Set IsOnlyDiffline value
-        let value_only_diffline = if self.is_only_diffline { "(Only)" } else { "" };
-
         // Set Diff mode value
-        let value_diff = match self.diff_mode {
-            DiffMode::Disable => "None".to_string(),
-            DiffMode::Watch => "Watch".to_string(),
-            DiffMode::Line => "Line".to_string() + value_only_diffline,
-            DiffMode::Word => "Word".to_string() + value_only_diffline,
-        };
+        let value_diff: String;
+        {
+            let mut diff_mode = self.diff_mode.lock().unwrap();
+            let mut options = DiffModeOptions::new();
+            options.set_color(self.ansi_color);
+            options.set_line_number(self.line_number);
+            options.set_only_diffline(self.is_only_diffline);
+            diff_mode.set_option(options);
+            value_diff = diff_mode.get_header_text();
+        }
+        let value_diff = format_with_multibyte_width(&value_diff, self.diff_mode_width);
+
+        let second_line_fixed_width =
+            UnicodeWidthStr::width("[Number] [Color] [Reverse] [Output] [History] [")
+                + self.diff_mode_width
+                + UnicodeWidthStr::width("]")
+                + 1; // input prompt
+
+        let filter_keyword_width = width.saturating_sub(second_line_fixed_width);
+        let filter_keyword = format_with_multibyte_width(&self.input_text, filter_keyword_width);
+        let filter_keyword_style: Style;
+
+        if self.input_text.is_empty() {
+            match self.input_mode {
+                InputMode::Filter => self.input_prompt = "/".to_string(),
+                InputMode::RegexFilter => self.input_prompt = "*".to_string(),
+
+                _ => {}
+            }
+
+            filter_keyword_style = Style::default().fg(Color::Gray);
+        } else {
+            filter_keyword_style = Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD);
+        }
 
         // Set Color
         let command_color = match self.exec_status {
@@ -363,7 +372,7 @@ impl HeaderArea<'_> {
             Span::raw("["),
             // Span::styled("Diff: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
-                format!("{:wid$}", value_diff, wid = 10),
+                format!("{:wid$}", value_diff, wid = self.diff_mode_width),
                 Style::default()
                     .fg(Color::Magenta)
                     .add_modifier(Modifier::REVERSED),

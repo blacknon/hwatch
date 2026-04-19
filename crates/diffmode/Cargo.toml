@@ -1,0 +1,11 @@
+[package]
+name = "hwatch-diffmode"
+version = "0.4.0"
+edition = "2021"
+
+[dependencies]
+ratatui = { version = "0.30.0", default-features = false, features = [
+    'crossterm',
+    'unstable-rendered-line-info',
+] }
+ansi_term = "0.12.1"

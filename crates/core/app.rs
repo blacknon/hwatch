@@ -17,6 +17,7 @@ use crossterm::{
 };
 use regex::Regex;
 use similar::{ChangeTag, TextDiff};
+use std::sync::{Arc, Mutex};
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -32,21 +33,23 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 
 // local module
-use crate::ansi::get_ansi_strip_str;
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{History, HistoryArea, HistorySummary};
+use crate::hwatch_ansi::get_ansi_strip_str;
+use crate::hwatch_diffmode::DiffMode;
 use crate::keymap::{default_keymap, InputAction, Keymap};
 use crate::output;
+use crate::output::WatchRenderData;
 use crate::popup::PopupWindow;
 use crate::watch::WatchArea;
 use crate::{
-    common::{logging_result, DiffMode, OutputMode},
+    common::{logging_result, OutputMode},
     keymap::InputEventContents,
 };
-
+use hwatch_diffmode::text_eq_ignoring_space_blocks;
 // local const
 use crate::SharedInterval;
 use crate::DEFAULT_TAB_SIZE;
@@ -124,6 +127,9 @@ pub struct App<'a> {
     after_command: String,
 
     ///
+    after_command_result_write_file: bool,
+
+    ///
     limit: u32,
 
     ///
@@ -140,6 +146,12 @@ pub struct App<'a> {
 
     ///
     is_beep: bool,
+
+    ///
+    exit_on_change: Option<u32>,
+
+    ///
+    exit_on_change_armed: bool,
 
     ///
     is_border: bool,
@@ -171,11 +183,17 @@ pub struct App<'a> {
     ///
     output_mode: OutputMode,
 
+    //
+    diff_mode: usize,
+
     ///
-    diff_mode: DiffMode,
+    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
 
     ///
     is_only_diffline: bool,
+
+    ///
+    ignore_spaceblock: bool,
 
     /// result at output.
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
@@ -235,7 +253,17 @@ pub struct App<'a> {
 /// Trail at watch view window.
 impl App<'_> {
     ///
-    pub fn new(tx: Sender<AppEvent>, rx: Receiver<AppEvent>, interval: SharedInterval) -> Self {
+    pub fn new(
+        tx: Sender<AppEvent>,
+        rx: Receiver<AppEvent>,
+        interval: SharedInterval,
+        diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+        diff_mode_width: usize,
+    ) -> Self {
+        // Create Default DiffMode
+        let diff_mode_counter = 0;
+        let mutex_diff_mode = Arc::clone(&diff_modes[diff_mode_counter]);
+
         // method at create new view trail.
         Self {
             keymap: default_keymap(),
@@ -246,6 +274,7 @@ impl App<'_> {
             limit: 0,
 
             after_command: "".to_string(),
+            after_command_result_write_file: false,
             ansi_color: false,
             line_number: false,
             reverse: false,
@@ -254,6 +283,8 @@ impl App<'_> {
             show_header: true,
 
             is_beep: false,
+            exit_on_change: None,
+            exit_on_change_armed: false,
             is_border: false,
             is_history_summary: false,
             is_scroll_bar: false,
@@ -263,8 +294,10 @@ impl App<'_> {
 
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
-            diff_mode: DiffMode::Disable,
+            diff_mode: diff_mode_counter,
+            diff_modes: diff_modes,
             is_only_diffline: false,
+            ignore_spaceblock: false,
 
             results: HashMap::new(),
             results_stdout: HashMap::new(),
@@ -275,7 +308,11 @@ impl App<'_> {
             interval: interval.clone(),
             tab_size: DEFAULT_TAB_SIZE,
 
-            header_area: HeaderArea::new(interval.clone()),
+            header_area: {
+                let mut header_area = HeaderArea::new(interval.clone(), mutex_diff_mode.clone());
+                header_area.set_diff_mode_width(diff_mode_width);
+                header_area
+            },
             history_area: HistoryArea::new(),
             watch_area: WatchArea::new(),
 
@@ -283,7 +320,7 @@ impl App<'_> {
 
             mouse_events: false,
 
-            printer: output::Printer::new(),
+            printer: output::Printer::new(mutex_diff_mode.clone()),
 
             done: false,
             logfile: "".to_string(),
@@ -311,23 +348,33 @@ impl App<'_> {
         self.printer
             .set_batch(false)
             .set_color(self.ansi_color)
-            .set_diff_mode(self.diff_mode)
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone())
             .set_line_number(self.line_number)
             .set_output_mode(self.output_mode)
             .set_tab_size(self.tab_size)
-            .set_only_diffline(self.is_only_diffline);
+            .set_only_diffline(self.is_only_diffline)
+            .set_ignore_spaceblock(self.ignore_spaceblock);
 
         loop {
+            if matches!(self.exit_on_change, Some(0)) {
+                self.done = true;
+            }
             if self.done {
                 return Ok(());
             }
 
             // Draw data
             if update_draw {
-                terminal
-                    .draw(|f| self.draw(f))
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
-                update_draw = false
+                match terminal.draw(|f| self.draw(f)) {
+                    Ok(_) => update_draw = false,
+                    Err(err) if is_retryable_terminal_error(&err.to_string()) => {}
+                    Err(err) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("{err}"),
+                        ))
+                    }
+                }
             }
 
             // get event
@@ -342,25 +389,13 @@ impl App<'_> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    let _ = self.create_result_items(exec_result, true);
-                }
+                    let changed = self.create_result_items(exec_result, true);
 
-                Ok(AppEvent::HistoryUpdate(
-                    (output_result_items, stdout_result_items, stderr_result_items),
-                    is_running_app,
-                )) => {
-                    let _exec_return = self.update_result(
-                        output_result_items,
-                        stdout_result_items,
-                        stderr_result_items,
-                        is_running_app,
-                    );
-
-                    // beep
-                    if _exec_return && self.is_beep {
+                    if changed && self.is_beep {
                         println!("\x07")
                     }
 
+                    self.handle_exit_on_change(changed);
                     update_draw = true;
                 }
 
@@ -574,28 +609,35 @@ impl App<'_> {
 
         // set old text(text_src)
         let mut src = dest;
+
+        let support_only_diffline = self.diff_modes[self.diff_mode]
+            .lock()
+            .unwrap()
+            .get_support_only_diffline();
+
         if previous_dst > 0 {
             src = &results[&previous_dst].command_result;
-        } else if previous_dst == 0
-            && self.is_only_diffline
-            && matches!(self.diff_mode, DiffMode::Line | DiffMode::Word)
-        {
+        } else if previous_dst == 0 && self.is_only_diffline && support_only_diffline {
             src = &results[&0].command_result;
         }
 
-        let output_data = self.printer.get_watch_text(dest, src);
+        let output_data = self.printer.get_watch_data(dest, src);
+        self.apply_watch_render_data(output_data);
+    }
 
-        self.watch_area.is_line_number = self.line_number;
-        match self.diff_mode {
-            DiffMode::Disable | DiffMode::Watch => {
-                self.watch_area.is_line_diff_head = false;
-            }
-
-            DiffMode::Line | DiffMode::Word => {
-                self.watch_area.is_line_diff_head = true;
+    fn apply_watch_render_data(&mut self, render_data: WatchRenderData) {
+        match render_data {
+            WatchRenderData::SinglePane(pane) => {
+                self.watch_area.is_line_number = pane.is_line_number;
+                self.watch_area.is_line_diff_head = pane.is_line_diff_head;
+                self.watch_area.update_output(pane.lines);
             }
         }
-        self.watch_area.update_output(output_data);
+    }
+
+    fn refresh_selected_watch_output(&mut self) {
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     /// Delete the history and result data of the specified number.
@@ -644,6 +686,11 @@ impl App<'_> {
     }
 
     ///
+    pub fn set_after_command_result_write_file(&mut self, write_file: bool) {
+        self.after_command_result_write_file = write_file;
+    }
+
+    ///
     pub fn set_output_mode(&mut self, mode: OutputMode) {
         // header update
         self.output_mode = mode;
@@ -677,13 +724,18 @@ impl App<'_> {
 
         self.printer.set_color(ansi_color);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
+    }
+
+    ///        
+    pub fn set_beep(&mut self, beep: bool) {
+        self.is_beep = beep;
     }
 
     ///
-    pub fn set_beep(&mut self, beep: bool) {
-        self.is_beep = beep;
+    pub fn set_exit_on_change(&mut self, exit_on_change: Option<u32>) {
+        self.exit_on_change = exit_on_change;
+        self.exit_on_change_armed = false;
     }
 
     ///
@@ -694,8 +746,7 @@ impl App<'_> {
         self.history_area.set_border(border);
         self.watch_area.set_border(border);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -710,8 +761,7 @@ impl App<'_> {
         // set history_summary
         self.history_area.set_summary(history_summary);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -722,16 +772,14 @@ impl App<'_> {
         self.history_area.set_scroll_bar(scroll_bar);
         self.watch_area.set_scroll_bar(scroll_bar);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
     pub fn set_watch_diff_colors(&mut self, fg: Option<Color>, bg: Option<Color>) {
         self.printer.set_watch_diff_colors(fg, bg);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -743,8 +791,7 @@ impl App<'_> {
 
         self.printer.set_line_number(line_number);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -756,8 +803,7 @@ impl App<'_> {
 
         self.printer.set_reverse(reverse);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -781,8 +827,7 @@ impl App<'_> {
     pub fn set_wrap_mode(&mut self, wrap: bool) {
         self.watch_area.set_wrap_mode(wrap);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -811,13 +856,15 @@ impl App<'_> {
     }
 
     ///
-    pub fn set_diff_mode(&mut self, diff_mode: DiffMode) {
+    pub fn set_diff_mode(&mut self, diff_mode: usize) {
         self.diff_mode = diff_mode;
 
-        self.header_area.set_diff_mode(diff_mode);
+        self.header_area
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
         self.header_area.update();
 
-        self.printer.set_diff_mode(diff_mode);
+        self.printer
+            .set_diff_mode(self.diff_modes[self.diff_mode].clone());
 
         let selected = self.history_area.get_state_select();
 
@@ -833,10 +880,23 @@ impl App<'_> {
     pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
         self.is_only_diffline = is_only_diffline;
 
+        self.printer.set_only_diffline(is_only_diffline);
+
         self.header_area.set_is_only_diffline(is_only_diffline);
         self.header_area.update();
 
-        self.printer.set_only_diffline(is_only_diffline);
+        let selected = self.history_area.get_state_select();
+        if !self.results.is_empty() {
+            let reseted_select = self.reset_history(selected);
+            self.set_output_data(reseted_select);
+        } else {
+            self.set_output_data(selected);
+        }
+    }
+
+    pub fn set_ignore_spaceblock(&mut self, ignore_spaceblock: bool) {
+        self.ignore_spaceblock = ignore_spaceblock;
+        self.printer.set_ignore_spaceblock(ignore_spaceblock);
 
         let selected = self.history_area.get_state_select();
         if !self.results.is_empty() {
@@ -888,39 +948,32 @@ impl App<'_> {
                 continue;
             }
 
+            let support_only_diffline: bool;
+            support_only_diffline = self.diff_modes[self.diff_mode]
+                .lock()
+                .unwrap()
+                .get_support_only_diffline();
+
             let mut is_push = true;
             if self.is_filtered {
-                let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+                let result_text = match (
+                    self.output_mode,
+                    support_only_diffline,
+                    self.is_only_diffline,
+                ) {
                     // Diff Only
-                    (
-                        OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr,
-                        DiffMode::Line | DiffMode::Word,
-                        true,
-                    ) => result.get_diff_only_data(self.ansi_color),
+                    (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
+                        result.get_diff_only_data(self.ansi_color)
+                    }
 
                     // Output
-                    (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => {
-                        result.command_result.get_output()
-                    }
-                    (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => {
-                        result.command_result.get_output()
-                    }
+                    (OutputMode::Output, _, _) => result.command_result.get_output(),
 
                     // Stdout
-                    (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => {
-                        result.command_result.get_stdout()
-                    }
-                    (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => {
-                        result.command_result.get_stdout()
-                    }
+                    (OutputMode::Stdout, _, _) => result.command_result.get_stdout(),
 
                     // Stderr
-                    (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => {
-                        result.command_result.get_stderr()
-                    }
-                    (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => {
-                        result.command_result.get_stderr()
-                    }
+                    (OutputMode::Stderr, _, _) => result.command_result.get_stderr(),
                 };
 
                 match self.is_regex_filter {
@@ -1002,7 +1055,7 @@ impl App<'_> {
         }
 
         // check result diff
-        if latest_result == _result {
+        if command_results_equivalent(&latest_result, &_result, self.ignore_spaceblock) {
             return false;
         }
 
@@ -1016,46 +1069,27 @@ impl App<'_> {
             .command_result
             .clone();
 
-        // create ResultItems
-        let enable_summary_char = self.enable_summary_char;
-        let tx = self.tx.clone();
+        // NOTE:
+        // ResultItems used to be computed on a background thread while the app
+        // was running. That allowed later OutputUpdate events to observe a stale
+        // "latest" baseline before the previous update had been applied,
+        // producing duplicate-looking history entries and repeated diffs against
+        // an older snapshot. Keep this path synchronous for correctness.
+        let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
+            _result,
+            self.enable_summary_char,
+            self.ignore_spaceblock,
+            &latest_result,
+            &stdout_latest_result,
+            &stderr_latest_result,
+        );
 
-        if is_running_app {
-            thread::spawn(move || {
-                let (output_result_items, stdout_result_items, stderr_result_items) =
-                    gen_result_items(
-                        _result,
-                        enable_summary_char,
-                        &latest_result.clone(),
-                        &stdout_latest_result,
-                        &stderr_latest_result,
-                    );
-
-                let _ = tx.send(AppEvent::HistoryUpdate(
-                    (
-                        output_result_items,
-                        stdout_result_items,
-                        stderr_result_items,
-                    ),
-                    is_running_app,
-                ));
-            });
-        } else {
-            let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
-                _result,
-                enable_summary_char,
-                &latest_result,
-                &stdout_latest_result,
-                &stderr_latest_result,
-            );
-
-            let _ = self.update_result(
-                output_result_items,
-                stdout_result_items,
-                stderr_result_items,
-                is_running_app,
-            );
-        }
+        let _ = self.update_result(
+            output_result_items,
+            stdout_result_items,
+            stderr_result_items,
+            is_running_app,
+        );
 
         true
     }
@@ -1085,6 +1119,8 @@ impl App<'_> {
             let before_result: CommandResult = self.results[&latest_num].command_result.clone();
             let after_result = output_result_items.command_result.clone();
 
+            let after_command_result_write_file = self.after_command_result_write_file;
+
             {
                 thread::spawn(move || {
                     exec_after_command(
@@ -1092,6 +1128,7 @@ impl App<'_> {
                         after_command.clone(),
                         before_result,
                         after_result,
+                        after_command_result_write_file,
                     );
                 });
             }
@@ -1113,38 +1150,37 @@ impl App<'_> {
             let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
+        let support_only_diffline: bool;
+        support_only_diffline = self.diff_modes[self.diff_mode]
+            .lock()
+            .unwrap()
+            .get_support_only_diffline();
+
         // update HistoryArea
         let mut is_push = true;
         if self.is_filtered {
-            let result_text = match (self.output_mode, self.diff_mode, self.is_only_diffline) {
+            let result_text = match (
+                self.output_mode,
+                support_only_diffline,
+                self.is_only_diffline,
+            ) {
                 // Diff Only
-                (
-                    OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr,
-                    DiffMode::Line | DiffMode::Word,
-                    true,
-                ) => self.results[&result_index].get_diff_only_data(self.ansi_color),
+                (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
+                    self.results[&result_index].get_diff_only_data(self.ansi_color)
+                }
 
                 // Output
-                (OutputMode::Output, DiffMode::Disable | DiffMode::Watch, _) => {
-                    self.results[&result_index].command_result.get_output()
-                }
-                (OutputMode::Output, DiffMode::Line | DiffMode::Word, false) => {
+                (OutputMode::Output, _, _) => {
                     self.results[&result_index].command_result.get_output()
                 }
 
                 // Stdout
-                (OutputMode::Stdout, DiffMode::Disable | DiffMode::Watch, _) => {
-                    self.results[&result_index].command_result.get_stdout()
-                }
-                (OutputMode::Stdout, DiffMode::Line | DiffMode::Word, false) => {
+                (OutputMode::Stdout, _, _) => {
                     self.results[&result_index].command_result.get_stdout()
                 }
 
                 // Stderr
-                (OutputMode::Stderr, DiffMode::Disable | DiffMode::Watch, _) => {
-                    self.results[&result_index].command_result.get_stderr()
-                }
-                (OutputMode::Stderr, DiffMode::Line | DiffMode::Word, false) => {
+                (OutputMode::Stderr, _, _) => {
                     self.results[&result_index].command_result.get_stderr()
                 }
             };
@@ -1197,6 +1233,30 @@ impl App<'_> {
         true
     }
 
+    fn handle_exit_on_change(&mut self, changed: bool) {
+        if self.exit_on_change.is_none() {
+            return;
+        }
+
+        if !self.exit_on_change_armed {
+            self.exit_on_change_armed = true;
+            return;
+        }
+
+        if !changed {
+            return;
+        }
+
+        if let Some(remaining) = self.exit_on_change.as_mut() {
+            if *remaining > 0 {
+                *remaining -= 1;
+            }
+            if *remaining == 0 {
+                self.done = true;
+            }
+        }
+    }
+
     /// Insert CommandResult into the results of each output mode.
     /// The return value is `result_index` and a bool indicating whether stdout/stderr has changed.
     /// Returns true if there is a change in stdout/stderr.
@@ -1216,7 +1276,11 @@ impl App<'_> {
             .get_stdout();
         let result_stdout = &stdout_result_items.command_result.get_stdout();
         let mut is_stdout_update = false;
-        if before_result_stdout != result_stdout {
+        if !text_eq_ignoring_space_blocks(
+            before_result_stdout,
+            result_stdout,
+            self.ignore_spaceblock,
+        ) {
             is_stdout_update = true;
             self.results_stdout
                 .insert(result_index, stdout_result_items);
@@ -1229,7 +1293,11 @@ impl App<'_> {
             .get_stderr();
         let result_stderr = &stderr_result_items.command_result.get_stderr();
         let mut is_stderr_update = false;
-        if before_result_stderr != result_stderr {
+        if !text_eq_ignoring_space_blocks(
+            before_result_stderr,
+            result_stderr,
+            self.ignore_spaceblock,
+        ) {
             is_stderr_update = true;
             self.results_stderr
                 .insert(result_index, stderr_result_items);
@@ -1434,14 +1502,14 @@ impl App<'_> {
                             self.set_scroll_bar(!self.is_scroll_bar);
                         } // ToggleBorderWithScrollBar
                         InputAction::ToggleDiffMode => self.toggle_diff_mode(), // ToggleDiffMode
-                        InputAction::SetDiffModePlane => self.set_diff_mode(DiffMode::Disable), // SetDiffModePlane
-                        InputAction::SetDiffModeWatch => self.set_diff_mode(DiffMode::Watch), // SetDiffModeWatch
-                        InputAction::SetDiffModeLine => self.set_diff_mode(DiffMode::Line), // SetDiffModeLine
-                        InputAction::SetDiffModeWord => self.set_diff_mode(DiffMode::Word), // SetDiffModeWord
+                        InputAction::SetDiffModePlane => self.set_diff_mode(0), // SetDiffModePlane
+                        InputAction::SetDiffModeWatch => self.set_diff_mode(1), // SetDiffModeWatch
+                        InputAction::SetDiffModeLine => self.set_diff_mode(2),  // SetDiffModeLine
+                        InputAction::SetDiffModeWord => self.set_diff_mode(3),  // SetDiffModeWord
                         InputAction::SetDiffOnly => {
                             self.set_is_only_diffline(!self.is_only_diffline)
                         } // SetOnlyDiffLine
-                        InputAction::ToggleOutputMode => self.toggle_output(), // ToggleOutputMode
+                        InputAction::ToggleOutputMode => self.toggle_output(),  // ToggleOutputMode
                         InputAction::SetOutputModeOutput => {
                             self.set_output_mode(OutputMode::Output)
                         } // SetOutputModeOutput
@@ -1661,12 +1729,12 @@ impl App<'_> {
 
     ///
     fn toggle_diff_mode(&mut self) {
-        match self.diff_mode {
-            DiffMode::Disable => self.set_diff_mode(DiffMode::Watch),
-            DiffMode::Watch => self.set_diff_mode(DiffMode::Line),
-            DiffMode::Line => self.set_diff_mode(DiffMode::Word),
-            DiffMode::Word => self.set_diff_mode(DiffMode::Disable),
-        }
+        self.diff_mode = if self.diff_mode + 1 > self.diff_modes.len() - 1 {
+            0
+        } else {
+            self.diff_mode + 1
+        };
+        self.set_diff_mode(self.diff_mode);
     }
 
     ///
@@ -1831,8 +1899,7 @@ impl App<'_> {
         self.history_area.next(1);
 
         // get now selected history
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -2255,13 +2322,17 @@ fn retain_selected_and_latest_result_only(
 fn gen_result_items(
     _result: CommandResult,
     enable_summary_char: bool,
+    ignore_spaceblock: bool,
     output_latest_result: &CommandResult,
     stdout_latest_result: &CommandResult,
     stderr_latest_result: &CommandResult,
 ) -> (ResultItems, ResultItems, ResultItems) {
     // create output ResultItems
-    let output_diff_only_data =
-        gen_diff_only_data(&output_latest_result.get_output(), &_result.get_output());
+    let output_diff_only_data = gen_diff_only_data(
+        &output_latest_result.get_output(),
+        &_result.get_output(),
+        ignore_spaceblock,
+    );
     let mut output_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2271,11 +2342,15 @@ fn gen_result_items(
         &output_latest_result.get_output(),
         &output_result_items.command_result.get_output(),
         enable_summary_char,
+        ignore_spaceblock,
     );
 
     // create stdout ResultItems
-    let stdout_diff_only_data =
-        gen_diff_only_data(&output_latest_result.get_stdout(), &_result.get_stdout());
+    let stdout_diff_only_data = gen_diff_only_data(
+        &stdout_latest_result.get_stdout(),
+        &_result.get_stdout(),
+        ignore_spaceblock,
+    );
     let mut stdout_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2285,11 +2360,15 @@ fn gen_result_items(
         &stdout_latest_result.get_stdout(),
         &stdout_result_items.command_result.get_stdout(),
         enable_summary_char,
+        ignore_spaceblock,
     );
 
     // create stderr ResultItems
-    let stderr_diff_only_data =
-        gen_diff_only_data(&output_latest_result.get_stderr(), &_result.get_stderr());
+    let stderr_diff_only_data = gen_diff_only_data(
+        &stderr_latest_result.get_stderr(),
+        &_result.get_stderr(),
+        ignore_spaceblock,
+    );
     let mut stderr_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2299,10 +2378,9 @@ fn gen_result_items(
         &stderr_latest_result.get_stderr(),
         &stderr_result_items.command_result.get_stderr(),
         enable_summary_char,
+        ignore_spaceblock,
     );
 
-    // TODO: is_appじゃない場合、tx.sendじゃないやり方で追加する方法を考える必要がありそう？？ → 呼び出し元で処理をさせるようにする？？？(log load時にうまく動作しない原因がこれ)
-    // let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
     (
         output_result_items,
         stdout_result_items,
@@ -2310,10 +2388,56 @@ fn gen_result_items(
     )
 }
 
-fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
+fn is_retryable_terminal_error(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+
+    normalized.contains("wouldblock")
+        || normalized.contains("would block")
+        || normalized.contains("interrupted")
+        || normalized.contains("resource temporarily unavailable")
+        || normalized.contains("temporarily unavailable")
+        || normalized.contains("operation interrupted")
+}
+
+fn command_results_equivalent(
+    before: &CommandResult,
+    after: &CommandResult,
+    ignore_spaceblock: bool,
+) -> bool {
+    before.command == after.command
+        && before.status == after.status
+        && text_eq_ignoring_space_blocks(
+            &before.get_output(),
+            &after.get_output(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stdout(),
+            &after.get_stdout(),
+            ignore_spaceblock,
+        )
+        && text_eq_ignoring_space_blocks(
+            &before.get_stderr(),
+            &after.get_stderr(),
+            ignore_spaceblock,
+        )
+}
+
+fn gen_diff_only_data(before: &str, after: &str, ignore_spaceblock: bool) -> Vec<u8> {
     let mut diff_only_data = vec![];
 
-    let diff_set = TextDiff::from_lines(before, after);
+    let before = if ignore_spaceblock {
+        hwatch_diffmode::normalize_space_blocks(before)
+    } else {
+        before.to_string()
+    };
+    let after = if ignore_spaceblock {
+        hwatch_diffmode::normalize_space_blocks(after)
+    } else {
+        after.to_string()
+    };
+
+    let diff_set = TextDiff::from_lines(&before, &after);
     for op in diff_set.ops() {
         for change in diff_set.iter_changes(op) {
             match change.tag() {
@@ -2327,4 +2451,164 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
     }
 
     diff_only_data
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossbeam_channel::unbounded;
+    use std::io::{self, Write};
+    use std::sync::RwLock;
+    use tui::{
+        backend::{Backend, ClearType, TestBackend, WindowSize},
+        buffer::Cell,
+        layout::{Position, Size},
+    };
+
+    use crate::diffmode_plane::DiffModeAtPlane;
+    use crate::RunInterval;
+
+    struct FlakyTestBackend {
+        inner: TestBackend,
+        fail_next_draw: bool,
+    }
+
+    impl FlakyTestBackend {
+        fn new(width: u16, height: u16) -> Self {
+            Self {
+                inner: TestBackend::new(width, height),
+                fail_next_draw: true,
+            }
+        }
+    }
+
+    impl Write for FlakyTestBackend {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Backend for FlakyTestBackend {
+        type Error = io::Error;
+
+        fn draw<'a, I>(&mut self, content: I) -> Result<(), Self::Error>
+        where
+            I: Iterator<Item = (u16, u16, &'a Cell)>,
+        {
+            if self.fail_next_draw {
+                self.fail_next_draw = false;
+                return Err(io::Error::from(io::ErrorKind::WouldBlock));
+            }
+
+            match self.inner.draw(content) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn hide_cursor(&mut self) -> Result<(), Self::Error> {
+            match self.inner.hide_cursor() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn show_cursor(&mut self) -> Result<(), Self::Error> {
+            match self.inner.show_cursor() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn get_cursor_position(&mut self) -> Result<Position, Self::Error> {
+            match self.inner.get_cursor_position() {
+                Ok(position) => Ok(position),
+                Err(err) => match err {},
+            }
+        }
+
+        fn set_cursor_position<P: Into<Position>>(
+            &mut self,
+            position: P,
+        ) -> Result<(), Self::Error> {
+            match self.inner.set_cursor_position(position) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn clear(&mut self) -> Result<(), Self::Error> {
+            match self.inner.clear() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn clear_region(&mut self, clear_type: ClearType) -> Result<(), Self::Error> {
+            match self.inner.clear_region(clear_type) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn append_lines(&mut self, line_count: u16) -> Result<(), Self::Error> {
+            match self.inner.append_lines(line_count) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn size(&self) -> Result<Size, Self::Error> {
+            match self.inner.size() {
+                Ok(size) => Ok(size),
+                Err(err) => match err {},
+            }
+        }
+
+        fn window_size(&mut self) -> Result<WindowSize, Self::Error> {
+            match self.inner.window_size() {
+                Ok(size) => Ok(size),
+                Err(err) => match err {},
+            }
+        }
+
+        fn flush(&mut self) -> Result<(), Self::Error> {
+            match self.inner.flush() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+    }
+
+    fn test_diff_modes() -> Vec<Arc<Mutex<Box<dyn DiffMode>>>> {
+        vec![Arc::new(Mutex::new(Box::new(DiffModeAtPlane::new())))]
+    }
+
+    #[test]
+    fn retryable_terminal_errors_match_expected_messages() {
+        assert!(is_retryable_terminal_error("WouldBlock"));
+        assert!(is_retryable_terminal_error("operation would block"));
+        assert!(is_retryable_terminal_error(
+            "Resource temporarily unavailable (os error 35)"
+        ));
+        assert!(is_retryable_terminal_error("operation interrupted"));
+        assert!(!is_retryable_terminal_error("permission denied"));
+    }
+
+    #[test]
+    fn run_retries_retryable_draw_errors() {
+        let (tx, rx) = unbounded();
+        let interval = Arc::new(RwLock::new(RunInterval::default()));
+        let mut app = App::new(tx.clone(), rx, interval, test_diff_modes(), 0);
+        let mut terminal = Terminal::new(FlakyTestBackend::new(80, 24)).unwrap();
+
+        tx.send(AppEvent::Exit).unwrap();
+
+        let result = app.run(&mut terminal);
+        assert!(result.is_ok(), "unexpected run() error: {result:?}");
+    }
 }

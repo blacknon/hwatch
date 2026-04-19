@@ -48,7 +48,7 @@ impl HistorySummary {
         }
     }
 
-    pub fn calc(&mut self, src: &str, dest: &str, enable_char_diff: bool) {
+    pub fn calc(&mut self, src: &str, dest: &str, enable_char_diff: bool, ignore_spaceblock: bool) {
         // reset
         self.line_add = 0;
         self.line_rem = 0;
@@ -62,7 +62,18 @@ impl HistorySummary {
         let char_rem = Arc::new(Mutex::new(0));
 
         // 行単位の差分
-        let line_diff = TextDiff::from_lines(src, dest);
+        let src = if ignore_spaceblock {
+            hwatch_diffmode::normalize_space_blocks(src)
+        } else {
+            src.to_string()
+        };
+        let dest = if ignore_spaceblock {
+            hwatch_diffmode::normalize_space_blocks(dest)
+        } else {
+            dest.to_string()
+        };
+
+        let line_diff = TextDiff::from_lines(&src, &dest);
 
         // 行ごとの変更を処理し、変更が発生した行だけ文字単位の差分を計算
         line_diff.ops().par_iter().for_each(|l_op| {
@@ -555,5 +566,119 @@ impl HistoryArea {
         if select_num < self.data.len() {
             self.state.select(Some(select_num + first_row));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn history_summary_calc_counts_line_changes_without_char_diff() {
+        let mut summary = HistorySummary::init();
+        summary.calc("alpha\nbeta\n", "alpha\ngamma\n", false, false);
+
+        assert_eq!(summary.line_add, 1);
+        assert_eq!(summary.line_rem, 1);
+        assert_eq!(summary.char_add, 0);
+        assert_eq!(summary.char_rem, 0);
+    }
+
+    #[test]
+    fn history_summary_calc_counts_character_changes_when_enabled() {
+        let mut summary = HistorySummary::init();
+        summary.calc("abc\n", "adc\n", true, false);
+
+        assert_eq!(summary.line_add, 1);
+        assert_eq!(summary.line_rem, 1);
+        assert_eq!(summary.char_add, 1);
+        assert_eq!(summary.char_rem, 1);
+    }
+
+    #[test]
+    fn calc_char_diff_handles_replace_blocks() {
+        let diff = TextDiff::from_lines("kitten\n", "sitten\n");
+        let (char_add, char_rem) = calc_char_diff(diff.iter_all_changes().collect());
+
+        assert_eq!((char_add, char_rem), (1, 1));
+    }
+
+    #[test]
+    fn history_summary_ignores_whitespace_amount_when_enabled() {
+        let mut summary = HistorySummary::init();
+        summary.calc("alpha  beta\n", "alpha   beta\n", true, true);
+
+        assert_eq!(summary.line_add, 0);
+        assert_eq!(summary.line_rem, 0);
+        assert_eq!(summary.char_add, 0);
+        assert_eq!(summary.char_rem, 0);
+    }
+
+    #[test]
+    fn history_area_update_delete_and_selection_follow_history_numbers() {
+        let mut area = HistoryArea::new();
+        let summary = HistorySummary {
+            line_add: 1,
+            line_rem: 2,
+            char_add: 3,
+            char_rem: 4,
+        };
+
+        area.update(
+            "2026-04-08 12:00:00.000".to_string(),
+            false,
+            5,
+            summary.clone(),
+        );
+        area.update("2026-04-08 12:00:01.000".to_string(), true, 6, summary);
+        area.set_state_select(5);
+
+        assert_eq!(area.get_history_size(), 3);
+        assert_eq!(area.get_results_latest_index(), 6);
+        assert_eq!(area.get_state_select(), 5);
+
+        area.delete(5);
+
+        assert_eq!(area.get_history_size(), 2);
+        assert_eq!(area.get_state_select(), 0);
+    }
+
+    #[test]
+    fn history_area_next_and_previous_stay_within_bounds() {
+        let mut area = HistoryArea::new();
+        let summary = HistorySummary::init();
+        area.update(
+            "2026-04-08 12:00:00.000".to_string(),
+            true,
+            1,
+            summary.clone(),
+        );
+        area.update("2026-04-08 12:00:01.000".to_string(), true, 2, summary);
+
+        area.set_state_select(2);
+        area.next(1);
+        assert_eq!(area.get_state_select(), 0);
+
+        area.previous(10);
+        assert_eq!(area.get_state_select(), 1);
+    }
+
+    #[test]
+    fn history_area_click_row_accounts_for_summary_rows() {
+        let mut area = HistoryArea::new();
+        let summary = HistorySummary::init();
+        area.update(
+            "2026-04-08 12:00:00.000".to_string(),
+            true,
+            1,
+            summary.clone(),
+        );
+        area.update("2026-04-08 12:00:01.000".to_string(), true, 2, summary);
+        area.set_summary(true);
+        area.set_enable_char_diff(true);
+
+        area.click_row(4);
+
+        assert_eq!(area.get_state_select(), 1);
     }
 }

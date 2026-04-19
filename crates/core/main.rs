@@ -1,18 +1,43 @@
+#![allow(clippy::arc_with_non_send_sync)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::collapsible_match)]
+#![allow(clippy::empty_docs)]
+#![allow(clippy::explicit_counter_loop)]
+#![allow(clippy::extra_unused_lifetimes)]
+#![allow(clippy::io_other_error)]
+#![allow(clippy::items_after_test_module)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::needless_late_init)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::redundant_field_names)]
+#![allow(clippy::single_char_add_str)]
+#![allow(clippy::unnecessary_sort_by)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::wrong_self_convention)]
+
 // Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
 // v0.4.0
-// TODO(blacknon): DiffModeをInterfaceで取り扱うようにし、historyへの追加や検索時のhitなどについてもInterface側で取り扱えるようにする。
-//                 - DiffModeのPlugin化の布石としての対応
-//                 - これができたら、数字ごとの差分をわかりやすいように表示させたり、jsonなどの形式が決まってる場合にはそこだけdiffさせるような仕組みにも簡単に対応できると想定
-// TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
+// v0.4.1
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): watchをモダンよりのものに変更する
+
+// v0.5.0
+// TODO(blacknon):
+//   横に2画面表示するモードの追加
+//     - diff modeの一種か？？
+//     - 既存のモードとは違う種類のモードとして、カテゴリを分けて扱うべきかも？
+//     - ウィンドウは2個にして、スクロールは連動させる必要がある
+//     - 2画面のうち、左は前回の出力、右は今回の出力を表示するモードにする
+//     - イメージ的にはdiff -yやvimのvertical diffみたいな感じである。
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
@@ -44,10 +69,15 @@ extern crate regex;
 extern crate serde;
 extern crate shell_words;
 extern crate similar;
+extern crate tempfile;
 extern crate termwiz;
 extern crate tokio;
 extern crate unicode_segmentation;
 extern crate unicode_width;
+
+// local crate
+extern crate hwatch_ansi;
+extern crate hwatch_diffmode;
 
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 extern crate termios;
@@ -62,22 +92,27 @@ extern crate serde_json;
 
 // modules
 use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
-use common::{load_logfile, DiffMode};
+use common::load_logfile;
 use crossbeam_channel::unbounded;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
+use hwatch_diffmode::DiffMode;
 use question::{Answer, Question};
+use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::ffi::OsString;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
+use unicode_width::UnicodeWidthStr;
 
 // local modules
-mod ansi;
 mod app;
 mod batch;
 mod common;
+mod diffmode_line;
+mod diffmode_plane;
+mod diffmode_watch;
 mod errors;
 mod event;
 mod exec;
@@ -86,6 +121,7 @@ mod help;
 mod history;
 mod keymap;
 mod output;
+mod plugin_diffmode;
 mod popup;
 mod view;
 mod watch;
@@ -182,6 +218,17 @@ fn build_app() -> clap::Command {
                 .short('B')
                 .action(ArgAction::SetTrue)
                 .long("beep"),
+        )
+        // exit on change option
+        //     [-g,--chgexit[=COUNT]]
+        .arg(
+            Arg::new("chgexit")
+                .help("exit when output changes. With no value, exits after the first change; with N, exits after N changes")
+                .short('g')
+                .long("chgexit")
+                .num_args(0..=1)
+                .default_missing_value("1")
+                .value_parser(clap::value_parser!(u32)),
         )
         // border option
         //     [--border]
@@ -325,7 +372,12 @@ fn build_app() -> clap::Command {
                 .action(ArgAction::SetTrue),
 
         )
-
+        .arg(
+            Arg::new("ignore_spaceblock")
+                .help("Ignore diffs where only consecutive whitespace blocks differ.")
+                .long("ignore-spaceblock")
+                .action(ArgAction::SetTrue),
+        )
         // -- options --
         // Option to specify the command to be executed when the output fluctuates.
         //     [-A,--aftercommand]
@@ -336,6 +388,15 @@ fn build_app() -> clap::Command {
                 .long("aftercommand")
                 .value_hint(ValueHint::CommandString)
                 .action(ArgAction::Append)
+        )
+        // Option to specify how to pass the change information to `aftercommand`.
+        //     [--after-command-result-write-file]
+        .arg(
+            Arg::new("after_command_result_write_file")
+                .help("Passes `${HWATCH_DATA}` to `aftercommand` as a temporary file path instead of inline json data.")
+                .long("after-command-result-write-file")
+                .requires("after_command")
+                .action(ArgAction::SetTrue),
         )
         // Logging option
         //   [--logfile,-l] /path/to/logfile
@@ -407,12 +468,18 @@ fn build_app() -> clap::Command {
         //   [--differences,-d] [none, watch, line, word]
         // NOTE: `normalize_args` is preprocessed so that `watch` is selected if no value is set for this option.
         .arg(
+            Arg::new("diff_plugin")
+                .help("Load a diffmode plugin dynamic library.")
+                .long("diff-plugin")
+                .value_hint(ValueHint::FilePath)
+                .action(ArgAction::Append),
+        )
+        .arg(
             Arg::new("differences")
                 .help("highlight changes between updates")
                 .long("differences")
                 .short('d')
                 .num_args(0..=1)
-                .value_parser(["none", "watch", "line", "word"])
                 .default_missing_value("watch")
                 .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
                 .action(ArgAction::Append),
@@ -442,8 +509,40 @@ fn build_app() -> clap::Command {
 
 /// Normalize options in args.
 /// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
+fn collect_known_diff_mode_names(args: &[OsString]) -> HashSet<String> {
+    let mut modes = HashSet::from([
+        "none".to_string(),
+        "watch".to_string(),
+        "line".to_string(),
+        "word".to_string(),
+    ]);
+
+    let mut index = 0;
+    while index < args.len() {
+        let arg = args[index].to_string_lossy();
+        let plugin_path = if arg == "--diff-plugin" {
+            index += 1;
+            args.get(index)
+                .map(|value| value.to_string_lossy().into_owned())
+        } else {
+            arg.strip_prefix("--diff-plugin=")
+                .map(|value| value.to_string())
+        };
+
+        if let Some(plugin_path) = plugin_path {
+            if let Ok(registration) = plugin_diffmode::load_plugin(Path::new(&plugin_path)) {
+                modes.insert(registration.name);
+            }
+        }
+
+        index += 1;
+    }
+
+    modes
+}
+
 fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
-    const DIFF_MODES: [&str; 4] = ["none", "watch", "line", "word"];
+    let known_diff_modes = collect_known_diff_mode_names(&args);
     let mut normalized = Vec::with_capacity(args.len() + 1);
     let mut iter = args.into_iter();
 
@@ -464,7 +563,7 @@ fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
             match iter.next() {
                 Some(next) => {
                     let next_value = next.to_string_lossy();
-                    if DIFF_MODES.contains(&next_value.as_ref()) {
+                    if known_diff_modes.contains(next_value.as_ref()) {
                         normalized.push(next);
                     } else {
                         normalized.push(OsString::from("watch"));
@@ -472,6 +571,25 @@ fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
                     }
                 }
                 None => normalized.push(OsString::from("watch")),
+            }
+
+            continue;
+        }
+
+        if arg == "-g" || arg == "--chgexit" {
+            normalized.push(arg);
+
+            match iter.next() {
+                Some(next) => {
+                    let next_value = next.to_string_lossy();
+                    if next_value.parse::<u32>().is_ok() {
+                        normalized.push(next);
+                    } else {
+                        normalized.push(OsString::from("1"));
+                        normalized.push(next);
+                    }
+                }
+                None => normalized.push(OsString::from("1")),
             }
 
             continue;
@@ -607,9 +725,11 @@ fn main() {
     let batch = matcher.get_flag("batch");
     let compress = matcher.get_flag("compress");
     let precise = matcher.get_flag("precise");
+    let exit_on_change = matcher.get_one::<u32>("chgexit").copied();
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
+    let after_command_result_write_file = matcher.get_flag("after_command_result_write_file");
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
@@ -702,19 +822,6 @@ fn main() {
         "stdout" => common::OutputMode::Stdout,
         "stderr" => common::OutputMode::Stderr,
         _ => common::OutputMode::Output,
-    };
-
-    // diff mode
-    let diff_mode = if matcher.contains_id("differences") {
-        match matcher.get_one::<String>("differences").unwrap().as_str() {
-            "none" => DiffMode::Disable,
-            "watch" => DiffMode::Watch,
-            "line" => DiffMode::Line,
-            "word" => DiffMode::Word,
-            _ => DiffMode::Disable,
-        }
-    } else {
-        DiffMode::Disable
     };
 
     // Get Add keymap
@@ -833,6 +940,84 @@ fn main() {
         });
     }
 
+    let mut diff_mode_name_to_index: HashMap<String, usize> = HashMap::new();
+
+    // create diff_mode(plane)
+    let diff_mode_plane = diffmode_plane::DiffModeAtPlane::new();
+
+    // create diff_mode(watch)
+    let diff_mode_watch = diffmode_watch::DiffModeAtWatch::new();
+
+    // create diff_mode(line)
+    let mut diff_mode_line = diffmode_line::DiffModeAtLineDiff::new();
+    diff_mode_line.is_word_highlight = false;
+
+    // create diff_mode(word)
+    let mut diff_mode_word = diffmode_line::DiffModeAtLineDiff::new();
+    diff_mode_word.is_word_highlight = true;
+
+    // set diff_modes
+    let mut diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> = vec![
+        Arc::new(Mutex::new(Box::new(diff_mode_plane))),
+        Arc::new(Mutex::new(Box::new(diff_mode_watch))),
+        Arc::new(Mutex::new(Box::new(diff_mode_line))),
+        Arc::new(Mutex::new(Box::new(diff_mode_word))),
+    ];
+
+    for (index, name) in ["none", "watch", "line", "word"].into_iter().enumerate() {
+        diff_mode_name_to_index.insert(name.to_string(), index);
+    }
+
+    if let Some(plugin_paths) = matcher.get_many::<String>("diff_plugin") {
+        for plugin_path in plugin_paths {
+            let plugin_path = Path::new(plugin_path);
+            let registration = match plugin_diffmode::load_plugin(plugin_path) {
+                Ok(registration) => registration,
+                Err(message) => {
+                    let err = cmd_app.error(ErrorKind::Io, message);
+                    err.exit();
+                }
+            };
+
+            let plugin_name = registration.name;
+            if diff_mode_name_to_index.contains_key(&plugin_name) {
+                let err = cmd_app.error(
+                    ErrorKind::ArgumentConflict,
+                    format!("duplicate diff mode name: '{plugin_name}'"),
+                );
+                err.exit();
+            }
+
+            let index = diff_modes.len();
+            diff_modes.push(Arc::new(Mutex::new(registration.mode)));
+            diff_mode_name_to_index.insert(plugin_name, index);
+        }
+    }
+
+    // diff mode
+    let diff_mode = if matcher.contains_id("differences") {
+        let requested = matcher.get_one::<String>("differences").unwrap();
+        match diff_mode_name_to_index.get(requested) {
+            Some(index) => *index,
+            None => {
+                let available = diff_mode_name_to_index
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let err = cmd_app.error(
+                    ErrorKind::InvalidValue,
+                    format!("unknown diff mode '{requested}'. Available: {available}"),
+                );
+                err.exit();
+            }
+        }
+    } else {
+        0
+    };
+
+    let diff_mode_width = calculate_diff_mode_header_width(&diff_modes);
+
     // check batch mode
     if !batch {
         // On Windows, Ctrl+C can be delivered as a process signal before key input is read.
@@ -849,10 +1034,11 @@ fn main() {
 
         // is watch mode
         // Create view
-        let mut view = view::View::new(shared_interval.clone())
+        let mut view = view::View::new(shared_interval.clone(), diff_modes)
             .set_tab_size(tab_size)
             .set_limit(*limit)
             .set_beep(matcher.get_flag("beep"))
+            .set_exit_on_change(exit_on_change)
             .set_border(matcher.get_flag("border"))
             .set_scroll_bar(matcher.get_flag("with_scrollbar"))
             .set_mouse_events(matcher.get_flag("mouse"))
@@ -872,7 +1058,9 @@ fn main() {
             .set_output_mode(output_mode)
             // Set diff(watch diff) in view
             .set_diff_mode(diff_mode)
+            .set_diff_mode_width(diff_mode_width)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
+            .set_ignore_spaceblock(matcher.get_flag("ignore_spaceblock"))
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
             .set_show_ui(!matcher.get_flag("no_title"))
@@ -886,19 +1074,23 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             view = view.set_after_command(after_command.to_string());
+            view = view.set_after_command_result_write_file(after_command_result_write_file);
         }
 
         // start app.
         let _res = view.start(tx, rx, load_results);
     } else {
         // is batch mode
-        let mut batch = batch::Batch::new(rx)
+        let mut batch = batch::Batch::new(rx, diff_modes)
             .set_beep(matcher.get_flag("beep"))
+            .set_color(matcher.get_flag("color"))
+            .set_exit_on_change(exit_on_change)
             .set_output_mode(output_mode)
             .set_diff_mode(diff_mode)
             .set_line_number(matcher.get_flag("line_number"))
             .set_reverse(matcher.get_flag("reverse"))
-            .set_only_diffline(matcher.get_flag("diff_output_only"));
+            .set_only_diffline(matcher.get_flag("diff_output_only"))
+            .set_ignore_spaceblock(matcher.get_flag("ignore_spaceblock"));
 
         // Set logfile
         if let Some(logfile) = logfile {
@@ -908,11 +1100,29 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             batch = batch.set_after_command(after_command.to_string());
+            batch = batch.set_after_command_result_write_file(after_command_result_write_file);
         }
 
         // start batch.
         let _res = batch.run();
     }
+}
+
+fn calculate_diff_mode_header_width(diff_modes: &[Arc<Mutex<Box<dyn DiffMode>>>]) -> usize {
+    let mut max_width = 0;
+
+    for diff_mode in diff_modes {
+        let mut diff_mode = diff_mode.lock().unwrap();
+        for only_diffline in [false, true] {
+            let mut options = hwatch_diffmode::DiffModeOptions::new();
+            options.set_only_diffline(only_diffline);
+            diff_mode.set_option(options);
+            let header_text = diff_mode.get_header_text();
+            max_width = max_width.max(UnicodeWidthStr::width(header_text.as_str()));
+        }
+    }
+
+    max_width
 }
 #[cfg(test)]
 mod tests {
@@ -932,6 +1142,17 @@ mod tests {
         actual.toggle_pause();
         assert!(!actual.paused);
         assert_eq!(actual.interval, 3.0);
+    }
+
+    #[test]
+    /// Test that decreasing the interval does not go below zero and does not cause underflow.
+    fn run_interval_decrease_does_not_go_below_threshold() {
+        let mut actual = RunInterval::new(1.0);
+        actual.decrease(1.0);
+        actual.decrease(2.0);
+
+        assert_eq!(actual.interval, 1.0);
+        assert!(!actual.paused);
     }
 
     #[test]
@@ -980,5 +1201,46 @@ mod tests {
             actual,
             vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
         );
+    }
+
+    #[test]
+    fn clap_parses_chgexit_without_value_as_one() {
+        let args = vec!["hwatch", "-g", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        let matches = build_app()
+            .try_get_matches_from(normalize_args(args))
+            .unwrap();
+
+        assert_eq!(matches.get_one::<u32>("chgexit"), Some(&1));
+    }
+
+    #[test]
+    fn clap_parses_chgexit_with_explicit_count() {
+        let args = vec!["hwatch", "-g", "3", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        let matches = build_app()
+            .try_get_matches_from(normalize_args(args))
+            .unwrap();
+
+        assert_eq!(matches.get_one::<u32>("chgexit"), Some(&3));
+    }
+
+    #[test]
+    fn normalize_args_inserts_default_count_for_chgexit() {
+        let args = vec!["hwatch", "-g", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-g", "1", "echo", "hi"]);
     }
 }
