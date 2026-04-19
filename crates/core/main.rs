@@ -1,3 +1,22 @@
+#![allow(clippy::arc_with_non_send_sync)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::collapsible_match)]
+#![allow(clippy::empty_docs)]
+#![allow(clippy::explicit_counter_loop)]
+#![allow(clippy::extra_unused_lifetimes)]
+#![allow(clippy::io_other_error)]
+#![allow(clippy::items_after_test_module)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::needless_late_init)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::redundant_field_names)]
+#![allow(clippy::single_char_add_str)]
+#![allow(clippy::unnecessary_sort_by)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::wrong_self_convention)]
+
 // Copyright (c) 2026 Blacknon. All rights reserved.
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.

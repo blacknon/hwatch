@@ -221,7 +221,7 @@ impl Default for DiffModeOptions {
 }
 
 /// DiffMode
-pub trait DiffMode {
+pub trait DiffMode: Send {
     // generate and return diff watch window result.
     fn generate_watch_diff(&mut self, dest: &str, src: &str) -> Vec<Line<'static>>;
 
