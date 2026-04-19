@@ -373,7 +373,7 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
     #[cfg(unix)]
     let mut stdin_master: Option<OwnedFd> = None;
     #[cfg(not(unix))]
-    let mut stdin_master: Option<()> = None;
+    let stdin_master: Option<()> = None;
 
     let stdout_reader;
     let stderr_reader;

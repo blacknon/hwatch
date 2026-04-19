@@ -18,6 +18,9 @@ on:
       - "package/**"
       - "LICENSE"
 
+permissions:
+  contents: write
+
 jobs:
   # build rust binary
   build:
@@ -72,40 +75,29 @@ jobs:
         id: package_version
         shell: bash
         run: |
-          VERSION="$(cargo run --example version)"
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
 
       - name: Cache cargo index
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
 
       - name: Cache cargo build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: setup rust
-        uses: actions-rs/toolchain@v1
-        if: matrix.ext != 'rpm'
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install rpmbuild
         if: matrix.ext == 'rpm'
@@ -113,13 +105,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y rpm
 
+      - name: Add Rust target
+        if: matrix.ext != 'rpm'
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.ext != 'rpm' && runner.os == 'Linux' && matrix.target != 'x86_64-unknown-linux-gnu'
+        run: cargo install cross --locked
+
       - name: Build binary
         if: matrix.ext != 'rpm'
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target=${{ matrix.target }}
-          use-cross: true
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" && "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]]; then
+            cross build --release --target=${{ matrix.target }}
+          else
+            cargo build --release --target=${{ matrix.target }}
+          fi
 
       - name: Create package file
         if: ${{ (matrix.ext == 'tar.gz') || (matrix.ext == 'deb') }}
@@ -178,7 +180,7 @@ jobs:
 
       - name: Upload artifact
         if: matrix.ext == 'rpm'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
@@ -190,21 +192,21 @@ jobs:
 
       - name: Upload artifact
         if: matrix.ext == 'deb'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
 
       - name: Upload artifact
         if: matrix.ext == 'tar.gz'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
 
       - name: Upload artifact
         if: matrix.ext == 'zip'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
@@ -216,7 +218,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.package_version.outputs.version }}
-      upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
       - uses: actions/checkout@v5
 
@@ -224,26 +225,19 @@ jobs:
         name: Get version.
         shell: bash
         run: |
-          VERSION="$(cargo run --example version)"
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - id: create-release
-        uses: actions/create-release@v1
+      - name: Create draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.package_version.outputs.version }}
-          release_name: Version ${{ steps.package_version.outputs.version }}
-          draft: true
-          prerelease: false
-
-      - run: |
-          echo '${{ steps.create-release.outputs.upload_url }}' > release_upload_url.txt
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: create-release
-          path: release_upload_url.txt
+        run: |
+          VERSION="${{ steps.package_version.outputs.version }}"
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release edit "$VERSION" --title "Version $VERSION" --draft
+          else
+            gh release create "$VERSION" --target "$GITHUB_SHA" --title "Version $VERSION" --draft --notes ""
+          fi
 
   upload-release:
     strategy:
@@ -292,23 +286,15 @@ jobs:
     needs: [create-release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: create-release
-
-      - id: upload-url
-        run: |
-          echo "upload_url=$(cat create-release/release_upload_url.txt)" >> $GITHUB_OUTPUT
-
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: ${{ matrix.artifact }}
+          path: release-assets
 
-      - uses: actions/upload-release-asset@v1
+      - name: Upload release asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
-          asset_name: hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}
-          asset_content_type: application/octet-stream
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            "release-assets/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}" \
+            --clobber

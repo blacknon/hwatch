@@ -51,8 +51,6 @@ strip target/release/%{name}
 %install
 install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}/etc/bash_completion.d/%{name}.bash
 install -D -m 755 target/release/%{name} %{buildroot}/usr/bin/%{name}
-install -D -m 644 LICENSE %{buildroot}/usr/share/licenses/%{name}/LICENSE
-install -D -m 644 README.md %{buildroot}/usr/share/doc/%{name}/README.md
 
 %check
 %if 0%{?amzn2023}
@@ -90,7 +88,7 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features -- \
  - Bugfix an issue where the ESC key was unintentionally triggered during mouse operations on MacOS
  - Enhancement of filter (issue #124)
  - [FR] Ability to load a previously recorded log file for visualization (issue #101)
-* Sat May 29 2024 - Danie de Jager - 0.3.15-1
+* Wed May 29 2024 - Danie de Jager - 0.3.15-1
 * Mon May 13 2024 Danie de Jager - 0.3.14-2
  - strip binary
  - add bash completion
