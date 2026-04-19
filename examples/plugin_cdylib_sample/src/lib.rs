@@ -1,14 +1,13 @@
-use std::slice;
-use std::str;
-
 use hwatch_diffmode::{
     PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
-    PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
+    PluginOwnedBytes as HwatchOwnedBytes, PLUGIN_ABI_VERSION, drop_plugin_owned_bytes,
+    plugin_owned_bytes_from_vec, plugin_slice_to_str,
 };
 use similar::{ChangeTag, TextDiff};
 
 static PLUGIN_NAME: &[u8] = b"line-num-diff\0";
 static HEADER_TEXT: &[u8] = b"LineNum\0";
+const HEADER_TEXT_PLAIN: &str = "LineNum";
 
 #[derive(Clone)]
 struct NumericToken {
@@ -35,38 +34,41 @@ pub extern "C" fn hwatch_diffmode_metadata() -> HwatchPluginMetadata {
 
 #[no_mangle]
 pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwnedBytes {
-    let dest = unsafe { slice_to_str(req.dest) }.unwrap_or_default();
-    let src = unsafe { slice_to_str(req.src) }.unwrap_or_default();
+    match std::panic::catch_unwind(|| generate_response(req)) {
+        Ok(bytes) => bytes,
+        Err(_) => internal_error_response(HEADER_TEXT_PLAIN),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hwatch_diffmode_free_bytes(bytes: HwatchOwnedBytes) {
+    unsafe {
+        drop_plugin_owned_bytes(bytes);
+    }
+}
+
+fn generate_response(req: HwatchDiffRequest) -> HwatchOwnedBytes {
+    let dest = unsafe { plugin_slice_to_str(req.dest) }.unwrap_or_default();
+    let src = unsafe { plugin_slice_to_str(req.src) }.unwrap_or_default();
 
     let lines = generate_line_num_diff(dest, src, req.line_number, req.only_diffline);
     let header_text = if req.only_diffline {
         "LineNum(Only)"
     } else {
-        "LineNum"
+        HEADER_TEXT_PLAIN
     };
 
     let json = render_json_response(header_text, &lines);
     into_owned_bytes(json.into_bytes())
 }
 
-#[no_mangle]
-pub extern "C" fn hwatch_diffmode_free_bytes(bytes: HwatchOwnedBytes) {
-    if bytes.ptr.is_null() || bytes.cap == 0 {
-        return;
-    }
-
-    unsafe {
-        drop(Vec::from_raw_parts(bytes.ptr, bytes.len, bytes.cap));
-    }
-}
-
-unsafe fn slice_to_str(input: HwatchSlice) -> Option<&'static str> {
-    if input.ptr.is_null() {
-        return None;
-    }
-
-    let bytes = slice::from_raw_parts(input.ptr, input.len);
-    str::from_utf8(bytes).ok()
+fn internal_error_response(header_text: &str) -> HwatchOwnedBytes {
+    into_owned_bytes(
+        format!(
+            r#"{{"schema_version":1,"header_text":"{header_text}","lines":["plugin internal error"]}}"#
+        )
+        .into_bytes(),
+    )
 }
 
 fn generate_line_num_diff(
@@ -345,14 +347,8 @@ fn escape_json(value: &str) -> String {
     escaped
 }
 
-fn into_owned_bytes(mut bytes: Vec<u8>) -> HwatchOwnedBytes {
-    let output = HwatchOwnedBytes {
-        ptr: bytes.as_mut_ptr(),
-        len: bytes.len(),
-        cap: bytes.capacity(),
-    };
-    std::mem::forget(bytes);
-    output
+fn into_owned_bytes(bytes: Vec<u8>) -> HwatchOwnedBytes {
+    plugin_owned_bytes_from_vec(bytes)
 }
 
 #[cfg(test)]

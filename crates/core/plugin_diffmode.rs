@@ -26,6 +26,7 @@ use tui::{
 const PLUGIN_RESPONSE_SCHEMA_V1: u32 = 1;
 const PLUGIN_RESPONSE_SCHEMA_V2: u32 = 2;
 const PLUGIN_RESPONSE_SCHEMA_V3: u32 = 3;
+const MAX_PLUGIN_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
 
 type PluginMetadataFn = unsafe extern "C" fn() -> PluginMetadata;
 type PluginGenerateFnV1 = unsafe extern "C" fn(PluginDiffRequestV1) -> PluginOwnedBytes;
@@ -50,7 +51,7 @@ pub fn load_plugin(path: &Path) -> Result<PluginRegistration, String> {
 }
 
 struct PluginDiffMode {
-    _library: Library,
+    _library: Option<Library>,
     generate: PluginGenerateFn,
     free_bytes: PluginFreeBytesFn,
     plugin_name: String,
@@ -146,61 +147,69 @@ struct PluginGutterSpec {
     style: PluginStyleSpec,
 }
 
+struct ValidatedPluginMetadata {
+    abi_version: u32,
+    supports_only_diffline: bool,
+    plugin_name: String,
+    header_text: String,
+}
+
 impl PluginDiffMode {
     fn load(path: &Path) -> Result<Self, String> {
         let library = unsafe { Library::new(path) }
-            .map_err(|err| format!("failed to load plugin '{}': {err}", path.display()))?;
+            .map_err(|err| plugin_load_error(path, format!("{err}")))?;
 
-        let (generate, free_bytes, plugin_name, header_text, supports_only_diffline) = unsafe {
+        let (generate, free_bytes, metadata) = unsafe {
             let metadata_fn: Symbol<PluginMetadataFn> = library
                 .get(b"hwatch_diffmode_metadata\0")
-                .map_err(|err| format!("missing metadata symbol in '{}': {err}", path.display()))?;
+                .map_err(|err| {
+                    plugin_metadata_error(
+                        path,
+                        format!("missing exported symbol 'hwatch_diffmode_metadata': {err}"),
+                    )
+                })?;
             let free_bytes_fn: Symbol<PluginFreeBytesFn> = library
                 .get(b"hwatch_diffmode_free_bytes\0")
                 .map_err(|err| {
-                    format!("missing free-bytes symbol in '{}': {err}", path.display())
+                    plugin_metadata_error(
+                        path,
+                        format!("missing exported symbol 'hwatch_diffmode_free_bytes': {err}"),
+                    )
                 })?;
 
             let metadata = metadata_fn();
-            validate_metadata(path, metadata)?;
+            let metadata = validate_metadata(path, metadata)?;
 
             let generate_fn = match metadata.abi_version {
-                PLUGIN_ABI_VERSION_V1 => PluginGenerateFn::V1(
-                    *library
-                        .get::<PluginGenerateFnV1>(b"hwatch_diffmode_generate\0")
-                        .map_err(|err| {
-                            format!("missing generate symbol in '{}': {err}", path.display())
-                        })?,
-                ),
-                PLUGIN_ABI_VERSION => PluginGenerateFn::V2(
-                    *library
-                        .get::<PluginGenerateFnV2>(b"hwatch_diffmode_generate\0")
-                        .map_err(|err| {
-                            format!("missing generate symbol in '{}': {err}", path.display())
-                        })?,
-                ),
+                PLUGIN_ABI_VERSION_V1 => PluginGenerateFn::V1(*library.get::<PluginGenerateFnV1>(
+                    b"hwatch_diffmode_generate\0",
+                ).map_err(|err| {
+                    plugin_metadata_error(
+                        path,
+                        format!("missing exported symbol 'hwatch_diffmode_generate': {err}"),
+                    )
+                })?),
+                PLUGIN_ABI_VERSION => PluginGenerateFn::V2(*library.get::<PluginGenerateFnV2>(
+                    b"hwatch_diffmode_generate\0",
+                ).map_err(|err| {
+                    plugin_metadata_error(
+                        path,
+                        format!("missing exported symbol 'hwatch_diffmode_generate': {err}"),
+                    )
+                })?),
                 _ => unreachable!(),
             };
 
-            let plugin_name = cstr_to_string(metadata.plugin_name, "plugin_name", path)?;
-            let header_text = cstr_to_string(metadata.header_text, "header_text", path)?;
-
-            (
-                generate_fn,
-                *free_bytes_fn,
-                plugin_name,
-                header_text,
-                metadata.supports_only_diffline,
-            )
+            (generate_fn, *free_bytes_fn, metadata)
         };
 
         Ok(Self {
-            _library: library,
+            _library: Some(library),
             generate,
             free_bytes,
-            plugin_name,
-            header_text,
-            supports_only_diffline,
+            plugin_name: metadata.plugin_name,
+            header_text: metadata.header_text,
+            supports_only_diffline: metadata.supports_only_diffline,
             options: DiffModeOptions::new(),
             plugin_path: path.to_path_buf(),
         })
@@ -248,11 +257,32 @@ impl PluginDiffMode {
     }
 
     fn error_lines(&self, message: String) -> Vec<String> {
-        vec![format!(
-            "plugin '{}' error: {message}",
-            self.plugin_path.display()
-        )]
+        vec![plugin_runtime_error(&self.plugin_path, message)]
     }
+}
+
+fn plugin_load_error(path: &Path, detail: impl Into<String>) -> String {
+    format!("plugin '{}' load failed: {}", path.display(), detail.into())
+}
+
+fn plugin_error_at_stage(path: &Path, stage: &str, detail: impl Into<String>) -> String {
+    format!("plugin '{}' {}: {}", path.display(), stage, detail.into())
+}
+
+fn plugin_metadata_error(path: &Path, detail: impl Into<String>) -> String {
+    plugin_error_at_stage(path, "metadata", detail)
+}
+
+fn plugin_response_error(path: &Path, detail: impl Into<String>) -> String {
+    plugin_error_at_stage(path, "response", detail)
+}
+
+fn plugin_response_bytes_error(path: &Path, detail: impl Into<String>) -> String {
+    format!("plugin '{}' response bytes: {}", path.display(), detail.into())
+}
+
+fn plugin_runtime_error(path: &Path, detail: impl Into<String>) -> String {
+    format!("plugin '{}' error: {}", path.display(), detail.into())
 }
 
 impl DiffMode for PluginDiffMode {
@@ -334,35 +364,120 @@ unsafe fn cstr_to_string(
     path: &Path,
 ) -> Result<String, String> {
     if ptr.is_null() {
-        return Err(format!(
-            "plugin '{}' returned null metadata field '{field}'",
-            path.display()
+        return Err(plugin_metadata_error(
+            path,
+            format!("returned null field '{field}'"),
         ));
     }
 
     CStr::from_ptr(ptr)
         .to_str()
         .map(|value| value.to_string())
-        .map_err(|err| {
-            format!(
-                "plugin '{}' metadata field '{field}' is not valid UTF-8: {err}",
-                path.display()
-            )
-        })
+        .map_err(|err| plugin_metadata_error(path, format!("field '{field}' is not valid UTF-8: {err}")))
 }
 
-fn validate_metadata(path: &Path, metadata: PluginMetadata) -> Result<(), String> {
+fn validate_metadata(path: &Path, metadata: PluginMetadata) -> Result<ValidatedPluginMetadata, String> {
     if metadata.abi_version != PLUGIN_ABI_VERSION && metadata.abi_version != PLUGIN_ABI_VERSION_V1 {
-        return Err(format!(
-            "plugin '{}' ABI mismatch: expected {} or {}, got {}",
-            path.display(),
-            PLUGIN_ABI_VERSION,
-            PLUGIN_ABI_VERSION_V1,
-            metadata.abi_version
+        return Err(plugin_metadata_error(
+            path,
+            format!(
+                "ABI mismatch: expected {} or {}, got {}",
+                PLUGIN_ABI_VERSION, PLUGIN_ABI_VERSION_V1, metadata.abi_version
+            ),
         ));
     }
 
+    let plugin_name = cstr_to_string(metadata.plugin_name, "plugin_name", path)?;
+    validate_plugin_name(path, &plugin_name)?;
+
+    let header_text = cstr_to_string(metadata.header_text, "header_text", path)?;
+    validate_text_field(path, "metadata", "header_text", &header_text)?;
+
+    Ok(ValidatedPluginMetadata {
+        abi_version: metadata.abi_version,
+        supports_only_diffline: metadata.supports_only_diffline,
+        plugin_name,
+        header_text,
+    })
+}
+
+fn validate_plugin_name(path: &Path, plugin_name: &str) -> Result<(), String> {
+    if plugin_name.is_empty() {
+        return Err(plugin_metadata_error(path, "plugin_name must not be empty"));
+    }
+    if plugin_name.trim() != plugin_name {
+        return Err(plugin_metadata_error(
+            path,
+            "plugin_name must not have leading or trailing whitespace",
+        ));
+    }
+    if plugin_name
+        .chars()
+        .any(|ch| ch.is_control() || ch.is_whitespace())
+    {
+        return Err(plugin_metadata_error(
+            path,
+            format!("plugin_name '{plugin_name}' must not contain whitespace or control characters"),
+        ));
+    }
     Ok(())
+}
+
+fn validate_text_field(path: &Path, stage: &str, field: &str, value: &str) -> Result<(), String> {
+    if value.trim().is_empty() {
+        return Err(plugin_error_at_stage(path, stage, format!("{field} must not be empty")));
+    }
+    if value.chars().any(|ch| ch.is_control()) {
+        return Err(plugin_error_at_stage(
+            path,
+            stage,
+            format!("{field} must not contain control characters"),
+        ));
+    }
+    Ok(())
+}
+
+fn copy_plugin_response_bytes(
+    bytes: PluginOwnedBytes,
+    free_bytes: PluginFreeBytesFn,
+    path: &Path,
+) -> Result<Vec<u8>, String> {
+    if bytes.ptr.is_null() {
+        return Err(plugin_response_bytes_error(path, "plugin returned a null pointer"));
+    }
+    if bytes.cap < bytes.len {
+        return Err(plugin_response_bytes_error(
+            path,
+            format!(
+                "invalid ownership metadata: len {} exceeds cap {}. free_bytes was skipped to avoid undefined behavior",
+                bytes.len, bytes.cap
+            ),
+        ));
+    }
+    if bytes.len == 0 {
+        unsafe {
+            free_bytes(bytes);
+        }
+        return Err(plugin_response_bytes_error(path, "plugin returned an empty response"));
+    }
+    if bytes.len > MAX_PLUGIN_RESPONSE_BYTES {
+        unsafe {
+            free_bytes(bytes);
+        }
+        return Err(plugin_response_bytes_error(
+            path,
+            format!(
+                "response too large: {} bytes exceeds limit of {} bytes",
+                bytes.len, MAX_PLUGIN_RESPONSE_BYTES
+            ),
+        ));
+    }
+
+    let raw = unsafe { slice::from_raw_parts(bytes.ptr, bytes.len).to_vec() };
+    unsafe {
+        free_bytes(bytes);
+    }
+    Ok(raw)
 }
 
 fn parse_plugin_response(
@@ -370,37 +485,29 @@ fn parse_plugin_response(
     free_bytes: PluginFreeBytesFn,
     path: &Path,
 ) -> Result<ParsedPluginDiffResponse, String> {
-    if bytes.ptr.is_null() {
-        return Err(format!(
-            "plugin '{}' returned null response bytes",
-            path.display()
-        ));
-    }
-
-    let json_bytes = unsafe {
-        let raw = slice::from_raw_parts(bytes.ptr, bytes.len).to_vec();
-        free_bytes(bytes);
-        raw
-    };
+    let json_bytes = copy_plugin_response_bytes(bytes, free_bytes, path)?;
     let json = String::from_utf8(json_bytes)
-        .map_err(|err| format!("plugin '{}' returned invalid UTF-8: {err}", path.display()))?;
+        .map_err(|err| plugin_response_error(path, format!("invalid UTF-8: {err}")))?;
 
     let response: RawPluginDiffResponse = serde_json::from_str(&json)
-        .map_err(|err| format!("plugin '{}' returned invalid JSON: {err}", path.display()))?;
+        .map_err(|err| plugin_response_error(path, format!("invalid JSON: {err}")))?;
 
     if response.schema_version != PLUGIN_RESPONSE_SCHEMA_V1
         && response.schema_version != PLUGIN_RESPONSE_SCHEMA_V2
         && response.schema_version != PLUGIN_RESPONSE_SCHEMA_V3
     {
-        return Err(format!(
-            "plugin '{}' response schema mismatch: expected {}, {}, or {}, got {}",
-            path.display(),
-            PLUGIN_RESPONSE_SCHEMA_V1,
-            PLUGIN_RESPONSE_SCHEMA_V2,
-            PLUGIN_RESPONSE_SCHEMA_V3,
-            response.schema_version
+        return Err(plugin_response_error(
+            path,
+            format!(
+                "schema mismatch: expected {}, {}, or {}, got {}",
+                PLUGIN_RESPONSE_SCHEMA_V1,
+                PLUGIN_RESPONSE_SCHEMA_V2,
+                PLUGIN_RESPONSE_SCHEMA_V3,
+                response.schema_version
+            ),
         ));
     }
+    validate_text_field(path, "response", "header_text", &response.header_text)?;
 
     let use_core_gutter = response.schema_version >= PLUGIN_RESPONSE_SCHEMA_V3;
     let mut lines = Vec::with_capacity(response.lines.len());
@@ -463,14 +570,16 @@ fn validate_style_color(
 ) -> Result<(), String> {
     if let Some(value) = value {
         parse_ansi_color(value).map_err(|err| {
-            format!(
-                "plugin '{}' line {} span {} has invalid style {} '{}': {}",
-                path.display(),
-                line_index + 1,
-                span_index + 1,
-                field,
-                value,
-                err
+            plugin_response_error(
+                path,
+                format!(
+                    "line {} span {} has invalid style {} '{}': {}",
+                    line_index + 1,
+                    span_index + 1,
+                    field,
+                    value,
+                    err
+                ),
             )
         })?;
     }
@@ -801,5 +910,237 @@ fn color_to_ansi_colour_lossy(color: Color) -> Option<ansi_term::Colour> {
         Color::Rgb(r, g, b) => Some(ansi_term::Colour::RGB(r, g, b)),
         Color::Indexed(index) => Some(ansi_term::Colour::Fixed(index)),
         Color::Reset => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+
+    const TEST_PLUGIN_PATH: &str = "/tmp/test-plugin";
+
+    unsafe extern "C" fn free_test_bytes(bytes: PluginOwnedBytes) {
+        unsafe {
+            hwatch_diffmode::drop_plugin_owned_bytes(bytes);
+        }
+    }
+
+    unsafe extern "C" fn generate_invalid_json(_: PluginDiffRequest) -> PluginOwnedBytes {
+        hwatch_diffmode::plugin_owned_bytes_from_vec(b"{".to_vec())
+    }
+
+    unsafe extern "C" fn generate_invalid_color(_: PluginDiffRequest) -> PluginOwnedBytes {
+        hwatch_diffmode::plugin_owned_bytes_from_vec(
+            br#"{"schema_version":3,"header_text":"Test","lines":[{"line_no":1,"spans":[{"text":"x","style":{"fg":"wat"}}]}]}"#
+                .to_vec(),
+        )
+    }
+
+    fn bytes_from_vec(bytes: Vec<u8>) -> PluginOwnedBytes {
+        hwatch_diffmode::plugin_owned_bytes_from_vec(bytes)
+    }
+
+    fn test_path() -> &'static Path {
+        Path::new(TEST_PLUGIN_PATH)
+    }
+
+    fn test_mode(generate: PluginGenerateFn) -> PluginDiffMode {
+        PluginDiffMode {
+            _library: None,
+            generate,
+            free_bytes: free_test_bytes,
+            plugin_name: "test-mode".to_string(),
+            header_text: "Test".to_string(),
+            supports_only_diffline: true,
+            options: DiffModeOptions::new(),
+            plugin_path: test_path().to_path_buf(),
+        }
+    }
+
+    #[test]
+    fn validate_metadata_rejects_invalid_abi() {
+        let plugin_name = CString::new("test-mode").unwrap();
+        let header_text = CString::new("Test").unwrap();
+
+        let error = validate_metadata(
+            test_path(),
+            PluginMetadata {
+                abi_version: 99,
+                supports_only_diffline: true,
+                plugin_name: plugin_name.as_ptr(),
+                header_text: header_text.as_ptr(),
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.contains("ABI mismatch"));
+    }
+
+    #[test]
+    fn validate_metadata_rejects_invalid_utf8_name() {
+        let header_text = CString::new("Test").unwrap();
+        let invalid_name = [0xff_u8, 0x00];
+
+        let error = validate_metadata(
+            test_path(),
+            PluginMetadata {
+                abi_version: PLUGIN_ABI_VERSION,
+                supports_only_diffline: true,
+                plugin_name: invalid_name.as_ptr().cast(),
+                header_text: header_text.as_ptr(),
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.contains("plugin_name"));
+        assert!(error.contains("UTF-8"));
+    }
+
+    #[test]
+    fn validate_metadata_rejects_null_header_text() {
+        let plugin_name = CString::new("test-mode").unwrap();
+
+        let error = validate_metadata(
+            test_path(),
+            PluginMetadata {
+                abi_version: PLUGIN_ABI_VERSION,
+                supports_only_diffline: true,
+                plugin_name: plugin_name.as_ptr(),
+                header_text: std::ptr::null(),
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.contains("header_text"));
+        assert!(error.contains("null"));
+    }
+
+    #[test]
+    fn validate_metadata_rejects_empty_plugin_name() {
+        let plugin_name = CString::new("").unwrap();
+        let header_text = CString::new("Test").unwrap();
+
+        let error = validate_metadata(
+            test_path(),
+            PluginMetadata {
+                abi_version: PLUGIN_ABI_VERSION,
+                supports_only_diffline: true,
+                plugin_name: plugin_name.as_ptr(),
+                header_text: header_text.as_ptr(),
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.contains("plugin_name must not be empty"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_invalid_utf8() {
+        let error = parse_plugin_response(
+            bytes_from_vec(vec![0xff, 0x00]),
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("response: invalid UTF-8"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_null_pointer() {
+        let error = parse_plugin_response(
+            PluginOwnedBytes {
+                ptr: std::ptr::null_mut(),
+                len: 1,
+                cap: 1,
+            },
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("null pointer"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_invalid_json() {
+        let error = parse_plugin_response(bytes_from_vec(b"{".to_vec()), free_test_bytes, test_path())
+            .unwrap_err();
+
+        assert!(error.contains("response: invalid JSON"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_unsupported_schema() {
+        let error = parse_plugin_response(
+            bytes_from_vec(
+                br#"{"schema_version":999,"header_text":"Test","lines":[]}"#.to_vec(),
+            ),
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("schema mismatch"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_invalid_style_color() {
+        let error = parse_plugin_response(
+            bytes_from_vec(
+                br#"{"schema_version":3,"header_text":"Test","lines":[{"line_no":1,"spans":[{"text":"x","style":{"fg":"wat"}}]}]}"#
+                    .to_vec(),
+            ),
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("invalid style fg 'wat'"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_invalid_owned_bytes_layout() {
+        let error = parse_plugin_response(
+            PluginOwnedBytes {
+                ptr: std::ptr::NonNull::<u8>::dangling().as_ptr(),
+                len: 8,
+                cap: 4,
+            },
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("len 8 exceeds cap 4"));
+        assert!(error.contains("free_bytes was skipped"));
+    }
+
+    #[test]
+    fn batch_diff_falls_back_to_error_line_on_invalid_json() {
+        let mut mode = test_mode(PluginGenerateFn::V2(generate_invalid_json));
+
+        let lines = mode.generate_batch_diff("dest", "src");
+
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains("error:"));
+        assert!(lines[0].contains("invalid JSON"));
+    }
+
+    #[test]
+    fn watch_diff_falls_back_to_error_line_on_invalid_style() {
+        let mut mode = test_mode(PluginGenerateFn::V2(generate_invalid_color));
+
+        let lines = mode.generate_watch_diff("dest", "src");
+
+        assert_eq!(lines.len(), 1);
+        let text = lines[0]
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect::<String>();
+        assert!(text.contains("error:"));
+        assert!(text.contains("invalid style fg 'wat'"));
     }
 }
