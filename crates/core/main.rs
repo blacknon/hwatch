@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Blacknon. All rights reserved.
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file.
+
 #![allow(clippy::arc_with_non_send_sync)]
 #![allow(clippy::clone_on_copy)]
 #![allow(clippy::collapsible_match)]
@@ -17,12 +21,9 @@
 #![allow(clippy::useless_format)]
 #![allow(clippy::wrong_self_convention)]
 
-// Copyright (c) 2026 Blacknon. All rights reserved.
-// Use of this source code is governed by an MIT license
-// that can be found in the LICENSE file.
-
-// v0.4.0
 // v0.4.1
+// TODO(blacknon): https://github.com/blacknon/hwatch/issues/42
+// 
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
