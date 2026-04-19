@@ -1,4 +1,4 @@
-% hwatch(1) Version 0.3.16 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
+% hwatch(1) Version 0.4.1 | A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
 NAME
 ====
@@ -94,6 +94,11 @@ Flags
 :   Show line number.
 
 
+-w, \--wrap
+
+:   Disable line wrap mode.
+
+
 \--no-help-banner
 
 :   Hide the "Display help with h key" message
@@ -115,9 +120,19 @@ Flags
 :   Run the command directly, not through the shell. Much like the `-x` option of the watch command.
 
 
+-p, \--use-pty
+
+:   Run the command through a pseudo-TTY so commands that colorize on terminals can keep color output.
+
+
 -O, \--diff-output-only
 
 :   Display only the lines with differences during `line` diff and `word` diff.
+
+
+\--ignore-spaceblock
+
+:   Ignore diffs where only consecutive whitespace blocks differ.
 
 \--precise
 
@@ -129,6 +144,11 @@ Options
 -A, \--aftercommand *command to execute after difference occurs*
 
 :   Executes the specified command if the output changes. Information about changes is stored in json format in environment variable `${HWATCH_DATA}`.
+
+
+\--after-command-result-write-file
+
+:   Pass `${HWATCH_DATA}` to `aftercommand` as a temporary file path instead of inline JSON data.
 
 
 -l, \--logfile *logfile*
@@ -144,7 +164,7 @@ Options
 
 -n, \--interval *seconds*
 
-:   Specify update interval. The command will not allow quicker than **0.001** second interval, in which the smaller values are converted. Both '.' and ',' work for any locales.
+:   Seconds to wait between updates. Default is `2`.
 
 
 -L, \--limit *limit num*
@@ -157,11 +177,16 @@ Options
 :   Specifying tab display size. default 4 char.
 
 
+\--diff-plugin *path*
+
+:   Load a diffmode plugin dynamic library. Plugin-provided mode names can also be selected with `-d/--differences`.
+
+
 -d, \--differences *[none, watch, line, word]*
 
 :   set diff mode. highlight changes between updates. If only `-d` is specified, it will be a watch diff.
 
-      *plane* ... Do not show diff (default).
+      *none*  ... Do not show diff (default).
 
       *watch* ... Diff like watch command. Specifying the *-d* option applies this mode.
 
@@ -191,6 +216,10 @@ the following to your `.bashrc`:
 ```bash
 export HWATCH="--no-title --color --no-help-banner"
 ```
+
+`HWATCH_WATCH_FG` and `HWATCH_WATCH_BG` can also be used to customize watch diff
+highlight colors. Supported formats are named colors, `0-255`, `#RRGGBB`, and
+`R,G,B`.
 
 
 KEYBINDS
@@ -227,9 +256,9 @@ r
 
 d
 
-:   Highlight changes between updates. The diff specified by this flag is similar to the *watch* command. This is the same as the *-d(--differences)* option. You can switch the diff mode by pressing the *d* key. The *d* key toggles these in order. Use the *0*, *1*, and *2* keys to switch directly to each mode.
+:   Highlight changes between updates. This is the same as the *-d(--differences)* option. You can switch the diff mode by pressing the *d* key. The *d* key toggles these in order. Use the *0*, *1*, *2*, and *3* keys to switch directly to each mode.
 
-      *plane* ... Do not show diff (default).
+      *none*  ... Do not show diff (default).
 
       *watch* ... Diff like watch command. Specifying the *-d* option applies this mode.
 
@@ -246,6 +275,11 @@ o
 O
 
 :   Display only the lines with differences during `line` diff and `word` diff.
+
+
+w
+
+:   Toggle line wrap mode.
 
 
 t
@@ -265,7 +299,7 @@ m
 
 0
 
-:   Switch diff mode to *plane*.
+:   Switch diff mode to *none*.
 
 
 1
@@ -305,11 +339,11 @@ Ctrl+N
 
 :   Focus next keyword.
 
-Shif+O
+Shift+O
 
 :   Show only lines with differences(line/word diff mode only).
 
-Shif+S
+Shift+S
 
 :   Show summary infomation in history.
 
@@ -320,6 +354,11 @@ Shif+S
 \-
 
 :   Decrease interval by 0.5 seconds (As long as it's positive).
+
+
+p
+
+:   Pause or resume command execution.
 
 Tab
 
