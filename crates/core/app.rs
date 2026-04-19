@@ -360,10 +360,16 @@ impl App<'_> {
 
             // Draw data
             if update_draw {
-                terminal
-                    .draw(|f| self.draw(f))
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
-                update_draw = false
+                match terminal.draw(|f| self.draw(f)) {
+                    Ok(_) => update_draw = false,
+                    Err(err) if is_retryable_terminal_error(&err.to_string()) => {}
+                    Err(err) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("{err}"),
+                        ))
+                    }
+                }
             }
 
             // get event
@@ -2342,6 +2348,17 @@ fn gen_result_items(
     )
 }
 
+fn is_retryable_terminal_error(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+
+    normalized.contains("wouldblock")
+        || normalized.contains("would block")
+        || normalized.contains("interrupted")
+        || normalized.contains("resource temporarily unavailable")
+        || normalized.contains("temporarily unavailable")
+        || normalized.contains("operation interrupted")
+}
+
 fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
     let mut diff_only_data = vec![];
 
@@ -2359,4 +2376,164 @@ fn gen_diff_only_data(before: &str, after: &str) -> Vec<u8> {
     }
 
     diff_only_data
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossbeam_channel::unbounded;
+    use std::io::{self, Write};
+    use std::sync::RwLock;
+    use tui::{
+        backend::{Backend, ClearType, TestBackend, WindowSize},
+        buffer::Cell,
+        layout::{Position, Size},
+    };
+
+    use crate::diffmode_plane::DiffModeAtPlane;
+    use crate::RunInterval;
+
+    struct FlakyTestBackend {
+        inner: TestBackend,
+        fail_next_draw: bool,
+    }
+
+    impl FlakyTestBackend {
+        fn new(width: u16, height: u16) -> Self {
+            Self {
+                inner: TestBackend::new(width, height),
+                fail_next_draw: true,
+            }
+        }
+    }
+
+    impl Write for FlakyTestBackend {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Backend for FlakyTestBackend {
+        type Error = io::Error;
+
+        fn draw<'a, I>(&mut self, content: I) -> Result<(), Self::Error>
+        where
+            I: Iterator<Item = (u16, u16, &'a Cell)>,
+        {
+            if self.fail_next_draw {
+                self.fail_next_draw = false;
+                return Err(io::Error::from(io::ErrorKind::WouldBlock));
+            }
+
+            match self.inner.draw(content) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn hide_cursor(&mut self) -> Result<(), Self::Error> {
+            match self.inner.hide_cursor() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn show_cursor(&mut self) -> Result<(), Self::Error> {
+            match self.inner.show_cursor() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn get_cursor_position(&mut self) -> Result<Position, Self::Error> {
+            match self.inner.get_cursor_position() {
+                Ok(position) => Ok(position),
+                Err(err) => match err {},
+            }
+        }
+
+        fn set_cursor_position<P: Into<Position>>(
+            &mut self,
+            position: P,
+        ) -> Result<(), Self::Error> {
+            match self.inner.set_cursor_position(position) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn clear(&mut self) -> Result<(), Self::Error> {
+            match self.inner.clear() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn clear_region(&mut self, clear_type: ClearType) -> Result<(), Self::Error> {
+            match self.inner.clear_region(clear_type) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn append_lines(&mut self, line_count: u16) -> Result<(), Self::Error> {
+            match self.inner.append_lines(line_count) {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+
+        fn size(&self) -> Result<Size, Self::Error> {
+            match self.inner.size() {
+                Ok(size) => Ok(size),
+                Err(err) => match err {},
+            }
+        }
+
+        fn window_size(&mut self) -> Result<WindowSize, Self::Error> {
+            match self.inner.window_size() {
+                Ok(size) => Ok(size),
+                Err(err) => match err {},
+            }
+        }
+
+        fn flush(&mut self) -> Result<(), Self::Error> {
+            match self.inner.flush() {
+                Ok(()) => Ok(()),
+                Err(err) => match err {},
+            }
+        }
+    }
+
+    fn test_diff_modes() -> Vec<Arc<Mutex<Box<dyn DiffMode>>>> {
+        vec![Arc::new(Mutex::new(Box::new(DiffModeAtPlane::new())))]
+    }
+
+    #[test]
+    fn retryable_terminal_errors_match_expected_messages() {
+        assert!(is_retryable_terminal_error("WouldBlock"));
+        assert!(is_retryable_terminal_error("operation would block"));
+        assert!(is_retryable_terminal_error(
+            "Resource temporarily unavailable (os error 35)"
+        ));
+        assert!(is_retryable_terminal_error("operation interrupted"));
+        assert!(!is_retryable_terminal_error("permission denied"));
+    }
+
+    #[test]
+    fn run_retries_retryable_draw_errors() {
+        let (tx, rx) = unbounded();
+        let interval = Arc::new(RwLock::new(RunInterval::default()));
+        let mut app = App::new(tx.clone(), rx, interval, test_diff_modes(), 0);
+        let mut terminal = Terminal::new(FlakyTestBackend::new(80, 24)).unwrap();
+
+        tx.send(AppEvent::Exit).unwrap();
+
+        let result = app.run(&mut terminal);
+        assert!(result.is_ok(), "unexpected run() error: {result:?}");
+    }
 }
