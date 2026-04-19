@@ -18,9 +18,17 @@ description = "Install hwatch cli binary"
 [tasks.plugin_install]
 depends = ["plugin_build"]
 run = """
+    case "$(uname -s)" in
+        Darwin) plugin_ext="dylib" ;;
+        Linux) plugin_ext="so" ;;
+        *)
+            echo "unsupported platform for plugin_install: $(uname -s)" >&2
+            exit 1
+            ;;
+    esac
     mkdir -p ~/.config/hwatch/plugins
-    cp ./plugins/numeric-diff/target/release/libhwatch_plugin_numeric_diff.dylib ~/.config/hwatch/plugins/
-    cp ./plugins/numeric-inline-diff/target/release/libhwatch_plugin_numeric_inline_diff.dylib ~/.config/hwatch/plugins/
+    cp "./plugins/numeric-diff/target/release/libhwatch_plugin_numeric_diff.${plugin_ext}" ~/.config/hwatch/plugins/
+    cp "./plugins/numeric-inline-diff/target/release/libhwatch_plugin_numeric_inline_diff.${plugin_ext}" ~/.config/hwatch/plugins/
 """
 description = "Install hwatch plugin binaries"
 

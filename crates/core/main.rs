@@ -507,40 +507,50 @@ fn build_app() -> clap::Command {
 
 /// Normalize options in args.
 /// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
-fn collect_known_diff_mode_names(args: &[OsString]) -> HashSet<String> {
-    let mut modes = HashSet::from([
+fn builtin_diff_mode_names() -> HashSet<String> {
+    HashSet::from([
         "none".to_string(),
         "watch".to_string(),
         "line".to_string(),
         "word".to_string(),
-    ]);
+    ])
+}
 
+fn has_diff_plugin_option(args: &[OsString]) -> bool {
     let mut index = 0;
     while index < args.len() {
         let arg = args[index].to_string_lossy();
-        let plugin_path = if arg == "--diff-plugin" {
-            index += 1;
-            args.get(index)
-                .map(|value| value.to_string_lossy().into_owned())
-        } else {
-            arg.strip_prefix("--diff-plugin=")
-                .map(|value| value.to_string())
-        };
-
-        if let Some(plugin_path) = plugin_path {
-            if let Ok(registration) = plugin_diffmode::load_plugin(Path::new(&plugin_path)) {
-                modes.insert(registration.name);
-            }
+        if arg == "--" {
+            break;
         }
-
+        if arg == "--diff-plugin" {
+            return true;
+        }
+        if arg.starts_with("--diff-plugin=") {
+            return true;
+        }
         index += 1;
     }
 
-    modes
+    false
+}
+
+fn register_diff_mode_name(
+    diff_mode_name_to_index: &mut HashMap<String, usize>,
+    name: String,
+    index: usize,
+) -> Result<(), String> {
+    if diff_mode_name_to_index.contains_key(&name) {
+        return Err(format!("duplicate diff mode name: '{name}'"));
+    }
+
+    diff_mode_name_to_index.insert(name, index);
+    Ok(())
 }
 
 fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
-    let known_diff_modes = collect_known_diff_mode_names(&args);
+    let known_diff_modes = builtin_diff_mode_names();
+    let has_diff_plugin = has_diff_plugin_option(&args);
     let mut normalized = Vec::with_capacity(args.len() + 1);
     let mut iter = args.into_iter();
 
@@ -561,7 +571,10 @@ fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
             match iter.next() {
                 Some(next) => {
                     let next_value = next.to_string_lossy();
-                    if known_diff_modes.contains(next_value.as_ref()) {
+                    if next_value.starts_with('-') {
+                        normalized.push(OsString::from("watch"));
+                        normalized.push(next);
+                    } else if known_diff_modes.contains(next_value.as_ref()) || has_diff_plugin {
                         normalized.push(next);
                     } else {
                         normalized.push(OsString::from("watch"));
@@ -963,7 +976,7 @@ fn main() {
     ];
 
     for (index, name) in ["none", "watch", "line", "word"].into_iter().enumerate() {
-        diff_mode_name_to_index.insert(name.to_string(), index);
+        register_diff_mode_name(&mut diff_mode_name_to_index, name.to_string(), index).unwrap();
     }
 
     if let Some(plugin_paths) = matcher.get_many::<String>("diff_plugin") {
@@ -978,17 +991,17 @@ fn main() {
             };
 
             let plugin_name = registration.name;
-            if diff_mode_name_to_index.contains_key(&plugin_name) {
+            if let Err(message) =
+                register_diff_mode_name(&mut diff_mode_name_to_index, plugin_name, diff_modes.len())
+            {
                 let err = cmd_app.error(
                     ErrorKind::ArgumentConflict,
-                    format!("duplicate diff mode name: '{plugin_name}'"),
+                    message,
                 );
                 err.exit();
             }
 
-            let index = diff_modes.len();
             diff_modes.push(Arc::new(Mutex::new(registration.mode)));
-            diff_mode_name_to_index.insert(plugin_name, index);
         }
     }
 
@@ -1202,6 +1215,55 @@ mod tests {
     }
 
     #[test]
+    fn normalize_args_preserves_non_builtin_mode_when_plugin_option_is_present() {
+        let args = vec![
+            "hwatch",
+            "--diff-plugin",
+            "/tmp/libnumeric.so",
+            "-d",
+            "numeric-diff",
+            "echo",
+            "hi",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(
+            actual,
+            vec![
+                "hwatch",
+                "--diff-plugin",
+                "/tmp/libnumeric.so",
+                "-d",
+                "numeric-diff",
+                "echo",
+                "hi",
+            ]
+        );
+    }
+
+    #[test]
+    fn normalize_args_still_defaults_to_watch_without_plugin_option() {
+        let args = vec!["hwatch", "-d", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-d", "watch", "echo", "hi"]);
+    }
+
+    #[test]
     fn clap_parses_chgexit_without_value_as_one() {
         let args = vec!["hwatch", "-g", "echo", "hi"]
             .into_iter()
@@ -1240,5 +1302,17 @@ mod tests {
             .collect();
 
         assert_eq!(actual, vec!["hwatch", "-g", "1", "echo", "hi"]);
+    }
+
+    #[test]
+    fn register_diff_mode_name_rejects_duplicates() {
+        let mut diff_mode_name_to_index = HashMap::new();
+        register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 1).unwrap();
+
+        let error =
+            register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 2)
+                .unwrap_err();
+
+        assert_eq!(error, "duplicate diff mode name: 'watch'");
     }
 }
