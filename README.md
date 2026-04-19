@@ -46,6 +46,30 @@ paru -S hwatch
 yay -S hwatch
 ```
 
+### Nix
+
+```bash
+nix profile install nixpkgs#hwatch
+```
+
+### Alpine Linux (edge/testing)
+
+```bash
+apk add hwatch
+```
+
+### mise/asdf
+
+```bash
+# mise
+mise use -g aqua:blacknon/hwatch
+
+# asdf
+asdf plugin add hwatch
+asdf install hwatch latest
+asdf global hwatch latest
+```
+
 ### Cargo Install
 
 ```bash
@@ -104,10 +128,12 @@ Options:
           Run the command through a pseudo-TTY so commands that colorize on terminals can keep color output.
   -O, --diff-output-only
           Display only the lines with differences during `line` diff and `word` diff.
+      --ignore-spaceblock
+          Ignore diffs where only consecutive whitespace blocks differ.
   -A, --aftercommand <after_command>
           Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.
       --after-command-result-write-file
-          TODO: あとでかく
+          Passes `${HWATCH_DATA}` to `aftercommand` as a temporary file path instead of inline json data.
   -l, --logfile [<logfile>]
           logging file. if a log file is already used, its contents will be read and executed.
   -s, --shell <shell_command>
@@ -132,7 +158,6 @@ Options:
           Print help
   -V, --version
           Print version
-
 ```
 
 ### Keybind
