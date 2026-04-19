@@ -21,6 +21,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   # build rust binary
   build:
@@ -82,22 +85,25 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ matrix.target }}-${{ matrix.ext }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
         uses: actions/cache@v5
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ matrix.target }}-${{ matrix.ext }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
         uses: actions/cache@v5
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ matrix.target }}-${{ matrix.ext }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Prepare cache directories
+        run: mkdir -p ~/.cargo/registry ~/.cargo/git target
 
       - name: Install rpmbuild
         if: matrix.ext == 'rpm'
@@ -170,7 +176,9 @@ jobs:
         if: matrix.ext == 'deb'
         run: |
           _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.tar.gz
-          docker run -i "greymd/tar2deb:1.0.1" < "$_TAR" > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
+          docker run -i "greymd/tar2deb:1.0.1" < "$_TAR" \
+            2> >(grep -vE 'warning: the authors of lintian do not recommend running it with root privileges!|gpg: skipped .*secret key not available|gpg: .*clearsign failed: secret key not available|debsign: gpg error occurred!  Aborting....|debuild: fatal error at line 1295:|running debsign failed' >&2) \
+            > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
           echo "sha256=$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb | awk '{print $1}' )" >> $GITHUB_OUTPUT
 
       - name: README for rpm
@@ -231,12 +239,13 @@ jobs:
       - name: Create draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           VERSION="${{ steps.package_version.outputs.version }}"
-          if gh release view "$VERSION" >/dev/null 2>&1; then
-            gh release edit "$VERSION" --title "Version $VERSION" --draft
+          if gh release view "$VERSION" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release edit "$VERSION" --repo "$GH_REPO" --title "Version $VERSION" --draft
           else
-            gh release create "$VERSION" --target "$GITHUB_SHA" --title "Version $VERSION" --draft --notes ""
+            gh release create "$VERSION" --repo "$GH_REPO" --target "$GITHUB_SHA" --title "Version $VERSION" --draft --notes ""
           fi
 
   upload-release:
@@ -294,7 +303,9 @@ jobs:
       - name: Upload release asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release upload "${{ needs.create-release.outputs.version }}" \
+            --repo "$GH_REPO" \
             "release-assets/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}" \
             --clobber
