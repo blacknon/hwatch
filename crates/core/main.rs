@@ -23,7 +23,7 @@
 
 // v0.4.1
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/42
-// 
+// TODO(blacknon): ansi-parserなど、一部の依存クレートの機能を内部実装に置き換えていく。これは依存クレートの数を減らすためにも必要な対応である。
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
