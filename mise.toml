@@ -3,6 +3,27 @@
 # [env]
 # mise.file = "env"
 
+# Tasks(Install)
+# ====================
+[tasks.full_install]
+depends = ["cli_install", "plugin_install"]
+description = "Install hwatch and its plugins"
+
+[tasks.cli_install]
+run = """
+    cargo install -f --path ./
+"""
+description = "Install hwatch cli binary"
+
+[tasks.plugin_install]
+depends = ["plugin_build"]
+run = """
+    mkdir -p ~/.config/hwatch/plugins
+    cp ./plugins/numeric-diff/target/release/libhwatch_plugin_numeric_diff.dylib ~/.config/hwatch/plugins/
+    cp ./plugins/numeric-inline-diff/target/release/libhwatch_plugin_numeric_inline_diff.dylib ~/.config/hwatch/plugins/
+"""
+description = "Install hwatch plugin binaries"
+
 # Tasks(Binary)
 # ====================
 [tasks.full_build]
@@ -21,6 +42,16 @@ run = """
     cargo build --manifest-path plugins/numeric-inline-diff/Cargo.toml --release
 """
 description = "Build plugin binaries"
+
+
+# Tasks(Test)
+# ====================
+[tasks.test]
+run = """
+  cargo test
+"""
+description = "Run tests"
+
 
 # Tasks(image)
 # ====================
