@@ -259,6 +259,8 @@ Keybind functions that can be specified are as follows.
 
 ## Configuration
 
+### Set configuration in enviroment
+
 If you always want to use some command-line options, you can set them in the
 `HWATCH` environment variable. For example, if you use `bash`, you can add
 the following to your `.bashrc`:
@@ -266,6 +268,16 @@ the following to your `.bashrc`:
 ```bash
 export HWATCH="--no-title --color --no-help-banner --border --with-scrollbar"
 ```
+
+### Set color configuration in enviroment
+
+You can also customize the watch diff highlight colors with environment variables.
+
+- `HWATCH_WATCH_FG`: foreground color for watch diff highlights
+- `HWATCH_WATCH_BG`: background color for watch diff highlights
+
+Accepted values are ANSI color names such as `red`, `blue`, `lightcyan`, color indexes `0-255`,
+hex colors like `#RRGGBB`, or RGB values like `255,0,0`.
 
 ## Example
 
@@ -338,19 +350,19 @@ hwatch -n 3 -d command...
 #### watch diff
 
 <p align="center">
-<img src="./img/watch_diff.jpg" />
+<img src="./img/watch_diff.gif" />
 </p>
 
 #### line diff
 
 <p align="center">
-<img src="./img/line_diff.jpg" />
+<img src="./img/line_diff.gif" />
 </p>
 
 #### word diff
 
 <p align="center">
-<img src="./img/word_diff.jpg" />
+<img src="./img/word_diff.gif" />
 </p>
 
 ### history filtering
@@ -377,7 +389,9 @@ This allows you to add custom diff rendering for command output.
 </p>
 
 The bundled `numeric-diff` plugin highlights numeric changes when the
-surrounding text stays the same.
+surrounding text stays the same. Built-in plugins use the core default gutter
+for line numbers and can optionally override gutter text or style when they
+need a custom prefix.
 
 Build the plugin:
 

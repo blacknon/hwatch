@@ -732,7 +732,8 @@ mod tests {
 
     #[test]
     fn test_create_exec_cmd_args_splits_exec_mode_command() {
-        let exec_commands = create_exec_cmd_args(true, "ignored".to_string(), "echo hello".to_string());
+        let exec_commands =
+            create_exec_cmd_args(true, "ignored".to_string(), "echo hello".to_string());
 
         assert_eq!(exec_commands, vec!["echo".to_string(), "hello".to_string()]);
     }

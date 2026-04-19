@@ -84,10 +84,18 @@ pub enum OutputVecElementData<'a> {
 }
 
 // DifferenceType is ...
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DifferenceType {
     Same,
     Add,
     Rem,
+}
+
+pub struct DiffRow<'a> {
+    pub watch_line: Line<'a>,
+    pub batch_line: String,
+    pub line_number: Option<usize>,
+    pub diff_type: DifferenceType,
 }
 
 // TODO: headerで出力する文字列取得用のMethodを追加する
@@ -181,6 +189,12 @@ impl DiffModeOptions {
     }
 }
 
+impl Default for DiffModeOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// DiffMode
 pub trait DiffMode {
     // generate and return diff watch window result.
@@ -263,10 +277,60 @@ pub fn expand_output_vec_element_data(
     }
 
     if is_batch {
-        return OutputVecData::Strings(strings);
+        OutputVecData::Strings(strings)
     } else {
-        return OutputVecData::Lines(lines);
-    };
+        OutputVecData::Lines(lines)
+    }
+}
+
+pub fn render_diff_rows_as_watch<'a>(
+    rows: Vec<DiffRow<'a>>,
+    is_line_number: bool,
+    header_width: usize,
+) -> Vec<Line<'a>> {
+    rows.into_iter()
+        .map(|mut row| {
+            if is_line_number {
+                let style = tui::style::Style::default().fg(match row.diff_type {
+                    DifferenceType::Same => COLOR_WATCH_LINE_NUMBER_DEFAULT,
+                    DifferenceType::Add => COLOR_WATCH_LINE_NUMBER_ADD,
+                    DifferenceType::Rem => COLOR_WATCH_LINE_NUMBER_REM,
+                });
+                let prefix = match row.line_number {
+                    Some(line_number) => format!("{line_number:>header_width$} | "),
+                    None => format!("{:>header_width$} | ", ""),
+                };
+                row.watch_line
+                    .spans
+                    .insert(0, tui::text::Span::styled(prefix, style));
+            }
+            row.watch_line
+        })
+        .collect()
+}
+
+pub fn render_diff_rows_as_batch<'a>(
+    rows: Vec<DiffRow<'a>>,
+    is_color: bool,
+    is_line_number: bool,
+    header_width: usize,
+) -> Vec<String> {
+    rows.into_iter()
+        .map(|row| {
+            if is_line_number {
+                match row.line_number {
+                    Some(line_number) => format!(
+                        "{}{}",
+                        gen_counter_str(is_color, line_number, header_width, row.diff_type),
+                        row.batch_line
+                    ),
+                    None => format!("{:>header_width$} | {}", "", row.batch_line),
+                }
+            } else {
+                row.batch_line
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -303,7 +367,10 @@ mod tests {
 
     #[test]
     fn gen_counter_str_without_color_is_plain_text() {
-        assert_eq!(gen_counter_str(false, 12, 4, DifferenceType::Same), "  12 | ");
+        assert_eq!(
+            gen_counter_str(false, 12, 4, DifferenceType::Same),
+            "  12 | "
+        );
     }
 
     #[test]

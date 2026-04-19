@@ -10,10 +10,7 @@ use similar::{ChangeTag, TextDiff};
 
 static PLUGIN_NAME: &[u8] = b"numeric-inline-diff\0";
 static HEADER_TEXT: &[u8] = b"NumInline\0";
-const RESPONSE_SCHEMA_VERSION: u32 = 2;
-const WATCH_LINE_NUMBER_DEFAULT: &str = "darkgray";
-const WATCH_LINE_NUMBER_ADD: &str = "56,119,120";
-const WATCH_LINE_NUMBER_REM: &str = "118,0,0";
+const RESPONSE_SCHEMA_VERSION: u32 = 3;
 const WATCH_LINE_ADD: &str = "green";
 const WATCH_LINE_REM: &str = "red";
 
@@ -27,6 +24,8 @@ struct NumericToken {
 
 #[derive(Clone)]
 struct RenderedLine {
+    line_no: Option<usize>,
+    diff_type: &'static str,
     spans: Vec<RenderedSpan>,
 }
 
@@ -106,18 +105,12 @@ unsafe fn slice_to_str(input: HwatchSlice) -> Option<&'static str> {
 fn generate_numeric_inline_diff(
     dest: &str,
     src: &str,
-    line_number: bool,
+    _line_number: bool,
     only_diffline: bool,
     color: bool,
 ) -> Vec<RenderedLine> {
     let diff = TextDiff::from_lines(src, dest);
     let changes: Vec<_> = diff.iter_all_changes().collect();
-    let line_width = diff
-        .old_slices()
-        .len()
-        .max(diff.new_slices().len())
-        .to_string()
-        .len();
 
     let mut rendered = Vec::new();
     let mut index = 0;
@@ -148,8 +141,6 @@ fn generate_numeric_inline_diff(
                 &mut rendered,
                 deletes,
                 inserts,
-                line_number,
-                line_width,
             );
             continue;
         }
@@ -163,8 +154,6 @@ fn generate_numeric_inline_diff(
                     fg: None,
                     reversed: false,
                 }],
-                line_number,
-                line_width,
                 RenderKind::Equal,
             ));
         }
@@ -179,8 +168,6 @@ fn render_changed_block(
     rendered: &mut Vec<RenderedLine>,
     deletes: Vec<ChangedLine>,
     inserts: Vec<ChangedLine>,
-    line_number: bool,
-    line_width: usize,
 ) {
     let mut used_inserts = vec![false; inserts.len()];
 
@@ -192,16 +179,12 @@ fn render_changed_block(
                 delete.line_no,
                 "-  ",
                 build_inline_spans(&delete.text, &matches, true),
-                line_number,
-                line_width,
                 RenderKind::Remove,
             ));
             rendered.push(render_line(
                 insert.line_no,
                 "+  ",
                 build_inline_spans(&insert.text, &matches, false),
-                line_number,
-                line_width,
                 RenderKind::Insert,
             ));
         } else {
@@ -209,8 +192,6 @@ fn render_changed_block(
                 delete.line_no,
                 "-  ",
                 delete.text.clone(),
-                line_number,
-                line_width,
                 RenderKind::Remove,
             ));
         }
@@ -222,8 +203,6 @@ fn render_changed_block(
                 insert.line_no,
                 "+  ",
                 insert.text,
-                line_number,
-                line_width,
                 RenderKind::Insert,
             ));
         }
@@ -322,8 +301,6 @@ fn render_plain_changed_line(
     line_no: Option<usize>,
     marker: &'static str,
     text: String,
-    line_number: bool,
-    line_width: usize,
     kind: RenderKind,
 ) -> RenderedLine {
     render_line(
@@ -334,8 +311,6 @@ fn render_plain_changed_line(
             fg: Some(base_text_color(matches!(kind, RenderKind::Remove))),
             reversed: false,
         }],
-        line_number,
-        line_width,
         kind,
     )
 }
@@ -344,22 +319,9 @@ fn render_line(
     line_no: Option<usize>,
     marker: &'static str,
     body_spans: Vec<RenderedSpan>,
-    line_number: bool,
-    line_width: usize,
     kind: RenderKind,
 ) -> RenderedLine {
     let mut spans = Vec::new();
-
-    if line_number {
-        spans.push(RenderedSpan {
-            text: match line_no {
-                Some(number) => format!("{number:>line_width$} | "),
-                None => format!("{:>line_width$} | ", ""),
-            },
-            fg: line_number_color(kind),
-            reversed: false,
-        });
-    }
 
     spans.push(RenderedSpan {
         text: marker.to_string(),
@@ -368,7 +330,11 @@ fn render_line(
     });
     spans.extend(body_spans);
 
-    RenderedLine { spans }
+    RenderedLine {
+        line_no,
+        diff_type: diff_type_name(kind),
+        spans,
+    }
 }
 
 fn trim_line_end(mut line: String) -> String {
@@ -493,19 +459,19 @@ fn marker_color(kind: RenderKind) -> Option<&'static str> {
     }
 }
 
-fn line_number_color(kind: RenderKind) -> Option<&'static str> {
-    match kind {
-        RenderKind::Equal => Some(WATCH_LINE_NUMBER_DEFAULT),
-        RenderKind::Remove => Some(WATCH_LINE_NUMBER_REM),
-        RenderKind::Insert => Some(WATCH_LINE_NUMBER_ADD),
-    }
-}
-
 fn base_text_color(is_before: bool) -> &'static str {
     if is_before {
         "red"
     } else {
         "green"
+    }
+}
+
+fn diff_type_name(kind: RenderKind) -> &'static str {
+    match kind {
+        RenderKind::Equal => "same",
+        RenderKind::Remove => "rem",
+        RenderKind::Insert => "add",
     }
 }
 
@@ -530,7 +496,15 @@ fn render_json_response(header_text: &str, lines: &[RenderedLine]) -> String {
             json.push(',');
         }
 
-        json.push_str("{\"spans\":[");
+        json.push_str("{");
+        if let Some(line_no) = line.line_no {
+            json.push_str("\"line_no\":");
+            json.push_str(&line_no.to_string());
+            json.push(',');
+        }
+        json.push_str("\"diff_type\":\"");
+        json.push_str(line.diff_type);
+        json.push_str("\",\"spans\":[");
         for (span_index, span) in line.spans.iter().enumerate() {
             if span_index > 0 {
                 json.push(',');
@@ -605,21 +579,21 @@ mod tests {
             generate_numeric_inline_diff("count=15 used=92\n", "count=10 used=100\n", true, false, false);
 
         assert_eq!(actual.len(), 2);
-        assert_eq!(actual[0].spans[0].text, "1 | ");
-        assert_eq!(actual[0].spans[0].fg, Some(WATCH_LINE_NUMBER_REM));
-        assert_eq!(actual[0].spans[1].text, "-  ");
-        assert_eq!(actual[0].spans[1].fg, Some(WATCH_LINE_REM));
-        assert_eq!(actual[0].spans[3].text, "10");
-        assert_eq!(actual[0].spans[3].fg, Some("green"));
-        assert!(actual[0].spans[3].reversed);
-        assert_eq!(actual[0].spans[5].text, "100");
-        assert_eq!(actual[0].spans[5].fg, Some("red"));
-        assert!(actual[0].spans[5].reversed);
-        assert_eq!(actual[1].spans[0].fg, Some(WATCH_LINE_NUMBER_ADD));
-        assert_eq!(actual[1].spans[1].fg, Some(WATCH_LINE_ADD));
-        assert_eq!(actual[1].spans[3].text, "15");
-        assert_eq!(actual[1].spans[3].fg, Some("green"));
-        assert!(actual[1].spans[3].reversed);
+        assert_eq!(actual[0].line_no, Some(1));
+        assert_eq!(actual[0].diff_type, "rem");
+        assert_eq!(actual[0].spans[0].text, "-  ");
+        assert_eq!(actual[0].spans[0].fg, Some(WATCH_LINE_REM));
+        assert_eq!(actual[0].spans[2].text, "10");
+        assert_eq!(actual[0].spans[2].fg, Some("green"));
+        assert!(actual[0].spans[2].reversed);
+        assert_eq!(actual[0].spans[4].text, "100");
+        assert_eq!(actual[0].spans[4].fg, Some("red"));
+        assert!(actual[0].spans[4].reversed);
+        assert_eq!(actual[1].diff_type, "add");
+        assert_eq!(actual[1].spans[0].fg, Some(WATCH_LINE_ADD));
+        assert_eq!(actual[1].spans[2].text, "15");
+        assert_eq!(actual[1].spans[2].fg, Some("green"));
+        assert!(actual[1].spans[2].reversed);
     }
 
     #[test]

@@ -22,6 +22,16 @@ use crate::common::OutputMode;
 use crate::exec::CommandResult;
 use hwatch_diffmode::{expand_line_tab, DiffMode, DiffModeOptions};
 
+pub struct PaneContent {
+    pub lines: Vec<Line<'static>>,
+    pub is_line_number: bool,
+    pub is_line_diff_head: bool,
+}
+
+pub enum WatchRenderData {
+    SinglePane(PaneContent),
+}
+
 pub struct Printer {
     // diff mode.
     diff_mode: Arc<Mutex<Box<dyn DiffMode>>>,
@@ -55,11 +65,7 @@ impl Printer {
     }
 
     ///
-    pub fn get_watch_text<'a>(
-        &mut self,
-        dest: &CommandResult,
-        src: &CommandResult,
-    ) -> Vec<Line<'a>> {
+    pub fn get_watch_data(&mut self, dest: &CommandResult, src: &CommandResult) -> WatchRenderData {
         // set new text(text_dst)
         let mut text_dest = match self.output_mode {
             OutputMode::Output => (*dest).get_output(),
@@ -82,21 +88,26 @@ impl Printer {
             text_src = hwatch_ansi::escape_ansi(&text_src);
         }
 
-        let result: Vec<Line<'_>>;
-
         let mut diff_mode = self.diff_mode.lock().unwrap();
 
         // set diff mode options
         diff_mode.set_option(self.options);
+        let is_line_diff_head = diff_mode.get_support_only_diffline();
 
         // create diff
-        result = diff_mode.generate_watch_diff(&text_dest, &text_src);
+        let result = diff_mode.generate_watch_diff(&text_dest, &text_src);
 
-        if self.is_reverse {
+        let lines = if self.is_reverse {
             result.into_iter().rev().collect()
         } else {
             result
-        }
+        };
+
+        WatchRenderData::SinglePane(PaneContent {
+            lines,
+            is_line_number: self.options.get_line_number(),
+            is_line_diff_head,
+        })
     }
 
     ///

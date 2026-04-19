@@ -205,7 +205,6 @@ pub fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
     result
 }
 
-///
 pub fn get_ansi_strip_str(text: &str) -> String {
     let mut line_str = "".to_string();
     for block in text.ansi_parse() {
@@ -217,7 +216,33 @@ pub fn get_ansi_strip_str(text: &str) -> String {
     line_str
 }
 
-///
+pub fn escape_ansi(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            if let Some('[') = chars.peek() {
+                result.push_str("\\x1b[");
+                chars.next(); // Consume '['
+                while let Some(ch) = chars.peek() {
+                    result.push(*ch);
+                    if ch.is_alphabetic() {
+                        chars.next(); // Consume the letter
+                        break;
+                    }
+                    chars.next(); // Consume the number or ';'
+                }
+            } else {
+                result.push(ch);
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
 
 #[cfg(test)]
 mod tests {
@@ -276,31 +301,4 @@ mod tests {
 
         assert_eq!(stripped, "hello world");
     }
-}
-pub fn escape_ansi(input: &str) -> String {
-    let mut result = String::new();
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\x1b' {
-            if let Some('[') = chars.peek() {
-                result.push_str("\\x1b[");
-                chars.next(); // Consume '['
-                while let Some(ch) = chars.peek() {
-                    result.push(*ch);
-                    if ch.is_alphabetic() {
-                        chars.next(); // Consume the letter
-                        break;
-                    }
-                    chars.next(); // Consume the number or ';'
-                }
-            } else {
-                result.push(ch);
-            }
-        } else {
-            result.push(ch);
-        }
-    }
-
-    result
 }

@@ -7,6 +7,9 @@ It is aimed at outputs like `df`, `du`, counters, metrics, and tabular command
 output where "the line changed" is useful, but "which number increased or
 decreased" is the most important signal.
 
+The plugin uses the core default gutter for line numbers by returning line
+metadata instead of building its own line-number prefix.
+
 ## Build
 
 ```bash
@@ -24,6 +27,8 @@ The resulting dynamic library will be created under:
 - Changed lines are rendered as `-` and `+`.
 - If a removed line and an added line have the same non-numeric structure, the
   plugin pairs them and highlights changed numeric tokens inline.
+- `hwatch` renders the line-number gutter from the plugin's `line_no` and
+  `diff_type` metadata.
 - Increased values are colored green.
 - Decreased values are colored red.
 - `--diff-output-only` is supported.

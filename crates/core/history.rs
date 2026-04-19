@@ -602,7 +602,12 @@ mod tests {
             char_rem: 4,
         };
 
-        area.update("2026-04-08 12:00:00.000".to_string(), false, 5, summary.clone());
+        area.update(
+            "2026-04-08 12:00:00.000".to_string(),
+            false,
+            5,
+            summary.clone(),
+        );
         area.update("2026-04-08 12:00:01.000".to_string(), true, 6, summary);
         area.set_state_select(5);
 
@@ -620,7 +625,12 @@ mod tests {
     fn history_area_next_and_previous_stay_within_bounds() {
         let mut area = HistoryArea::new();
         let summary = HistorySummary::init();
-        area.update("2026-04-08 12:00:00.000".to_string(), true, 1, summary.clone());
+        area.update(
+            "2026-04-08 12:00:00.000".to_string(),
+            true,
+            1,
+            summary.clone(),
+        );
         area.update("2026-04-08 12:00:01.000".to_string(), true, 2, summary);
 
         area.set_state_select(2);
@@ -635,7 +645,12 @@ mod tests {
     fn history_area_click_row_accounts_for_summary_rows() {
         let mut area = HistoryArea::new();
         let summary = HistorySummary::init();
-        area.update("2026-04-08 12:00:00.000".to_string(), true, 1, summary.clone());
+        area.update(
+            "2026-04-08 12:00:00.000".to_string(),
+            true,
+            1,
+            summary.clone(),
+        );
         area.update("2026-04-08 12:00:01.000".to_string(), true, 2, summary);
         area.set_summary(true);
         area.set_enable_char_diff(true);

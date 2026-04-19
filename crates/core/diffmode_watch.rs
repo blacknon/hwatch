@@ -12,8 +12,8 @@ use tui::{
 use hwatch_ansi as ansi;
 use hwatch_ansi::gen_ansi_all_set_str;
 use hwatch_diffmode::{
-    expand_output_vec_element_data, gen_counter_str, DiffMode, DiffModeExt, DiffModeOptions,
-    DifferenceType, OutputVecData, OutputVecElementData,
+    render_diff_rows_as_batch, render_diff_rows_as_watch, DiffMode, DiffModeExt, DiffModeOptions,
+    DiffRow, DifferenceType,
 };
 
 pub struct DiffModeAtWatch {
@@ -32,37 +32,20 @@ impl DiffModeAtWatch {
 
 impl DiffMode for DiffModeAtWatch {
     fn generate_watch_diff(&mut self, dest: &str, src: &str) -> Vec<Line<'static>> {
-        let (header_width, output_vec_data) = generate_watch_diff(
-            dest,
-            src,
-            self.options.get_color(),
-            false,
-            self.options.get_line_number(),
-        );
+        let (header_width, rows) = generate_watch_diff_rows(dest, src, self.options.get_color());
         self.header_width = header_width;
-
-        if let OutputVecData::Lines(lines) = output_vec_data {
-            return lines;
-        } else {
-            return vec![];
-        }
+        render_diff_rows_as_watch(rows, self.options.get_line_number(), header_width)
     }
 
     fn generate_batch_diff(&mut self, dest: &str, src: &str) -> Vec<String> {
-        let (header_width, output_vec_data) = generate_watch_diff(
-            dest,
-            src,
-            self.options.get_color(),
-            true,
-            self.options.get_line_number(),
-        );
+        let (header_width, rows) = generate_watch_diff_rows(dest, src, self.options.get_color());
         self.header_width = header_width;
-
-        if let OutputVecData::Strings(lines) = output_vec_data {
-            return lines;
-        } else {
-            return vec![];
-        }
+        render_diff_rows_as_batch(
+            rows,
+            self.options.get_color(),
+            self.options.get_line_number(),
+            header_width,
+        )
     }
 
     fn get_header_text(&self) -> String {
@@ -93,15 +76,11 @@ impl DiffModeExt for DiffModeAtWatch {
 // private function
 // ----
 
-// TODO: header_widthを返すようにして、後でstructのheader_widthに代入するようにする
-fn generate_watch_diff<'a>(
+fn generate_watch_diff_rows<'a>(
     dest: &str,
     src: &str,
     is_color: bool,
-    is_batch: bool,
-    is_line_number: bool,
-) -> (usize, OutputVecData<'a>) {
-    //
+) -> (usize, Vec<DiffRow<'a>>) {
     let mut result = Vec::new();
 
     // create dest text
@@ -151,57 +130,31 @@ fn generate_watch_diff<'a>(
         let src_line = vec_src[i];
         let dest_line = vec_dest[i];
 
-        let mut line_data = match (is_color, is_batch) {
-            (false, false) => create_watch_diff_output_line(&dest_line, &src_line, false),
-            (false, true) => create_watch_diff_output_line(&dest_line, &src_line, true),
-            (true, false) => create_watch_diff_output_line_with_ansi_for_watch(&dest_line, &src_line),
-            (true, true) => create_watch_diff_output_line_with_ansi_for_batch(&dest_line, &src_line),
+        let watch_line = match is_color {
+            false => create_watch_diff_output_line(&dest_line, &src_line),
+            true => create_watch_diff_output_line_with_ansi_for_watch(&dest_line, &src_line),
+        };
+        let batch_line = match is_color {
+            false => create_watch_diff_output_line_for_batch(&dest_line, &src_line),
+            true => create_watch_diff_output_line_with_ansi_for_batch(&dest_line, &src_line),
         };
 
-        if is_line_number {
-            match line_data {
-                OutputVecElementData::Line(ref mut line) => {
-                    line.spans.insert(
-                        0,
-                        Span::styled(
-                            format!("{counter:>header_width$} | "),
-                            Style::default().fg(Color::DarkGray),
-                        ),
-                    );
-                }
-                OutputVecElementData::String(ref mut line) => {
-                    line.insert_str(
-                        0,
-                        &gen_counter_str(is_color, counter, header_width, DifferenceType::Same),
-                    );
-                }
-                OutputVecElementData::None() => {}
-            }
-        };
-
-        result.push(line_data);
+        result.push(DiffRow {
+            watch_line,
+            batch_line,
+            line_number: Some(counter),
+            diff_type: DifferenceType::Same,
+        });
         counter += 1;
     }
 
-    return (
-        header_width,
-        expand_output_vec_element_data(is_batch, result),
-    );
+    (header_width, result)
 }
 
 ///
-fn create_watch_diff_output_line<'a>(
-    dest_line: &str,
-    src_line: &str,
-    is_batch: bool,
-) -> OutputVecElementData<'a> {
+fn create_watch_diff_output_line<'a>(dest_line: &str, src_line: &str) -> Line<'a> {
     if src_line == dest_line {
-        if is_batch {
-            return OutputVecElementData::String(dest_line.to_string());
-        } else {
-            let line = Line::from(String::from(dest_line));
-            return OutputVecElementData::Line(line);
-        }
+        return Line::from(String::from(dest_line));
     }
 
     // Decompose lines by character.
@@ -279,25 +232,81 @@ fn create_watch_diff_output_line<'a>(
             result_chars.push(dest_chars[x]);
         }
     }
-    if is_batch {
-        let mut data_str: String = result_chars.iter().collect();
-        data_str.push_str("\x1b[0m");
-        return OutputVecElementData::String(data_str);
-    } else {
-        return OutputVecElementData::Line(Line::from(result_spans));
+    let _ = result_chars;
+    Line::from(result_spans)
+}
+
+fn create_watch_diff_output_line_for_batch(dest_line: &str, src_line: &str) -> String {
+    if src_line == dest_line {
+        return dest_line.to_string();
     }
+
+    let mut src_chars: Vec<char> = src_line.chars().collect();
+    let mut dest_chars: Vec<char> = dest_line.chars().collect();
+    let space: char = '\u{00a0}';
+    let max_char = cmp::max(src_chars.len(), dest_chars.len());
+    let mut result_chars = vec![];
+
+    let mut is_escape = false;
+    let mut escape_code = "".to_string();
+    for x in 0..max_char {
+        if src_chars.len() <= x {
+            src_chars.push(space);
+        }
+
+        if dest_chars.len() <= x {
+            dest_chars.push(space);
+        }
+
+        let src_char = src_chars[x];
+        let dest_char = dest_chars[x];
+
+        if src_char != dest_char {
+            let ansi_escape_sequence = '\x1b';
+            let char_data = if dest_char == space {
+                ' '
+            } else {
+                dest_chars[x]
+            };
+
+            if char_data == ansi_escape_sequence {
+                escape_code = "".to_string();
+                escape_code.push(char_data);
+                is_escape = true;
+            } else if is_escape {
+                escape_code.push(char_data);
+                if char_data == 'm' {
+                    is_escape = false;
+                }
+                for c in escape_code.chars() {
+                    result_chars.push(c);
+                }
+            } else {
+                let ansi_reverse = format!("\x1b[7m{char_data}\x1b[7m");
+                for c in ansi_reverse.chars() {
+                    result_chars.push(c);
+                }
+            }
+        } else {
+            result_chars.push(dest_chars[x]);
+        }
+    }
+
+    let mut data_str: String = result_chars.iter().collect();
+    data_str.push_str("\x1b[0m");
+    data_str
 }
 
 ///
 fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
     dest_line: &str,
     src_line: &str,
-) -> OutputVecElementData<'a> {
+) -> Line<'a> {
     // If the contents are the same line.
     if src_line == dest_line {
         let new_spans = ansi::bytes_to_text(format!("{dest_line}\n").as_bytes());
         if let Some(spans) = new_spans.into_iter().next() {
-            return OutputVecElementData::Line(spans);
+            return spans;
         }
     }
 
@@ -350,15 +359,12 @@ fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
 
     result.push(Span::styled(space, Style::default()));
 
-    return OutputVecElementData::Line(Line::from(result));
+    Line::from(result)
 }
 
-fn create_watch_diff_output_line_with_ansi_for_batch<'a>(
-    dest_line: &str,
-    src_line: &str,
-) -> OutputVecElementData<'a> {
+fn create_watch_diff_output_line_with_ansi_for_batch(dest_line: &str, src_line: &str) -> String {
     if src_line == dest_line {
-        return OutputVecElementData::String(dest_line.to_string());
+        return dest_line.to_string();
     }
 
     let mut rendered = String::new();
@@ -384,7 +390,9 @@ fn create_watch_diff_output_line_with_ansi_for_batch<'a>(
         }
 
         let mut span = dest_spans[x].clone();
-        if src_spans[x].content != dest_spans[x].content || src_spans[x].style != dest_spans[x].style {
+        if src_spans[x].content != dest_spans[x].content
+            || src_spans[x].style != dest_spans[x].style
+        {
             if dest_spans[x].content == space {
                 span = Span::raw(" ");
             } else {
@@ -404,7 +412,7 @@ fn create_watch_diff_output_line_with_ansi_for_batch<'a>(
     }
 
     rendered.push_str("\x1b[0m");
-    OutputVecElementData::String(rendered)
+    rendered
 }
 
 fn ansi_span_to_style(style: &Style) -> ansi_term::Style {

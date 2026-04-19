@@ -13,7 +13,10 @@ Set CursorBlink false
 Set Theme "Catppuccin Frappe"
 Set WindowBar Colorful
 
-Type "hwatch -n 2 'date +%Y%m%d_%H%M%S;ls -la ./'"
+# TODO: バックグラウンドで、一部のファイルに変更を行わせるプロセスを走らせる
+
+
+Type "hwatch -n 2 'ls -la ./_demo'"
 Enter
 
 Sleep 2 s
