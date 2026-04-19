@@ -52,7 +52,6 @@
 // crate
 extern crate ansi_parser;
 extern crate ansi_term;
-extern crate async_std;
 extern crate chardetng;
 extern crate chrono;
 extern crate config;
@@ -61,7 +60,6 @@ extern crate crossterm;
 extern crate ctrlc;
 extern crate encoding_rs;
 extern crate flate2;
-extern crate futures;
 extern crate heapless;
 extern crate nix;
 extern crate question;
@@ -72,7 +70,6 @@ extern crate shell_words;
 extern crate similar;
 extern crate tempfile;
 extern crate termwiz;
-extern crate tokio;
 extern crate unicode_segmentation;
 extern crate unicode_width;
 
