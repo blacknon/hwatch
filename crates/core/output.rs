@@ -185,6 +185,11 @@ impl Printer {
         self
     }
 
+    pub fn set_ignore_spaceblock(&mut self, ignore_spaceblock: bool) -> &mut Self {
+        self.options.set_ignore_spaceblock(ignore_spaceblock);
+        self
+    }
+
     /// set tab size.
     pub fn set_tab_size(&mut self, tab_size: u16) -> &mut Self {
         self.tab_size = tab_size;

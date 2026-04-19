@@ -28,7 +28,8 @@ pub const COLOR_WATCH_LINE_NUMBER_REM: Color = Color::Rgb(118, 0, 0);
 pub const COLOR_WATCH_LINE_ADD: Color = Color::Green;
 pub const COLOR_WATCH_LINE_REM: Color = Color::Red;
 pub const COLOR_WATCH_LINE_REVERSE_FG: Color = Color::White;
-pub const PLUGIN_ABI_VERSION: u32 = 1;
+pub const PLUGIN_ABI_VERSION: u32 = 2;
+pub const PLUGIN_ABI_VERSION_V1: u32 = 1;
 pub const PLUGIN_OUTPUT_BATCH: u32 = 0;
 pub const PLUGIN_OUTPUT_WATCH: u32 = 1;
 
@@ -52,6 +53,17 @@ pub struct PluginOwnedBytes {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct PluginDiffRequestV1 {
+    pub dest: PluginSlice,
+    pub src: PluginSlice,
+    pub output_kind: u32,
+    pub color: bool,
+    pub line_number: bool,
+    pub only_diffline: bool,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct PluginDiffRequest {
     pub dest: PluginSlice,
     pub src: PluginSlice,
@@ -59,6 +71,7 @@ pub struct PluginDiffRequest {
     pub color: bool,
     pub line_number: bool,
     pub only_diffline: bool,
+    pub ignore_spaceblock: bool,
 }
 
 #[repr(C)]
@@ -153,6 +166,9 @@ pub struct DiffModeOptions {
 
     //
     only_diffline: bool,
+
+    //
+    ignore_spaceblock: bool,
 }
 
 impl DiffModeOptions {
@@ -161,6 +177,7 @@ impl DiffModeOptions {
             color: false,
             line_number: false,
             only_diffline: false,
+            ignore_spaceblock: false,
         }
     }
 
@@ -186,6 +203,14 @@ impl DiffModeOptions {
 
     pub fn set_only_diffline(&mut self, only_diffline: bool) {
         self.only_diffline = only_diffline;
+    }
+
+    pub fn get_ignore_spaceblock(&self) -> bool {
+        self.ignore_spaceblock
+    }
+
+    pub fn set_ignore_spaceblock(&mut self, ignore_spaceblock: bool) {
+        self.ignore_spaceblock = ignore_spaceblock;
     }
 }
 
@@ -228,6 +253,39 @@ pub fn expand_line_tab(data: &str, tab_size: u16) -> String {
     }
 
     result_vec.join("\n")
+}
+
+pub fn normalize_space_blocks(data: &str) -> String {
+    let mut normalized = String::with_capacity(data.len());
+    let mut in_spaceblock = false;
+
+    for ch in data.chars() {
+        if ch == '\n' {
+            normalized.push('\n');
+            in_spaceblock = false;
+            continue;
+        }
+
+        if ch.is_whitespace() {
+            if !in_spaceblock {
+                normalized.push(' ');
+                in_spaceblock = true;
+            }
+        } else {
+            normalized.push(ch);
+            in_spaceblock = false;
+        }
+    }
+
+    normalized
+}
+
+pub fn text_eq_ignoring_space_blocks(left: &str, right: &str, enabled: bool) -> bool {
+    if !enabled {
+        return left == right;
+    }
+
+    normalize_space_blocks(left) == normalize_space_blocks(right)
 }
 
 pub fn gen_counter_str(
@@ -354,15 +412,33 @@ mod tests {
         options.set_color(true);
         options.set_line_number(true);
         options.set_only_diffline(true);
+        options.set_ignore_spaceblock(true);
 
         assert!(options.get_color());
         assert!(options.get_line_number());
         assert!(options.get_only_diffline());
+        assert!(options.get_ignore_spaceblock());
     }
 
     #[test]
     fn expand_line_tab_expands_each_line_independently() {
         assert_eq!(expand_line_tab("a\tb\n12\tc", 4), "a   b\n12  c");
+    }
+
+    #[test]
+    fn normalize_space_blocks_collapses_runs_per_line() {
+        assert_eq!(
+            normalize_space_blocks("a  b\t\tc\n  d    e\n"),
+            "a b c\n d e\n"
+        );
+    }
+
+    #[test]
+    fn text_eq_ignoring_space_blocks_matches_equivalent_text() {
+        assert!(text_eq_ignoring_space_blocks("a  b", "a   b", true));
+        assert!(text_eq_ignoring_space_blocks("a\tb", "a    b", true));
+        assert!(!text_eq_ignoring_space_blocks("ab", "a b", true));
+        assert!(!text_eq_ignoring_space_blocks("a  b", "a   b", false));
     }
 
     #[test]

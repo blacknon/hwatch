@@ -60,6 +60,7 @@ pub struct View {
     diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
     diff_mode_width: usize,
     is_only_diffline: bool,
+    ignore_spaceblock: bool,
     enable_summary_char: bool,
     log_path: String,
 }
@@ -92,6 +93,7 @@ impl View {
             diff_modes: diff_modes,
             diff_mode_width: 0,
             is_only_diffline: false,
+            ignore_spaceblock: false,
             enable_summary_char: false,
             log_path: "".to_string(),
         }
@@ -203,6 +205,11 @@ impl View {
         self
     }
 
+    pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
+        self.ignore_spaceblock = ignore_spaceblock;
+        self
+    }
+
     pub fn set_enable_summary_char(mut self, enable_summary_char: bool) -> Self {
         self.enable_summary_char = enable_summary_char;
         self
@@ -310,6 +317,7 @@ impl View {
         // set diff mode
         app.set_diff_mode(self.diff_mode);
         app.set_is_only_diffline(self.is_only_diffline);
+        app.set_ignore_spaceblock(self.ignore_spaceblock);
 
         // set enable summary char
         app.set_enable_summary_char(self.enable_summary_char);

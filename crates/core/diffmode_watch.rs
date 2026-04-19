@@ -12,8 +12,8 @@ use tui::{
 use hwatch_ansi as ansi;
 use hwatch_ansi::gen_ansi_all_set_str;
 use hwatch_diffmode::{
-    render_diff_rows_as_batch, render_diff_rows_as_watch, DiffMode, DiffModeExt, DiffModeOptions,
-    DiffRow, DifferenceType,
+    render_diff_rows_as_batch, render_diff_rows_as_watch, text_eq_ignoring_space_blocks, DiffMode,
+    DiffModeExt, DiffModeOptions, DiffRow, DifferenceType,
 };
 
 pub struct DiffModeAtWatch {
@@ -131,12 +131,28 @@ fn generate_watch_diff_rows<'a>(
         let dest_line = vec_dest[i];
 
         let watch_line = match options.get_color() {
-            false => create_watch_diff_output_line(&dest_line, &src_line),
-            true => create_watch_diff_output_line_with_ansi_for_watch(&dest_line, &src_line),
+            false => create_watch_diff_output_line(
+                &dest_line,
+                &src_line,
+                options.get_ignore_spaceblock(),
+            ),
+            true => create_watch_diff_output_line_with_ansi_for_watch(
+                &dest_line,
+                &src_line,
+                options.get_ignore_spaceblock(),
+            ),
         };
         let batch_line = match options.get_color() {
-            false => create_watch_diff_output_line_for_batch(&dest_line, &src_line),
-            true => create_watch_diff_output_line_with_ansi_for_batch(&dest_line, &src_line),
+            false => create_watch_diff_output_line_for_batch(
+                &dest_line,
+                &src_line,
+                options.get_ignore_spaceblock(),
+            ),
+            true => create_watch_diff_output_line_with_ansi_for_batch(
+                &dest_line,
+                &src_line,
+                options.get_ignore_spaceblock(),
+            ),
         };
 
         result.push(DiffRow {
@@ -152,8 +168,12 @@ fn generate_watch_diff_rows<'a>(
 }
 
 ///
-fn create_watch_diff_output_line<'a>(dest_line: &str, src_line: &str) -> Line<'a> {
-    if src_line == dest_line {
+fn create_watch_diff_output_line<'a>(
+    dest_line: &str,
+    src_line: &str,
+    ignore_spaceblock: bool,
+) -> Line<'a> {
+    if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
         return Line::from(String::from(dest_line));
     }
 
@@ -236,8 +256,12 @@ fn create_watch_diff_output_line<'a>(dest_line: &str, src_line: &str) -> Line<'a
     Line::from(result_spans)
 }
 
-fn create_watch_diff_output_line_for_batch(dest_line: &str, src_line: &str) -> String {
-    if src_line == dest_line {
+fn create_watch_diff_output_line_for_batch(
+    dest_line: &str,
+    src_line: &str,
+    ignore_spaceblock: bool,
+) -> String {
+    if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
         return dest_line.to_string();
     }
 
@@ -301,9 +325,10 @@ fn create_watch_diff_output_line_for_batch(dest_line: &str, src_line: &str) -> S
 fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
     dest_line: &str,
     src_line: &str,
+    ignore_spaceblock: bool,
 ) -> Line<'a> {
     // If the contents are the same line.
-    if src_line == dest_line {
+    if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
         let new_spans = ansi::bytes_to_text(format!("{dest_line}\n").as_bytes());
         if let Some(spans) = new_spans.into_iter().next() {
             return spans;
@@ -362,8 +387,12 @@ fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
     Line::from(result)
 }
 
-fn create_watch_diff_output_line_with_ansi_for_batch(dest_line: &str, src_line: &str) -> String {
-    if src_line == dest_line {
+fn create_watch_diff_output_line_with_ansi_for_batch(
+    dest_line: &str,
+    src_line: &str,
+    ignore_spaceblock: bool,
+) -> String {
+    if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
         return dest_line.to_string();
     }
 
