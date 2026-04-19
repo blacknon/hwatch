@@ -434,12 +434,12 @@ mod tests {
         assert_eq!(rows[1].diff_type, DifferenceType::Add);
         assert_eq!(rows[0].watch_line.spans[1].content.as_ref(), "alpha");
         assert_eq!(rows[0].watch_line.spans[2].content.as_ref(), " ");
-        assert_eq!(rows[0].watch_line.spans[3].content.as_ref(), "beta");
+        assert_eq!(rows[0].watch_line.spans[3].content.as_ref(), "beta\n");
         assert!(rows[0].watch_line.spans[3]
             .style
             .add_modifier
             .contains(Modifier::REVERSED));
-        assert_eq!(rows[1].watch_line.spans[3].content.as_ref(), "gamma");
+        assert_eq!(rows[1].watch_line.spans[3].content.as_ref(), "gamma\n");
         assert!(rows[1].watch_line.spans[3]
             .style
             .add_modifier

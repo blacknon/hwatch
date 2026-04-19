@@ -511,8 +511,26 @@ fn create_raw_pty() -> Result<OpenptyResult, nix::Error> {
 
 #[cfg(unix)]
 fn read_from_fd(fd: OwnedFd, label: &str) -> Result<Vec<u8>, String> {
-    let file = File::from(fd);
-    read_from_pipe(file, label)
+    use std::io::ErrorKind;
+
+    let mut file = File::from(fd);
+    let mut buf = Vec::new();
+    let mut chunk = [0_u8; 8192];
+
+    loop {
+        match file.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(size) => buf.extend_from_slice(&chunk[..size]),
+            Err(err) if err.kind() == ErrorKind::Interrupted => continue,
+            // PTY masters can report EIO when the slave side closes; treat it as EOF.
+            Err(err) if err.kind() == ErrorKind::UnexpectedEof || err.raw_os_error() == Some(5) => {
+                break;
+            }
+            Err(err) => return Err(format!("Failed to read {label}: {err}")),
+        }
+    }
+
+    Ok(buf)
 }
 
 fn read_from_pipe<R: Read>(reader: R, label: &str) -> Result<Vec<u8>, String> {
