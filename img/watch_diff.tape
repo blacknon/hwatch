@@ -13,6 +13,6 @@ Set CursorBlink false
 Set Theme "Catppuccin Frappe"
 Set WindowBar Colorful
 
-Type "hwatch --diff-plugin plugins/numeric-diff/target/release/libhwatch_plugin_numeric_diff.dylib -d numeric-diff sh ./img/demo-command.sh"
+Type "hwatch -d watch sh ./img/demo-command.sh"
 Enter
 Sleep 15s

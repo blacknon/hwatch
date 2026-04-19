@@ -42,6 +42,7 @@ use crate::hwatch_ansi::get_ansi_strip_str;
 use crate::hwatch_diffmode::DiffMode;
 use crate::keymap::{default_keymap, InputAction, Keymap};
 use crate::output;
+use crate::output::WatchRenderData;
 use crate::popup::PopupWindow;
 use crate::watch::WatchArea;
 use crate::{
@@ -377,27 +378,13 @@ impl App<'_> {
 
                 // Get command result.
                 Ok(AppEvent::OutputUpdate(exec_result)) => {
-                    let _ = self.create_result_items(exec_result, true);
-                }
+                    let changed = self.create_result_items(exec_result, true);
 
-                Ok(AppEvent::HistoryUpdate(
-                    (output_result_items, stdout_result_items, stderr_result_items),
-                    is_running_app,
-                )) => {
-                    let changed = self.update_result(
-                        output_result_items,
-                        stdout_result_items,
-                        stderr_result_items,
-                        is_running_app,
-                    );
-
-                    // beep
                     if changed && self.is_beep {
                         println!("\x07")
                     }
 
                     self.handle_exit_on_change(changed);
-
                     update_draw = true;
                 }
 
@@ -612,9 +599,7 @@ impl App<'_> {
         // set old text(text_src)
         let mut src = dest;
 
-        // support_only_diffline
-        let support_only_diffline: bool;
-        support_only_diffline = self.diff_modes[self.diff_mode]
+        let support_only_diffline = self.diff_modes[self.diff_mode]
             .lock()
             .unwrap()
             .get_support_only_diffline();
@@ -625,19 +610,23 @@ impl App<'_> {
             src = &results[&0].command_result;
         }
 
-        let output_data = self.printer.get_watch_text(dest, src);
+        let output_data = self.printer.get_watch_data(dest, src);
+        self.apply_watch_render_data(output_data);
+    }
 
-        self.watch_area.is_line_number = self.line_number;
-        match support_only_diffline {
-            false => {
-                self.watch_area.is_line_diff_head = false;
-            }
-
-            true => {
-                self.watch_area.is_line_diff_head = true;
+    fn apply_watch_render_data(&mut self, render_data: WatchRenderData) {
+        match render_data {
+            WatchRenderData::SinglePane(pane) => {
+                self.watch_area.is_line_number = pane.is_line_number;
+                self.watch_area.is_line_diff_head = pane.is_line_diff_head;
+                self.watch_area.update_output(pane.lines);
             }
         }
-        self.watch_area.update_output(output_data);
+    }
+
+    fn refresh_selected_watch_output(&mut self) {
+        let selected = self.history_area.get_state_select();
+        self.set_output_data(selected);
     }
 
     /// Delete the history and result data of the specified number.
@@ -724,8 +713,7 @@ impl App<'_> {
 
         self.printer.set_color(ansi_color);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///        
@@ -747,8 +735,7 @@ impl App<'_> {
         self.history_area.set_border(border);
         self.watch_area.set_border(border);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -763,8 +750,7 @@ impl App<'_> {
         // set history_summary
         self.history_area.set_summary(history_summary);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -775,16 +761,14 @@ impl App<'_> {
         self.history_area.set_scroll_bar(scroll_bar);
         self.watch_area.set_scroll_bar(scroll_bar);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
     pub fn set_watch_diff_colors(&mut self, fg: Option<Color>, bg: Option<Color>) {
         self.printer.set_watch_diff_colors(fg, bg);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -796,8 +780,7 @@ impl App<'_> {
 
         self.printer.set_line_number(line_number);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -809,8 +792,7 @@ impl App<'_> {
 
         self.printer.set_reverse(reverse);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -834,8 +816,7 @@ impl App<'_> {
     pub fn set_wrap_mode(&mut self, wrap: bool) {
         self.watch_area.set_wrap_mode(wrap);
 
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -1064,46 +1045,26 @@ impl App<'_> {
             .command_result
             .clone();
 
-        // create ResultItems
-        let enable_summary_char = self.enable_summary_char;
-        let tx = self.tx.clone();
+        // NOTE:
+        // ResultItems used to be computed on a background thread while the app
+        // was running. That allowed later OutputUpdate events to observe a stale
+        // "latest" baseline before the previous update had been applied,
+        // producing duplicate-looking history entries and repeated diffs against
+        // an older snapshot. Keep this path synchronous for correctness.
+        let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
+            _result,
+            self.enable_summary_char,
+            &latest_result,
+            &stdout_latest_result,
+            &stderr_latest_result,
+        );
 
-        if is_running_app {
-            thread::spawn(move || {
-                let (output_result_items, stdout_result_items, stderr_result_items) =
-                    gen_result_items(
-                        _result,
-                        enable_summary_char,
-                        &latest_result.clone(),
-                        &stdout_latest_result,
-                        &stderr_latest_result,
-                    );
-
-                let _ = tx.send(AppEvent::HistoryUpdate(
-                    (
-                        output_result_items,
-                        stdout_result_items,
-                        stderr_result_items,
-                    ),
-                    is_running_app,
-                ));
-            });
-        } else {
-            let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
-                _result,
-                enable_summary_char,
-                &latest_result,
-                &stdout_latest_result,
-                &stderr_latest_result,
-            );
-
-            let _ = self.update_result(
-                output_result_items,
-                stdout_result_items,
-                stderr_result_items,
-                is_running_app,
-            );
-        }
+        let _ = self.update_result(
+            output_result_items,
+            stdout_result_items,
+            stderr_result_items,
+            is_running_app,
+        );
 
         true
     }
@@ -1905,8 +1866,7 @@ impl App<'_> {
         self.history_area.next(1);
 
         // get now selected history
-        let selected = self.history_area.get_state_select();
-        self.set_output_data(selected);
+        self.refresh_selected_watch_output();
     }
 
     ///
@@ -2349,7 +2309,7 @@ fn gen_result_items(
 
     // create stdout ResultItems
     let stdout_diff_only_data =
-        gen_diff_only_data(&output_latest_result.get_stdout(), &_result.get_stdout());
+        gen_diff_only_data(&stdout_latest_result.get_stdout(), &_result.get_stdout());
     let mut stdout_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2363,7 +2323,7 @@ fn gen_result_items(
 
     // create stderr ResultItems
     let stderr_diff_only_data =
-        gen_diff_only_data(&output_latest_result.get_stderr(), &_result.get_stderr());
+        gen_diff_only_data(&stderr_latest_result.get_stderr(), &_result.get_stderr());
     let mut stderr_result_items = ResultItems {
         command_result: _result.clone(),
         summary: HistorySummary::init(),
@@ -2375,8 +2335,6 @@ fn gen_result_items(
         enable_summary_char,
     );
 
-    // TODO: is_appじゃない場合、tx.sendじゃないやり方で追加する方法を考える必要がありそう？？ → 呼び出し元で処理をさせるようにする？？？(log load時にうまく動作しない原因がこれ)
-    // let _ = tx.send(AppEvent::HistoryUpdate((output_result_items, stdout_result_items, stderr_result_items), is_running_app));
     (
         output_result_items,
         stdout_result_items,

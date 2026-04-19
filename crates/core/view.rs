@@ -354,8 +354,16 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
         #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
         set_nonblocking(false)?;
 
-        if let Ok(event) = result {
-            let _ = tx.send(AppEvent::TerminalEvent(event));
+        match result {
+            Ok(event) => {
+                let _ = tx.send(AppEvent::TerminalEvent(event));
+            }
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) => {}
+            Err(err) => return Err(err),
         }
     }
     Ok(())

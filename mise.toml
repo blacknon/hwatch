@@ -6,8 +6,28 @@
 # Tasks(binary)
 # ====================
 [tasks.generate-gif]
-description = "generate hwatch.gif"
 run = """
+# デモ用のディレクトリ・ファイルを生成
+mkdir -p _demo
+touch _demo/demo.{00..99}.txt
+
+# デモ用のファイルをランダムに変更させるプロセスを走らせる(20秒後に停止させる)
+for i in {1..10}; do
+    sleep 2
+    echo "demo file $i" > _demo/demo.$((RANDOM % 100)).txt
+done &
+
+# デモGIFの作成
 vhs img/demo.tape -o img/hwatch.gif
+
+# デモ用のプロセスを停止
+
+# デモ用のファイルを削除
+rm -rf _demo
+
+vhs img/watch_diff.tape -o img/watch_diff.gif
+vhs img/line_diff.tape -o img/line_diff.gif
+vhs img/word_diff.tape -o img/word_diff.gif
 vhs img/plugin.tape -o img/plugin.gif
 """
+description = "Generate demo GIFs"

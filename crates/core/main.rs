@@ -3,13 +3,27 @@
 // that can be found in the LICENSE file.
 
 // v0.4.0
-// TODO(blacknon): 空白の数だけ違う場合、diffとして扱わないようにするオプションの追加(shortcut keyではなく、`:set hogehoge...`で指定する機能として実装)
+// TODO(blacknon):
+//   空白の数だけ違う場合、diffとして扱わないようにするオプションの追加
+//     - 起動のタイミングでフラグが有効になっていないと行けないので、optionとして実装する
+//     - このモードが有効になっている場合、各diff_modeで差分表示する際にも無視する処理が必要
+
+// v0.4.1
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
-// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)q
+// TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
 // TODO(blacknon): filter modeの検索ヒット数を表示する(どうやってやろう…？というより、どこに表示させよう…？)
 // TODO(blacknon): Windowsのバイナリをパッケージマネジメントシステムでインストール可能になるよう、Releaseでうまいこと処理をする
 // TODO(blacknon): watchをモダンよりのものに変更する
+
+// v0.5.0
+// TODO(blacknon):
+//   横に2画面表示するモードの追加
+//     - diff modeの一種か？？
+//     - 既存のモードとは違う種類のモードとして、カテゴリを分けて扱うべきかも？
+//     - ウィンドウは2個にして、スクロールは連動させる必要がある
+//     - 2画面のうち、左は前回の出力、右は今回の出力を表示するモードにする
+//     - イメージ的にはdiff -yやvimのvertical diffみたいな感じである。
 
 // v1.0.0
 // TODO(blacknon): vimのように内部コマンドを利用した表示切り替え・出力結果の編集機能を追加する
@@ -356,9 +370,11 @@ fn build_app() -> clap::Command {
                 .value_hint(ValueHint::CommandString)
                 .action(ArgAction::Append)
         )
+        // Option to specify how to pass the change information to `aftercommand`.
+        //     [--after-command-result-write-file]
         .arg(
             Arg::new("after_command_result_write_file")
-                .help("TODO: あとでかく")
+                .help("Passes `${HWATCH_DATA}` to `aftercommand` as a temporary file path instead of inline json data.")
                 .long("after-command-result-write-file")
                 .requires("after_command")
                 .action(ArgAction::SetTrue),
@@ -487,9 +503,11 @@ fn collect_known_diff_mode_names(args: &[OsString]) -> HashSet<String> {
         let arg = args[index].to_string_lossy();
         let plugin_path = if arg == "--diff-plugin" {
             index += 1;
-            args.get(index).map(|value| value.to_string_lossy().into_owned())
+            args.get(index)
+                .map(|value| value.to_string_lossy().into_owned())
         } else {
-            arg.strip_prefix("--diff-plugin=").map(|value| value.to_string())
+            arg.strip_prefix("--diff-plugin=")
+                .map(|value| value.to_string())
         };
 
         if let Some(plugin_path) = plugin_path {
