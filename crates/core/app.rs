@@ -727,7 +727,7 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///        
+    ///
     pub fn set_beep(&mut self, beep: bool) {
         self.is_beep = beep;
     }
