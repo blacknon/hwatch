@@ -61,6 +61,7 @@ struct PluginDiffMode {
     plugin_path: PathBuf,
 }
 
+#[derive(Debug)]
 struct ParsedPluginDiffResponse {
     header_text: String,
     lines: Vec<PluginLine>,
@@ -82,12 +83,13 @@ enum RawPluginLine {
     Styled(PluginStyledLine),
 }
 
+#[derive(Debug)]
 enum PluginLine {
     Plain(String),
     Styled(PluginStyledLine),
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct PluginStyledLine {
     #[serde(default)]
     line_no: Option<usize>,
@@ -98,14 +100,14 @@ struct PluginStyledLine {
     spans: Vec<PluginStyledSpan>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct PluginStyledSpan {
     text: String,
     #[serde(default)]
     style: PluginStyleSpec,
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 struct PluginStyleSpec {
     fg: Option<String>,
     bg: Option<String>,
@@ -121,7 +123,7 @@ struct PluginStyleSpec {
     reversed: bool,
 }
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum PluginDiffType {
     Same,
@@ -139,7 +141,7 @@ impl PluginDiffType {
     }
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct PluginGutterSpec {
     #[serde(default)]
     text: Option<String>,
@@ -147,6 +149,7 @@ struct PluginGutterSpec {
     style: PluginStyleSpec,
 }
 
+#[derive(Debug)]
 struct ValidatedPluginMetadata {
     abi_version: u32,
     supports_only_diffline: bool,
@@ -159,49 +162,54 @@ impl PluginDiffMode {
         let library = unsafe { Library::new(path) }
             .map_err(|err| plugin_load_error(path, format!("{err}")))?;
 
-        let (generate, free_bytes, metadata) = unsafe {
-            let metadata_fn: Symbol<PluginMetadataFn> = library
-                .get(b"hwatch_diffmode_metadata\0")
-                .map_err(|err| {
-                    plugin_metadata_error(
-                        path,
-                        format!("missing exported symbol 'hwatch_diffmode_metadata': {err}"),
-                    )
-                })?;
-            let free_bytes_fn: Symbol<PluginFreeBytesFn> = library
-                .get(b"hwatch_diffmode_free_bytes\0")
-                .map_err(|err| {
-                    plugin_metadata_error(
-                        path,
-                        format!("missing exported symbol 'hwatch_diffmode_free_bytes': {err}"),
-                    )
-                })?;
+        let (generate, free_bytes, metadata) =
+            unsafe {
+                let metadata_fn: Symbol<PluginMetadataFn> =
+                    library.get(b"hwatch_diffmode_metadata\0").map_err(|err| {
+                        plugin_metadata_error(
+                            path,
+                            format!("missing exported symbol 'hwatch_diffmode_metadata': {err}"),
+                        )
+                    })?;
+                let free_bytes_fn: Symbol<PluginFreeBytesFn> = library
+                    .get(b"hwatch_diffmode_free_bytes\0")
+                    .map_err(|err| {
+                        plugin_metadata_error(
+                            path,
+                            format!("missing exported symbol 'hwatch_diffmode_free_bytes': {err}"),
+                        )
+                    })?;
 
-            let metadata = metadata_fn();
-            let metadata = validate_metadata(path, metadata)?;
+                let metadata = metadata_fn();
+                let metadata = validate_metadata(path, metadata)?;
 
-            let generate_fn = match metadata.abi_version {
-                PLUGIN_ABI_VERSION_V1 => PluginGenerateFn::V1(*library.get::<PluginGenerateFnV1>(
-                    b"hwatch_diffmode_generate\0",
-                ).map_err(|err| {
-                    plugin_metadata_error(
+                let generate_fn =
+                    match metadata.abi_version {
+                        PLUGIN_ABI_VERSION_V1 => PluginGenerateFn::V1(
+                            *library
+                                .get::<PluginGenerateFnV1>(b"hwatch_diffmode_generate\0")
+                                .map_err(|err| {
+                                    plugin_metadata_error(
                         path,
                         format!("missing exported symbol 'hwatch_diffmode_generate': {err}"),
                     )
-                })?),
-                PLUGIN_ABI_VERSION => PluginGenerateFn::V2(*library.get::<PluginGenerateFnV2>(
-                    b"hwatch_diffmode_generate\0",
-                ).map_err(|err| {
-                    plugin_metadata_error(
+                                })?,
+                        ),
+                        PLUGIN_ABI_VERSION => PluginGenerateFn::V2(
+                            *library
+                                .get::<PluginGenerateFnV2>(b"hwatch_diffmode_generate\0")
+                                .map_err(|err| {
+                                    plugin_metadata_error(
                         path,
                         format!("missing exported symbol 'hwatch_diffmode_generate': {err}"),
                     )
-                })?),
-                _ => unreachable!(),
+                                })?,
+                        ),
+                        _ => unreachable!(),
+                    };
+
+                (generate_fn, *free_bytes_fn, metadata)
             };
-
-            (generate_fn, *free_bytes_fn, metadata)
-        };
 
         Ok(Self {
             _library: Some(library),
@@ -278,7 +286,11 @@ fn plugin_response_error(path: &Path, detail: impl Into<String>) -> String {
 }
 
 fn plugin_response_bytes_error(path: &Path, detail: impl Into<String>) -> String {
-    format!("plugin '{}' response bytes: {}", path.display(), detail.into())
+    format!(
+        "plugin '{}' response bytes: {}",
+        path.display(),
+        detail.into()
+    )
 }
 
 fn plugin_runtime_error(path: &Path, detail: impl Into<String>) -> String {
@@ -373,10 +385,15 @@ unsafe fn cstr_to_string(
     CStr::from_ptr(ptr)
         .to_str()
         .map(|value| value.to_string())
-        .map_err(|err| plugin_metadata_error(path, format!("field '{field}' is not valid UTF-8: {err}")))
+        .map_err(|err| {
+            plugin_metadata_error(path, format!("field '{field}' is not valid UTF-8: {err}"))
+        })
 }
 
-fn validate_metadata(path: &Path, metadata: PluginMetadata) -> Result<ValidatedPluginMetadata, String> {
+fn validate_metadata(
+    path: &Path,
+    metadata: PluginMetadata,
+) -> Result<ValidatedPluginMetadata, String> {
     if metadata.abi_version != PLUGIN_ABI_VERSION && metadata.abi_version != PLUGIN_ABI_VERSION_V1 {
         return Err(plugin_metadata_error(
             path,
@@ -387,10 +404,10 @@ fn validate_metadata(path: &Path, metadata: PluginMetadata) -> Result<ValidatedP
         ));
     }
 
-    let plugin_name = cstr_to_string(metadata.plugin_name, "plugin_name", path)?;
+    let plugin_name = unsafe { cstr_to_string(metadata.plugin_name, "plugin_name", path) }?;
     validate_plugin_name(path, &plugin_name)?;
 
-    let header_text = cstr_to_string(metadata.header_text, "header_text", path)?;
+    let header_text = unsafe { cstr_to_string(metadata.header_text, "header_text", path) }?;
     validate_text_field(path, "metadata", "header_text", &header_text)?;
 
     Ok(ValidatedPluginMetadata {
@@ -417,7 +434,9 @@ fn validate_plugin_name(path: &Path, plugin_name: &str) -> Result<(), String> {
     {
         return Err(plugin_metadata_error(
             path,
-            format!("plugin_name '{plugin_name}' must not contain whitespace or control characters"),
+            format!(
+                "plugin_name '{plugin_name}' must not contain whitespace or control characters"
+            ),
         ));
     }
     Ok(())
@@ -425,7 +444,11 @@ fn validate_plugin_name(path: &Path, plugin_name: &str) -> Result<(), String> {
 
 fn validate_text_field(path: &Path, stage: &str, field: &str, value: &str) -> Result<(), String> {
     if value.trim().is_empty() {
-        return Err(plugin_error_at_stage(path, stage, format!("{field} must not be empty")));
+        return Err(plugin_error_at_stage(
+            path,
+            stage,
+            format!("{field} must not be empty"),
+        ));
     }
     if value.chars().any(|ch| ch.is_control()) {
         return Err(plugin_error_at_stage(
@@ -443,7 +466,10 @@ fn copy_plugin_response_bytes(
     path: &Path,
 ) -> Result<Vec<u8>, String> {
     if bytes.ptr.is_null() {
-        return Err(plugin_response_bytes_error(path, "plugin returned a null pointer"));
+        return Err(plugin_response_bytes_error(
+            path,
+            "plugin returned a null pointer",
+        ));
     }
     if bytes.cap < bytes.len {
         return Err(plugin_response_bytes_error(
@@ -458,7 +484,10 @@ fn copy_plugin_response_bytes(
         unsafe {
             free_bytes(bytes);
         }
-        return Err(plugin_response_bytes_error(path, "plugin returned an empty response"));
+        return Err(plugin_response_bytes_error(
+            path,
+            "plugin returned an empty response",
+        ));
     }
     if bytes.len > MAX_PLUGIN_RESPONSE_BYTES {
         unsafe {
@@ -1065,8 +1094,9 @@ mod tests {
 
     #[test]
     fn parse_plugin_response_rejects_invalid_json() {
-        let error = parse_plugin_response(bytes_from_vec(b"{".to_vec()), free_test_bytes, test_path())
-            .unwrap_err();
+        let error =
+            parse_plugin_response(bytes_from_vec(b"{".to_vec()), free_test_bytes, test_path())
+                .unwrap_err();
 
         assert!(error.contains("response: invalid JSON"));
     }
@@ -1074,9 +1104,7 @@ mod tests {
     #[test]
     fn parse_plugin_response_rejects_unsupported_schema() {
         let error = parse_plugin_response(
-            bytes_from_vec(
-                br#"{"schema_version":999,"header_text":"Test","lines":[]}"#.to_vec(),
-            ),
+            bytes_from_vec(br#"{"schema_version":999,"header_text":"Test","lines":[]}"#.to_vec()),
             free_test_bytes,
             test_path(),
         )
