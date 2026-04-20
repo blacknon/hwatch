@@ -46,8 +46,8 @@ unicode-segmentation = "1.10"
 unicode-truncate = "2.0.1"
 unicode-width = "0.1.14"
 libloading = "0.8.9"
-hwatch-diffmode = { path = "crates/diffmode" }
-hwatch-ansi = { path = "crates/ansi" }
+hwatch-diffmode = { path = "crates/diffmode", version = "0.4.0" }
+hwatch-ansi = { path = "crates/ansi", version = "0.4.0" }
 tempfile = "3.20.0"
 
 [dev-dependencies]
