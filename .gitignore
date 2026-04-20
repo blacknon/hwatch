@@ -15,6 +15,7 @@ hwatch.sublime-project
 tmp*
 /target/
 plugins/*/target/
+examples/*/target/
 .rustc_info.json
 
 # tmp files

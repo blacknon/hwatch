@@ -1,8 +1,0 @@
-/Users/blacknon/_rust/hwatch/examples/plugin_cdylib_sample/target/debug/deps/instability-2b528743e3ab8d3f.d: /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/lib.rs /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/item_like.rs /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/stable.rs /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/unstable.rs
-
-/Users/blacknon/_rust/hwatch/examples/plugin_cdylib_sample/target/debug/deps/libinstability-2b528743e3ab8d3f.dylib: /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/lib.rs /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/item_like.rs /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/stable.rs /Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/unstable.rs
-
-/Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/lib.rs:
-/Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/item_like.rs:
-/Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/stable.rs:
-/Users/blacknon/.local/share/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instability-0.3.12/src/unstable.rs:
