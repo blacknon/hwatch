@@ -994,10 +994,7 @@ fn main() {
             if let Err(message) =
                 register_diff_mode_name(&mut diff_mode_name_to_index, plugin_name, diff_modes.len())
             {
-                let err = cmd_app.error(
-                    ErrorKind::ArgumentConflict,
-                    message,
-                );
+                let err = cmd_app.error(ErrorKind::ArgumentConflict, message);
                 err.exit();
             }
 
@@ -1309,9 +1306,8 @@ mod tests {
         let mut diff_mode_name_to_index = HashMap::new();
         register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 1).unwrap();
 
-        let error =
-            register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 2)
-                .unwrap_err();
+        let error = register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 2)
+            .unwrap_err();
 
         assert_eq!(error, "duplicate diff mode name: 'watch'");
     }

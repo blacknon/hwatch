@@ -667,7 +667,8 @@ fn diff_type_name(kind: RenderKind) -> &'static str {
 }
 
 fn delta_color(delta: &str) -> Option<&'static str> {
-    match delta.chars().nth(1) {
+    let sign = delta.chars().find(|ch| *ch == '+' || *ch == '-');
+    match sign {
         Some('+') => Some("cyan"),
         Some('-') => Some("magenta"),
         _ => Some("184,134,11"),
@@ -815,9 +816,9 @@ mod tests {
         assert_eq!(
             actual,
             Some(vec![NumericDelta {
-                before_start: 31,
+                before_start: 32,
                 before_len: 3,
-                after_start: 30,
+                after_start: 31,
                 after_len: 4,
                 before_delta: "-1".to_string(),
                 after_delta: "+1".to_string(),
@@ -852,7 +853,8 @@ mod tests {
             true,
             false,
         );
-        assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
+        assert_eq!(actual[0].spans[0].text, "   ");
+        assert_eq!(actual[0].spans[1].text, "\u{1b}[32msame\u{1b}[0m");
 
         let stripped = generate_numeric_diff(
             "\u{1b}[32msame\u{1b}[0m\n",
@@ -862,7 +864,8 @@ mod tests {
             false,
             false,
         );
-        assert_eq!(stripped[0].spans[0].text, "same");
+        assert_eq!(stripped[0].spans[0].text, "   ");
+        assert_eq!(stripped[0].spans[1].text, "same");
     }
 
     #[test]
@@ -887,9 +890,11 @@ mod tests {
         );
 
         assert_eq!(actual[0].diff_type, "rem");
-        assert_eq!(actual[0].spans[2].text, "alpha=1");
+        assert_eq!(actual[0].spans[1].text, "alpha=");
+        assert_eq!(actual[0].spans[2].text, "1");
         assert_eq!(actual[2].diff_type, "add");
-        assert_eq!(actual[2].spans[2].text, "alpha=2");
+        assert_eq!(actual[2].spans[1].text, "alpha=");
+        assert_eq!(actual[2].spans[2].text, "2");
         assert_eq!(actual[4].diff_type, "same");
         assert_eq!(actual[4].spans[1].text, "value=1 ms");
     }

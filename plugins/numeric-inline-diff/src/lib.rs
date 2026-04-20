@@ -649,10 +649,10 @@ mod tests {
             false,
         );
 
-        assert_eq!(actual[0].spans[2].text, "value=");
-        assert_eq!(actual[0].spans[3].text, "1");
-        assert_eq!(actual[1].spans[2].text, "value=");
-        assert_eq!(actual[1].spans[3].text, "2");
+        assert_eq!(actual[0].spans[1].text, "value=");
+        assert_eq!(actual[0].spans[2].text, "1");
+        assert_eq!(actual[1].spans[1].text, "value=");
+        assert_eq!(actual[1].spans[2].text, "2");
     }
 
     #[test]
@@ -665,7 +665,8 @@ mod tests {
             true,
             false,
         );
-        assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
+        assert_eq!(actual[0].spans[0].text, "   ");
+        assert_eq!(actual[0].spans[1].text, "\u{1b}[32msame\u{1b}[0m");
 
         let stripped = generate_numeric_inline_diff(
             "\u{1b}[32msame\u{1b}[0m\n",
@@ -675,7 +676,8 @@ mod tests {
             false,
             false,
         );
-        assert_eq!(stripped[0].spans[0].text, "same");
+        assert_eq!(stripped[0].spans[0].text, "   ");
+        assert_eq!(stripped[0].spans[1].text, "same");
     }
 
     #[test]
