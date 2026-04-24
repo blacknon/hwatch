@@ -47,7 +47,7 @@ impl Input {
                     .filter_map(modifier_to_string)
                     .collect::<Vec<&str>>()
                     .join("-");
-                let code = keycode_to_string(key.code).unwrap();
+                let code = keycode_to_string(key.code).unwrap_or_else(|| "unknown".to_string());
                 if modifiers.is_empty() {
                     code
                 } else {
@@ -327,7 +327,14 @@ impl<'de> Deserialize<'de> for Key {
             "hyphen" => KeyCode::Char('-'),
             "equal" => KeyCode::Char('='),
             "tab" => KeyCode::Tab,
-            c if c.len() == 1 => KeyCode::Char(c.chars().next().unwrap()),
+            c if c.len() == 1 => {
+                let ch = c
+                    .chars()
+                    .next()
+                    .ok_or(HwatchError::ConfigError)
+                    .map_err(D::Error::custom)?;
+                KeyCode::Char(ch)
+            }
             _ => {
                 return Err(D::Error::custom(HwatchError::ConfigError));
             }
@@ -465,7 +472,13 @@ pub fn default_keymap() -> Keymap {
     let default_keymap = DEFAULT_KEYMAP.to_vec();
     let keymap = HashMap::new();
     let result = create_keymap(keymap, default_keymap);
-    result.unwrap()
+    match result {
+        Ok(keymap) => keymap,
+        Err(err) => {
+            eprintln!("Failed to load default keymap: {err}");
+            HashMap::new()
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -828,5 +841,42 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::MouseMoveRight => "Mouse Move Right".to_string(),
         InputAction::MouseMoveUp => "Mouse Move Up".to_string(),
         InputAction::MouseMoveDown => "Mouse Move Down".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn input_to_str_returns_fallback_for_unsupported_keycode() {
+        let input = Input {
+            input: InputType::Key(Key {
+                code: KeyCode::F(13),
+                modifiers: KeyModifiers::CONTROL,
+            }),
+        };
+
+        assert_eq!(input.to_str(), "ctrl-unknown");
+    }
+
+    #[test]
+    fn key_deserialize_rejects_empty_key_name_without_panicking() {
+        let err = Key::deserialize(serde::de::value::StringDeserializer::<
+            serde::de::value::Error,
+        >::new("".to_string()));
+
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn default_keymap_contains_expected_bindings() {
+        let keymap = default_keymap();
+
+        assert!(!keymap.is_empty());
+        assert!(keymap.values().any(|v| v.action == InputAction::Quit));
+        assert!(keymap
+            .values()
+            .any(|v| v.action == InputAction::TogglePause));
     }
 }

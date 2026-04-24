@@ -995,9 +995,7 @@ impl App<'_> {
             }
         }
 
-        if new_select.is_none() {
-            new_select = Some(get_near_index(&tmp_results, selected));
-        }
+        let new_select = new_select.unwrap_or_else(|| get_near_index(&tmp_results, selected));
 
         // sort tmp_history, to push history
         let mut history = vec![];
@@ -1015,10 +1013,10 @@ impl App<'_> {
 
         // reset data.
         self.history_area.reset_history_data(history);
-        self.history_area.set_state_select(new_select.unwrap());
+        self.history_area.set_state_select(new_select);
 
         // result new selected;
-        new_select.unwrap()
+        new_select
     }
 
     // NOTE: CommandResultを元に、
