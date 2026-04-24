@@ -1097,12 +1097,8 @@ mod tests {
 
     #[test]
     fn parse_plugin_response_rejects_empty_response() {
-        let error = parse_plugin_response(
-            bytes_from_vec(Vec::new()),
-            free_test_bytes,
-            test_path(),
-        )
-        .unwrap_err();
+        let error = parse_plugin_response(bytes_from_vec(Vec::new()), free_test_bytes, test_path())
+            .unwrap_err();
 
         assert!(error.contains("empty response"));
     }

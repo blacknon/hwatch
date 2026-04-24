@@ -156,7 +156,7 @@ impl Batch {
 
         // logging result.
         if !self.logfile.is_empty() {
-            let _ = logging_result(&self.logfile, &latest_result);
+            let _ = logging_result(&self.logfile, &_result);
         }
 
         if !self.after_command.is_empty() {
@@ -369,10 +369,11 @@ fn command_results_equivalent(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::OutputMode;
+    use crate::common::{load_logfile, OutputMode};
     use crate::diffmode_plane::DiffModeAtPlane;
     use crossbeam_channel::unbounded;
     use proptest::prelude::*;
+    use tempfile::NamedTempFile;
 
     fn new_batch(output_mode: OutputMode) -> Batch {
         let (_tx, rx) = unbounded();
@@ -491,6 +492,29 @@ mod tests {
 
         assert!(command_results_equivalent(&before, &after, true));
         assert!(!command_results_equivalent(&before, &after, false));
+    }
+
+    #[test]
+    fn update_result_logs_current_result_instead_of_previous_one() {
+        let logfile = NamedTempFile::new().unwrap();
+        let path = logfile.path().to_string_lossy().into_owned();
+        let mut batch = new_batch(OutputMode::Output).set_logfile(path.clone());
+        let result = CommandResult {
+            timestamp: "2026-04-24 21:30:00.000".to_string(),
+            command: "echo current".to_string(),
+            status: true,
+            ..CommandResult::default()
+        }
+        .set_output(b"current\n".to_vec())
+        .set_stdout(b"current\n".to_vec());
+
+        assert!(batch.update_result(result.clone()));
+
+        let loaded = load_logfile(&path, false);
+        assert!(loaded.is_ok());
+        let loaded = loaded.ok().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert!(loaded[0] == result);
     }
 
     proptest! {
