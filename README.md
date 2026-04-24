@@ -76,6 +76,23 @@ asdf global hwatch latest
 cargo install hwatch
 ```
 
+### Logfile Reuse
+
+When `--logfile` points to an existing file, `hwatch` tries to read and reuse its history.
+If the file is empty or unreadable, interactive sessions ask for confirmation before continuing.
+
+For non-interactive runs such as CI, scripts, and batch mode, use
+`--force-logfile-overwrite` to skip that confirmation and continue with the existing path:
+
+```bash
+hwatch --force-logfile-overwrite --logfile ./hwatch.jsonl -b -g 1 -n 0.1 sh ./script.sh
+```
+
+### Security Notes
+
+- `--diff-plugin` loads native dynamic libraries. Only load plugins you trust.
+- `--shell`, the monitored command itself, and `--aftercommand` execute commands on your system. Treat those values as trusted input only.
+
 ## Usage
 
 ### Command
@@ -136,6 +153,8 @@ Options:
           Passes `${HWATCH_DATA}` to `aftercommand` as a temporary file path instead of inline json data.
   -l, --logfile [<logfile>]
           logging file. if a log file is already used, its contents will be read and executed.
+      --force-logfile-overwrite
+          continue even if an existing logfile is empty or unreadable
   -s, --shell <shell_command>
           shell to use at runtime. can also insert the command to the location specified by {COMMAND}. [default: "sh -c"]
   -n, --interval <interval>
