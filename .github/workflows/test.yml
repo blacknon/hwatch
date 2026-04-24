@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: Rust Test
+  quality:
+    name: Quality Check
     runs-on: ubuntu-latest
 
     steps:
@@ -32,6 +32,26 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
 
       - name: Test
         run: cargo test --workspace --all-targets

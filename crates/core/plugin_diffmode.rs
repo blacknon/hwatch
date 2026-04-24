@@ -1065,6 +1065,25 @@ mod tests {
     }
 
     #[test]
+    fn validate_metadata_rejects_plugin_name_with_whitespace() {
+        let plugin_name = CString::new("test mode").unwrap();
+        let header_text = CString::new("Test").unwrap();
+
+        let error = validate_metadata(
+            test_path(),
+            PluginMetadata {
+                abi_version: PLUGIN_ABI_VERSION,
+                supports_only_diffline: true,
+                plugin_name: plugin_name.as_ptr(),
+                header_text: header_text.as_ptr(),
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.contains("must not contain whitespace"));
+    }
+
+    #[test]
     fn parse_plugin_response_rejects_invalid_utf8() {
         let error = parse_plugin_response(
             bytes_from_vec(vec![0xff, 0x00]),
@@ -1074,6 +1093,18 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("response: invalid UTF-8"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_empty_response() {
+        let error = parse_plugin_response(
+            bytes_from_vec(Vec::new()),
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("empty response"));
     }
 
     #[test]
@@ -1099,6 +1130,18 @@ mod tests {
                 .unwrap_err();
 
         assert!(error.contains("response: invalid JSON"));
+    }
+
+    #[test]
+    fn parse_plugin_response_rejects_empty_header_text() {
+        let error = parse_plugin_response(
+            bytes_from_vec(br#"{"schema_version":3,"header_text":"   ","lines":[]}"#.to_vec()),
+            free_test_bytes,
+            test_path(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("header_text must not be empty"));
     }
 
     #[test]

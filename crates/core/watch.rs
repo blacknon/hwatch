@@ -582,7 +582,10 @@ fn get_keyword_positions(
     }
 
     let re = if is_regex {
-        Some(Regex::new(keyword).expect("Invalid regex pattern"))
+        match Regex::new(keyword) {
+            Ok(re) => Some(re),
+            Err(_) => return Vec::new(),
+        }
     } else {
         None
     };
@@ -771,4 +774,27 @@ fn highlight_text(
     }
 
     new_lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_keyword_positions_treats_regex_metacharacters_as_literals_when_regex_is_disabled() {
+        let lines = vec![Line::from("left [ middle [ right")];
+
+        let positions = get_keyword_positions(&lines, "[", false, false, false);
+
+        assert_eq!(positions, vec![(0, 5, 6), (0, 14, 15)]);
+    }
+
+    #[test]
+    fn get_keyword_positions_returns_no_hits_for_invalid_regex() {
+        let lines = vec![Line::from("left [ middle [ right")];
+
+        let positions = get_keyword_positions(&lines, "[", true, false, false);
+
+        assert!(positions.is_empty());
+    }
 }
