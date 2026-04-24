@@ -204,3 +204,60 @@ impl Printer {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::OutputMode;
+    use crate::diffmode_line::DiffModeAtLineDiff;
+    use crate::exec::CommandResult;
+
+    fn line_diff_printer() -> Printer {
+        let diff_mode: Arc<Mutex<Box<dyn DiffMode>>> =
+            Arc::new(Mutex::new(Box::new(DiffModeAtLineDiff::new())));
+        Printer::new(diff_mode)
+    }
+
+    #[test]
+    fn get_batch_text_omits_unchanged_lines_when_only_diffline_is_enabled() {
+        let mut printer = line_diff_printer();
+        let before = CommandResult::default().set_output(b"same\nbefore\n".to_vec());
+        let after = CommandResult::default().set_output(b"same\nafter\n".to_vec());
+
+        let lines = printer
+            .set_output_mode(OutputMode::Output)
+            .set_color(false)
+            .set_only_diffline(true)
+            .get_batch_text(&after, &before);
+
+        assert_eq!(lines.len(), 2);
+        assert!(lines.iter().all(|line| !line.contains("same")));
+        assert!(lines.iter().any(|line| line.contains("before")));
+        assert!(lines.iter().any(|line| line.contains("after")));
+    }
+
+    #[test]
+    fn get_batch_text_treats_whitespace_only_changes_as_equal_when_ignored() {
+        let mut printer = line_diff_printer();
+        let before = CommandResult::default().set_output(b"alpha  beta\n".to_vec());
+        let after = CommandResult::default().set_output(b"alpha   beta\n".to_vec());
+
+        let ignored = printer
+            .set_output_mode(OutputMode::Output)
+            .set_color(false)
+            .set_only_diffline(false)
+            .set_ignore_spaceblock(true)
+            .get_batch_text(&after, &before);
+
+        let mut strict_printer = line_diff_printer();
+        let strict = strict_printer
+            .set_output_mode(OutputMode::Output)
+            .set_color(false)
+            .set_only_diffline(false)
+            .set_ignore_spaceblock(false)
+            .get_batch_text(&after, &before);
+
+        assert_eq!(ignored, vec!["alpha   beta".to_string()]);
+        assert_eq!(strict.len(), 2);
+    }
+}
