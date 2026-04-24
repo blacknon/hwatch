@@ -98,6 +98,7 @@ use question::{Answer, Question};
 use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::ffi::OsString;
+use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -410,6 +411,12 @@ fn build_app() -> clap::Command {
                 .num_args(0..=1)
                 .value_hint(ValueHint::FilePath)
                 .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("force_logfile_overwrite")
+                .help("continue even if an existing logfile is empty or unreadable")
+                .long("force-logfile-overwrite")
+                .action(ArgAction::SetTrue),
         )
         // shell command
         //   [--shell,-s] command
@@ -744,6 +751,7 @@ fn main() {
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
+    let force_logfile_overwrite = matcher.get_flag("force_logfile_overwrite");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
@@ -751,7 +759,7 @@ fn main() {
     if let Some(logfile) = logfile {
         // logging log
         let log_path = Path::new(logfile);
-        let log_dir = log_path.parent().unwrap();
+        let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
         let cur_dir = std::env::current_dir().expect("cannot get current directory");
         let abs_log_path = cur_dir.join(log_path);
         let abs_log_dir = cur_dir.join(log_dir);
@@ -793,12 +801,10 @@ fn main() {
                 }
 
                 if is_overwrite_question {
-                    let answer = Question::new("Log to the same file?")
-                        .default(Answer::YES)
-                        .show_defaults()
-                        .confirm();
-
-                    if answer != Answer::YES {
+                    if !should_continue_with_unreadable_logfile(
+                        force_logfile_overwrite,
+                        !batch && std::io::stdin().is_terminal(),
+                    ) {
                         std::process::exit(1);
                     }
                 }
@@ -895,7 +901,16 @@ fn main() {
 
         // set command
         let command = load_results.last().unwrap().command.clone();
-        command_line = shell_words::split(&command).unwrap();
+        command_line = match shell_words::split(&command) {
+            Ok(command_line) => command_line,
+            Err(err) => {
+                let err = cmd_app.error(
+                    ErrorKind::ValueValidation,
+                    format!("failed to restore command from logfile: {err}"),
+                );
+                err.exit();
+            }
+        };
     }
 
     // Start Command Thread
@@ -1132,6 +1147,30 @@ fn calculate_diff_mode_header_width(diff_modes: &[Arc<Mutex<Box<dyn DiffMode>>>]
 
     max_width
 }
+
+fn should_continue_with_unreadable_logfile(
+    force_logfile_overwrite: bool,
+    stdin_is_terminal: bool,
+) -> bool {
+    if force_logfile_overwrite {
+        return true;
+    }
+
+    if !stdin_is_terminal {
+        eprintln!(
+            "Refusing to reuse the existing logfile without confirmation in a non-interactive session. Rerun with --force-logfile-overwrite to continue."
+        );
+        return false;
+    }
+
+    let answer = Question::new("Log to the same file?")
+        .default(Answer::YES)
+        .show_defaults()
+        .confirm();
+
+    answer == Answer::YES
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1287,6 +1326,19 @@ mod tests {
     }
 
     #[test]
+    fn clap_parses_force_logfile_overwrite_flag() {
+        let args = vec!["hwatch", "--force-logfile-overwrite", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        let matches = build_app()
+            .try_get_matches_from(normalize_args(args))
+            .unwrap();
+
+        assert!(matches.get_flag("force_logfile_overwrite"));
+    }
+
+    #[test]
     fn normalize_args_inserts_default_count_for_chgexit() {
         let args = vec!["hwatch", "-g", "echo", "hi"]
             .into_iter()
@@ -1310,5 +1362,11 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error, "duplicate diff mode name: 'watch'");
+    }
+
+    #[test]
+    fn unreadable_logfile_requires_force_in_non_interactive_mode() {
+        assert!(!should_continue_with_unreadable_logfile(false, false));
+        assert!(should_continue_with_unreadable_logfile(true, false));
     }
 }

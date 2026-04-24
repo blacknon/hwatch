@@ -42,6 +42,64 @@ fn help_flag_prints_usage() {
         .stdout(predicate::str::contains("--batch"));
 }
 
+#[test]
+fn unreadable_logfile_fails_fast_in_non_interactive_mode() {
+    let temp = tempdir().unwrap();
+    let logfile = temp.path().join("broken.jsonl");
+    fs::write(&logfile, "{not-json}\n").unwrap();
+
+    let mut cmd = Command::cargo_bin("hwatch").unwrap();
+    cmd.args([
+        "--logfile",
+        logfile.to_str().unwrap(),
+        "-b",
+        "echo",
+        "hello",
+    ]);
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("--force-logfile-overwrite"));
+}
+
+#[cfg(unix)]
+#[test]
+fn force_logfile_overwrite_allows_reusing_unreadable_logfile() {
+    let temp = tempdir().unwrap();
+    let logfile = temp.path().join("broken.jsonl");
+    let counter_path = temp.path().join("counter.txt");
+    let script_path = temp.path().join("increment.sh");
+    fs::write(&logfile, "{not-json}\n").unwrap();
+    write_executable_script(
+        &script_path,
+        format!(
+            "#!/bin/sh\ncount_file=\"{}\"\ncount=0\nif [ -f \"$count_file\" ]; then\n  count=$(cat \"$count_file\")\nfi\ncount=$((count + 1))\nprintf '%s' \"$count\" > \"$count_file\"\nprintf 'hello-%s\\n' \"$count\"\n",
+            counter_path.display()
+        )
+        .as_str(),
+    );
+
+    let mut cmd = Command::cargo_bin("hwatch").unwrap();
+    cmd.args([
+        "--force-logfile-overwrite",
+        "--logfile",
+        logfile.to_str().unwrap(),
+        "-b",
+        "-g",
+        "1",
+        "-n",
+        "0.1",
+        "sh",
+        script_path.to_str().unwrap(),
+    ]);
+    cmd.timeout(Duration::from_secs(5));
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("hello-1"))
+        .stdout(predicate::str::contains("hello-2"));
+}
+
 #[cfg(unix)]
 #[test]
 fn batch_mode_with_chgexit_runs_command_until_change_limit() {
@@ -233,7 +291,8 @@ fn batch_mode_diff_output_only_hides_unchanged_lines_after_initial_diff() {
 
     cmd.timeout(Duration::from_secs(5));
 
-    let assert = cmd.assert()
+    let assert = cmd
+        .assert()
         .success()
         .stdout(is_match("dynamic-1").unwrap())
         .stdout(is_match(r"dynamic-(?:\x1b\[[0-9;]*m)*2").unwrap());
@@ -277,7 +336,7 @@ fn batch_mode_with_file_driven_state_change_is_detected() {
     let mut cmd = Command::cargo_bin("hwatch").unwrap();
     cmd.args([
         "-b",
-        "-g", 
+        "-g",
         "1",
         "-n",
         "0.05",

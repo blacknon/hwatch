@@ -976,21 +976,7 @@ impl App<'_> {
                     (OutputMode::Stderr, _, _) => result.command_result.get_stderr(),
                 };
 
-                match self.is_regex_filter {
-                    true => {
-                        let re = Regex::new(&self.filtered_text.clone()).unwrap();
-                        let regex_match = re.is_match(&result_text);
-                        if !regex_match {
-                            is_push = false;
-                        }
-                    }
-
-                    false => {
-                        if !result_text.contains(&self.filtered_text) {
-                            is_push = false;
-                        }
-                    }
-                }
+                is_push = self.matches_filter_text(&result_text);
             }
 
             if is_push {
@@ -1185,21 +1171,7 @@ impl App<'_> {
                 }
             };
 
-            match self.is_regex_filter {
-                true => {
-                    let re = Regex::new(&self.filtered_text).unwrap();
-                    let regex_match = re.is_match(&result_text);
-                    if !regex_match {
-                        is_push = false;
-                    }
-                }
-
-                false => {
-                    if !result_text.contains(&self.filtered_text) {
-                        is_push = false;
-                    }
-                }
-            }
+            is_push = self.matches_filter_text(&result_text);
         }
 
         let mut selected = self.history_area.get_state_select();
@@ -1759,6 +1731,16 @@ impl App<'_> {
     ///
     fn show_clear_popup(&mut self) {
         self.window = ActiveWindow::Clear;
+    }
+
+    fn matches_filter_text(&self, result_text: &str) -> bool {
+        if self.is_regex_filter {
+            Regex::new(&self.filtered_text)
+                .map(|re| re.is_match(result_text))
+                .unwrap_or(false)
+        } else {
+            result_text.contains(&self.filtered_text)
+        }
     }
 
     ///
@@ -2636,6 +2618,18 @@ mod tests {
     }
 
     #[test]
+    fn invalid_regex_filter_does_not_panic_during_match_checks() {
+        let (tx, rx) = unbounded();
+        let interval = Arc::new(RwLock::new(RunInterval::default()));
+        let mut app = App::new(tx, rx, interval, test_diff_modes(), 0);
+
+        app.is_regex_filter = true;
+        app.filtered_text = "[".to_string();
+
+        assert!(!app.matches_filter_text("sample output"));
+    }
+
+    #[test]
     fn gen_diff_only_data_collects_only_changed_lines() {
         let diff_only = gen_diff_only_data("same\nold\n", "same\nnew\n", false);
 
@@ -2703,8 +2697,14 @@ mod tests {
             String::from_utf8(stderr_items.diff_only_data).unwrap(),
             "err-1\nerr-2\n"
         );
-        assert_eq!((stdout_items.summary.line_add, stdout_items.summary.line_rem), (1, 1));
-        assert_eq!((stderr_items.summary.line_add, stderr_items.summary.line_rem), (1, 1));
+        assert_eq!(
+            (stdout_items.summary.line_add, stdout_items.summary.line_rem),
+            (1, 1)
+        );
+        assert_eq!(
+            (stderr_items.summary.line_add, stderr_items.summary.line_rem),
+            (1, 1)
+        );
     }
 
     #[test]
@@ -2721,10 +2721,22 @@ mod tests {
         let (output_items, stdout_items, stderr_items) =
             gen_result_items(current, true, false, &previous, &previous, &previous);
 
-        assert_eq!((output_items.summary.line_add, output_items.summary.line_rem), (1, 1));
-        assert_eq!((stdout_items.summary.line_add, stdout_items.summary.line_rem), (1, 1));
-        assert_eq!((stderr_items.summary.line_add, stderr_items.summary.line_rem), (0, 0));
-        assert_eq!((stderr_items.summary.char_add, stderr_items.summary.char_rem), (0, 0));
+        assert_eq!(
+            (output_items.summary.line_add, output_items.summary.line_rem),
+            (1, 1)
+        );
+        assert_eq!(
+            (stdout_items.summary.line_add, stdout_items.summary.line_rem),
+            (1, 1)
+        );
+        assert_eq!(
+            (stderr_items.summary.line_add, stderr_items.summary.line_rem),
+            (0, 0)
+        );
+        assert_eq!(
+            (stderr_items.summary.char_add, stderr_items.summary.char_rem),
+            (0, 0)
+        );
     }
 
     #[test]

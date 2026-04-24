@@ -216,11 +216,29 @@ impl ExecuteCommand {
         let command_str = self.command.clone().join(" ");
 
         // create exec_commands...
-        let exec_commands = create_exec_cmd_args(
+        let exec_commands = match create_exec_cmd_args(
             self.is_exec,
             self.shell_command.clone(),
             command_str.clone(),
-        );
+        ) {
+            Ok(exec_commands) => exec_commands,
+            Err(err) => {
+                let result = CommandResult {
+                    timestamp: common::now_str(),
+                    command: command_str,
+                    status: false,
+                    is_compress: self.is_compress,
+                    output: vec![],
+                    stdout: vec![],
+                    stderr: vec![],
+                }
+                .set_output(format!("{err}\n").into_bytes())
+                .set_stderr(format!("{err}\n").into_bytes());
+
+                let _ = self.tx.send(AppEvent::OutputUpdate(result));
+                return;
+            }
+        };
 
         let (status, vec_output, vec_stdout, vec_stderr) =
             exec_command(&exec_commands, self.is_pty);
@@ -267,60 +285,104 @@ pub fn exec_after_command(
     };
 
     // create json_data
-    let json_data: String = serde_json::to_string(&result_data).unwrap();
+    let json_data: String = match serde_json::to_string(&result_data) {
+        Ok(json_data) => json_data,
+        Err(err) => {
+            eprintln!("Failed to serialize after command payload: {err}");
+            return;
+        }
+    };
 
     // execute command
-    let exec_commands = create_exec_cmd_args(false, shell_command, after_command);
+    let exec_commands = match create_exec_cmd_args(false, shell_command, after_command) {
+        Ok(exec_commands) => exec_commands,
+        Err(err) => {
+            eprintln!("Failed to prepare after command: {err}");
+            return;
+        }
+    };
     let length = exec_commands.len();
 
     // let mut hwatch_result_data = String::new();
     if after_command_result_write_file {
-        let mut file =
-            NamedTempFile::new().expect("Failed to create temporary file for after command result");
+        let mut file = match NamedTempFile::new() {
+            Ok(file) => file,
+            Err(err) => {
+                eprintln!("Failed to create temporary file for after command result: {err}");
+                return;
+            }
+        };
 
         // write json_data to file
-        file.write_all(json_data.as_bytes())
-            .expect("Failed to write to file");
-        file.flush().expect("Failed to flush file");
+        if let Err(err) = file.write_all(json_data.as_bytes()) {
+            eprintln!("Failed to write after command payload to file: {err}");
+            return;
+        }
+        if let Err(err) = file.flush() {
+            eprintln!("Failed to flush after command payload file: {err}");
+            return;
+        }
 
-        let hwatch_result_data = file.path().to_str().unwrap().to_string();
+        let hwatch_result_data = file.path().to_string_lossy().into_owned();
 
-        let mut child = Command::new(&exec_commands[0])
+        let child = Command::new(&exec_commands[0])
             .args(&exec_commands[1..length])
             .env("HWATCH_DATA", hwatch_result_data)
-            .spawn()
-            .expect("Failed to execute after command");
+            .spawn();
 
-        let _ = child.wait();
+        match child {
+            Ok(mut child) => {
+                let _ = child.wait();
+            }
+            Err(err) => {
+                eprintln!("Failed to execute after command: {err}");
+            }
+        }
 
-        file.close().expect("Failed to close temporary file");
+        if let Err(err) = file.close() {
+            eprintln!("Failed to close temporary file for after command result: {err}");
+        }
     } else {
         let hwatch_result_data = json_data;
 
-        let mut child = Command::new(&exec_commands[0])
+        let child = Command::new(&exec_commands[0])
             .args(&exec_commands[1..length])
             .env("HWATCH_DATA", hwatch_result_data)
-            .spawn()
-            .expect("Failed to execute after command");
+            .spawn();
 
-        let _ = child.wait();
+        match child {
+            Ok(mut child) => {
+                let _ = child.wait();
+            }
+            Err(err) => {
+                eprintln!("Failed to execute after command: {err}");
+            }
+        }
     }
 }
 
 //
-fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -> Vec<String> {
+fn create_exec_cmd_args(
+    is_exec: bool,
+    shell_command: String,
+    command: String,
+) -> Result<Vec<String>, String> {
     // Declaration at child.
     let mut exec_commands = vec![];
     let mut is_shellcmd_template = false;
 
     if is_exec {
         // is -x option enable
-        exec_commands = shell_words::split(&command).expect("shell command parse error.");
+        exec_commands = shell_words::split(&command)
+            .map_err(|err| format!("shell command parse error: {err}"))?;
     } else {
         // if `-e` option disable. (default)
         // split self.shell_command
-        let shell_commands =
-            shell_words::split(&shell_command).expect("shell command parse error.");
+        let shell_commands = shell_words::split(&shell_command)
+            .map_err(|err| format!("shell command parse error: {err}"))?;
+        if shell_commands.is_empty() {
+            return Err("shell command parse error: shell command is empty".to_string());
+        }
 
         // set shell_command args, to exec_cmd_args.
         exec_commands.push(shell_commands[0].to_string());
@@ -361,7 +423,7 @@ fn create_exec_cmd_args(is_exec: bool, shell_command: String, command: String) -
         }
     }
 
-    exec_commands
+    Ok(exec_commands)
 }
 
 fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u8>, Vec<u8>) {
@@ -430,22 +492,30 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
             let stdout_thread = match stdout_reader {
                 #[cfg(unix)]
                 ReaderHandle::Fd(fd) => thread::spawn(move || read_from_fd(fd, "stdout")),
-                ReaderHandle::Pipe => {
-                    let child_stdout = child.stdout.take().expect("");
-                    thread::spawn(move || read_from_pipe(child_stdout, "stdout"))
-                }
+                ReaderHandle::Pipe => match child.stdout.take() {
+                    Some(child_stdout) => {
+                        thread::spawn(move || read_from_pipe(child_stdout, "stdout"))
+                    }
+                    None => thread::spawn(|| {
+                        Err("stdout pipe was not available on spawned process".to_string())
+                    }),
+                },
             };
             let stderr_thread = match stderr_reader {
                 #[cfg(unix)]
                 ReaderHandle::Fd(fd) => thread::spawn(move || read_from_fd(fd, "stderr")),
-                ReaderHandle::Pipe => {
-                    let child_stderr = child.stderr.take().expect("");
-                    thread::spawn(move || read_from_pipe(child_stderr, "stderr"))
-                }
+                ReaderHandle::Pipe => match child.stderr.take() {
+                    Some(child_stderr) => {
+                        thread::spawn(move || read_from_pipe(child_stderr, "stderr"))
+                    }
+                    None => thread::spawn(|| {
+                        Err("stderr pipe was not available on spawned process".to_string())
+                    }),
+                },
             };
 
             let status = if is_pty {
-                child.wait().expect("").success()
+                child.wait().map(|status| status.success()).unwrap_or(false)
             } else {
                 false
             };
@@ -463,7 +533,7 @@ fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u
             if is_pty {
                 status
             } else {
-                child.wait().expect("").success()
+                child.wait().map(|status| status.success()).unwrap_or(false)
             }
         }
         Err(err) => {
@@ -711,7 +781,8 @@ mod tests {
     #[test]
     fn test_create_exec_cmd_args_replaces_template_in_argument() {
         let exec_commands =
-            create_exec_cmd_args(false, "bash -c {COMMAND}".to_string(), "ls -la".to_string());
+            create_exec_cmd_args(false, "bash -c {COMMAND}".to_string(), "ls -la".to_string())
+                .unwrap();
 
         assert_eq!(
             exec_commands,
@@ -722,7 +793,7 @@ mod tests {
     #[test]
     fn test_create_exec_cmd_args_keeps_shell_command_string() {
         let exec_commands =
-            create_exec_cmd_args(false, "sh -c".to_string(), "ls -la;pwd".to_string());
+            create_exec_cmd_args(false, "sh -c".to_string(), "ls -la;pwd".to_string()).unwrap();
 
         assert_eq!(
             exec_commands,
@@ -736,7 +807,8 @@ mod tests {
             false,
             "bash -c \"source ~/.bashrc\"; {COMMAND}".to_string(),
             "ls -la".to_string(),
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             exec_commands,
@@ -751,8 +823,23 @@ mod tests {
     #[test]
     fn test_create_exec_cmd_args_splits_exec_mode_command() {
         let exec_commands =
-            create_exec_cmd_args(true, "ignored".to_string(), "echo hello".to_string());
+            create_exec_cmd_args(true, "ignored".to_string(), "echo hello".to_string()).unwrap();
 
         assert_eq!(exec_commands, vec!["echo".to_string(), "hello".to_string()]);
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_rejects_invalid_shell_command() {
+        let err =
+            create_exec_cmd_args(false, "\"".to_string(), "echo hello".to_string()).unwrap_err();
+
+        assert!(err.contains("shell command parse error"));
+    }
+
+    #[test]
+    fn test_create_exec_cmd_args_rejects_invalid_exec_command() {
+        let err = create_exec_cmd_args(true, "ignored".to_string(), "\"".to_string()).unwrap_err();
+
+        assert!(err.contains("shell command parse error"));
     }
 }
