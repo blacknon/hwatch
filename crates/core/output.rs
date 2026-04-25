@@ -20,7 +20,13 @@ use crate::DEFAULT_TAB_SIZE;
 // local module
 use crate::common::OutputMode;
 use crate::exec::CommandResult;
-use hwatch_diffmode::{expand_line_tab, DiffMode, DiffModeOptions};
+use hwatch_diffmode::{DiffMode, DiffModeOptions};
+
+#[path = "output_render.rs"]
+mod render;
+use self::render::{
+    maybe_reverse_lines, maybe_reverse_strings, prepare_batch_text, prepare_watch_text,
+};
 
 pub struct PaneContent {
     pub lines: Vec<Line<'static>>,
@@ -66,27 +72,10 @@ impl Printer {
 
     ///
     pub fn get_watch_data(&mut self, dest: &CommandResult, src: &CommandResult) -> WatchRenderData {
-        // set new text(text_dst)
-        let mut text_dest = match self.output_mode {
-            OutputMode::Output => (*dest).get_output(),
-            OutputMode::Stdout => (*dest).get_stdout(),
-            OutputMode::Stderr => (*dest).get_stderr(),
-        };
-        text_dest = expand_line_tab(&text_dest, self.tab_size);
-        if !self.options.get_color() {
-            text_dest = hwatch_ansi::escape_ansi(&text_dest);
-        }
-
-        // set old text(text_src)
-        let mut text_src = match self.output_mode {
-            OutputMode::Output => (*src).get_output(),
-            OutputMode::Stdout => (*src).get_stdout(),
-            OutputMode::Stderr => (*src).get_stderr(),
-        };
-        text_src = expand_line_tab(&text_src, self.tab_size);
-        if !self.options.get_color() {
-            text_src = hwatch_ansi::escape_ansi(&text_src);
-        }
+        let text_dest =
+            prepare_watch_text(dest, self.output_mode, self.tab_size, self.options.get_color());
+        let text_src =
+            prepare_watch_text(src, self.output_mode, self.tab_size, self.options.get_color());
 
         let mut diff_mode = self.diff_mode.lock().unwrap();
 
@@ -97,11 +86,7 @@ impl Printer {
         // create diff
         let result = diff_mode.generate_watch_diff(&text_dest, &text_src);
 
-        let lines = if self.is_reverse {
-            result.into_iter().rev().collect()
-        } else {
-            result
-        };
+        let lines = maybe_reverse_lines(result, self.is_reverse);
 
         WatchRenderData::SinglePane(PaneContent {
             lines,
@@ -112,21 +97,8 @@ impl Printer {
 
     ///
     pub fn get_batch_text(&mut self, dest: &CommandResult, src: &CommandResult) -> Vec<String> {
-        // set new text(text_dst)
-        let text_dest = match self.output_mode {
-            OutputMode::Output => (*dest).get_output(),
-            OutputMode::Stdout => (*dest).get_stdout(),
-            OutputMode::Stderr => (*dest).get_stderr(),
-        };
-
-        // set old text(text_src)
-        let text_src = match self.output_mode {
-            OutputMode::Output => (*src).get_output(),
-            OutputMode::Stdout => (*src).get_stdout(),
-            OutputMode::Stderr => (*src).get_stderr(),
-        };
-
-        let result: Vec<String>;
+        let text_dest = prepare_batch_text(dest, self.output_mode);
+        let text_src = prepare_batch_text(src, self.output_mode);
 
         let mut diff_mode = self.diff_mode.lock().unwrap();
 
@@ -134,13 +106,9 @@ impl Printer {
         diff_mode.set_option(self.options);
 
         // create diff
-        result = diff_mode.generate_batch_diff(&text_dest, &text_src);
+        let result = diff_mode.generate_batch_diff(&text_dest, &text_src);
 
-        if self.is_reverse {
-            result.into_iter().rev().collect()
-        } else {
-            result
-        }
+        maybe_reverse_strings(result, self.is_reverse)
     }
 
     /// set diff mode.
