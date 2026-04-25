@@ -53,7 +53,7 @@ impl HistorySummary {
         if enable_char_diff {
             let mut char_add_lock = char_add.lock().unwrap();
             let mut char_rem_lock = char_rem.lock().unwrap();
-            let (char_add, char_rem) = calc_char_diff(line_diff.iter_all_changes().collect());
+            let (char_add, char_rem) = self::calc_char_diff(line_diff.iter_all_changes().collect());
 
             *char_add_lock = char_add as u64;
             *char_rem_lock = char_rem as u64;
