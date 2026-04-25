@@ -70,6 +70,7 @@ $HOME/.cargo/bin/cargo test --release --locked --all-features -- \
 
 %changelog
 * Sat Apr 25 2026 - blacknon - 0.4.1-1
+* Sun Apr 19 2026 - blacknon - 0.4.0-1
 * Wed Apr 15 2026 - Danie de Jager - 0.3.20-1
 * Mon Oct 20 2025 - Danie de Jager - 0.3.19-3
 * Sun Jul 13 2025 - Danie de Jager - 0.3.19-2
