@@ -1,6 +1,6 @@
 [package]
 name = "hwatch-diffmode"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 authors = ["blacknon <blacknon@orebibou.com>"]
 description = "Diff rendering utilities for hwatch."

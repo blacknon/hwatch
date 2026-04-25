@@ -1,9 +1,6 @@
 // Copyright (c) 2026 Blacknon.
 // This code from https://github.com/blacknon/ansi4tui/blob/master/src/lib.rs
 
-extern crate ratatui as tui;
-
-use ansi_parser::{AnsiParser, AnsiSequence, Output};
 use termwiz::cell::{Blink, Intensity, Underline};
 use termwiz::color::ColorSpec;
 use termwiz::escape::{
@@ -14,6 +11,79 @@ use termwiz::escape::{
 use tui::prelude::Line;
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Text};
+
+use ratatui as tui;
+
+fn apply_sgr(span_style: &mut Style, sgr: Sgr) {
+    if let Sgr::Font(_) = sgr {
+        return;
+    }
+
+    match sgr {
+        Sgr::Reset => *span_style = Style::default(),
+        Sgr::Intensity(i) => match i {
+            Intensity::Bold => {
+                *span_style = span_style.remove_modifier(Modifier::DIM);
+                *span_style = span_style.add_modifier(Modifier::BOLD);
+            }
+            Intensity::Half => {
+                *span_style = span_style.add_modifier(Modifier::DIM);
+                *span_style = span_style.remove_modifier(Modifier::BOLD);
+            }
+            Intensity::Normal => {
+                *span_style = span_style.remove_modifier(Modifier::DIM);
+                *span_style = span_style.remove_modifier(Modifier::BOLD);
+            }
+        },
+        Sgr::Underline(u) => match u {
+            Underline::Double | Underline::Single => {
+                *span_style = span_style.add_modifier(Modifier::UNDERLINED);
+            }
+            _ => *span_style = span_style.remove_modifier(Modifier::UNDERLINED),
+        },
+        Sgr::Blink(b) => match b {
+            Blink::Slow => {
+                *span_style = span_style.add_modifier(Modifier::SLOW_BLINK);
+                *span_style = span_style.remove_modifier(Modifier::RAPID_BLINK);
+            }
+            Blink::Rapid => {
+                *span_style = span_style.remove_modifier(Modifier::SLOW_BLINK);
+                *span_style = span_style.add_modifier(Modifier::RAPID_BLINK);
+            }
+            Blink::None => {
+                *span_style = span_style.remove_modifier(Modifier::SLOW_BLINK);
+                *span_style = span_style.remove_modifier(Modifier::RAPID_BLINK);
+            }
+        },
+        Sgr::Italic(true) => *span_style = span_style.add_modifier(Modifier::ITALIC),
+        Sgr::Italic(false) => *span_style = span_style.remove_modifier(Modifier::ITALIC),
+        Sgr::Inverse(true) => *span_style = span_style.add_modifier(Modifier::REVERSED),
+        Sgr::Inverse(false) => *span_style = span_style.remove_modifier(Modifier::REVERSED),
+        Sgr::Invisible(true) => *span_style = span_style.add_modifier(Modifier::HIDDEN),
+        Sgr::Invisible(false) => *span_style = span_style.remove_modifier(Modifier::HIDDEN),
+        Sgr::StrikeThrough(true) => *span_style = span_style.add_modifier(Modifier::CROSSED_OUT),
+        Sgr::StrikeThrough(false) => {
+            *span_style = span_style.remove_modifier(Modifier::CROSSED_OUT)
+        }
+        Sgr::Foreground(c) => match c {
+            ColorSpec::Default => *span_style = span_style.fg(Color::Reset),
+            ColorSpec::PaletteIndex(i) => *span_style = span_style.fg(Color::Indexed(i)),
+            ColorSpec::TrueColor(rgb) => {
+                let rgb_tuple = rgb.to_srgb_u8();
+                *span_style = span_style.fg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
+            }
+        },
+        Sgr::Background(c) => match c {
+            ColorSpec::Default => *span_style = span_style.bg(Color::Reset),
+            ColorSpec::PaletteIndex(i) => *span_style = span_style.bg(Color::Indexed(i)),
+            ColorSpec::TrueColor(rgb) => {
+                let rgb_tuple = rgb.to_srgb_u8();
+                *span_style = span_style.bg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
+            }
+        },
+        _ => {}
+    }
+}
 
 /// Converts ANSI-escaped strings to tui-rs compatible text
 pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
@@ -52,87 +122,11 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
                 current_line = Vec::new();
             }
             Action::CSI(CSI::Sgr(sgr)) => {
-                // ignore this single condition, for the rest we'll close the current span
-                if let Sgr::Font(_) = sgr {
-                    continue;
-                }
-
                 // finish the current span
                 current_line.push(Span::styled(span_text, span_style));
                 span_text = String::new();
 
-                match sgr {
-                    Sgr::Reset => span_style = Style::default(),
-                    Sgr::Intensity(i) => match i {
-                        Intensity::Bold => {
-                            span_style = span_style.remove_modifier(Modifier::DIM);
-                            span_style = span_style.add_modifier(Modifier::BOLD);
-                        }
-                        Intensity::Half => {
-                            span_style = span_style.add_modifier(Modifier::DIM);
-                            span_style = span_style.remove_modifier(Modifier::BOLD);
-                        }
-                        Intensity::Normal => {
-                            span_style = span_style.remove_modifier(Modifier::DIM);
-                            span_style = span_style.remove_modifier(Modifier::BOLD);
-                        }
-                    },
-                    Sgr::Underline(u) => match u {
-                        Underline::Double | Underline::Single => {
-                            span_style = span_style.add_modifier(Modifier::UNDERLINED);
-                        }
-                        _ => span_style = span_style.remove_modifier(Modifier::UNDERLINED),
-                    },
-                    Sgr::Blink(b) => match b {
-                        Blink::Slow => {
-                            span_style = span_style.add_modifier(Modifier::SLOW_BLINK);
-                            span_style = span_style.remove_modifier(Modifier::RAPID_BLINK);
-                        }
-                        Blink::Rapid => {
-                            span_style = span_style.remove_modifier(Modifier::SLOW_BLINK);
-                            span_style = span_style.add_modifier(Modifier::RAPID_BLINK);
-                        }
-                        Blink::None => {
-                            span_style = span_style.remove_modifier(Modifier::SLOW_BLINK);
-                            span_style = span_style.remove_modifier(Modifier::RAPID_BLINK);
-                        }
-                    },
-                    Sgr::Italic(true) => span_style = span_style.add_modifier(Modifier::ITALIC),
-                    Sgr::Italic(false) => span_style = span_style.remove_modifier(Modifier::ITALIC),
-                    Sgr::Inverse(true) => span_style = span_style.add_modifier(Modifier::REVERSED),
-                    Sgr::Inverse(false) => {
-                        span_style = span_style.remove_modifier(Modifier::REVERSED)
-                    }
-                    Sgr::Invisible(true) => span_style = span_style.add_modifier(Modifier::HIDDEN),
-                    Sgr::Invisible(false) => {
-                        span_style = span_style.remove_modifier(Modifier::HIDDEN)
-                    }
-                    Sgr::StrikeThrough(true) => {
-                        span_style = span_style.add_modifier(Modifier::CROSSED_OUT)
-                    }
-                    Sgr::StrikeThrough(false) => {
-                        span_style = span_style.remove_modifier(Modifier::CROSSED_OUT)
-                    }
-                    Sgr::Foreground(c) => match c {
-                        ColorSpec::Default => span_style = span_style.fg(Color::Reset),
-                        ColorSpec::PaletteIndex(i) => span_style = span_style.fg(Color::Indexed(i)),
-                        ColorSpec::TrueColor(rgb) => {
-                            let rgb_tuple = rgb.to_srgb_u8();
-                            span_style =
-                                span_style.fg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
-                        }
-                    },
-                    Sgr::Background(c) => match c {
-                        ColorSpec::Default => span_style = span_style.bg(Color::Reset),
-                        ColorSpec::PaletteIndex(i) => span_style = span_style.bg(Color::Indexed(i)),
-                        ColorSpec::TrueColor(rgb) => {
-                            let rgb_tuple = rgb.to_srgb_u8();
-                            span_style =
-                                span_style.bg(Color::Rgb(rgb_tuple.0, rgb_tuple.1, rgb_tuple.2));
-                        }
-                    },
-                    _ => {}
-                }
+                apply_sgr(&mut span_style, sgr);
             }
             _ => {}
         }
@@ -157,59 +151,39 @@ pub fn bytes_to_text<'a, B: AsRef<[u8]>>(bytes: B) -> Text<'a> {
 
 /// Apply ANSI color code character by character.
 pub fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
-    // set Result
-    let mut result = vec![];
+    let mut parser = Parser::new();
+    let parsed = parser.parse_as_vec(text.as_bytes());
+    let mut result = vec![Vec::new()];
+    let mut span_style = Style::default();
 
-    // ansi reset code heapless_vec
-    let mut ansi_reset_vec = heapless::Vec::<u8, 5>::new();
-    let _ = ansi_reset_vec.push(0);
-
-    // get ansi reset code string
-    let ansi_reset_seq = AnsiSequence::SetGraphicsMode(ansi_reset_vec);
-    let ansi_reset_seq_str = ansi_reset_seq.to_string();
-
-    // init sequence.
-    let mut sequence: AnsiSequence;
-    let mut sequence_str = "".to_string();
-
-    // text processing
-    let mut processed_text = vec![];
-    for block in text.ansi_parse() {
-        match block {
-            Output::TextBlock(text) => {
-                for char in text.chars() {
-                    let append_text = if !sequence_str.is_empty() {
-                        format!("{sequence_str}{char}{ansi_reset_seq_str}")
-                    } else {
-                        format!("{char}")
-                    };
-
-                    // parse ansi text to tui text.
-                    let data = bytes_to_text(format!("{append_text}\n").as_bytes());
-                    if let Some(d) = data.into_iter().next() {
-                        for x in d.spans {
-                            processed_text.push(x);
-                        }
-                    }
+    for item in parsed {
+        match item {
+            Action::Print(c) => result.last_mut().unwrap().push(Span::styled(c.to_string(), span_style)),
+            Action::PrintString(s) => {
+                for c in s.chars() {
+                    result.last_mut().unwrap().push(Span::styled(c.to_string(), span_style));
                 }
             }
-            Output::Escape(seq) => {
-                sequence = seq;
-                sequence_str = sequence.to_string();
-            }
+            Action::Control(ControlCode::LineFeed) => result.push(Vec::new()),
+            Action::CSI(CSI::Sgr(sgr)) => apply_sgr(&mut span_style, sgr),
+            _ => {}
         }
     }
-
-    result.push(processed_text);
 
     result
 }
 
 pub fn get_ansi_strip_str(text: &str) -> String {
-    let mut line_str = "".to_string();
-    for block in text.ansi_parse() {
-        if let Output::TextBlock(t) = block {
-            line_str.push_str(t);
+    let mut parser = Parser::new();
+    let parsed = parser.parse_as_vec(text.as_bytes());
+    let mut line_str = String::new();
+
+    for item in parsed {
+        match item {
+            Action::Print(c) => line_str.push(c),
+            Action::PrintString(s) => line_str.push_str(&s),
+            Action::Control(ControlCode::LineFeed) => line_str.push('\n'),
+            _ => {}
         }
     }
 

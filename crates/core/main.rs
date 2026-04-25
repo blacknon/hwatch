@@ -21,9 +21,9 @@
 #![allow(clippy::useless_format)]
 #![allow(clippy::wrong_self_convention)]
 
-// v0.4.1
+// v0.4.2
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/42
-// TODO(blacknon): ansi-parserなど、一部の依存クレートの機能を内部実装に置き換えていく。これは依存クレートの数を減らすためにも必要な対応である。
+// TODO(blacknon): ANSI parsing まわりなど、一部の依存クレートの機能を内部実装に置き換えていく。これは依存クレートの数を減らすためにも必要な対応である。
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
@@ -49,37 +49,15 @@
 //                 https://github.com/rust-cli/man
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
-// crate
-extern crate ansi_term;
-extern crate chardetng;
-extern crate chrono;
-extern crate config;
-extern crate crossbeam_channel;
-extern crate crossterm;
-extern crate ctrlc;
-extern crate encoding_rs;
-extern crate flate2;
-extern crate nix;
+// modules
 extern crate ratatui as tui;
-extern crate regex;
-extern crate serde;
-extern crate shell_words;
-extern crate similar;
-extern crate tempfile;
-extern crate unicode_segmentation;
-extern crate unicode_width;
-
-// local crate
 extern crate hwatch_ansi;
 extern crate hwatch_diffmode;
 
-// macro crate
-#[macro_use]
-extern crate clap;
-extern crate serde_json;
-
-// modules
-use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
+use clap::{
+    builder::ArgPredicate, crate_authors, crate_description, crate_name, crate_version,
+    error::ErrorKind, Arg, ArgAction, Command, ValueHint,
+};
 use common::load_logfile;
 use crossbeam_channel::unbounded;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};

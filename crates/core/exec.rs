@@ -14,6 +14,7 @@ use flate2::{read::GzDecoder, write::GzEncoder};
 use nix::pty::{openpty, OpenptyResult, Winsize};
 #[cfg(unix)]
 use nix::sys::termios::{cfmakeraw, tcgetattr, tcsetattr, SetArg};
+use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use std::fs::File;
 use std::io::prelude::*;
