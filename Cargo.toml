@@ -61,7 +61,6 @@ name = "hwatch"
 [workspace]
 members = ["crates/ansi", "crates/diffmode"]
 
-
 [package.metadata.binstall]
 bin-dir = "bin/{ bin }{ binary-ext }"
 pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ version }.{ target }.{ archive-format }"
