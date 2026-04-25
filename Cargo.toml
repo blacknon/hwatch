@@ -47,7 +47,7 @@ serde_json = "1.0.149"
 shell-words = "1.1.1"
 similar.workspace = true
 unicode-segmentation = "1.12.0"
-unicode-width = "0.1.14"
+unicode-width = "0.2.2"
 ansi_term.workspace = true
 libloading = "0.8.9"
 hwatch-diffmode = { path = "crates/diffmode", version = "0.4.2" }
