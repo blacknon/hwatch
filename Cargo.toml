@@ -17,36 +17,36 @@ ratatui = { version = "0.30.0", default-features = false, features = [
     "crossterm",
     "unstable-rendered-line-info",
 ] }
-serde = { version = "1.0.197", features = ["derive"] }
-similar = { version = "2.5.0", features = [
+serde = { version = "1.0.228", features = ["derive"] }
+similar = { version = "2.7.0", features = [
     "serde",
     "unicode",
     "text",
     "inline",
     "bytes",
 ] }
-tempfile = "3.20.0"
+tempfile = "3.27.0"
 termwiz = "0.23.3"
 
 [dependencies]
 chardetng = "0.1.17"
-chrono = "0.4.34"
-clap = { version = "4.5.3", features = ["cargo", "derive"] }
-config = { version = "0.15.21", default-features = false, features = ["ini"] }
-crossbeam-channel = "0.5.12"
+chrono = "0.4.44"
+clap = { version = "4.6.0", features = ["cargo", "derive"] }
+config = { version = "0.15.22", default-features = false, features = ["ini"] }
+crossbeam-channel = "0.5.15"
 crossterm = "0.29.0"
-ctrlc = { version = "3.4.2", features = ["termination"] }
+ctrlc = { version = "3.5.2", features = ["termination"] }
 encoding_rs = "0.8"
-flate2 = "1.0.19"
+flate2 = "1.1.9"
 nix = { version = "0.29", features = ["fs", "term", "process", "signal"] }
 ratatui.workspace = true
 rayon = "1.10"
-regex = "1.10.3"
+regex = "1.12.3"
 serde.workspace = true
-serde_json = "1.0.114"
-shell-words = "1.1.0"
+serde_json = "1.0.149"
+shell-words = "1.1.1"
 similar.workspace = true
-unicode-segmentation = "1.10"
+unicode-segmentation = "1.12.0"
 unicode-width = "0.1.14"
 ansi_term.workspace = true
 libloading = "0.8.9"
@@ -55,9 +55,9 @@ hwatch-ansi = { path = "crates/ansi", version = "0.4.2" }
 tempfile.workspace = true
 
 [dev-dependencies]
-assert_cmd = "2.0.16"
-predicates = "3.1.3"
-proptest = "1.6.0"
+assert_cmd = "2.2.1"
+predicates = "3.1.4"
+proptest = "1.11.0"
 
 [[bin]]
 bench = false
