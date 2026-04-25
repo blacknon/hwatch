@@ -795,13 +795,13 @@ fn main() {
                     }
                 }
 
-                if is_overwrite_question {
-                    if !should_continue_with_unreadable_logfile(
+                if is_overwrite_question
+                    && !should_continue_with_unreadable_logfile(
                         force_logfile_overwrite,
                         !batch && std::io::stdin().is_terminal(),
-                    ) {
-                        std::process::exit(1);
-                    }
+                    )
+                {
+                    std::process::exit(1);
                 }
             }
         }
