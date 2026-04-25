@@ -288,16 +288,10 @@ jobs:
     needs: [create-release]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          mkdir -p release-assets
-          gh run download "${{ github.run_id }}" \
-            --repo "$GH_REPO" \
-            --name "${{ matrix.artifact }}" \
-            --dir release-assets
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact }}
+          path: release-assets
 
       - name: Upload release asset
         env:
