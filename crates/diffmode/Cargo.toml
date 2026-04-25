@@ -10,8 +10,5 @@ readme = "README.md"
 keywords = ["diff", "terminal", "tui", "hwatch"]
 
 [dependencies]
-ratatui = { version = "0.30.0", default-features = false, features = [
-    'crossterm',
-    'unstable-rendered-line-info',
-] }
-ansi_term = "0.12.1"
+ratatui.workspace = true
+ansi_term.workspace = true

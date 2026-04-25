@@ -856,7 +856,6 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "hwatch"
 version = "0.4.1"
 dependencies = [
- "ansi-parser",
  "ansi_term",
  "assert_cmd",
  "chardetng",
@@ -868,7 +867,6 @@ dependencies = [
  "ctrlc",
  "encoding_rs",
  "flate2",
- "heapless",
  "hwatch-ansi",
  "hwatch-diffmode",
  "libloading",
@@ -879,14 +877,11 @@ dependencies = [
  "rayon",
  "regex",
  "serde",
- "serde_derive",
  "serde_json",
  "shell-words",
  "similar",
  "tempfile",
- "termwiz",
  "unicode-segmentation",
- "unicode-truncate",
  "unicode-width 0.1.14",
 ]
 
