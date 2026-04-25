@@ -38,7 +38,7 @@ crossterm = "0.29.0"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 encoding_rs = "0.8"
 flate2 = "1.1.9"
-nix = { version = "0.29", features = ["fs", "term", "process", "signal"] }
+nix = { version = "0.31.2", features = ["fs", "term", "process", "signal"] }
 ratatui.workspace = true
 rayon = "1.10"
 regex = "1.12.3"
