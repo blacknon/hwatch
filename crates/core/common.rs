@@ -7,8 +7,7 @@ use chrono::Local;
 use serde_json::Deserializer;
 use std::error::Error;
 use std::fs::{self, File, OpenOptions};
-use std::io::prelude::*;
-use std::io::BufReader;
+use std::io::{self, BufReader, Write};
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::Color;
@@ -91,6 +90,17 @@ pub fn logging_result(_logpath: &str, result: &CommandResult) -> Result<(), Box<
     _ = writeln!(logfile, "{logdata}");
 
     Ok(())
+}
+
+pub fn confirm_yes_default(prompt: &str) -> bool {
+    eprint!("{prompt} [Y/n]: ");
+    let _ = io::stderr().flush();
+
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => matches!(input.trim().to_ascii_lowercase().as_str(), "" | "y" | "yes"),
+        Err(_) => false,
+    }
 }
 
 ///

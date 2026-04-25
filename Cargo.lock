@@ -659,16 +659,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "error-stack"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b878b3fac9613c3c7f22eb70bc8a3c6ebdc03cc11479ee60fde1692d747fd45f"
-dependencies = [
- "anyhow",
- "rustc_version",
-]
-
-[[package]]
 name = "euclid"
 version = "0.22.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -877,7 +867,6 @@ dependencies = [
  "crossterm",
  "ctrlc",
  "encoding_rs",
- "error-stack",
  "flate2",
  "heapless",
  "hwatch-ansi",
@@ -886,7 +875,6 @@ dependencies = [
  "nix 0.29.0",
  "predicates",
  "proptest",
- "question",
  "ratatui",
  "rayon",
  "regex",
@@ -896,7 +884,6 @@ dependencies = [
  "shell-words",
  "similar",
  "tempfile",
- "termios",
  "termwiz",
  "unicode-segmentation",
  "unicode-truncate",
@@ -1505,12 +1492,6 @@ dependencies = [
  "tempfile",
  "unarray",
 ]
-
-[[package]]
-name = "question"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acbb3ede7a8f9a8ab89e714637f2cf40001b58f21340d4242b2f11533e65fa8d"
 
 [[package]]
 name = "quick-error"
