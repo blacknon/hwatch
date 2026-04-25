@@ -6,7 +6,7 @@ keywords = ["watch", "command", "monitoring"]
 license-file = "LICENSE"
 name = "hwatch"
 repository = "https://github.com/blacknon/hwatch"
-version = "0.4.1"
+version = "0.4.2"
 
 [workspace]
 members = ["crates/ansi", "crates/diffmode"]
@@ -50,8 +50,8 @@ unicode-segmentation = "1.10"
 unicode-width = "0.1.14"
 ansi_term.workspace = true
 libloading = "0.8.9"
-hwatch-diffmode = { path = "crates/diffmode", version = "0.4.1" }
-hwatch-ansi = { path = "crates/ansi", version = "0.4.1" }
+hwatch-diffmode = { path = "crates/diffmode", version = "0.4.2" }
+hwatch-ansi = { path = "crates/ansi", version = "0.4.2" }
 tempfile.workspace = true
 
 [dev-dependencies]
