@@ -9,14 +9,7 @@
 name: Release Job.
 
 on:
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - "**/README.md"
-      - "img/**"
-      - "package/**"
-      - "LICENSE"
+  workflow_dispatch:
 
 permissions:
   contents: write
