@@ -2,10 +2,15 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
+#[path = "view_runtime.rs"]
+mod runtime;
+
+use self::runtime::{restore_terminal, setup_terminal, spawn_input_thread};
+
 // module
 use crossbeam_channel::{Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::error::Error;
+use std::sync::{Arc, Mutex};
 use tui::style::Color;
 
 // local module
@@ -247,6 +252,3 @@ impl View {
         Ok(())
     }
 }
-#[path = "view_runtime.rs"]
-mod runtime;
-use self::runtime::{restore_terminal, setup_terminal, spawn_input_thread};
