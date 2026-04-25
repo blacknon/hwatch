@@ -50,7 +50,6 @@
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // crate
-extern crate ansi_parser;
 extern crate ansi_term;
 extern crate chardetng;
 extern crate chrono;
@@ -60,7 +59,6 @@ extern crate crossterm;
 extern crate ctrlc;
 extern crate encoding_rs;
 extern crate flate2;
-extern crate heapless;
 extern crate nix;
 extern crate ratatui as tui;
 extern crate regex;
@@ -68,7 +66,6 @@ extern crate serde;
 extern crate shell_words;
 extern crate similar;
 extern crate tempfile;
-extern crate termwiz;
 extern crate unicode_segmentation;
 extern crate unicode_width;
 
@@ -79,9 +76,6 @@ extern crate hwatch_diffmode;
 // macro crate
 #[macro_use]
 extern crate clap;
-
-#[macro_use]
-extern crate serde_derive;
 extern crate serde_json;
 
 // modules
