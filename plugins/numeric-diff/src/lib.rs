@@ -1,16 +1,14 @@
-use std::slice;
-use std::str;
-
 use hwatch_ansi as ansi;
 use hwatch_diffmode::{
     PluginDiffRequest as HwatchDiffRequest, PluginMetadata as HwatchPluginMetadata,
-    PluginOwnedBytes as HwatchOwnedBytes, PluginSlice as HwatchSlice, PLUGIN_ABI_VERSION,
-    text_eq_ignoring_space_blocks,
+    PluginOwnedBytes as HwatchOwnedBytes, PLUGIN_ABI_VERSION, drop_plugin_owned_bytes,
+    plugin_owned_bytes_from_vec, plugin_slice_to_str, text_eq_ignoring_space_blocks,
 };
 use similar::{ChangeTag, TextDiff};
 
 static PLUGIN_NAME: &[u8] = b"numeric-diff\0";
 static HEADER_TEXT: &[u8] = b"NumDiff\0";
+const HEADER_TEXT_PLAIN: &str = "NumDiff";
 const RESPONSE_SCHEMA_VERSION: u32 = 3;
 const WATCH_LINE_ADD: &str = "green";
 const WATCH_LINE_REM: &str = "red";
@@ -76,8 +74,24 @@ pub extern "C" fn hwatch_diffmode_metadata() -> HwatchPluginMetadata {
 
 #[no_mangle]
 pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwnedBytes {
-    let dest = unsafe { slice_to_str(req.dest) }.unwrap_or_default();
-    let src = unsafe { slice_to_str(req.src) }.unwrap_or_default();
+    match std::panic::catch_unwind(|| generate_response(req)) {
+        Ok(bytes) => bytes,
+        // A plugin panic should degrade into a plugin-local error response
+        // instead of aborting the host process.
+        Err(_) => internal_error_response(HEADER_TEXT_PLAIN),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hwatch_diffmode_free_bytes(bytes: HwatchOwnedBytes) {
+    unsafe {
+        drop_plugin_owned_bytes(bytes);
+    }
+}
+
+fn generate_response(req: HwatchDiffRequest) -> HwatchOwnedBytes {
+    let dest = unsafe { plugin_slice_to_str(req.dest) }.unwrap_or_default();
+    let src = unsafe { plugin_slice_to_str(req.src) }.unwrap_or_default();
 
     let lines = generate_numeric_diff(
         dest,
@@ -90,31 +104,20 @@ pub extern "C" fn hwatch_diffmode_generate(req: HwatchDiffRequest) -> HwatchOwne
     let header_text = if req.only_diffline {
         "NumDiff(Only)"
     } else {
-        "NumDiff"
+        HEADER_TEXT_PLAIN
     };
 
     let json = render_json_response(header_text, &lines);
     into_owned_bytes(json.into_bytes())
 }
 
-#[no_mangle]
-pub extern "C" fn hwatch_diffmode_free_bytes(bytes: HwatchOwnedBytes) {
-    if bytes.ptr.is_null() || bytes.cap == 0 {
-        return;
-    }
-
-    unsafe {
-        drop(Vec::from_raw_parts(bytes.ptr, bytes.len, bytes.cap));
-    }
-}
-
-unsafe fn slice_to_str(input: HwatchSlice) -> Option<&'static str> {
-    if input.ptr.is_null() {
-        return None;
-    }
-
-    let bytes = slice::from_raw_parts(input.ptr, input.len);
-    str::from_utf8(bytes).ok()
+fn internal_error_response(header_text: &str) -> HwatchOwnedBytes {
+    into_owned_bytes(
+        format!(
+            r#"{{"schema_version":1,"header_text":"{header_text}","lines":["plugin internal error"]}}"#
+        )
+        .into_bytes(),
+    )
 }
 
 fn generate_numeric_diff(
@@ -664,7 +667,8 @@ fn diff_type_name(kind: RenderKind) -> &'static str {
 }
 
 fn delta_color(delta: &str) -> Option<&'static str> {
-    match delta.chars().nth(1) {
+    let sign = delta.chars().find(|ch| *ch == '+' || *ch == '-');
+    match sign {
         Some('+') => Some("cyan"),
         Some('-') => Some("magenta"),
         _ => Some("184,134,11"),
@@ -755,14 +759,8 @@ fn escape_json(value: &str) -> String {
     escaped
 }
 
-fn into_owned_bytes(mut bytes: Vec<u8>) -> HwatchOwnedBytes {
-    let output = HwatchOwnedBytes {
-        ptr: bytes.as_mut_ptr(),
-        len: bytes.len(),
-        cap: bytes.capacity(),
-    };
-    std::mem::forget(bytes);
-    output
+fn into_owned_bytes(bytes: Vec<u8>) -> HwatchOwnedBytes {
+    plugin_owned_bytes_from_vec(bytes)
 }
 
 #[cfg(test)]
@@ -818,9 +816,9 @@ mod tests {
         assert_eq!(
             actual,
             Some(vec![NumericDelta {
-                before_start: 31,
+                before_start: 32,
                 before_len: 3,
-                after_start: 30,
+                after_start: 31,
                 after_len: 4,
                 before_delta: "-1".to_string(),
                 after_delta: "+1".to_string(),
@@ -855,7 +853,8 @@ mod tests {
             true,
             false,
         );
-        assert_eq!(actual[0].spans[0].text, "\u{1b}[32msame\u{1b}[0m");
+        assert_eq!(actual[0].spans[0].text, "   ");
+        assert_eq!(actual[0].spans[1].text, "\u{1b}[32msame\u{1b}[0m");
 
         let stripped = generate_numeric_diff(
             "\u{1b}[32msame\u{1b}[0m\n",
@@ -865,7 +864,8 @@ mod tests {
             false,
             false,
         );
-        assert_eq!(stripped[0].spans[0].text, "same");
+        assert_eq!(stripped[0].spans[0].text, "   ");
+        assert_eq!(stripped[0].spans[1].text, "same");
     }
 
     #[test]
@@ -890,9 +890,11 @@ mod tests {
         );
 
         assert_eq!(actual[0].diff_type, "rem");
-        assert_eq!(actual[0].spans[2].text, "alpha=1");
+        assert_eq!(actual[0].spans[1].text, "alpha=");
+        assert_eq!(actual[0].spans[2].text, "1");
         assert_eq!(actual[2].diff_type, "add");
-        assert_eq!(actual[2].spans[2].text, "alpha=2");
+        assert_eq!(actual[2].spans[1].text, "alpha=");
+        assert_eq!(actual[2].spans[2].text, "2");
         assert_eq!(actual[4].diff_type, "same");
         assert_eq!(actual[4].spans[1].text, "value=1 ms");
     }

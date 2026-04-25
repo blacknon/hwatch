@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Blacknon. All rights reserved.
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file.
+
 #![allow(clippy::arc_with_non_send_sync)]
 #![allow(clippy::clone_on_copy)]
 #![allow(clippy::collapsible_match)]
@@ -17,12 +21,9 @@
 #![allow(clippy::useless_format)]
 #![allow(clippy::wrong_self_convention)]
 
-// Copyright (c) 2026 Blacknon. All rights reserved.
-// Use of this source code is governed by an MIT license
-// that can be found in the LICENSE file.
-
-// v0.4.0
 // v0.4.1
+// TODO(blacknon): https://github.com/blacknon/hwatch/issues/42
+// TODO(blacknon): ansi-parserなど、一部の依存クレートの機能を内部実装に置き換えていく。これは依存クレートの数を減らすためにも必要な対応である。
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
@@ -51,7 +52,6 @@
 // crate
 extern crate ansi_parser;
 extern crate ansi_term;
-extern crate async_std;
 extern crate chardetng;
 extern crate chrono;
 extern crate config;
@@ -60,10 +60,8 @@ extern crate crossterm;
 extern crate ctrlc;
 extern crate encoding_rs;
 extern crate flate2;
-extern crate futures;
 extern crate heapless;
 extern crate nix;
-extern crate question;
 extern crate ratatui as tui;
 extern crate regex;
 extern crate serde;
@@ -71,16 +69,12 @@ extern crate shell_words;
 extern crate similar;
 extern crate tempfile;
 extern crate termwiz;
-extern crate tokio;
 extern crate unicode_segmentation;
 extern crate unicode_width;
 
 // local crate
 extern crate hwatch_ansi;
 extern crate hwatch_diffmode;
-
-#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-extern crate termios;
 
 // macro crate
 #[macro_use]
@@ -96,10 +90,10 @@ use common::load_logfile;
 use crossbeam_channel::unbounded;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use hwatch_diffmode::DiffMode;
-use question::{Answer, Question};
 use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::ffi::OsString;
+use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -413,6 +407,12 @@ fn build_app() -> clap::Command {
                 .value_hint(ValueHint::FilePath)
                 .action(ArgAction::Append),
         )
+        .arg(
+            Arg::new("force_logfile_overwrite")
+                .help("continue even if an existing logfile is empty or unreadable")
+                .long("force-logfile-overwrite")
+                .action(ArgAction::SetTrue),
+        )
         // shell command
         //   [--shell,-s] command
         .arg(
@@ -509,40 +509,50 @@ fn build_app() -> clap::Command {
 
 /// Normalize options in args.
 /// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
-fn collect_known_diff_mode_names(args: &[OsString]) -> HashSet<String> {
-    let mut modes = HashSet::from([
+fn builtin_diff_mode_names() -> HashSet<String> {
+    HashSet::from([
         "none".to_string(),
         "watch".to_string(),
         "line".to_string(),
         "word".to_string(),
-    ]);
+    ])
+}
 
+fn has_diff_plugin_option(args: &[OsString]) -> bool {
     let mut index = 0;
     while index < args.len() {
         let arg = args[index].to_string_lossy();
-        let plugin_path = if arg == "--diff-plugin" {
-            index += 1;
-            args.get(index)
-                .map(|value| value.to_string_lossy().into_owned())
-        } else {
-            arg.strip_prefix("--diff-plugin=")
-                .map(|value| value.to_string())
-        };
-
-        if let Some(plugin_path) = plugin_path {
-            if let Ok(registration) = plugin_diffmode::load_plugin(Path::new(&plugin_path)) {
-                modes.insert(registration.name);
-            }
+        if arg == "--" {
+            break;
         }
-
+        if arg == "--diff-plugin" {
+            return true;
+        }
+        if arg.starts_with("--diff-plugin=") {
+            return true;
+        }
         index += 1;
     }
 
-    modes
+    false
+}
+
+fn register_diff_mode_name(
+    diff_mode_name_to_index: &mut HashMap<String, usize>,
+    name: String,
+    index: usize,
+) -> Result<(), String> {
+    if diff_mode_name_to_index.contains_key(&name) {
+        return Err(format!("duplicate diff mode name: '{name}'"));
+    }
+
+    diff_mode_name_to_index.insert(name, index);
+    Ok(())
 }
 
 fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
-    let known_diff_modes = collect_known_diff_mode_names(&args);
+    let known_diff_modes = builtin_diff_mode_names();
+    let has_diff_plugin = has_diff_plugin_option(&args);
     let mut normalized = Vec::with_capacity(args.len() + 1);
     let mut iter = args.into_iter();
 
@@ -563,7 +573,10 @@ fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
             match iter.next() {
                 Some(next) => {
                     let next_value = next.to_string_lossy();
-                    if known_diff_modes.contains(next_value.as_ref()) {
+                    if next_value.starts_with('-') {
+                        normalized.push(OsString::from("watch"));
+                        normalized.push(next);
+                    } else if known_diff_modes.contains(next_value.as_ref()) || has_diff_plugin {
                         normalized.push(next);
                     } else {
                         normalized.push(OsString::from("watch"));
@@ -733,6 +746,7 @@ fn main() {
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
+    let force_logfile_overwrite = matcher.get_flag("force_logfile_overwrite");
 
     // check _logfile directory
     // TODO(blacknon): commonに移す？(ここで直書きする必要性はなさそう)
@@ -740,7 +754,7 @@ fn main() {
     if let Some(logfile) = logfile {
         // logging log
         let log_path = Path::new(logfile);
-        let log_dir = log_path.parent().unwrap();
+        let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
         let cur_dir = std::env::current_dir().expect("cannot get current directory");
         let abs_log_path = cur_dir.join(log_path);
         let abs_log_dir = cur_dir.join(log_dir);
@@ -781,15 +795,13 @@ fn main() {
                     }
                 }
 
-                if is_overwrite_question {
-                    let answer = Question::new("Log to the same file?")
-                        .default(Answer::YES)
-                        .show_defaults()
-                        .confirm();
-
-                    if answer != Answer::YES {
-                        std::process::exit(1);
-                    }
+                if is_overwrite_question
+                    && !should_continue_with_unreadable_logfile(
+                        force_logfile_overwrite,
+                        !batch && std::io::stdin().is_terminal(),
+                    )
+                {
+                    std::process::exit(1);
                 }
             }
         }
@@ -884,7 +896,16 @@ fn main() {
 
         // set command
         let command = load_results.last().unwrap().command.clone();
-        command_line = shell_words::split(&command).unwrap();
+        command_line = match shell_words::split(&command) {
+            Ok(command_line) => command_line,
+            Err(err) => {
+                let err = cmd_app.error(
+                    ErrorKind::ValueValidation,
+                    format!("failed to restore command from logfile: {err}"),
+                );
+                err.exit();
+            }
+        };
     }
 
     // Start Command Thread
@@ -965,7 +986,7 @@ fn main() {
     ];
 
     for (index, name) in ["none", "watch", "line", "word"].into_iter().enumerate() {
-        diff_mode_name_to_index.insert(name.to_string(), index);
+        register_diff_mode_name(&mut diff_mode_name_to_index, name.to_string(), index).unwrap();
     }
 
     if let Some(plugin_paths) = matcher.get_many::<String>("diff_plugin") {
@@ -980,17 +1001,14 @@ fn main() {
             };
 
             let plugin_name = registration.name;
-            if diff_mode_name_to_index.contains_key(&plugin_name) {
-                let err = cmd_app.error(
-                    ErrorKind::ArgumentConflict,
-                    format!("duplicate diff mode name: '{plugin_name}'"),
-                );
+            if let Err(message) =
+                register_diff_mode_name(&mut diff_mode_name_to_index, plugin_name, diff_modes.len())
+            {
+                let err = cmd_app.error(ErrorKind::ArgumentConflict, message);
                 err.exit();
             }
 
-            let index = diff_modes.len();
             diff_modes.push(Arc::new(Mutex::new(registration.mode)));
-            diff_mode_name_to_index.insert(plugin_name, index);
         }
     }
 
@@ -1124,6 +1142,25 @@ fn calculate_diff_mode_header_width(diff_modes: &[Arc<Mutex<Box<dyn DiffMode>>>]
 
     max_width
 }
+
+fn should_continue_with_unreadable_logfile(
+    force_logfile_overwrite: bool,
+    stdin_is_terminal: bool,
+) -> bool {
+    if force_logfile_overwrite {
+        return true;
+    }
+
+    if !stdin_is_terminal {
+        eprintln!(
+            "Refusing to reuse the existing logfile without confirmation in a non-interactive session. Rerun with --force-logfile-overwrite to continue."
+        );
+        return false;
+    }
+
+    common::confirm_yes_default("Log to the same file?")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1204,6 +1241,55 @@ mod tests {
     }
 
     #[test]
+    fn normalize_args_preserves_non_builtin_mode_when_plugin_option_is_present() {
+        let args = vec![
+            "hwatch",
+            "--diff-plugin",
+            "/tmp/libnumeric.so",
+            "-d",
+            "numeric-diff",
+            "echo",
+            "hi",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(
+            actual,
+            vec![
+                "hwatch",
+                "--diff-plugin",
+                "/tmp/libnumeric.so",
+                "-d",
+                "numeric-diff",
+                "echo",
+                "hi",
+            ]
+        );
+    }
+
+    #[test]
+    fn normalize_args_still_defaults_to_watch_without_plugin_option() {
+        let args = vec!["hwatch", "-d", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+
+        let actual: Vec<String> = normalize_args(args)
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(actual, vec!["hwatch", "-d", "watch", "echo", "hi"]);
+    }
+
+    #[test]
     fn clap_parses_chgexit_without_value_as_one() {
         let args = vec!["hwatch", "-g", "echo", "hi"]
             .into_iter()
@@ -1230,6 +1316,19 @@ mod tests {
     }
 
     #[test]
+    fn clap_parses_force_logfile_overwrite_flag() {
+        let args = vec!["hwatch", "--force-logfile-overwrite", "echo", "hi"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        let matches = build_app()
+            .try_get_matches_from(normalize_args(args))
+            .unwrap();
+
+        assert!(matches.get_flag("force_logfile_overwrite"));
+    }
+
+    #[test]
     fn normalize_args_inserts_default_count_for_chgexit() {
         let args = vec!["hwatch", "-g", "echo", "hi"]
             .into_iter()
@@ -1242,5 +1341,22 @@ mod tests {
             .collect();
 
         assert_eq!(actual, vec!["hwatch", "-g", "1", "echo", "hi"]);
+    }
+
+    #[test]
+    fn register_diff_mode_name_rejects_duplicates() {
+        let mut diff_mode_name_to_index = HashMap::new();
+        register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 1).unwrap();
+
+        let error = register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 2)
+            .unwrap_err();
+
+        assert_eq!(error, "duplicate diff mode name: 'watch'");
+    }
+
+    #[test]
+    fn unreadable_logfile_requires_force_in_non_interactive_mode() {
+        assert!(!should_continue_with_unreadable_logfile(false, false));
+        assert!(should_continue_with_unreadable_logfile(true, false));
     }
 }

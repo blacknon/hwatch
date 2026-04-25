@@ -156,7 +156,7 @@ impl Batch {
 
         // logging result.
         if !self.logfile.is_empty() {
-            let _ = logging_result(&self.logfile, &latest_result);
+            let _ = logging_result(&self.logfile, &_result);
         }
 
         if !self.after_command.is_empty() {
@@ -364,4 +364,204 @@ fn command_results_equivalent(
             &after.get_stderr(),
             ignore_spaceblock,
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::{load_logfile, OutputMode};
+    use crate::diffmode_plane::DiffModeAtPlane;
+    use crossbeam_channel::unbounded;
+    use proptest::prelude::*;
+    use tempfile::NamedTempFile;
+
+    fn new_batch(output_mode: OutputMode) -> Batch {
+        let (_tx, rx) = unbounded();
+        let diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> =
+            vec![Arc::new(Mutex::new(Box::new(DiffModeAtPlane::new())))];
+
+        Batch::new(rx, diff_modes).set_output_mode(output_mode)
+    }
+
+    #[test]
+    fn should_print_for_output_mode_uses_stdout_diff_only() {
+        let batch = new_batch(OutputMode::Stdout);
+        let before = CommandResult::default()
+            .set_output(b"same stdout\nstderr-1\n".to_vec())
+            .set_stdout(b"same stdout\n".to_vec())
+            .set_stderr(b"stderr-1\n".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"same stdout\nstderr-2\n".to_vec())
+            .set_stdout(b"same stdout\n".to_vec())
+            .set_stderr(b"stderr-2\n".to_vec());
+
+        assert!(!batch.should_print_for_output_mode(&before, &after));
+    }
+
+    #[test]
+    fn should_print_for_output_mode_uses_stderr_diff_only() {
+        let batch = new_batch(OutputMode::Stderr);
+        let before = CommandResult::default()
+            .set_output(b"stdout-1\nsame stderr\n".to_vec())
+            .set_stdout(b"stdout-1\n".to_vec())
+            .set_stderr(b"same stderr\n".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"stdout-2\nsame stderr\n".to_vec())
+            .set_stdout(b"stdout-2\n".to_vec())
+            .set_stderr(b"same stderr\n".to_vec());
+
+        assert!(!batch.should_print_for_output_mode(&before, &after));
+    }
+
+    #[test]
+    fn should_print_for_output_mode_detects_selected_stream_changes() {
+        let stdout_batch = new_batch(OutputMode::Stdout);
+        let stderr_batch = new_batch(OutputMode::Stderr);
+        let before = CommandResult::default()
+            .set_output(b"stdout-1\nstderr-1\n".to_vec())
+            .set_stdout(b"stdout-1\n".to_vec())
+            .set_stderr(b"stderr-1\n".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"stdout-2\nstderr-2\n".to_vec())
+            .set_stdout(b"stdout-2\n".to_vec())
+            .set_stderr(b"stderr-2\n".to_vec());
+
+        assert!(stdout_batch.should_print_for_output_mode(&before, &after));
+        assert!(stderr_batch.should_print_for_output_mode(&before, &after));
+    }
+
+    #[test]
+    fn should_print_for_output_mode_uses_combined_output_when_selected() {
+        let batch = new_batch(OutputMode::Output);
+        let before = CommandResult::default()
+            .set_output(b"same stdout\nstderr-1\n".to_vec())
+            .set_stdout(b"same stdout\n".to_vec())
+            .set_stderr(b"stderr-1\n".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"same stdout\nstderr-2\n".to_vec())
+            .set_stdout(b"same stdout\n".to_vec())
+            .set_stderr(b"stderr-2\n".to_vec());
+
+        assert!(batch.should_print_for_output_mode(&before, &after));
+    }
+
+    #[test]
+    fn should_print_for_output_mode_ignores_space_blocks_when_enabled() {
+        let batch = new_batch(OutputMode::Stdout).set_ignore_spaceblock(true);
+        let before = CommandResult::default()
+            .set_output(b"alpha  beta\n".to_vec())
+            .set_stdout(b"alpha  beta\n".to_vec())
+            .set_stderr(b"".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"alpha   beta\n".to_vec())
+            .set_stdout(b"alpha   beta\n".to_vec())
+            .set_stderr(b"".to_vec());
+
+        assert!(!batch.should_print_for_output_mode(&before, &after));
+    }
+
+    #[test]
+    fn command_results_equivalent_detects_command_and_status_changes() {
+        let base = CommandResult::default()
+            .set_output(b"same\n".to_vec())
+            .set_stdout(b"same\n".to_vec())
+            .set_stderr(b"".to_vec());
+        let command_changed = CommandResult {
+            command: "different".to_string(),
+            ..base.clone()
+        };
+        let status_changed = CommandResult {
+            status: false,
+            ..base.clone()
+        };
+
+        assert!(!command_results_equivalent(&base, &command_changed, false));
+        assert!(!command_results_equivalent(&base, &status_changed, false));
+    }
+
+    #[test]
+    fn command_results_equivalent_ignores_space_blocks_when_enabled() {
+        let before = CommandResult::default()
+            .set_output(b"same\n".to_vec())
+            .set_stdout(b"alpha  beta\n".to_vec())
+            .set_stderr(b"stderr\n".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"same\n".to_vec())
+            .set_stdout(b"alpha   beta\n".to_vec())
+            .set_stderr(b"stderr\n".to_vec());
+
+        assert!(command_results_equivalent(&before, &after, true));
+        assert!(!command_results_equivalent(&before, &after, false));
+    }
+
+    #[test]
+    fn update_result_logs_current_result_instead_of_previous_one() {
+        let logfile = NamedTempFile::new().unwrap();
+        let path = logfile.path().to_string_lossy().into_owned();
+        let mut batch = new_batch(OutputMode::Output).set_logfile(path.clone());
+        let result = CommandResult {
+            timestamp: "2026-04-24 21:30:00.000".to_string(),
+            command: "echo current".to_string(),
+            status: true,
+            ..CommandResult::default()
+        }
+        .set_output(b"current\n".to_vec())
+        .set_stdout(b"current\n".to_vec());
+
+        assert!(batch.update_result(result.clone()));
+
+        let loaded = load_logfile(&path, false);
+        assert!(loaded.is_ok());
+        let loaded = loaded.ok().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert!(loaded[0] == result);
+    }
+
+    proptest! {
+        #[test]
+        fn command_results_equivalent_is_reflexive(
+            command in "[^\0]{0,64}",
+            output in "[^\0]{0,64}",
+            stdout in "[^\0]{0,64}",
+            stderr in "[^\0]{0,64}",
+            status in any::<bool>(),
+        ) {
+            let result = CommandResult {
+                command,
+                status,
+                ..CommandResult::default()
+            }
+            .set_output(output.as_bytes().to_vec())
+            .set_stdout(stdout.as_bytes().to_vec())
+            .set_stderr(stderr.as_bytes().to_vec());
+
+            prop_assert!(command_results_equivalent(&result, &result, false));
+            prop_assert!(command_results_equivalent(&result, &result, true));
+        }
+
+        #[test]
+        fn command_results_equivalent_ignores_normalized_space_only_diffs(
+            left in "[^\n\r]{0,32}",
+            spaces_a in "[ \t]{1,8}",
+            spaces_b in "[ \t]{1,8}",
+            right in "[^\n\r]{0,32}",
+        ) {
+            let before_stdout = format!("{left}{spaces_a}{right}\n");
+            let after_stdout = format!("{left}{spaces_b}{right}\n");
+
+            prop_assume!(hwatch_diffmode::normalize_space_blocks(&before_stdout)
+                == hwatch_diffmode::normalize_space_blocks(&after_stdout));
+
+            let before = CommandResult::default()
+                .set_output(before_stdout.as_bytes().to_vec())
+                .set_stdout(before_stdout.as_bytes().to_vec())
+                .set_stderr(b"stderr\n".to_vec());
+            let after = CommandResult::default()
+                .set_output(after_stdout.as_bytes().to_vec())
+                .set_stdout(after_stdout.as_bytes().to_vec())
+                .set_stderr(b"stderr\n".to_vec());
+
+            prop_assert!(command_results_equivalent(&before, &after, true));
+        }
+    }
 }

@@ -727,7 +727,7 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///        
+    ///
     pub fn set_beep(&mut self, beep: bool) {
         self.is_beep = beep;
     }
@@ -976,21 +976,7 @@ impl App<'_> {
                     (OutputMode::Stderr, _, _) => result.command_result.get_stderr(),
                 };
 
-                match self.is_regex_filter {
-                    true => {
-                        let re = Regex::new(&self.filtered_text.clone()).unwrap();
-                        let regex_match = re.is_match(&result_text);
-                        if !regex_match {
-                            is_push = false;
-                        }
-                    }
-
-                    false => {
-                        if !result_text.contains(&self.filtered_text) {
-                            is_push = false;
-                        }
-                    }
-                }
+                is_push = self.matches_filter_text(&result_text);
             }
 
             if is_push {
@@ -1009,9 +995,7 @@ impl App<'_> {
             }
         }
 
-        if new_select.is_none() {
-            new_select = Some(get_near_index(&tmp_results, selected));
-        }
+        let new_select = new_select.unwrap_or_else(|| get_near_index(&tmp_results, selected));
 
         // sort tmp_history, to push history
         let mut history = vec![];
@@ -1029,10 +1013,10 @@ impl App<'_> {
 
         // reset data.
         self.history_area.reset_history_data(history);
-        self.history_area.set_state_select(new_select.unwrap());
+        self.history_area.set_state_select(new_select);
 
         // result new selected;
-        new_select.unwrap()
+        new_select
     }
 
     // NOTE: CommandResultを元に、
@@ -1185,21 +1169,7 @@ impl App<'_> {
                 }
             };
 
-            match self.is_regex_filter {
-                true => {
-                    let re = Regex::new(&self.filtered_text).unwrap();
-                    let regex_match = re.is_match(&result_text);
-                    if !regex_match {
-                        is_push = false;
-                    }
-                }
-
-                false => {
-                    if !result_text.contains(&self.filtered_text) {
-                        is_push = false;
-                    }
-                }
-            }
+            is_push = self.matches_filter_text(&result_text);
         }
 
         let mut selected = self.history_area.get_state_select();
@@ -1759,6 +1729,16 @@ impl App<'_> {
     ///
     fn show_clear_popup(&mut self) {
         self.window = ActiveWindow::Clear;
+    }
+
+    fn matches_filter_text(&self, result_text: &str) -> bool {
+        if self.is_regex_filter {
+            Regex::new(&self.filtered_text)
+                .map(|re| re.is_match(result_text))
+                .unwrap_or(false)
+        } else {
+            result_text.contains(&self.filtered_text)
+        }
     }
 
     ///
@@ -2457,6 +2437,8 @@ fn gen_diff_only_data(before: &str, after: &str, ignore_spaceblock: bool) -> Vec
 mod tests {
     use super::*;
     use crossbeam_channel::unbounded;
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+    use proptest::prelude::*;
     use std::io::{self, Write};
     use std::sync::RwLock;
     use tui::{
@@ -2610,5 +2592,209 @@ mod tests {
 
         let result = app.run(&mut terminal);
         assert!(result.is_ok(), "unexpected run() error: {result:?}");
+    }
+
+    #[test]
+    fn invalid_regex_filter_input_does_not_enable_filtering() {
+        let (tx, rx) = unbounded();
+        let interval = Arc::new(RwLock::new(RunInterval::default()));
+        let mut app = App::new(tx, rx, interval, test_diff_modes(), 0);
+
+        app.set_input_mode(InputMode::RegexFilter);
+        app.header_area.input_text = "[".to_string();
+
+        app.get_default_filter_input_key(
+            true,
+            Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+        );
+
+        assert!(app.input_mode == InputMode::RegexFilter);
+        assert!(!app.is_filtered);
+        assert!(!app.is_regex_filter);
+        assert_eq!(app.filtered_text, "");
+        assert_eq!(app.header_area.input_text, "[");
+    }
+
+    #[test]
+    fn invalid_regex_filter_does_not_panic_during_match_checks() {
+        let (tx, rx) = unbounded();
+        let interval = Arc::new(RwLock::new(RunInterval::default()));
+        let mut app = App::new(tx, rx, interval, test_diff_modes(), 0);
+
+        app.is_regex_filter = true;
+        app.filtered_text = "[".to_string();
+
+        assert!(!app.matches_filter_text("sample output"));
+    }
+
+    #[test]
+    fn gen_diff_only_data_collects_only_changed_lines() {
+        let diff_only = gen_diff_only_data("same\nold\n", "same\nnew\n", false);
+
+        assert_eq!(String::from_utf8(diff_only).unwrap(), "old\nnew\n");
+    }
+
+    #[test]
+    fn gen_diff_only_data_returns_empty_when_inputs_match() {
+        let diff_only = gen_diff_only_data("same\n", "same\n", false);
+
+        assert!(diff_only.is_empty());
+    }
+
+    #[test]
+    fn gen_diff_only_data_ignores_space_blocks_when_enabled() {
+        let diff_only = gen_diff_only_data("alpha  beta\n", "alpha   beta\n", true);
+
+        assert!(diff_only.is_empty());
+    }
+
+    #[test]
+    fn gen_diff_only_data_preserves_change_order_across_lines() {
+        let diff_only = gen_diff_only_data("a\nb\nc\n", "a\nx\nc\ny\n", false);
+
+        assert_eq!(String::from_utf8(diff_only).unwrap(), "b\nx\ny\n");
+    }
+
+    #[test]
+    fn gen_diff_only_data_detects_trailing_newline_changes() {
+        let diff_only = gen_diff_only_data("alpha", "alpha\n", false);
+
+        assert!(!diff_only.is_empty());
+    }
+
+    #[test]
+    fn gen_diff_only_data_marks_each_inserted_line_when_starting_empty() {
+        let diff_only = gen_diff_only_data("", "line1\nline2\n", false);
+
+        assert_eq!(String::from_utf8(diff_only).unwrap(), "line1\nline2\n");
+    }
+
+    #[test]
+    fn gen_result_items_keeps_stdout_and_stderr_diffs_separate() {
+        let previous = CommandResult::default()
+            .set_output(b"out-1\nerr-1\n".to_vec())
+            .set_stdout(b"out-1\n".to_vec())
+            .set_stderr(b"err-1\n".to_vec());
+        let current = CommandResult::default()
+            .set_output(b"out-2\nerr-2\n".to_vec())
+            .set_stdout(b"out-2\n".to_vec())
+            .set_stderr(b"err-2\n".to_vec());
+
+        let (output_items, stdout_items, stderr_items) =
+            gen_result_items(current, true, false, &previous, &previous, &previous);
+
+        assert_eq!(
+            String::from_utf8(output_items.diff_only_data).unwrap(),
+            "out-1\nerr-1\nout-2\nerr-2\n"
+        );
+        assert_eq!(
+            String::from_utf8(stdout_items.diff_only_data).unwrap(),
+            "out-1\nout-2\n"
+        );
+        assert_eq!(
+            String::from_utf8(stderr_items.diff_only_data).unwrap(),
+            "err-1\nerr-2\n"
+        );
+        assert_eq!(
+            (stdout_items.summary.line_add, stdout_items.summary.line_rem),
+            (1, 1)
+        );
+        assert_eq!(
+            (stderr_items.summary.line_add, stderr_items.summary.line_rem),
+            (1, 1)
+        );
+    }
+
+    #[test]
+    fn gen_result_items_calculates_summary_per_output_stream() {
+        let previous = CommandResult::default()
+            .set_output(b"out-1\nerr-1\n".to_vec())
+            .set_stdout(b"out-1\n".to_vec())
+            .set_stderr(b"err-1\n".to_vec());
+        let current = CommandResult::default()
+            .set_output(b"out-2\nerr-1\n".to_vec())
+            .set_stdout(b"out-2\n".to_vec())
+            .set_stderr(b"err-1\n".to_vec());
+
+        let (output_items, stdout_items, stderr_items) =
+            gen_result_items(current, true, false, &previous, &previous, &previous);
+
+        assert_eq!(
+            (output_items.summary.line_add, output_items.summary.line_rem),
+            (1, 1)
+        );
+        assert_eq!(
+            (stdout_items.summary.line_add, stdout_items.summary.line_rem),
+            (1, 1)
+        );
+        assert_eq!(
+            (stderr_items.summary.line_add, stderr_items.summary.line_rem),
+            (0, 0)
+        );
+        assert_eq!(
+            (stderr_items.summary.char_add, stderr_items.summary.char_rem),
+            (0, 0)
+        );
+    }
+
+    #[test]
+    fn command_results_equivalent_ignores_space_blocks_when_enabled() {
+        let before = CommandResult::default()
+            .set_output(b"alpha  beta\n".to_vec())
+            .set_stdout(b"alpha  beta\n".to_vec())
+            .set_stderr(b"".to_vec());
+        let after = CommandResult::default()
+            .set_output(b"alpha   beta\n".to_vec())
+            .set_stdout(b"alpha   beta\n".to_vec())
+            .set_stderr(b"".to_vec());
+
+        assert!(command_results_equivalent(&before, &after, true));
+        assert!(!command_results_equivalent(&before, &after, false));
+    }
+
+    proptest! {
+        #[test]
+        fn gen_diff_only_data_is_empty_for_identical_inputs(text in "[^\0]{0,64}") {
+            let diff_only = gen_diff_only_data(&text, &text, false);
+            prop_assert!(diff_only.is_empty());
+        }
+
+        #[test]
+        fn command_results_equivalent_is_reflexive(
+            command in "[^\0]{0,64}",
+            output in "[^\0]{0,64}",
+            stdout in "[^\0]{0,64}",
+            stderr in "[^\0]{0,64}",
+            status in any::<bool>(),
+        ) {
+            let result = CommandResult {
+                command,
+                status,
+                ..CommandResult::default()
+            }
+            .set_output(output.as_bytes().to_vec())
+            .set_stdout(stdout.as_bytes().to_vec())
+            .set_stderr(stderr.as_bytes().to_vec());
+
+            prop_assert!(command_results_equivalent(&result, &result, false));
+            prop_assert!(command_results_equivalent(&result, &result, true));
+        }
+
+        #[test]
+        fn gen_diff_only_data_ignores_whitespace_only_changes_when_normalized(
+            left in "[^\n\r]{0,32}",
+            spaces_a in "[ \t]{1,8}",
+            spaces_b in "[ \t]{1,8}",
+            right in "[^\n\r]{0,32}",
+        ) {
+            let before = format!("{left}{spaces_a}{right}\n");
+            let after = format!("{left}{spaces_b}{right}\n");
+
+            prop_assume!(hwatch_diffmode::normalize_space_blocks(&before)
+                == hwatch_diffmode::normalize_space_blocks(&after));
+
+            let diff_only = gen_diff_only_data(&before, &after, true);
+            prop_assert!(diff_only.is_empty());
+        }
     }
 }
