@@ -14,9 +14,8 @@ mod input;
 mod render;
 #[path = "app_results.rs"]
 mod results;
-use self::results::{
-    get_near_index,
-};
+
+use self::results::get_near_index;
 #[cfg(test)]
 use self::results::{command_results_equivalent, gen_diff_only_data, gen_result_items};
 
@@ -40,12 +39,12 @@ use crate::exec::CommandResult;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{HistoryArea, HistorySummary};
+use crate::common::OutputMode;
 use crate::hwatch_ansi::get_ansi_strip_str;
 use crate::hwatch_diffmode::DiffMode;
 use crate::keymap::{default_keymap, Keymap};
 use crate::output;
 use crate::watch::WatchArea;
-use crate::common::OutputMode;
 // local const
 use crate::SharedInterval;
 use crate::DEFAULT_TAB_SIZE;
