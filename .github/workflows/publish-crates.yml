@@ -13,6 +13,8 @@ jobs:
   publish:
     name: Publish to crates.io
     runs-on: ubuntu-latest
+    environment:
+      name: cargo
 
     steps:
       - name: Checkout
