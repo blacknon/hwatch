@@ -62,7 +62,6 @@ extern crate encoding_rs;
 extern crate flate2;
 extern crate heapless;
 extern crate nix;
-extern crate question;
 extern crate ratatui as tui;
 extern crate regex;
 extern crate serde;
@@ -76,9 +75,6 @@ extern crate unicode_width;
 // local crate
 extern crate hwatch_ansi;
 extern crate hwatch_diffmode;
-
-#[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-extern crate termios;
 
 // macro crate
 #[macro_use]
@@ -94,7 +90,6 @@ use common::load_logfile;
 use crossbeam_channel::unbounded;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use hwatch_diffmode::DiffMode;
-use question::{Answer, Question};
 use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::ffi::OsString;
@@ -1163,12 +1158,7 @@ fn should_continue_with_unreadable_logfile(
         return false;
     }
 
-    let answer = Question::new("Log to the same file?")
-        .default(Answer::YES)
-        .show_defaults()
-        .confirm();
-
-    answer == Answer::YES
+    common::confirm_yes_default("Log to the same file?")
 }
 
 #[cfg(test)]
