@@ -483,7 +483,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hwatch-ansi"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "ansi-parser",
  "heapless",
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "hwatch-diffmode"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "ansi_term",
  "ratatui",

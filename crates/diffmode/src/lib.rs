@@ -10,6 +10,8 @@ extern crate ratatui as tui;
 use ansi_term::Colour;
 use std::ffi::c_char;
 use std::fmt::Write;
+use std::slice;
+use std::str;
 use std::sync::{Arc, Mutex};
 use std::{borrow::Cow, vec};
 
@@ -81,6 +83,51 @@ pub struct PluginMetadata {
     pub supports_only_diffline: bool,
     pub plugin_name: *const c_char,
     pub header_text: *const c_char,
+}
+
+/// Convert a host-owned [`PluginSlice`] into a UTF-8 string inside the plugin.
+///
+/// # Safety
+///
+/// The host must pass a valid pointer/length pair that remains alive for the
+/// duration of the call. Invalid pointers are undefined behavior at the FFI
+/// boundary and cannot be fully defended against inside the plugin.
+pub unsafe fn plugin_slice_to_str<'a>(input: PluginSlice) -> Option<&'a str> {
+    if input.ptr.is_null() {
+        return None;
+    }
+
+    let bytes = slice::from_raw_parts(input.ptr, input.len);
+    str::from_utf8(bytes).ok()
+}
+
+/// Convert plugin-owned bytes into the ABI representation expected by the host.
+pub fn plugin_owned_bytes_from_vec(mut bytes: Vec<u8>) -> PluginOwnedBytes {
+    let output = PluginOwnedBytes {
+        ptr: bytes.as_mut_ptr(),
+        len: bytes.len(),
+        cap: bytes.capacity(),
+    };
+    std::mem::forget(bytes);
+    output
+}
+
+/// Reclaim bytes that were previously returned to the host.
+///
+/// Invalid ownership metadata is intentionally leaked instead of being turned
+/// back into a `Vec`, because `Vec::from_raw_parts` would be undefined behavior
+/// for malformed `(ptr, len, cap)` triples.
+///
+/// # Safety
+///
+/// `bytes` must originate from [`plugin_owned_bytes_from_vec`] in the same
+/// dynamic library.
+pub unsafe fn drop_plugin_owned_bytes(bytes: PluginOwnedBytes) {
+    if bytes.ptr.is_null() || bytes.cap == 0 || bytes.cap < bytes.len {
+        return;
+    }
+
+    drop(Vec::from_raw_parts(bytes.ptr, bytes.len, bytes.cap));
 }
 
 // OutputVecData is ...
