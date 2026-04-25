@@ -18,7 +18,7 @@ use tui::{backend::CrosstermBackend, style::Color, Terminal};
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 use nix::fcntl::{fcntl, FcntlArg::*, OFlag};
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-use std::{io::stdin, os::unix::io::AsRawFd};
+use std::io::stdin;
 
 // local module
 use crate::app::App;
@@ -381,10 +381,10 @@ fn send_input(tx: Sender<AppEvent>) -> io::Result<()> {
 
 #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
 pub fn set_nonblocking(is_nonblocking: bool) -> nix::Result<()> {
-    let stdin_fd = stdin().as_raw_fd();
-    let flags = fcntl(stdin_fd, F_GETFL)?;
+    let stdin = stdin();
+    let flags = fcntl(&stdin, F_GETFL)?;
     let new_flags = next_nonblocking_flags(flags, is_nonblocking);
-    fcntl(stdin_fd, F_SETFL(new_flags))?;
+    fcntl(&stdin, F_SETFL(new_flags))?;
 
     Ok(())
 }

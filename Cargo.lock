@@ -835,7 +835,7 @@ dependencies = [
  "hwatch-ansi",
  "hwatch-diffmode",
  "libloading",
- "nix 0.29.0",
+ "nix 0.31.2",
  "predicates",
  "proptest",
  "ratatui",
