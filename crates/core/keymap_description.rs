@@ -35,9 +35,7 @@ pub fn get_input_action_description(input_action: InputAction) -> String {
         InputAction::Quit => "Quit hwatch".to_string(),
         InputAction::Reset => "filter reset".to_string(),
         InputAction::Delete => "Delete selected history".to_string(),
-        InputAction::ClearExceptSelected => {
-            "Clear all history except selected history".to_string()
-        }
+        InputAction::ClearExceptSelected => "Clear all history except selected history".to_string(),
         InputAction::Cancel => "Cancel".to_string(),
         InputAction::ForceCancel => "Cancel without displaying the exit dialog".to_string(),
         InputAction::Help => "Show and hide help window".to_string(),

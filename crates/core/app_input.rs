@@ -150,9 +150,7 @@ impl App<'_> {
                     InputAction::ToggleColor => self.set_ansi_color(!self.ansi_color),
                     InputAction::ToggleLineNumber => self.set_line_number(!self.line_number),
                     InputAction::ToggleReverse => self.set_reverse(!self.reverse),
-                    InputAction::ToggleMouseSupport => {
-                        self.set_mouse_events(!self.mouse_events)
-                    }
+                    InputAction::ToggleMouseSupport => self.set_mouse_events(!self.mouse_events),
                     InputAction::ToggleViewPaneUI => self.show_ui(!self.show_header),
                     InputAction::ToggleViewHistoryPane => self.show_history(!self.show_history),
                     InputAction::ToggleBorder => self.set_border(!self.is_border),
@@ -166,9 +164,7 @@ impl App<'_> {
                     InputAction::SetDiffModeWatch => self.set_diff_mode(1),
                     InputAction::SetDiffModeLine => self.set_diff_mode(2),
                     InputAction::SetDiffModeWord => self.set_diff_mode(3),
-                    InputAction::SetDiffOnly => {
-                        self.set_is_only_diffline(!self.is_only_diffline)
-                    }
+                    InputAction::SetDiffOnly => self.set_is_only_diffline(!self.is_only_diffline),
                     InputAction::ToggleOutputMode => self.toggle_output(),
                     InputAction::SetOutputModeOutput => self.set_output_mode(OutputMode::Output),
                     InputAction::SetOutputModeStdout => self.set_output_mode(OutputMode::Stdout),

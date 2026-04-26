@@ -3,11 +3,12 @@
 // that can be found in the LICENSE file.
 
 use super::{
-    plugin_response_bytes_error, plugin_response_error, validation::validate_text_field,
+    plugin_response_bytes_error, plugin_response_error,
     types::{
         ParsedPluginDiffResponse, PluginLine, PluginStyledLine, RawPluginDiffResponse,
         RawPluginLine,
     },
+    validation::validate_text_field,
     PluginFreeBytesFn, PluginOwnedBytes, MAX_PLUGIN_RESPONSE_BYTES, PLUGIN_RESPONSE_SCHEMA_V1,
     PLUGIN_RESPONSE_SCHEMA_V2, PLUGIN_RESPONSE_SCHEMA_V3,
 };

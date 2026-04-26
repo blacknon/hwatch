@@ -4,9 +4,7 @@
 
 use super::{Input, InputType, Key, Mouse};
 use crate::errors::HwatchError;
-use crossterm::event::{
-    KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
 use serde::{de, Deserialize, Serialize};

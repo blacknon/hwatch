@@ -3,8 +3,8 @@
 // that can be found in the LICENSE file.
 
 use super::{ActiveArea, ActiveWindow, App, InputMode};
-use crate::event::AppEvent;
 use crate::common::OutputMode;
+use crate::event::AppEvent;
 use regex::Regex;
 use tui::layout::Rect;
 

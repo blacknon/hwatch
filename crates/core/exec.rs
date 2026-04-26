@@ -23,8 +23,8 @@ mod pty;
 mod result;
 
 pub use self::after_command::exec_after_command;
-pub use self::result::{CommandResult, CommandResultData};
 use self::process::{create_exec_cmd_args, exec_command};
+pub use self::result::{CommandResult, CommandResultData};
 
 // TODO(blacknon): commandは削除？
 pub struct ExecuteCommand {

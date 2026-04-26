@@ -34,12 +34,12 @@ use std::{
 use tui::{backend::Backend, style::Color, Terminal};
 
 // local module
+use crate::common::OutputMode;
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{HistoryArea, HistorySummary};
-use crate::common::OutputMode;
 use crate::hwatch_ansi::get_ansi_strip_str;
 use crate::hwatch_diffmode::DiffMode;
 use crate::keymap::{default_keymap, Keymap};
@@ -658,7 +658,6 @@ impl App<'_> {
         self.header_area.set_input_mode(self.input_mode);
         self.header_area.update();
     }
-
 }
 
 fn is_retryable_terminal_error(message: &str) -> bool {

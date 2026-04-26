@@ -72,10 +72,18 @@ impl Printer {
 
     ///
     pub fn get_watch_data(&mut self, dest: &CommandResult, src: &CommandResult) -> WatchRenderData {
-        let text_dest =
-            prepare_watch_text(dest, self.output_mode, self.tab_size, self.options.get_color());
-        let text_src =
-            prepare_watch_text(src, self.output_mode, self.tab_size, self.options.get_color());
+        let text_dest = prepare_watch_text(
+            dest,
+            self.output_mode,
+            self.tab_size,
+            self.options.get_color(),
+        );
+        let text_src = prepare_watch_text(
+            src,
+            self.output_mode,
+            self.tab_size,
+            self.options.get_color(),
+        );
 
         let mut diff_mode = self.diff_mode.lock().unwrap();
 

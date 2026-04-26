@@ -3,8 +3,8 @@
 // that can be found in the LICENSE file.
 
 use clap::{
-    builder::ArgPredicate, crate_authors, crate_description, crate_name, crate_version,
-    Arg, ArgAction, Command, ValueHint,
+    builder::ArgPredicate, crate_authors, crate_description, crate_name, crate_version, Arg,
+    ArgAction, Command, ValueHint,
 };
 use std::collections::HashSet;
 use std::env::args;
