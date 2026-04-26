@@ -18,8 +18,67 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  packaging-debian:
+    runs-on: ubuntu-latest
+    container: debian:sid
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Debian packaging dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            bash-completion \
+            build-essential \
+            cargo \
+            debhelper \
+            dh-cargo \
+            dpkg-dev \
+            git \
+            rustc
+
+      - name: Debian packaging validation
+        run: dpkg-buildpackage -us -uc -d
+
+  packaging-fedora:
+    runs-on: ubuntu-latest
+    container: fedora:latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Fedora packaging dependencies
+        run: |
+          dnf install -y \
+            bash-completion \
+            cargo \
+            gcc \
+            git \
+            rpm-build \
+            rust
+
+      - name: Validate RPM build
+        run: |
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp hwatch.spec "$SPECDIR/"
+          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
   # build rust binary
   build:
+    needs:
+      - packaging-debian
+      - packaging-fedora
     strategy:
       matrix:
         include:
@@ -104,22 +163,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bash-completion rpm cargo rustc
 
-      - name: Install Debian packaging dependencies
-        if: matrix.ext == 'deb'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            bash-completion \
-            cargo \
-            debhelper \
-            dh-cargo \
-            dpkg-dev \
-            rustc
-
-      - name: Debian packaging validation
-        if: matrix.ext == 'deb'
-        run: dpkg-buildpackage -us -uc
-
       - name: Add Rust target
         if: matrix.ext != 'rpm'
         run: rustup target add ${{ matrix.target }}
@@ -173,7 +216,8 @@ jobs:
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
-            --define "_target_cpu x86_64"
+            --define "_target_cpu x86_64" \
+            --nodeps
 
           find "$TOPDIR/RPMS" -name '*.rpm' -type f -print -exec cp {} "$RPM_PATH" \;
           echo "sha256=$( sha256sum "$RPM_PATH" | awk '{print $1}' )" >> $GITHUB_OUTPUT
