@@ -6,7 +6,6 @@ Rules-Requires-Root: no
 Build-Depends:
  bash-completion,
  debhelper-compat (= 13),
- dh-cargo,
  cargo,
  rustc,
  gcc,

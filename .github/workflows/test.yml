@@ -70,7 +70,6 @@ jobs:
             build-essential \
             cargo \
             debhelper \
-            dh-cargo \
             dpkg-dev \
             rustc
 
@@ -91,7 +90,7 @@ jobs:
           dnf install -y \
             bash-completion \
             cargo \
-            rpm \
+            rpm-build \
             rust \
             gcc
 

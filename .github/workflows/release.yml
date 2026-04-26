@@ -33,7 +33,6 @@ jobs:
             build-essential \
             cargo \
             debhelper \
-            dh-cargo \
             dpkg-dev \
             rustc
 
