@@ -3,13 +3,6 @@ name: Test
 on:
   push:
   pull_request:
-  workflow_dispatch:
-    inputs:
-      run_strict_packaging:
-        description: "Run strict Debian/Fedora packaging checks"
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   quality:
@@ -121,7 +114,6 @@ jobs:
 
   packaging-debian-strict:
     name: Packaging Check (Debian, Strict)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_strict_packaging
     runs-on: ubuntu-latest
     container: debian:sid
     continue-on-error: true
@@ -146,7 +138,6 @@ jobs:
 
   packaging-fedora-strict:
     name: Packaging Check (Fedora, Strict)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_strict_packaging
     runs-on: ubuntu-latest
     container: fedora:latest
     continue-on-error: true
