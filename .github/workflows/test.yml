@@ -71,6 +71,38 @@ jobs:
             cargo \
             debhelper \
             dpkg-dev \
+            gcc \
+            librust-ansi-term-dev \
+            librust-chardetng-dev \
+            librust-chrono-dev \
+            librust-clap+cargo-dev \
+            librust-clap+derive-dev \
+            librust-config+ini-dev \
+            librust-crossbeam-channel-dev \
+            librust-crossterm-dev \
+            librust-ctrlc+termination-dev \
+            librust-encoding-rs-dev \
+            librust-flate2-dev \
+            librust-libloading-dev \
+            librust-nix+fs-dev \
+            librust-nix+process-dev \
+            librust-nix+signal-dev \
+            librust-nix+term-dev \
+            librust-ratatui+crossterm-dev \
+            librust-rayon-dev \
+            librust-regex-dev \
+            librust-serde+derive-dev \
+            librust-serde-json-dev \
+            librust-shell-words-dev \
+            librust-similar+bytes-dev \
+            librust-similar+inline-dev \
+            librust-similar+serde-dev \
+            librust-similar+text-dev \
+            librust-similar+unicode-dev \
+            librust-tempfile-dev \
+            librust-termwiz-dev \
+            librust-unicode-segmentation-dev \
+            librust-unicode-width-dev \
             rustc
 
       - name: Debian package build
