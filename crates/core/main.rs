@@ -50,9 +50,9 @@
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
 // modules
-extern crate ratatui as tui;
 extern crate hwatch_ansi;
 extern crate hwatch_diffmode;
+extern crate ratatui as tui;
 
 use clap::error::ErrorKind;
 use cli::{build_app, get_clap_matcher, should_continue_with_unreadable_logfile};
@@ -75,8 +75,8 @@ mod batch;
 mod cli;
 mod common;
 mod completion;
-mod diffmode_line;
 mod diff_mode_registry;
+mod diffmode_line;
 mod diffmode_plane;
 mod diffmode_watch;
 mod errors;

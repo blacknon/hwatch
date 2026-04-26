@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use hwatch_diffmode::{
     DiffMode, DiffModeOptions, PluginDiffRequest, PluginDiffRequestV1, PluginMetadata,
-    PluginOwnedBytes, PluginSlice, PLUGIN_ABI_VERSION, PLUGIN_ABI_VERSION_V1,
-    PLUGIN_OUTPUT_BATCH, PLUGIN_OUTPUT_WATCH,
+    PluginOwnedBytes, PluginSlice, PLUGIN_ABI_VERSION, PLUGIN_ABI_VERSION_V1, PLUGIN_OUTPUT_BATCH,
+    PLUGIN_OUTPUT_WATCH,
 };
 use libloading::{Library, Symbol};
 use tui::prelude::Line;

@@ -179,7 +179,11 @@ impl App<'_> {
         new_select
     }
 
-    pub(super) fn create_result_items(&mut self, result: CommandResult, is_running_app: bool) -> bool {
+    pub(super) fn create_result_items(
+        &mut self,
+        result: CommandResult,
+        is_running_app: bool,
+    ) -> bool {
         self.header_area.set_current_result(result.clone());
         self.header_area.update();
 
@@ -293,9 +297,15 @@ impl App<'_> {
                 (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
                     self.results[&result_index].get_diff_only_data(self.ansi_color)
                 }
-                (OutputMode::Output, _, _) => self.results[&result_index].command_result.get_output(),
-                (OutputMode::Stdout, _, _) => self.results[&result_index].command_result.get_stdout(),
-                (OutputMode::Stderr, _, _) => self.results[&result_index].command_result.get_stderr(),
+                (OutputMode::Output, _, _) => {
+                    self.results[&result_index].command_result.get_output()
+                }
+                (OutputMode::Stdout, _, _) => {
+                    self.results[&result_index].command_result.get_stdout()
+                }
+                (OutputMode::Stderr, _, _) => {
+                    self.results[&result_index].command_result.get_stderr()
+                }
             };
 
             is_push = self.matches_filter_text(&result_text);

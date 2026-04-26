@@ -4,9 +4,7 @@
 
 use super::{Input, InputAction, InputEventContents, InputType, Keymap, DEFAULT_KEYMAP};
 use config::{Config, ConfigError, FileFormat};
-use crossterm::event::{
-    Event, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseEvent,
-};
+use crossterm::event::{Event, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseEvent};
 use std::collections::HashMap;
 
 pub(super) fn create_keymap(

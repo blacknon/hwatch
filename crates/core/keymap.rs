@@ -2,21 +2,19 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use crossterm::event::{
-    Event, KeyCode, KeyModifiers, MouseEventKind,
-};
+use crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug};
 
 #[path = "keymap_codec.rs"]
 mod codec;
-#[path = "keymap_description.rs"]
-mod description;
 #[path = "keymap_defaults.rs"]
 mod defaults;
+#[path = "keymap_description.rs"]
+mod description;
 
-pub use self::description::get_input_action_description;
 pub use self::defaults::{default_keymap, generate_keymap};
+pub use self::description::get_input_action_description;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd)]
 pub struct Key {

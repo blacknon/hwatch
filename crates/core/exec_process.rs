@@ -68,7 +68,10 @@ pub(super) fn create_exec_cmd_args(
     Ok(exec_commands)
 }
 
-pub(super) fn exec_command(exec_commands: &[String], is_pty: bool) -> (bool, Vec<u8>, Vec<u8>, Vec<u8>) {
+pub(super) fn exec_command(
+    exec_commands: &[String],
+    is_pty: bool,
+) -> (bool, Vec<u8>, Vec<u8>, Vec<u8>) {
     let length = exec_commands.len();
     let mut command = Command::new(&exec_commands[0]);
     command.args(&exec_commands[1..length]);

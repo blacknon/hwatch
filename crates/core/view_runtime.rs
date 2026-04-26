@@ -22,7 +22,11 @@ use crate::app::App;
 use crate::event::AppEvent;
 
 impl View {
-    pub(super) fn apply_to_app(&self, app: &mut App<'_>, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+    pub(super) fn apply_to_app(
+        &self,
+        app: &mut App<'_>,
+        terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
         app.set_keymap(self.keymap.clone());
         app.set_after_command(self.after_command.clone());
         app.set_after_command_result_write_file(self.after_command_result_write_file);

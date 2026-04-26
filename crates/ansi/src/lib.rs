@@ -158,10 +158,16 @@ pub fn gen_ansi_all_set_str<'b>(text: &str) -> Vec<Vec<Span<'b>>> {
 
     for item in parsed {
         match item {
-            Action::Print(c) => result.last_mut().unwrap().push(Span::styled(c.to_string(), span_style)),
+            Action::Print(c) => result
+                .last_mut()
+                .unwrap()
+                .push(Span::styled(c.to_string(), span_style)),
             Action::PrintString(s) => {
                 for c in s.chars() {
-                    result.last_mut().unwrap().push(Span::styled(c.to_string(), span_style));
+                    result
+                        .last_mut()
+                        .unwrap()
+                        .push(Span::styled(c.to_string(), span_style));
                 }
             }
             Action::Control(ControlCode::LineFeed) => result.push(Vec::new()),
