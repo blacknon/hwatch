@@ -35,11 +35,10 @@ jobs:
             debhelper \
             dh-cargo \
             dpkg-dev \
-            git \
             rustc
 
       - name: Debian packaging validation
-        run: dpkg-buildpackage -us -uc -d
+        run: dpkg-buildpackage -us -uc -d -b
 
   packaging-fedora:
     runs-on: ubuntu-latest
@@ -54,7 +53,6 @@ jobs:
             bash-completion \
             cargo \
             gcc \
-            git \
             rpm-build \
             rust
 
@@ -67,7 +65,7 @@ jobs:
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
           cp hwatch.spec "$SPECDIR/"
-          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
@@ -212,7 +210,7 @@ jobs:
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
           cp hwatch.spec "$SPECDIR/"
-          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
