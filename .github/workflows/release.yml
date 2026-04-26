@@ -102,7 +102,23 @@ jobs:
         if: matrix.ext == 'rpm'
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm
+          sudo apt-get install -y bash-completion rpm cargo rustc
+
+      - name: Install Debian packaging dependencies
+        if: matrix.ext == 'deb'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bash-completion \
+            cargo \
+            debhelper \
+            dh-cargo \
+            dpkg-dev \
+            rustc
+
+      - name: Debian packaging validation
+        if: matrix.ext == 'deb'
+        run: dpkg-buildpackage -us -uc
 
       - name: Add Rust target
         if: matrix.ext != 'rpm'
@@ -157,8 +173,7 @@ jobs:
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
-            --define "_target_cpu x86_64" \
-            --nodeps
+            --define "_target_cpu x86_64"
 
           find "$TOPDIR/RPMS" -name '*.rpm' -type f -print -exec cp {} "$RPM_PATH" \;
           echo "sha256=$( sha256sum "$RPM_PATH" | awk '{print $1}' )" >> $GITHUB_OUTPUT

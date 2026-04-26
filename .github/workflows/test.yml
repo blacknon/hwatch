@@ -55,3 +55,51 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --all-targets
+
+  packaging:
+    name: Packaging Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Debian packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bash-completion \
+            cargo \
+            debhelper \
+            dh-cargo \
+            dpkg-dev \
+            rustc
+
+      - name: Debian package build
+        run: dpkg-buildpackage -us -uc
+
+      - name: Install RPM packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bash-completion \
+            cargo \
+            rpm \
+            rustc
+
+      - name: Prepare RPM sources
+        run: |
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp hwatch.spec "$SPECDIR/"
+          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
+
+      - name: RPM package build
+        run: |
+          rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64"

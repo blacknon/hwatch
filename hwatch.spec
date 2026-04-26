@@ -6,10 +6,10 @@ URL:            https://github.com/blacknon/hwatch/
 License:        MIT
 Source0:        https://github.com/blacknon/hwatch/archive/refs/tags/%{version}.tar.gz
 
-BuildRequires:  git
-BuildRequires:  python3
-BuildRequires:  curl
+BuildRequires:  bash-completion
+BuildRequires:  cargo
 BuildRequires:  gcc
+BuildRequires:  rust
 
 %define debug_package %{nil}
 %if 0%{?amzn2023}
@@ -34,23 +34,23 @@ Features:
 * If a difference occurs, you can have the specified command additionally executed.
 
 %prep
-%setup -q
+%autosetup -n %{name}-%{version}
 
 %build
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-# Install Rust using curl
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-export PATH="$PATH:$HOME/.cargo/bin"
 %if 0%{?amzn2023}
 unset LDFLAGS
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
 %endif
-$HOME/.cargo/bin/cargo build --release --locked --all-features
+cargo build --release --locked --all-features
 strip target/release/%{name}
 
 %install
-install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}/etc/bash_completion.d/%{name}.bash
-install -D -m 755 target/release/%{name} %{buildroot}/usr/bin/%{name}
+install -D -m 644 man/hwatch.1 %{buildroot}%{_mandir}/man1/%{name}.1
+install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}%{_datadir}/bash-completion/completions/%{name}
+install -D -m 644 completion/fish/%{name}.fish %{buildroot}%{_datadir}/fish/vendor_completions.d/%{name}.fish
+install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-functions/_%{name}
+install -D -m 755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 
 %check
 %if 0%{?amzn2023}
@@ -58,15 +58,18 @@ unset LDFLAGS
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
 %endif
 
-$HOME/.cargo/bin/cargo test --release --locked --all-features -- \
+cargo test --release --locked --all-features -- \
   --skip test_exec_command_with_force_color_stdout_is_tty \
   --skip test_exec_command_with_force_color_stdin_is_tty
 
 %files
 %license LICENSE
 %doc README.md
-/usr/bin/%{name}
-/etc/bash_completion.d/%{name}.bash
+%{_bindir}/%{name}
+%{_mandir}/man1/%{name}.1*
+%{_datadir}/bash-completion/completions/%{name}
+%{_datadir}/fish/vendor_completions.d/%{name}.fish
+%{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
 * Sat Apr 25 2026 - blacknon - 0.4.2-1

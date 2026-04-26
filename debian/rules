@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export CARGO_HOME = $(CURDIR)/debian/cargo_home
+
+%:
+	dh $@ --buildsystem cargo --with cargo
+
+override_dh_auto_test:
+	dh_auto_test -- test --release --locked --all-features -- \
+		--skip test_exec_command_with_force_color_stdout_is_tty \
+		--skip test_exec_command_with_force_color_stdin_is_tty
