@@ -93,6 +93,21 @@ hwatch --force-logfile-overwrite --logfile ./hwatch.jsonl -b -g 1 -n 0.1 sh ./sc
 - `--diff-plugin` loads native dynamic libraries. Only load plugins you trust.
 - `--shell`, the monitored command itself, and `--aftercommand` execute commands on your system. Treat those values as trusted input only.
 
+### Packaging Status
+
+This repository includes packaging metadata for Debian-style `.deb` builds and
+RPM-based distributions.
+
+GitHub Actions validates the packaging flow in distro-specific containers:
+
+- Debian packaging is checked in a `debian:sid` container
+- RPM packaging is checked in a `fedora:latest` container
+
+These checks are intended to catch packaging regressions early while the project
+works toward official distribution packaging.
+Additional strict packaging jobs also run in CI on a best-effort basis to track
+progress toward dependency-complete distro builds.
+
 ## Usage
 
 ### Command
