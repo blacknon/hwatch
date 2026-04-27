@@ -29,7 +29,6 @@ Features:
 %autosetup -n %{name}-%{version}
 
 %build
-export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
 cargo build --release --locked --all-features
 
 %install
