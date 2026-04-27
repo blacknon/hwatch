@@ -11,14 +11,6 @@ BuildRequires:  cargo
 BuildRequires:  gcc
 BuildRequires:  rust
 
-%define debug_package %{nil}
-%if 0%{?amzn2023}
-%undefine _package_note
-%undefine _rpm_package_note
-%undefine _hardening_ldflags
-%global _build_ldflags %{nil}
-%endif
-
 %description
 hwatch is a alternative watch command. Records the results of command execution that can display its history and differences.
 
@@ -38,12 +30,7 @@ Features:
 
 %build
 export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-%if 0%{?amzn2023}
-unset LDFLAGS
-export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-%endif
 cargo build --release --locked --all-features
-strip target/release/%{name}
 
 %install
 install -D -m 644 man/hwatch.1 %{buildroot}%{_mandir}/man1/%{name}.1
@@ -53,11 +40,6 @@ install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-funct
 install -D -m 755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 
 %check
-%if 0%{?amzn2023}
-unset LDFLAGS
-export RUSTFLAGS="-C link-arg=-fuse-ld=bfd"
-%endif
-
 cargo test --release --locked --all-features -- \
   --skip test_exec_command_with_force_color_stdout_is_tty \
   --skip test_exec_command_with_force_color_stdin_is_tty

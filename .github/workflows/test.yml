@@ -139,6 +139,11 @@ jobs:
 
       - name: RPM package build
         run: |
+          rpmbuild -bs "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
           rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
             --define "_topdir $PWD/rpmbuild" \
             --define "_target_cpu x86_64" \
@@ -232,6 +237,10 @@ jobs:
 
       - name: RPM package build (strict)
         run: |
+          rpmbuild -bs "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64"
+
           rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
             --define "_topdir $PWD/rpmbuild" \
             --define "_target_cpu x86_64"

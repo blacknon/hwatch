@@ -66,6 +66,11 @@ jobs:
           cp hwatch.spec "$SPECDIR/"
           tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
+          rpmbuild -bs "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
             --define "_target_cpu x86_64" \
