@@ -2,9 +2,6 @@ name: Test
 
 on:
   push:
-    branches:
-      - main
-      - master
   pull_request:
 
 jobs:
@@ -55,3 +52,195 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --all-targets
+
+  packaging-debian:
+    name: Packaging Check (Debian)
+    runs-on: ubuntu-latest
+    container: debian:sid
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Debian packaging dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            bash-completion \
+            build-essential \
+            cargo \
+            debhelper \
+            dpkg-dev \
+            gcc \
+            librust-ansi-term-dev \
+            librust-chardetng-dev \
+            librust-chrono-dev \
+            librust-clap+cargo-dev \
+            librust-clap+derive-dev \
+            librust-config+ini-dev \
+            librust-crossbeam-channel-dev \
+            librust-crossterm-dev \
+            librust-ctrlc+termination-dev \
+            librust-encoding-rs-dev \
+            librust-flate2-dev \
+            librust-libloading-dev \
+            librust-nix+fs-dev \
+            librust-nix+process-dev \
+            librust-nix+signal-dev \
+            librust-nix+term-dev \
+            librust-ratatui+crossterm-dev \
+            librust-rayon-dev \
+            librust-regex-dev \
+            librust-serde+derive-dev \
+            librust-serde-json-dev \
+            librust-shell-words-dev \
+            librust-similar+bytes-dev \
+            librust-similar+inline-dev \
+            librust-similar+serde-dev \
+            librust-similar+text-dev \
+            librust-similar+unicode-dev \
+            librust-tempfile-dev \
+            librust-termwiz-dev \
+            librust-unicode-segmentation-dev \
+            librust-unicode-width-dev \
+            rustc
+
+      - name: Debian package build
+        run: dpkg-buildpackage -us -uc -d -b
+
+  packaging-fedora:
+    name: Packaging Check (Fedora)
+    runs-on: ubuntu-latest
+    container: fedora:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install RPM packaging dependencies
+        run: |
+          dnf install -y \
+            bash-completion \
+            cargo \
+            rpm-build \
+            rust \
+            gcc
+
+      - name: Prepare RPM sources
+        run: |
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp hwatch.spec "$SPECDIR/"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+
+      - name: RPM package build
+        run: |
+          rpmbuild -bs "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
+          rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
+  packaging-debian-strict:
+    name: Packaging Check (Debian, Strict)
+    runs-on: ubuntu-latest
+    container: debian:sid
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Debian packaging dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            bash-completion \
+            build-essential \
+            cargo \
+            debhelper \
+            dpkg-dev \
+            gcc \
+            librust-ansi-term-dev \
+            librust-chardetng-dev \
+            librust-chrono-dev \
+            librust-clap+cargo-dev \
+            librust-clap+derive-dev \
+            librust-config+ini-dev \
+            librust-crossbeam-channel-dev \
+            librust-crossterm-dev \
+            librust-ctrlc+termination-dev \
+            librust-encoding-rs-dev \
+            librust-flate2-dev \
+            librust-libloading-dev \
+            librust-nix+fs-dev \
+            librust-nix+process-dev \
+            librust-nix+signal-dev \
+            librust-nix+term-dev \
+            librust-ratatui+crossterm-dev \
+            librust-rayon-dev \
+            librust-regex-dev \
+            librust-serde+derive-dev \
+            librust-serde-json-dev \
+            librust-shell-words-dev \
+            librust-similar+bytes-dev \
+            librust-similar+inline-dev \
+            librust-similar+serde-dev \
+            librust-similar+text-dev \
+            librust-similar+unicode-dev \
+            librust-tempfile-dev \
+            librust-termwiz-dev \
+            librust-unicode-segmentation-dev \
+            librust-unicode-width-dev \
+            rustc
+
+      - name: Debian package build (strict)
+        run: dpkg-buildpackage -us -uc -b
+
+  packaging-fedora-strict:
+    name: Packaging Check (Fedora, Strict)
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install RPM packaging dependencies
+        run: |
+          dnf install -y \
+            bash-completion \
+            cargo \
+            rpm-build \
+            rust \
+            gcc
+
+      - name: Prepare RPM sources
+        run: |
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp hwatch.spec "$SPECDIR/"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+
+      - name: RPM package build (strict)
+        run: |
+          rpmbuild -bs "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64"
+
+          rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64"
