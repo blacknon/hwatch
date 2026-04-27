@@ -25,13 +25,12 @@ Why this package should exist in Fedora:
 Packaging status:
 
 - `hwatch.spec` exists upstream
-- GitHub Actions validates RPM packaging flow
-- Current spec still prioritizes upstream portability and CI validation;
-  further Fedora-specific review feedback can be incorporated as needed
+- GitHub Actions validates RPM packaging flow in a Fedora container
+- Strict RPM packaging CI also succeeds
+- Upstream test suite passes during packaging validation
 
 Potential reviewer notes:
 
 - The application can load optional native diff plugins at runtime
 - Review may decide whether future package split is useful
-- The current CI path uses `--nodeps`; final Fedora submission should be
-  validated in a proper Fedora packaging environment as well
+- Upstream is willing to refine the spec further based on Fedora review feedback

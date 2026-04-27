@@ -19,6 +19,13 @@ Owner: blacknon <blacknon@orebibou.com>
  inspect differences between runs, export logs, and optionally trigger follow-up
  commands when output changes.
 
+Main features:
+
+- interactive history browsing for command output
+- multiple diff display modes
+- optional logfile export and reuse
+- shell completion files and man page included upstream
+
 Why this package is useful:
 
 - Provides a richer terminal monitoring workflow than classic `watch`
@@ -29,7 +36,11 @@ Why this package is useful:
 
 Current packaging status:
 
-- Debian packaging scaffold exists in the upstream repository
-- Packaging-oriented CI runs in a Debian container
-- Some Rust dependency version alignment may still need final review before
-  sponsorship/upload
+- Debian packaging metadata exists in the upstream repository
+- Debian packaging is validated in CI in a `debian:sid` container
+- Fedora/RPM packaging is also validated in CI
+- Upstream test suite passes in CI and in local verification
+
+Repository:
+
+- https://github.com/blacknon/hwatch

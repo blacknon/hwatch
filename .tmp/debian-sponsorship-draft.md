@@ -23,10 +23,17 @@ Short description:
 Current preparation status:
 
 - Debian packaging metadata has been added upstream
-- Packaging-oriented CI runs in a Debian container
+- Debian binary package builds successfully in CI in a `debian:sid` container
 - Upstream tests pass with the current dependency constraints
-- Some dependency alignment and policy review may still need adjustment
-  before upload, especially around Rust crate availability in Debian
+- Fedora/RPM packaging also builds successfully in CI
+- The package ships man page and shell completion files
+
+Remaining caveats:
+
+- The current upstream packaging flow is suitable for CI validation, but
+  Debian Rust Team review may still request dependency or policy adjustments
+- Runtime plugin loading exists as an optional feature and may need packaging
+  discussion if reviewers prefer a split or stricter framing
 
 Repository:
 
@@ -35,7 +42,7 @@ Repository:
 Additional notes for reviewers:
 
 - This package is written in Rust
-- The project also carries RPM packaging metadata and CI validation
+- Debian and Fedora packaging checks are both tracked in GitHub Actions
 - Upstream includes man page and shell completion files
 
 Thank you for your time and review.

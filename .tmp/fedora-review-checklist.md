@@ -4,16 +4,17 @@
 
 - `hwatch.spec` exists and builds in CI in a Fedora container
 - RPM packaging validation runs in GitHub Actions
+- Strict RPM packaging validation also passes in CI
 - Upstream project ships man page and shell completions
 
 ## Before filing a Fedora review request
 
-1. Confirm the spec builds without `--nodeps` in a Fedora packaging environment.
-2. Check whether Fedora prefers using Rust packaging macros for this package.
-3. Verify completion install paths and man page compression handling.
-4. Confirm license metadata and `%license` usage are acceptable.
-5. Verify source tarball layout matches what the spec expects.
-6. Review whether bundled example plugins should stay out of the main package.
+1. Check whether Fedora prefers using Rust packaging macros for this package.
+2. Verify completion install paths and man page compression handling.
+3. Confirm license metadata and `%license` usage are acceptable.
+4. Verify source tarball layout matches what the spec expects.
+5. Review whether bundled example plugins should stay out of the main package.
+6. Prepare SRPM generation and submission steps for the review ticket.
 
 ## Likely reviewer questions
 
