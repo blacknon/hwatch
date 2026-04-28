@@ -10,5 +10,4 @@ readme = "README.md"
 keywords = ["ansi", "terminal", "tui", "hwatch"]
 
 [dependencies]
-termwiz.workspace = true
 ratatui.workspace = true

@@ -70,9 +70,12 @@ jobs:
             build-essential \
             cargo \
             debhelper \
+            dh-cargo \
             dpkg-dev \
             gcc \
+            libstd-rust-dev \
             librust-ansi-term-dev \
+            librust-assert-cmd-dev \
             librust-chardetng-dev \
             librust-chrono-dev \
             librust-clap+cargo-dev \
@@ -91,6 +94,8 @@ jobs:
             librust-ratatui+crossterm-dev \
             librust-rayon-dev \
             librust-regex-dev \
+            librust-predicates-dev \
+            librust-proptest-dev \
             librust-serde+derive-dev \
             librust-serde-json-dev \
             librust-shell-words-dev \
@@ -100,9 +105,9 @@ jobs:
             librust-similar+text-dev \
             librust-similar+unicode-dev \
             librust-tempfile-dev \
-            librust-termwiz-dev \
             librust-unicode-segmentation-dev \
             librust-unicode-width-dev \
+            python3 \
             rustc
 
       - name: Debian package build
@@ -121,9 +126,8 @@ jobs:
         run: |
           dnf install -y \
             bash-completion \
-            cargo \
+            rust-packaging \
             rpm-build \
-            rust \
             gcc
 
       - name: Prepare RPM sources
@@ -197,7 +201,6 @@ jobs:
             librust-similar+text-dev \
             librust-similar+unicode-dev \
             librust-tempfile-dev \
-            librust-termwiz-dev \
             librust-unicode-segmentation-dev \
             librust-unicode-width-dev \
             rustc

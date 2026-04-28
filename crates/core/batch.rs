@@ -372,8 +372,10 @@ mod tests {
     use crate::common::{load_logfile, OutputMode};
     use crate::diffmode_plane::DiffModeAtPlane;
     use crossbeam_channel::unbounded;
-    use proptest::prelude::*;
     use tempfile::NamedTempFile;
+
+    #[cfg(not(skip_proptest_tests))]
+    use proptest::prelude::*;
 
     fn new_batch(output_mode: OutputMode) -> Batch {
         let (_tx, rx) = unbounded();
@@ -517,6 +519,7 @@ mod tests {
         assert!(loaded[0] == result);
     }
 
+    #[cfg(not(skip_proptest_tests))]
     proptest! {
         #[test]
         fn command_results_equivalent_is_reflexive(

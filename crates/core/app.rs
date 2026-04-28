@@ -676,7 +676,6 @@ mod tests {
     use super::*;
     use crossbeam_channel::unbounded;
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-    use proptest::prelude::*;
     use std::io::{self, Write};
     use std::sync::RwLock;
     use tui::{
@@ -687,6 +686,9 @@ mod tests {
 
     use crate::diffmode_plane::DiffModeAtPlane;
     use crate::RunInterval;
+
+    #[cfg(not(skip_proptest_tests))]
+    use proptest::prelude::*;
 
     struct FlakyTestBackend {
         inner: TestBackend,
@@ -713,9 +715,7 @@ mod tests {
     }
 
     impl Backend for FlakyTestBackend {
-        type Error = io::Error;
-
-        fn draw<'a, I>(&mut self, content: I) -> Result<(), Self::Error>
+        fn draw<'a, I>(&mut self, content: I) -> io::Result<()>
         where
             I: Iterator<Item = (u16, u16, &'a Cell)>,
         {
@@ -726,80 +726,77 @@ mod tests {
 
             match self.inner.draw(content) {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn hide_cursor(&mut self) -> Result<(), Self::Error> {
+        fn hide_cursor(&mut self) -> io::Result<()> {
             match self.inner.hide_cursor() {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn show_cursor(&mut self) -> Result<(), Self::Error> {
+        fn show_cursor(&mut self) -> io::Result<()> {
             match self.inner.show_cursor() {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn get_cursor_position(&mut self) -> Result<Position, Self::Error> {
+        fn get_cursor_position(&mut self) -> io::Result<Position> {
             match self.inner.get_cursor_position() {
                 Ok(position) => Ok(position),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn set_cursor_position<P: Into<Position>>(
-            &mut self,
-            position: P,
-        ) -> Result<(), Self::Error> {
+        fn set_cursor_position<P: Into<Position>>(&mut self, position: P) -> io::Result<()> {
             match self.inner.set_cursor_position(position) {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn clear(&mut self) -> Result<(), Self::Error> {
+        fn clear(&mut self) -> io::Result<()> {
             match self.inner.clear() {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn clear_region(&mut self, clear_type: ClearType) -> Result<(), Self::Error> {
+        fn clear_region(&mut self, clear_type: ClearType) -> io::Result<()> {
             match self.inner.clear_region(clear_type) {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn append_lines(&mut self, line_count: u16) -> Result<(), Self::Error> {
+        fn append_lines(&mut self, line_count: u16) -> io::Result<()> {
             match self.inner.append_lines(line_count) {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn size(&self) -> Result<Size, Self::Error> {
+        fn size(&self) -> io::Result<Size> {
             match self.inner.size() {
                 Ok(size) => Ok(size),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn window_size(&mut self) -> Result<WindowSize, Self::Error> {
+        fn window_size(&mut self) -> io::Result<WindowSize> {
             match self.inner.window_size() {
                 Ok(size) => Ok(size),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
 
-        fn flush(&mut self) -> Result<(), Self::Error> {
+        fn flush(&mut self) -> io::Result<()> {
             match self.inner.flush() {
                 Ok(()) => Ok(()),
-                Err(err) => match err {},
+                Err(err) => Err(err),
             }
         }
     }
@@ -990,6 +987,7 @@ mod tests {
         assert!(!command_results_equivalent(&before, &after, false));
     }
 
+    #[cfg(not(skip_proptest_tests))]
     proptest! {
         #[test]
         fn gen_diff_only_data_is_empty_for_identical_inputs(text in "[^\0]{0,64}") {

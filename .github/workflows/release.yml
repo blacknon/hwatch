@@ -33,7 +33,10 @@ jobs:
             build-essential \
             cargo \
             debhelper \
+            dh-cargo \
             dpkg-dev \
+            libstd-rust-dev \
+            python3 \
             rustc
 
       - name: Debian packaging validation
@@ -50,10 +53,9 @@ jobs:
         run: |
           dnf install -y \
             bash-completion \
-            cargo \
             gcc \
             rpm-build \
-            rust
+            rust-packaging
 
       - name: Validate RPM build
         run: |

@@ -5,7 +5,7 @@
 use tui::{
     layout::Rect,
     prelude::Line,
-    style::{Color, Style},
+    style::{Color, Style, Stylize},
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
