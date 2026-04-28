@@ -1,45 +1,82 @@
 Name:           hwatch
 Version:        0.4.2
 Release:        1%{?dist}
-Summary:        A modern alternative to the 'watch' command, it records differences in execution results and allows for examination of these differences afterward.
+Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 License:        MIT
-Source0:        https://github.com/blacknon/hwatch/archive/refs/tags/%{version}.tar.gz
+Source0:        https://github.com/blacknon/hwatch/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
 
 BuildRequires:  bash-completion
-BuildRequires:  cargo
 BuildRequires:  gcc
-BuildRequires:  rust
+BuildRequires:  rust-packaging
 
 %description
-hwatch is a alternative watch command. Records the results of command execution that can display its history and differences.
+hwatch is an interactive terminal application similar to watch.
+It records command output over time, lets users inspect history, view
+differences between runs, export logs, and optionally trigger follow-up
+commands when output changes.
 
-Features:
-* Can keep the history when the difference, occurs and check it later.
-* Can check the difference in the history. The display method can be changed in real time.
-* Can output the execution result as log (json format).
-* Can load diffmode plugins as dynamic libraries and add custom diff rendering.
-* Custom keymaps are available.
-* Support ANSI color code.
-* Execution result can be scroll.
-* Not only as a TUI application, but also to have the differences output as standard output.
-* If a difference occurs, you can have the specified command additionally executed.
+%generate_buildrequires
+%cargo_generate_buildrequires -a
 
 %prep
 %autosetup -n %{name}-%{version}
+%cargo_prep
+# Temporary workaround for a broken Fedora-packaged compact_str 0.9.0 crate:
+# the source file includes ../README.md, but that file is missing from the
+# installed cargo registry copy.
+if [ ! -f /usr/share/cargo/registry/compact_str-0.9.0/README.md ] && [ -d /usr/share/cargo/registry/compact_str-0.9.0 ]; then
+cat > /usr/share/cargo/registry/compact_str-0.9.0/README.md <<'EOF'
+# compact_str
+
+Temporary placeholder README injected during hwatch package builds.
+The Fedora-packaged compact_str 0.9.0 crate references this file from
+src/lib.rs via include_str!("../README.md").
+EOF
+fi
+
+# Temporary workaround for a broken Fedora-packaged clap_derive 4.6.0 crate:
+# the source file includes ../README.md, but that file is missing from the
+# installed cargo registry copy.
+if [ ! -f /usr/share/cargo/registry/clap_derive-4.6.0/README.md ] && [ -d /usr/share/cargo/registry/clap_derive-4.6.0 ]; then
+cat > /usr/share/cargo/registry/clap_derive-4.6.0/README.md <<'EOF'
+# clap_derive
+
+Temporary placeholder README injected during hwatch package builds.
+The Fedora-packaged clap_derive 4.6.0 crate references this file from
+src/lib.rs via include_str!("../README.md").
+EOF
+fi
+
+# Fedora's offline cargo registry currently lacks some integration-test-only
+# crates used from tests/ and property tests (assert_cmd, predicates, and
+# proptest). Remove them from dev-dependencies for the RPM build because
+# %check only runs binary unit tests in this environment.
+sed -i \
+  -e '/^assert_cmd = /d' \
+  -e '/^predicates = /d' \
+  -e '/^proptest = /d' \
+  Cargo.toml
 
 %build
-cargo build --release --locked --all-features
+%cargo_build -a
 
 %install
 install -D -m 644 man/hwatch.1 %{buildroot}%{_mandir}/man1/%{name}.1
 install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}%{_datadir}/bash-completion/completions/%{name}
 install -D -m 644 completion/fish/%{name}.fish %{buildroot}%{_datadir}/fish/vendor_completions.d/%{name}.fish
 install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-functions/_%{name}
-install -D -m 755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
+%cargo_install -a
 
 %check
-cargo test --release --locked --all-features -- \
+# Fedora's offline cargo registry currently lacks some integration-test-only
+# crates used from tests/ and property tests, so run the binary target's unit
+# tests here and leave CLI/property-test coverage to upstream CI and local
+# development environments.
+/usr/bin/env CARGO_HOME=.cargo RUSTC_BOOTSTRAP=1 \
+  RUSTFLAGS="$RUSTFLAGS --cfg skip_proptest_tests --check-cfg=cfg(skip_proptest_tests)" \
+  /usr/bin/cargo test -j%{_smp_build_ncpus} -Z avoid-dev-deps --profile rpm \
+  --no-fail-fast --all-features --bins -- -- \
   --skip test_exec_command_with_force_color_stdout_is_tty \
   --skip test_exec_command_with_force_color_stdin_is_tty
 
@@ -53,7 +90,8 @@ cargo test --release --locked --all-features -- \
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
-* Sat Apr 25 2026 - blacknon - 0.4.2-1
+* Tue Apr 28 2026 blacknon <blacknon@orebibou.com> - 0.4.2-1
+- Prepare the package for Fedora review.
 * Sat Apr 25 2026 - blacknon - 0.4.1-1
 * Sun Apr 19 2026 - blacknon - 0.4.0-1
 * Wed Apr 15 2026 - Danie de Jager - 0.3.20-1

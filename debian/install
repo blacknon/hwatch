@@ -1,5 +1,0 @@
-target/release/hwatch usr/bin/
-man/hwatch.1 usr/share/man/man1/
-completion/bash/hwatch-completion.bash usr/share/bash-completion/completions/hwatch
-completion/fish/hwatch.fish usr/share/fish/vendor_completions.d/hwatch.fish
-completion/zsh/_hwatch usr/share/zsh/vendor-completions/_hwatch

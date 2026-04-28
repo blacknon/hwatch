@@ -13,7 +13,7 @@ members = ["crates/ansi", "crates/diffmode"]
 
 [workspace.dependencies]
 ansi_term = "0.12.1"
-ratatui = { version = ">=0.29, <0.31", default-features = false, features = [
+ratatui = { version = ">=0.29, <0.30", default-features = false, features = [
     "crossterm",
     "unstable-rendered-line-info",
 ] }
@@ -25,13 +25,12 @@ similar = { version = "2.7.0", features = [
     "inline",
     "bytes",
 ] }
-tempfile = "3.27.0"
-termwiz = "0.23.3"
+tempfile = ">=3.24.0, <4"
 
 [dependencies]
 chardetng = "0.1.17"
 chrono = ">=0.4.42, <0.5"
-clap = { version = "4.6.0", features = ["cargo", "derive"] }
+clap = { version = ">=4.5.45, <5", features = ["cargo", "derive"] }
 config = { version = ">=0.15.9, <0.16", default-features = false, features = ["ini"] }
 crossbeam-channel = "0.5.15"
 crossterm = ">=0.28.1, <0.30"
@@ -41,7 +40,7 @@ flate2 = "1.1.9"
 nix = { version = ">=0.30.1, <0.32", features = ["fs", "term", "process", "signal"] }
 ratatui.workspace = true
 rayon = "1.10"
-regex = "1.12.3"
+regex = ">=1.12.2, <2"
 serde.workspace = true
 serde_json = "1.0.149"
 shell-words = ">=1.1.0, <2"
@@ -55,8 +54,8 @@ hwatch-ansi = { path = "crates/ansi", version = "0.4.2" }
 tempfile.workspace = true
 
 [dev-dependencies]
-assert_cmd = "2.2.1"
-predicates = "3.1.4"
+assert_cmd = ">=2.1.2, <3"
+predicates = ">=3.1.3, <4"
 proptest = "1.11.0"
 
 [[bin]]
