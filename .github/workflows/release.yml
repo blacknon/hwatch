@@ -35,6 +35,7 @@ jobs:
             cargo \
             debhelper \
             dh-cargo \
+            dh-sequence-cargo \
             dpkg-dev \
             libstd-rust-dev \
             python3 \
@@ -136,10 +137,6 @@ jobs:
             os: ubuntu-latest
             ext: tar.gz
           - target: x86_64-unknown-linux-musl
-            artifact: build-x86_64-unknown-linux-musl-rpm
-            os: ubuntu-latest
-            ext: rpm
-          - target: x86_64-unknown-linux-musl
             artifact: build-x86_64-unknown-linux-musl-deb
             os: ubuntu-latest
             ext: deb
@@ -168,7 +165,6 @@ jobs:
             os: windows-latest
             ext: zip
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.ext == 'rpm' && 'fedora:latest' || '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -203,18 +199,8 @@ jobs:
 
       - name: Prepare cache directories
         if: matrix.ext != 'rpm'
+        shell: bash
         run: mkdir -p ~/.cargo/registry ~/.cargo/git target
-
-      - name: Install RPM build dependencies
-        if: matrix.ext == 'rpm'
-        run: |
-          dnf install -y \
-            bash-completion \
-            cargo \
-            gcc \
-            rpm-build \
-            rust \
-            rust-packaging
 
       - name: Add Rust target
         if: matrix.ext != 'rpm'
@@ -253,39 +239,6 @@ jobs:
           _ZIP=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
           7z a "$_ZIP" target/${{ matrix.target }}/release/hwatch.exe
 
-      - name: Build rpm
-        id: rpm
-        if: matrix.ext == 'rpm'
-        run: |
-          VERSION=${{ steps.package_version.outputs.version }}
-          TOPDIR="$PWD/rpmbuild"
-          SOURCEDIR="$TOPDIR/SOURCES"
-          SPECDIR="$TOPDIR/SPECS"
-          RPM_PATH="$PWD/hwatch-${VERSION}.${{ matrix.target }}.rpm"
-
-          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
-          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
-
-          rpmbuild -bs "$SPECDIR/hwatch.spec" \
-            --define "_topdir $TOPDIR" \
-            --define "_target_cpu x86_64"
-
-          rpmbuild -bb "$SPECDIR/hwatch.spec" \
-            --define "_topdir $TOPDIR" \
-            --define "_target_cpu x86_64" \
-            || true
-
-          buildreq="$(find "$TOPDIR/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
-          dnf install -y "$buildreq"
-
-          rpmbuild -bb "$SPECDIR/hwatch.spec" \
-            --define "_topdir $TOPDIR" \
-            --define "_target_cpu x86_64"
-
-          find "$TOPDIR/RPMS" -name '*.rpm' -type f -print -exec cp {} "$RPM_PATH" \;
-          echo "sha256=$( sha256sum "$RPM_PATH" | awk '{print $1}' )" >> $GITHUB_OUTPUT
-
       # Build the user-facing release .deb from the packaged tarball.
       - name: Build deb
         id: deb
@@ -296,23 +249,6 @@ jobs:
             2> >(grep -vE 'warning: the authors of lintian do not recommend running it with root privileges!|gpg: skipped .*secret key not available|gpg: .*clearsign failed: secret key not available|debsign: gpg error occurred!  Aborting....|debuild: fatal error at line 1295:|running debsign failed' >&2) \
             > hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
           echo "sha256=$( sha256sum hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb | awk '{print $1}' )" >> $GITHUB_OUTPUT
-
-      - name: README for rpm
-        if: matrix.ext == 'rpm'
-        run: |
-          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
-
-      - name: Upload artifact
-        if: matrix.ext == 'rpm'
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.artifact }}
-          path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.rpm
-
-      - name: README for deb
-        if: matrix.ext == 'deb'
-        run: |
-          _TAR=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.deb
 
       - name: Upload artifact
         if: matrix.ext == 'deb'
@@ -335,10 +271,78 @@ jobs:
           name: ${{ matrix.artifact }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
 
+  release-rpm-asset:
+    name: Release Asset Build (x86_64 Fedora RPM)
+    needs:
+      - submit-debian-source
+      - submit-fedora-source
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get version
+        id: package_version
+        shell: bash
+        run: |
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install RPM build dependencies
+        run: |
+          dnf install -y \
+            bash-completion \
+            cargo \
+            gcc \
+            rpm-build \
+            rust \
+            rust-packaging
+
+      - name: Build rpm
+        id: rpm
+        run: |
+          VERSION=${{ steps.package_version.outputs.version }}
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+          RPM_PATH="$PWD/hwatch-${VERSION}.x86_64-fedora.rpm"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+
+          rpmbuild -bs "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64"
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64" \
+            || true
+
+          buildreq="$(find "$TOPDIR/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
+          dnf install -y "$buildreq"
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64"
+
+          MAIN_RPM="$(find "$TOPDIR/RPMS" -type f -name 'hwatch-[0-9]*.x86_64.rpm' ! -name '*debuginfo*' ! -name '*debugsource*' -print -quit)"
+          test -n "$MAIN_RPM"
+          cp "$MAIN_RPM" "$RPM_PATH"
+          echo "sha256=$( sha256sum "$RPM_PATH" | awk '{print $1}' )" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-x86_64-fedora-rpm
+          path: hwatch-${{ steps.package_version.outputs.version }}.x86_64-fedora.rpm
+
   create-release:
     name: Create Draft Release
     needs:
       - release-assets
+      - release-rpm-asset
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.package_version.outputs.version }}
@@ -377,8 +381,8 @@ jobs:
             artifact: build-x86_64-unknown-linux-gnu-targz
             os: ubuntu-latest
             ext: tar.gz
-          - target: x86_64-unknown-linux-musl
-            artifact: build-x86_64-unknown-linux-musl-rpm
+          - target: x86_64-fedora
+            artifact: build-x86_64-fedora-rpm
             os: ubuntu-latest
             ext: rpm
           - target: x86_64-unknown-linux-musl
