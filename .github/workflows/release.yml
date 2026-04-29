@@ -6,7 +6,7 @@
 #     - https://github.com/motemen/hwatch/blob/97d3745dcc8931a1d75217573d5ca60705be632f/.github/workflows/release.yml
 #   - https://github.com/greymd/teip/blob/master/.github/workflows/release.yml
 
-name: Release Job.
+name: Release Job
 
 on:
   workflow_dispatch:
@@ -18,7 +18,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  packaging-debian:
+  submit-debian-source:
+    name: Submission Prep (Debian source package)
     runs-on: ubuntu-latest
     container: debian:sid
 
@@ -68,7 +69,8 @@ jobs:
           name: packaging-debian-source
           path: release-artifacts/debian-source/*
 
-  packaging-fedora:
+  submit-fedora-source:
+    name: Submission Prep (Fedora SRPM)
     runs-on: ubuntu-latest
     container: fedora:latest
 
@@ -117,11 +119,11 @@ jobs:
           name: packaging-fedora-srpm
           path: rpmbuild/SRPMS/*.src.rpm
 
-  # build rust binary
-  build:
+  release-assets:
+    name: Release Asset Build (${{ matrix.target }} / ${{ matrix.ext }})
     needs:
-      - packaging-debian
-      - packaging-fedora
+      - submit-debian-source
+      - submit-fedora-source
     strategy:
       matrix:
         include:
@@ -166,6 +168,7 @@ jobs:
             os: ubuntu-latest
             ext: zip
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.ext == 'rpm' && 'fedora:latest' || '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -195,16 +198,23 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-${{ matrix.ext }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Setup Rust
+        if: matrix.ext != 'rpm'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Prepare cache directories
+        if: matrix.ext != 'rpm'
         run: mkdir -p ~/.cargo/registry ~/.cargo/git target
 
-      - name: Install rpmbuild
+      - name: Install RPM build dependencies
         if: matrix.ext == 'rpm'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y bash-completion rpm cargo rustc
+          dnf install -y \
+            bash-completion \
+            cargo \
+            gcc \
+            rpm-build \
+            rust \
+            rust-packaging
 
       - name: Add Rust target
         if: matrix.ext != 'rpm'
@@ -257,15 +267,26 @@ jobs:
           cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
           tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
+          rpmbuild -bs "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64"
+
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
             --define "_target_cpu x86_64" \
-            --nodeps
+            || true
+
+          buildreq="$(find "$TOPDIR/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
+          dnf install -y "$buildreq"
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64"
 
           find "$TOPDIR/RPMS" -name '*.rpm' -type f -print -exec cp {} "$RPM_PATH" \;
           echo "sha256=$( sha256sum "$RPM_PATH" | awk '{print $1}' )" >> $GITHUB_OUTPUT
 
-      # use: https://github.com/greymd/tar2package
+      # Build the user-facing release .deb from the packaged tarball.
       - name: Build deb
         id: deb
         if: matrix.ext == 'deb'
@@ -314,10 +335,10 @@ jobs:
           name: ${{ matrix.artifact }}
           path: hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
 
-  # create package release
   create-release:
+    name: Create Draft Release
     needs:
-      - build
+      - release-assets
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.package_version.outputs.version }}
@@ -343,7 +364,8 @@ jobs:
             gh release create "$VERSION" --repo "$GH_REPO" --target "$GITHUB_SHA" --title "Version $VERSION" --draft --notes ""
           fi
 
-  upload-release:
+  upload-release-assets:
+    name: Upload Release Asset (${{ matrix.target }} / ${{ matrix.ext }})
     strategy:
       matrix:
         include:
@@ -406,7 +428,8 @@ jobs:
             --clobber
 
   upload-release-debian-source:
-    needs: [create-release, packaging-debian]
+    name: Upload Release Asset (Debian source package)
+    needs: [create-release, submit-debian-source]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v5
@@ -425,7 +448,8 @@ jobs:
             --clobber
 
   upload-release-fedora-srpm:
-    needs: [create-release, packaging-fedora]
+    name: Upload Release Asset (Fedora SRPM)
+    needs: [create-release, submit-fedora-source]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v5
