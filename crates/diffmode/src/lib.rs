@@ -2,11 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-extern crate ratatui as tui;
-
-// local crate
-// extern crate hwatch_ansi as ansi;
-
 use ansi_term::Colour;
 use std::ffi::c_char;
 use std::fmt::Write;
@@ -16,6 +11,8 @@ use std::sync::{Arc, Mutex};
 use std::{borrow::Cow, vec};
 
 use tui::{prelude::Line, style::Color};
+
+use ratatui as tui;
 
 // const
 pub const COLOR_BATCH_LINE_NUMBER_DEFAULT: Colour = Colour::Fixed(240);
