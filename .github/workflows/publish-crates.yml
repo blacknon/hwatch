@@ -26,11 +26,10 @@ jobs:
       - name: Cache Rust artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Verify publish order with dry-run
+      - name: Verify leaf crates with dry-run
         run: |
           cargo publish -p hwatch-ansi --dry-run
           cargo publish -p hwatch-diffmode --dry-run
-          cargo publish -p hwatch --dry-run
 
       - name: Publish hwatch-ansi
         run: cargo publish -p hwatch-ansi
@@ -43,6 +42,18 @@ jobs:
 
       - name: Wait for crates.io index
         run: sleep 30
+
+      - name: Verify hwatch publish with dry-run
+        shell: bash
+        run: |
+          for _ in $(seq 1 18); do
+            if cargo publish -p hwatch --dry-run; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "hwatch dependencies were not visible on crates.io in time" >&2
+          exit 1
 
       - name: Publish hwatch
         run: cargo publish -p hwatch
