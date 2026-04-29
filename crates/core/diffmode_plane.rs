@@ -73,9 +73,8 @@ impl DiffModeExt for DiffModeAtPlane {
 fn generate_plane_rows<'a>(dest: &str, is_color: bool) -> (usize, Vec<DiffRow<'a>>) {
     let header_width = dest.split('\n').count().to_string().chars().count();
     let mut rows = Vec::new();
-    let mut counter = 1;
 
-    for mut l in dest.split('\n') {
+    for (counter, mut l) in (1..).zip(dest.split('\n')) {
         if l.is_empty() {
             l = "\u{200B}";
         }
@@ -100,7 +99,6 @@ fn generate_plane_rows<'a>(dest: &str, is_color: bool) -> (usize, Vec<DiffRow<'a
             line_number: Some(counter),
             diff_type: hwatch_diffmode::DifferenceType::Same,
         });
-        counter += 1;
     }
 
     (header_width, rows)

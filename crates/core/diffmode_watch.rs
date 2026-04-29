@@ -114,11 +114,10 @@ fn generate_watch_diff_rows<'a>(
     // get max line
     let max_line = cmp::max(vec_src.len(), vec_dest.len());
 
-    let mut counter = 1;
     let header_width = max_line.to_string().chars().count();
 
     // for diff lines
-    for i in 0..max_line {
+    for (counter, i) in (1..).zip(0..max_line) {
         // push empty line
         if vec_src.len() <= i {
             vec_src.push("");
@@ -161,7 +160,6 @@ fn generate_watch_diff_rows<'a>(
             line_number: Some(counter),
             diff_type: DifferenceType::Same,
         });
-        counter += 1;
     }
 
     (header_width, result)
