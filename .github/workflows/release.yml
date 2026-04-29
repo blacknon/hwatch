@@ -235,6 +235,7 @@ jobs:
 
       - name: Create package file
         if: ${{ (matrix.ext == 'zip') }}
+        shell: bash
         run: |
           _ZIP=hwatch-${{ steps.package_version.outputs.version }}.${{ matrix.target }}.zip
           7z a "$_ZIP" target/${{ matrix.target }}/release/hwatch.exe
