@@ -370,9 +370,7 @@ impl App<'_> {
                 match terminal.draw(|f| self.draw(f)) {
                     Ok(_) => update_draw = false,
                     Err(err) if is_retryable_terminal_error(&err.to_string()) => {}
-                    Err(err) => {
-                        return Err(std::io::Error::other(format!("{err}")))
-                    }
+                    Err(err) => return Err(std::io::Error::other(format!("{err}"))),
                 }
             }
 
