@@ -42,13 +42,16 @@ jobs:
       - name: Debian source package build
         run: |
           VERSION="$(dpkg-parsechangelog -lpackage/debian/changelog -SVersion | sed 's/-[^-]*$//')"
+          WORKDIR="$(dirname "$PWD")/debian-source-build"
+          SRCDIR="$WORKDIR/hwatch-${VERSION}"
           ORIG_TAR="$(dirname "$PWD")/hwatch_${VERSION}.orig.tar.gz"
-          tar --exclude='./debian' --exclude='./package' --exclude='./target' --exclude='./rpmbuild' --exclude-vcs \
-            --transform "s,^,hwatch-${VERSION}/," \
-            -czf "$ORIG_TAR" .
+          rm -rf "$WORKDIR"
+          mkdir -p "$SRCDIR"
+          tar --exclude='./debian' --exclude='./package' --exclude='./target' --exclude='./rpmbuild' --exclude-vcs -cf - . | tar -xf - -C "$SRCDIR"
+          tar -czf "$ORIG_TAR" -C "$WORKDIR" "hwatch-${VERSION}"
           ls -l "$ORIG_TAR"
-          rm -rf debian
-          cp -a package/debian debian
+          cp -a package/debian "$SRCDIR/debian"
+          cd "$SRCDIR"
           dpkg-buildpackage -us -uc -d -S
 
       - name: Upload Debian source package artifact
