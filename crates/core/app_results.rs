@@ -120,8 +120,7 @@ impl App<'_> {
                 continue;
             }
 
-            let support_only_diffline: bool;
-            support_only_diffline = self.diff_modes[self.diff_mode]
+            let support_only_diffline: bool = self.diff_modes[self.diff_mode]
                 .lock()
                 .unwrap()
                 .get_support_only_diffline();
@@ -215,6 +214,7 @@ impl App<'_> {
 
         let (output_result_items, stdout_result_items, stderr_result_items) = gen_result_items(
             result,
+            self.summary_enabled,
             self.enable_summary_char,
             self.ignore_spaceblock,
             &latest_result,
@@ -255,10 +255,11 @@ impl App<'_> {
             let after_result = output_result_items.command_result.clone();
 
             let after_command_result_write_file = self.after_command_result_write_file;
+            let shell_command = self.after_command_shell_command.clone();
 
             thread::spawn(move || {
                 exec_after_command(
-                    "sh -c".to_string(),
+                    shell_command,
                     after_command.clone(),
                     before_result,
                     after_result,
@@ -281,8 +282,7 @@ impl App<'_> {
             let _ = logging_result(&self.logfile, &self.results[&result_index].command_result);
         }
 
-        let support_only_diffline: bool;
-        support_only_diffline = self.diff_modes[self.diff_mode]
+        let support_only_diffline: bool = self.diff_modes[self.diff_mode]
             .lock()
             .unwrap()
             .get_support_only_diffline();
@@ -528,6 +528,7 @@ pub(super) fn retain_selected_and_latest_result_only(
 
 pub(super) fn gen_result_items(
     result: CommandResult,
+    summary_enabled: bool,
     enable_summary_char: bool,
     ignore_spaceblock: bool,
     output_latest_result: &CommandResult,
@@ -544,12 +545,14 @@ pub(super) fn gen_result_items(
         summary: HistorySummary::init(),
         diff_only_data: output_diff_only_data,
     };
-    output_result_items.summary.calc(
-        &output_latest_result.get_output(),
-        &output_result_items.command_result.get_output(),
-        enable_summary_char,
-        ignore_spaceblock,
-    );
+    if summary_enabled {
+        output_result_items.summary.calc(
+            &output_latest_result.get_output(),
+            &output_result_items.command_result.get_output(),
+            enable_summary_char,
+            ignore_spaceblock,
+        );
+    }
 
     let stdout_diff_only_data = gen_diff_only_data(
         &stdout_latest_result.get_stdout(),
@@ -561,12 +564,14 @@ pub(super) fn gen_result_items(
         summary: HistorySummary::init(),
         diff_only_data: stdout_diff_only_data,
     };
-    stdout_result_items.summary.calc(
-        &stdout_latest_result.get_stdout(),
-        &stdout_result_items.command_result.get_stdout(),
-        enable_summary_char,
-        ignore_spaceblock,
-    );
+    if summary_enabled {
+        stdout_result_items.summary.calc(
+            &stdout_latest_result.get_stdout(),
+            &stdout_result_items.command_result.get_stdout(),
+            enable_summary_char,
+            ignore_spaceblock,
+        );
+    }
 
     let stderr_diff_only_data = gen_diff_only_data(
         &stderr_latest_result.get_stderr(),
@@ -578,12 +583,14 @@ pub(super) fn gen_result_items(
         summary: HistorySummary::init(),
         diff_only_data: stderr_diff_only_data,
     };
-    stderr_result_items.summary.calc(
-        &stderr_latest_result.get_stderr(),
-        &stderr_result_items.command_result.get_stderr(),
-        enable_summary_char,
-        ignore_spaceblock,
-    );
+    if summary_enabled {
+        stderr_result_items.summary.calc(
+            &stderr_latest_result.get_stderr(),
+            &stderr_result_items.command_result.get_stderr(),
+            enable_summary_char,
+            ignore_spaceblock,
+        );
+    }
 
     (
         output_result_items,

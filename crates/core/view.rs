@@ -30,6 +30,7 @@ use crate::DEFAULT_TAB_SIZE;
 #[derive(Clone)]
 pub struct View {
     after_command: String,
+    after_command_shell_command: String,
     after_command_result_write_file: bool,
     interval: SharedInterval,
     tab_size: u16,
@@ -54,6 +55,7 @@ pub struct View {
     diff_mode_width: usize,
     is_only_diffline: bool,
     ignore_spaceblock: bool,
+    summary_enabled: bool,
     enable_summary_char: bool,
     log_path: String,
 }
@@ -63,6 +65,7 @@ impl View {
     pub fn new(interval: SharedInterval, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
         Self {
             after_command: "".to_string(),
+            after_command_shell_command: crate::SHELL_COMMAND.to_string(),
             after_command_result_write_file: false,
             interval,
             tab_size: DEFAULT_TAB_SIZE,
@@ -83,10 +86,11 @@ impl View {
             wrap: true,
             output_mode: OutputMode::Output,
             diff_mode: 0,
-            diff_modes: diff_modes,
+            diff_modes,
             diff_mode_width: 0,
             is_only_diffline: false,
             ignore_spaceblock: false,
+            summary_enabled: true,
             enable_summary_char: false,
             log_path: "".to_string(),
         }
@@ -94,6 +98,11 @@ impl View {
 
     pub fn set_after_command(mut self, command: String) -> Self {
         self.after_command = command;
+        self
+    }
+
+    pub fn set_after_command_shell_command(mut self, shell_command: String) -> Self {
+        self.after_command_shell_command = shell_command;
         self
     }
 
@@ -200,6 +209,11 @@ impl View {
 
     pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
         self.ignore_spaceblock = ignore_spaceblock;
+        self
+    }
+
+    pub fn set_no_summary(mut self, no_summary: bool) -> Self {
+        self.summary_enabled = !no_summary;
         self
     }
 

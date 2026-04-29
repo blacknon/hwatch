@@ -121,6 +121,9 @@ pub struct App<'a> {
     after_command: String,
 
     ///
+    after_command_shell_command: String,
+
+    ///
     after_command_result_write_file: bool,
 
     ///
@@ -152,6 +155,9 @@ pub struct App<'a> {
 
     ///
     is_history_summary: bool,
+
+    ///
+    summary_enabled: bool,
 
     ///
     is_scroll_bar: bool,
@@ -268,6 +274,7 @@ impl App<'_> {
             limit: 0,
 
             after_command: "".to_string(),
+            after_command_shell_command: crate::SHELL_COMMAND.to_string(),
             after_command_result_write_file: false,
             ansi_color: false,
             line_number: false,
@@ -281,6 +288,7 @@ impl App<'_> {
             exit_on_change_armed: false,
             is_border: false,
             is_history_summary: false,
+            summary_enabled: true,
             is_scroll_bar: false,
             is_filtered: false,
             is_regex_filter: false,
@@ -289,7 +297,7 @@ impl App<'_> {
             input_mode: InputMode::None,
             output_mode: OutputMode::Output,
             diff_mode: diff_mode_counter,
-            diff_modes: diff_modes,
+            diff_modes,
             is_only_diffline: false,
             ignore_spaceblock: false,
 
@@ -363,10 +371,7 @@ impl App<'_> {
                     Ok(_) => update_draw = false,
                     Err(err) if is_retryable_terminal_error(&err.to_string()) => {}
                     Err(err) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("{err}"),
-                        ))
+                        return Err(std::io::Error::other(format!("{err}")))
                     }
                 }
             }
@@ -423,6 +428,11 @@ impl App<'_> {
     ///
     pub fn set_after_command(&mut self, command: String) {
         self.after_command = command;
+    }
+
+    ///
+    pub fn set_after_command_shell_command(&mut self, shell_command: String) {
+        self.after_command_shell_command = shell_command;
     }
 
     ///
@@ -496,12 +506,22 @@ impl App<'_> {
 
     ///
     pub fn set_history_summary(&mut self, history_summary: bool) {
-        self.is_history_summary = history_summary;
+        self.is_history_summary = self.summary_enabled && history_summary;
 
         // set history_summary
-        self.history_area.set_summary(history_summary);
+        self.history_area.set_summary(self.is_history_summary);
 
         self.refresh_selected_watch_output();
+    }
+
+    ///
+    pub fn set_summary_enabled(&mut self, summary_enabled: bool) {
+        self.summary_enabled = summary_enabled;
+        if !summary_enabled {
+            self.is_history_summary = false;
+            self.history_area.set_summary(false);
+            self.refresh_selected_watch_output();
+        }
     }
 
     ///
@@ -916,7 +936,7 @@ mod tests {
             .set_stderr(b"err-2\n".to_vec());
 
         let (output_items, stdout_items, stderr_items) =
-            gen_result_items(current, true, false, &previous, &previous, &previous);
+            gen_result_items(current, true, true, false, &previous, &previous, &previous);
 
         assert_eq!(
             String::from_utf8(output_items.diff_only_data).unwrap(),
@@ -952,7 +972,7 @@ mod tests {
             .set_stderr(b"err-1\n".to_vec());
 
         let (output_items, stdout_items, stderr_items) =
-            gen_result_items(current, true, false, &previous, &previous, &previous);
+            gen_result_items(current, true, true, false, &previous, &previous, &previous);
 
         assert_eq!(
             (output_items.summary.line_add, output_items.summary.line_rem),
