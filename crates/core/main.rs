@@ -6,24 +6,20 @@
 #![allow(clippy::clone_on_copy)]
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::empty_docs)]
-#![allow(clippy::explicit_counter_loop)]
-#![allow(clippy::extra_unused_lifetimes)]
-#![allow(clippy::io_other_error)]
 #![allow(clippy::items_after_test_module)]
 #![allow(clippy::len_zero)]
 #![allow(clippy::needless_borrow)]
 #![allow(clippy::needless_late_init)]
 #![allow(clippy::needless_return)]
-#![allow(clippy::redundant_closure)]
-#![allow(clippy::redundant_field_names)]
 #![allow(clippy::single_char_add_str)]
-#![allow(clippy::unnecessary_sort_by)]
 #![allow(clippy::useless_format)]
 #![allow(clippy::wrong_self_convention)]
 
-// v0.4.1
+// v0.4.3
+// clippy allowを全部解消していく
+
+// v0.4.4
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/42
-// TODO(blacknon): ansi-parserなど、一部の依存クレートの機能を内部実装に置き換えていく。これは依存クレートの数を減らすためにも必要な対応である。
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
 // TODO(blacknon): filter modeのハイライト表示の色を環境変数で定義できるようにする
@@ -49,61 +45,33 @@
 //                 https://github.com/rust-cli/man
 // TODO(blacknon): エラーなどのメッセージ表示領域の作成
 
-// crate
-extern crate ansi_parser;
-extern crate ansi_term;
-extern crate chardetng;
-extern crate chrono;
-extern crate config;
-extern crate crossbeam_channel;
-extern crate crossterm;
-extern crate ctrlc;
-extern crate encoding_rs;
-extern crate flate2;
-extern crate heapless;
-extern crate nix;
-extern crate ratatui as tui;
-extern crate regex;
-extern crate serde;
-extern crate shell_words;
-extern crate similar;
-extern crate tempfile;
-extern crate termwiz;
-extern crate unicode_segmentation;
-extern crate unicode_width;
-
-// local crate
+// modules
 extern crate hwatch_ansi;
 extern crate hwatch_diffmode;
+extern crate ratatui as tui;
 
-// macro crate
-#[macro_use]
-extern crate clap;
-
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
-// modules
-use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, Command, ValueHint};
+use clap::error::ErrorKind;
+use cli::{build_app, get_clap_matcher, should_continue_with_unreadable_logfile};
 use common::load_logfile;
 use crossbeam_channel::unbounded;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
+use diff_mode_registry::{calculate_diff_mode_header_width, register_diff_mode_name};
 use hwatch_diffmode::DiffMode;
-use std::collections::{HashMap, HashSet};
-use std::env::args;
-use std::ffi::OsString;
+use interval::RunInterval;
+use std::collections::HashMap;
 use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use unicode_width::UnicodeWidthStr;
 
 // local modules
 mod app;
 mod batch;
+mod cli;
 mod common;
+mod completion;
+mod diff_mode_registry;
 mod diffmode_line;
 mod diffmode_plane;
 mod diffmode_watch;
@@ -113,6 +81,7 @@ mod exec;
 mod header;
 mod help;
 mod history;
+mod interval;
 mod keymap;
 mod output;
 mod plugin_diffmode;
@@ -127,37 +96,6 @@ pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
 type SharedInterval = Arc<RwLock<RunInterval>>;
 
-#[derive(Clone, Debug)]
-struct RunInterval {
-    interval: f64,
-    paused: bool,
-}
-
-impl RunInterval {
-    fn new(interval: f64) -> Self {
-        Self {
-            interval,
-            paused: false,
-        }
-    }
-    fn increase(&mut self, seconds: f64) {
-        self.interval += seconds;
-    }
-    fn decrease(&mut self, seconds: f64) {
-        if self.interval > seconds {
-            self.interval -= seconds;
-        }
-    }
-    fn toggle_pause(&mut self) {
-        self.paused = !self.paused;
-    }
-}
-impl Default for RunInterval {
-    fn default() -> Self {
-        Self::new(2.0)
-    }
-}
-
 // const at Windows
 #[cfg(windows)]
 const SHELL_COMMAND: &str = "cmd /C";
@@ -166,571 +104,17 @@ const SHELL_COMMAND: &str = "cmd /C";
 #[cfg(not(windows))]
 const SHELL_COMMAND: &str = "sh -c";
 
-/// Parse args and options function.
-fn build_app() -> clap::Command {
-    // get own name
-    let _program = args()
-        .next()
-        .and_then(|s| {
-            std::path::PathBuf::from(s)
-                .file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-        })
-        .unwrap();
-
-    Command::new(crate_name!())
-        .about(crate_description!())
-        .version(crate_version!())
-        // .trailing_var_arg(true)
-        .author(crate_authors!())
-
-        // -- command --
-        .arg(
-            Arg::new("command")
-                .action(ArgAction::Append)
-                // .allow_hyphen_values(true)
-                .num_args(1..)
-                .value_hint(ValueHint::CommandWithArguments)
-                .trailing_var_arg(true)
-        )
-
-        // -- flags --
-        // Enable batch mode option
-        //     [-b,--batch]
-        .arg(
-            Arg::new("batch")
-                .help("output execution results to stdout")
-                .short('b')
-                .action(ArgAction::SetTrue)
-                .long("batch"),
-        )
-        // Beep option
-        //     [-B,--beep]
-        .arg(
-            Arg::new("beep")
-                .help("beep if command has a change result")
-                .short('B')
-                .action(ArgAction::SetTrue)
-                .long("beep"),
-        )
-        // exit on change option
-        //     [-g,--chgexit[=COUNT]]
-        .arg(
-            Arg::new("chgexit")
-                .help("exit when output changes. With no value, exits after the first change; with N, exits after N changes")
-                .short('g')
-                .long("chgexit")
-                .num_args(0..=1)
-                .default_missing_value("1")
-                .value_parser(clap::value_parser!(u32)),
-        )
-        // border option
-        //     [--border]
-        .arg(
-            Arg::new("border")
-                .help("Surround each pane with a border frame")
-                .action(ArgAction::SetTrue)
-                .long("border"),
-        )
-        // scrollbar option
-        //     [--with-scrollbar]
-        .arg(
-            Arg::new("with_scrollbar")
-                .help("When the border option is enabled, display scrollbar on the right side of watch pane.")
-                .action(ArgAction::SetTrue)
-                .long("with-scrollbar"),
-        )
-        // mouse option
-        //     [--mouse]
-        .arg(
-            Arg::new("mouse")
-                .help("enable mouse wheel support. With this option, copying text with your terminal may be harder. Try holding the Shift key.")
-                .action(ArgAction::SetTrue)
-                .long("mouse"),
-        )
-        // Enable ANSI color option
-        //     [-c,--color]
-        .arg(
-            Arg::new("color")
-                .help("interpret ANSI color and style sequences")
-                .short('c')
-                .action(ArgAction::SetTrue)
-                .long("color"),
-            )
-        // Enable Reverse mode option
-        //     [-r,--reverse]
-        .arg(
-            Arg::new("reverse")
-                .help("display text upside down.")
-                .short('r')
-                .action(ArgAction::SetTrue)
-                .long("reverse"),
-        )
-        // Compress data in memory option.
-        //     [-C,--compress]
-        .arg(
-            Arg::new("compress")
-                .help("Compress data in memory. Note: If the output of the command is small, you may not get the desired effect.")
-                .short('C')
-                .action(ArgAction::SetTrue)
-                .long("compress"),
-        )
-        // no-title flag.
-        //     [--no-title]
-        .arg(
-            Arg::new("no_title")
-                .help("hide the UI on start. Use `t` to toggle it.")
-                .long("no-title")
-                .action(ArgAction::SetTrue)
-                .short('t'),
-        )
-        // enable charcter summary option
-        .arg(
-            Arg::new("enable_summary_char")
-                .help("collect character-level diff count in summary.")
-                .long("enable-summary-char")
-                .action(ArgAction::SetTrue),
-        )
-        // Enable line number mode option
-        //   [--line-number,-N]
-        .arg(
-            Arg::new("line_number")
-                .help("show line number")
-                .short('N')
-                .action(ArgAction::SetTrue)
-                .long("line-number"),
-        )
-        // Disable wrap mode option
-        //   [--wrap,-w]
-        .arg(
-            Arg::new("wrap")
-            .help("disable line wrap mode")
-                .short('w')
-                .action(ArgAction::SetTrue)
-                .long("wrap"),
-        )
-        // help banner disable flag.
-        //     [--no-help-banner]
-        .arg(
-            Arg::new("no_help_banner")
-                .help("hide the \"Display help with h key\" message")
-                .long("no-help-banner")
-                .action(ArgAction::SetTrue),
-        )
-        // summary disable flag.
-        //     [--no-summary]
-        .arg(
-            Arg::new("no_summary")
-                .help("disable the calculation for summary that is running behind the scenes, and disable the summary function in the first place.")
-                .long("no-summary")
-                .action(ArgAction::SetTrue),
-        )
-        // completion output option
-        //     [--completion]
-        .arg(
-            Arg::new("completion")
-                .help("Output shell completion script")
-                .long("completion")
-                .value_name("SHELL")
-                .value_parser(["bash", "fish", "zsh"])
-                .action(ArgAction::Set)
-                .exclusive(true),
-        )
-        // exec flag.
-        //     [-x,--exec]
-        .arg(
-            Arg::new("exec")
-                .help("Run the command directly, not through the shell. Much like the `-x` option of the watch command.")
-                .short('x')
-                .action(ArgAction::SetTrue)
-                .long("exec"),
-
-        )
-        // use pty flag.
-        //     [-p,--use-pty]
-        .arg(
-            Arg::new("use_pty")
-                .help("Run the command through a pseudo-TTY so commands that colorize on terminals can keep color output.")
-                .long("use-pty")
-                .short('p')
-                .action(ArgAction::SetTrue),
-        )
-        // output only flag.
-        //     [-O,--diff-output-only]
-        .arg(
-            Arg::new("diff_output_only")
-                .help("Display only the lines with differences during `line` diff and `word` diff.")
-                .short('O')
-                .long("diff-output-only")
-                .requires("differences")
-                .action(ArgAction::SetTrue),
-
-        )
-        .arg(
-            Arg::new("ignore_spaceblock")
-                .help("Ignore diffs where only consecutive whitespace blocks differ.")
-                .long("ignore-spaceblock")
-                .action(ArgAction::SetTrue),
-        )
-        // -- options --
-        // Option to specify the command to be executed when the output fluctuates.
-        //     [-A,--aftercommand]
-        .arg(
-            Arg::new("after_command")
-                .help("Executes the specified command if the output changes. Information about changes is stored in json format in environment variable ${HWATCH_DATA}.")
-                .short('A')
-                .long("aftercommand")
-                .value_hint(ValueHint::CommandString)
-                .action(ArgAction::Append)
-        )
-        // Option to specify how to pass the change information to `aftercommand`.
-        //     [--after-command-result-write-file]
-        .arg(
-            Arg::new("after_command_result_write_file")
-                .help("Passes `${HWATCH_DATA}` to `aftercommand` as a temporary file path instead of inline json data.")
-                .long("after-command-result-write-file")
-                .requires("after_command")
-                .action(ArgAction::SetTrue),
-        )
-        // Logging option
-        //   [--logfile,-l] /path/to/logfile
-        // ex.)
-        //      {timestamp: "...", command: "....", output: ".....", ...}
-        //      {timestamp: "...", command: "....", output: ".....", ...}
-        //      {timestamp: "...", command: "....", output: ".....", ...}
-        .arg(
-            Arg::new("logfile")
-                .help("logging file. if a log file is already used, its contents will be read and executed.")
-                .short('l')
-                .long("logfile")
-                .num_args(0..=1)
-                .value_hint(ValueHint::FilePath)
-                .action(ArgAction::Append),
-        )
-        .arg(
-            Arg::new("force_logfile_overwrite")
-                .help("continue even if an existing logfile is empty or unreadable")
-                .long("force-logfile-overwrite")
-                .action(ArgAction::SetTrue),
-        )
-        // shell command
-        //   [--shell,-s] command
-        .arg(
-            Arg::new("shell_command")
-                .help("shell to use at runtime. can also insert the command to the location specified by {COMMAND}.")
-                .short('s')
-                .long("shell")
-                .action(ArgAction::Append)
-                .value_hint(ValueHint::CommandString)
-                .default_value(SHELL_COMMAND),
-        )
-        // Interval option
-        //   [--interval,-n] second(default:2)
-        .arg(
-            Arg::new("interval")
-                .help("seconds to wait between updates")
-                .short('n')
-                .long("interval")
-                // .action(ArgAction::Append)
-                .num_args(1)
-                .value_parser(clap::value_parser!(f64))
-                .default_value("2"),
-        )
-        // Precise Interval Mode
-        //   [--precise] default:false
-        .arg(
-            Arg::new("precise")
-                .help("Attempt to run as close to the interval as possible, regardless of how long the command takes to run")
-                .long("precise")
-                .action(ArgAction::SetTrue)
-        )
-        // set limit option
-        //   [--limit,-L] size(default:5000)
-        .arg(
-            Arg::new("limit")
-                .help("Set the number of history records to keep. only work in watch mode. Set `0` for unlimited recording.")
-                .short('L')
-                .long("limit")
-                .value_parser(clap::value_parser!(u32))
-                .default_value(HISTORY_LIMIT),
-        )
-        // tab size set option
-        //   [--tab_size] size(default:4)
-        .arg(
-            Arg::new("tab_size")
-                .help("Specifying tab display size")
-                .long("tab-size")
-                .value_parser(clap::value_parser!(u16))
-                .action(ArgAction::Append)
-                .default_value("4"),
-        )
-        // Enable diff mode option
-        //   [--differences,-d] [none, watch, line, word]
-        // NOTE: `normalize_args` is preprocessed so that `watch` is selected if no value is set for this option.
-        .arg(
-            Arg::new("diff_plugin")
-                .help("Load a diffmode plugin dynamic library.")
-                .long("diff-plugin")
-                .value_hint(ValueHint::FilePath)
-                .action(ArgAction::Append),
-        )
-        .arg(
-            Arg::new("differences")
-                .help("highlight changes between updates")
-                .long("differences")
-                .short('d')
-                .num_args(0..=1)
-                .default_missing_value("watch")
-                .default_value_ifs([("differences", ArgPredicate::IsPresent, None)])
-                .action(ArgAction::Append),
-        )
-        // Set output mode option
-        //   [--output,-o] [output, stdout, stderr]
-        .arg(
-            Arg::new("output")
-                .help("Select command output.")
-                .short('o')
-                .long("output")
-                .num_args(0..=1)
-                .value_parser(["output", "stdout", "stderr"])
-                .default_value("output")
-                .action(ArgAction::Append),
-        )
-        // Set keymap option
-        //   [--keymap,-K] keymap(shortcut=function)
-        .arg(
-            Arg::new("keymap")
-                .help("Add keymap")
-                .short('K')
-                .long("keymap")
-                .action(ArgAction::Append),
-        )
-}
-
-/// Normalize options in args.
-/// This function is needed to allow users to specify diff mode options without explicitly providing a mode, defaulting to "watch" mode if the mode is not specified.
-fn builtin_diff_mode_names() -> HashSet<String> {
-    HashSet::from([
-        "none".to_string(),
-        "watch".to_string(),
-        "line".to_string(),
-        "word".to_string(),
-    ])
-}
-
-fn has_diff_plugin_option(args: &[OsString]) -> bool {
-    let mut index = 0;
-    while index < args.len() {
-        let arg = args[index].to_string_lossy();
-        if arg == "--" {
-            break;
-        }
-        if arg == "--diff-plugin" {
-            return true;
-        }
-        if arg.starts_with("--diff-plugin=") {
-            return true;
-        }
-        index += 1;
-    }
-
-    false
-}
-
-fn register_diff_mode_name(
-    diff_mode_name_to_index: &mut HashMap<String, usize>,
-    name: String,
-    index: usize,
-) -> Result<(), String> {
-    if diff_mode_name_to_index.contains_key(&name) {
-        return Err(format!("duplicate diff mode name: '{name}'"));
-    }
-
-    diff_mode_name_to_index.insert(name, index);
-    Ok(())
-}
-
-fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {
-    let known_diff_modes = builtin_diff_mode_names();
-    let has_diff_plugin = has_diff_plugin_option(&args);
-    let mut normalized = Vec::with_capacity(args.len() + 1);
-    let mut iter = args.into_iter();
-
-    if let Some(program) = iter.next() {
-        normalized.push(program);
-    }
-
-    while let Some(arg) = iter.next() {
-        if arg == "--" {
-            normalized.push(arg);
-            normalized.extend(iter);
-            break;
-        }
-
-        if arg == "-d" || arg == "--differences" {
-            normalized.push(arg);
-
-            match iter.next() {
-                Some(next) => {
-                    let next_value = next.to_string_lossy();
-                    if next_value.starts_with('-') {
-                        normalized.push(OsString::from("watch"));
-                        normalized.push(next);
-                    } else if known_diff_modes.contains(next_value.as_ref()) || has_diff_plugin {
-                        normalized.push(next);
-                    } else {
-                        normalized.push(OsString::from("watch"));
-                        normalized.push(next);
-                    }
-                }
-                None => normalized.push(OsString::from("watch")),
-            }
-
-            continue;
-        }
-
-        if arg == "-g" || arg == "--chgexit" {
-            normalized.push(arg);
-
-            match iter.next() {
-                Some(next) => {
-                    let next_value = next.to_string_lossy();
-                    if next_value.parse::<u32>().is_ok() {
-                        normalized.push(next);
-                    } else {
-                        normalized.push(OsString::from("1"));
-                        normalized.push(next);
-                    }
-                }
-                None => normalized.push(OsString::from("1")),
-            }
-
-            continue;
-        }
-
-        normalized.push(arg);
-    }
-
-    return normalized;
-}
-
-fn get_clap_matcher(cmd_app: Command) -> clap::ArgMatches {
-    let mut os_args = std::env::args_os();
-    let program = os_args
-        .next()
-        .unwrap_or_else(|| OsString::from("args-join-sample"));
-
-    let env_config = std::env::var("HWATCH").unwrap_or_default();
-    let env_tokens: Vec<String> = if env_config.is_empty() {
-        Vec::new()
-    } else {
-        match shell_words::split(&env_config) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("warning: failed to parse $HWATCH: {}", e);
-                Vec::new()
-            }
-        }
-    };
-
-    let cli_tokens: Vec<String> = os_args.map(|s| s.to_string_lossy().into_owned()).collect();
-
-    let mut joined: Vec<OsString> = Vec::with_capacity(1 + env_tokens.len() + cli_tokens.len());
-    joined.push(program);
-    for t in env_tokens {
-        joined.push(OsString::from(t));
-    }
-    for t in cli_tokens {
-        joined.push(OsString::from(t));
-    }
-
-    let joined = normalize_args(joined);
-
-    cmd_app.get_matches_from(joined)
-}
-
-fn output_completion(shell: &str) -> bool {
-    match shell {
-        "bash" => {
-            print!(
-                "{}",
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/completion/bash/hwatch-completion.bash"
-                ))
-            );
-            true
-        }
-        "fish" => {
-            print!(
-                "{}",
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/completion/fish/hwatch.fish"
-                ))
-            );
-            true
-        }
-        "zsh" => {
-            print!(
-                "{}",
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/completion/zsh/_hwatch"
-                ))
-            );
-            true
-        }
-        _ => false,
-    }
-}
-
-fn parse_completion_from_cli() -> Result<Option<String>, String> {
-    let mut args = std::env::args_os();
-    let _ = args.next();
-    let mut iter = args.peekable();
-
-    while let Some(arg) = iter.next() {
-        if arg == "--" {
-            break;
-        }
-
-        let Some(arg_str) = arg.to_str() else {
-            continue;
-        };
-
-        if arg_str == "--completion" {
-            let Some(value) = iter.next() else {
-                return Err("missing value for --completion".to_string());
-            };
-            return Ok(Some(value.to_string_lossy().into_owned()));
-        }
-
-        if let Some(value) = arg_str.strip_prefix("--completion=") {
-            return Ok(Some(value.to_string()));
-        }
-    }
-
-    Ok(None)
-}
-
 fn main() {
-    match parse_completion_from_cli() {
-        Ok(Some(shell)) => {
-            if !output_completion(&shell) {
-                eprintln!("unknown shell for --completion: {shell}");
-                std::process::exit(2);
-            }
+    match completion::handle_completion_request() {
+        Ok(true) => {
             return;
         }
-        Ok(None) => {}
+        Ok(false) => {}
         Err(message) => {
             eprintln!("{message}");
             std::process::exit(2);
         }
     }
-
-    // Get command args matches
     let mut cmd_app = build_app();
     let matcher = get_clap_matcher(cmd_app.clone());
 
@@ -738,11 +122,16 @@ fn main() {
     let batch = matcher.get_flag("batch");
     let compress = matcher.get_flag("compress");
     let precise = matcher.get_flag("precise");
+    let no_summary = matcher.get_flag("no_summary");
     let exit_on_change = matcher.get_one::<u32>("chgexit").copied();
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
     let after_command_result_write_file = matcher.get_flag("after_command_result_write_file");
+    let shell_command = matcher
+        .get_one::<String>("shell_command")
+        .unwrap()
+        .to_string();
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
@@ -912,7 +301,7 @@ fn main() {
     {
         let m = matcher.clone();
         let tx = tx.clone();
-        let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
+        let shell_command = shell_command.clone();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
         let is_pty = m.get_flag("use_pty");
@@ -1079,6 +468,7 @@ fn main() {
             .set_diff_mode_width(diff_mode_width)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
             .set_ignore_spaceblock(matcher.get_flag("ignore_spaceblock"))
+            .set_no_summary(no_summary)
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
             .set_show_ui(!matcher.get_flag("no_title"))
@@ -1092,6 +482,7 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             view = view.set_after_command(after_command.to_string());
+            view = view.set_after_command_shell_command(shell_command.clone());
             view = view.set_after_command_result_write_file(after_command_result_write_file);
         }
 
@@ -1118,245 +509,11 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             batch = batch.set_after_command(after_command.to_string());
+            batch = batch.set_after_command_shell_command(shell_command.clone());
             batch = batch.set_after_command_result_write_file(after_command_result_write_file);
         }
 
         // start batch.
         let _res = batch.run();
-    }
-}
-
-fn calculate_diff_mode_header_width(diff_modes: &[Arc<Mutex<Box<dyn DiffMode>>>]) -> usize {
-    let mut max_width = 0;
-
-    for diff_mode in diff_modes {
-        let mut diff_mode = diff_mode.lock().unwrap();
-        for only_diffline in [false, true] {
-            let mut options = hwatch_diffmode::DiffModeOptions::new();
-            options.set_only_diffline(only_diffline);
-            diff_mode.set_option(options);
-            let header_text = diff_mode.get_header_text();
-            max_width = max_width.max(UnicodeWidthStr::width(header_text.as_str()));
-        }
-    }
-
-    max_width
-}
-
-fn should_continue_with_unreadable_logfile(
-    force_logfile_overwrite: bool,
-    stdin_is_terminal: bool,
-) -> bool {
-    if force_logfile_overwrite {
-        return true;
-    }
-
-    if !stdin_is_terminal {
-        eprintln!(
-            "Refusing to reuse the existing logfile without confirmation in a non-interactive session. Rerun with --force-logfile-overwrite to continue."
-        );
-        return false;
-    }
-
-    common::confirm_yes_default("Log to the same file?")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::ffi::OsString;
-
-    #[test]
-    fn test_run_interval() {
-        let mut actual = RunInterval::default();
-        assert!(!actual.paused);
-        assert_eq!(actual.interval, 2.0);
-        actual.increase(1.5);
-        actual.toggle_pause();
-        assert!(actual.paused);
-        assert_eq!(actual.interval, 3.5);
-        actual.decrease(0.5);
-        actual.toggle_pause();
-        assert!(!actual.paused);
-        assert_eq!(actual.interval, 3.0);
-    }
-
-    #[test]
-    /// Test that decreasing the interval does not go below zero and does not cause underflow.
-    fn run_interval_decrease_does_not_go_below_threshold() {
-        let mut actual = RunInterval::new(1.0);
-        actual.decrease(1.0);
-        actual.decrease(2.0);
-
-        assert_eq!(actual.interval, 1.0);
-        assert!(!actual.paused);
-    }
-
-    #[test]
-    fn normalize_args_keeps_explicit_mode() {
-        let args = vec!["hwatch", "-d", "line", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-
-        let actual: Vec<String> = normalize_args(args)
-            .into_iter()
-            .map(|s| s.to_string_lossy().into_owned())
-            .collect();
-
-        assert_eq!(actual, vec!["hwatch", "-d", "line", "echo", "hi"]);
-    }
-
-    #[test]
-    fn normalize_args_inserts_default_mode_before_command() {
-        let args = vec!["hwatch", "-d", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-
-        let actual: Vec<String> = normalize_args(args)
-            .into_iter()
-            .map(|s| s.to_string_lossy().into_owned())
-            .collect();
-
-        assert_eq!(actual, vec!["hwatch", "-d", "watch", "echo", "hi"]);
-    }
-
-    #[test]
-    fn normalize_args_inserts_default_mode_before_next_option() {
-        let args = vec!["hwatch", "--differences", "--batch", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-
-        let actual: Vec<String> = normalize_args(args)
-            .into_iter()
-            .map(|s| s.to_string_lossy().into_owned())
-            .collect();
-
-        assert_eq!(
-            actual,
-            vec!["hwatch", "--differences", "watch", "--batch", "echo", "hi"]
-        );
-    }
-
-    #[test]
-    fn normalize_args_preserves_non_builtin_mode_when_plugin_option_is_present() {
-        let args = vec![
-            "hwatch",
-            "--diff-plugin",
-            "/tmp/libnumeric.so",
-            "-d",
-            "numeric-diff",
-            "echo",
-            "hi",
-        ]
-        .into_iter()
-        .map(OsString::from)
-        .collect();
-
-        let actual: Vec<String> = normalize_args(args)
-            .into_iter()
-            .map(|s| s.to_string_lossy().into_owned())
-            .collect();
-
-        assert_eq!(
-            actual,
-            vec![
-                "hwatch",
-                "--diff-plugin",
-                "/tmp/libnumeric.so",
-                "-d",
-                "numeric-diff",
-                "echo",
-                "hi",
-            ]
-        );
-    }
-
-    #[test]
-    fn normalize_args_still_defaults_to_watch_without_plugin_option() {
-        let args = vec!["hwatch", "-d", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-
-        let actual: Vec<String> = normalize_args(args)
-            .into_iter()
-            .map(|s| s.to_string_lossy().into_owned())
-            .collect();
-
-        assert_eq!(actual, vec!["hwatch", "-d", "watch", "echo", "hi"]);
-    }
-
-    #[test]
-    fn clap_parses_chgexit_without_value_as_one() {
-        let args = vec!["hwatch", "-g", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-        let matches = build_app()
-            .try_get_matches_from(normalize_args(args))
-            .unwrap();
-
-        assert_eq!(matches.get_one::<u32>("chgexit"), Some(&1));
-    }
-
-    #[test]
-    fn clap_parses_chgexit_with_explicit_count() {
-        let args = vec!["hwatch", "-g", "3", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-        let matches = build_app()
-            .try_get_matches_from(normalize_args(args))
-            .unwrap();
-
-        assert_eq!(matches.get_one::<u32>("chgexit"), Some(&3));
-    }
-
-    #[test]
-    fn clap_parses_force_logfile_overwrite_flag() {
-        let args = vec!["hwatch", "--force-logfile-overwrite", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-        let matches = build_app()
-            .try_get_matches_from(normalize_args(args))
-            .unwrap();
-
-        assert!(matches.get_flag("force_logfile_overwrite"));
-    }
-
-    #[test]
-    fn normalize_args_inserts_default_count_for_chgexit() {
-        let args = vec!["hwatch", "-g", "echo", "hi"]
-            .into_iter()
-            .map(OsString::from)
-            .collect();
-
-        let actual: Vec<String> = normalize_args(args)
-            .into_iter()
-            .map(|s| s.to_string_lossy().into_owned())
-            .collect();
-
-        assert_eq!(actual, vec!["hwatch", "-g", "1", "echo", "hi"]);
-    }
-
-    #[test]
-    fn register_diff_mode_name_rejects_duplicates() {
-        let mut diff_mode_name_to_index = HashMap::new();
-        register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 1).unwrap();
-
-        let error = register_diff_mode_name(&mut diff_mode_name_to_index, "watch".to_string(), 2)
-            .unwrap_err();
-
-        assert_eq!(error, "duplicate diff mode name: 'watch'");
-    }
-
-    #[test]
-    fn unreadable_logfile_requires_force_in_non_interactive_mode() {
-        assert!(!should_continue_with_unreadable_logfile(false, false));
-        assert!(should_continue_with_unreadable_logfile(true, false));
     }
 }

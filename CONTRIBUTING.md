@@ -82,7 +82,7 @@ Common files to review:
 - `man/man.md` and generated manpage sources when CLI text changes
 - `completion/` when command-line options or help text change
 - `img/*.tape` and generated GIFs when demos become outdated
-- `hwatch.spec` when packaging or release build behavior changes
+- `package/fedora/hwatch.spec` when packaging or release build behavior changes
 - `plugins/*/README.md` when bundled plugin behavior changes
 
 ## Tests and Fixtures
@@ -143,8 +143,8 @@ If you change plugin APIs or bundled plugins:
 If your change affects packaging or distributed artifacts, also review:
 
 - `.github/workflows/`
-- `hwatch.spec`
 - `package/`
+- `package/fedora/hwatch.spec`
 - release packaging paths or asset names
 
 ## Questions

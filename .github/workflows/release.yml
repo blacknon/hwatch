@@ -18,8 +18,97 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  packaging-debian:
+    runs-on: ubuntu-latest
+    container: debian:sid
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Debian packaging dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            bash-completion \
+            build-essential \
+            cargo \
+            debhelper \
+            dh-cargo \
+            dpkg-dev \
+            libstd-rust-dev \
+            python3 \
+            rustc
+
+      - name: Debian source package build
+        run: |
+          rm -rf debian
+          cp -a package/debian debian
+          dpkg-buildpackage -us -uc -d -S
+
+      - name: Upload Debian source package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaging-debian-source
+          path: |
+            ../hwatch_*.dsc
+            ../hwatch_*.debian.tar.*
+            ../hwatch_*.orig.tar.*
+            ../hwatch_*.changes
+
+  packaging-fedora:
+    runs-on: ubuntu-latest
+    container: fedora:latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Fedora packaging dependencies
+        run: |
+          dnf install -y \
+            bash-completion \
+            gcc \
+            rpm-build \
+            rust-packaging
+
+      - name: Validate RPM build
+        run: |
+          VERSION="$(awk -F '\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          TOPDIR="$PWD/rpmbuild"
+          SOURCEDIR="$TOPDIR/SOURCES"
+          SPECDIR="$TOPDIR/SPECS"
+
+          mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+
+          rpmbuild -bs "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64" \
+            --nodeps
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64" \
+            || true
+
+          buildreq="$(find "$TOPDIR/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
+          dnf install -y "$buildreq"
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64"
+
+      - name: Upload Fedora SRPM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaging-fedora-srpm
+          path: rpmbuild/SRPMS/*.src.rpm
+
   # build rust binary
   build:
+    needs:
+      - packaging-debian
+      - packaging-fedora
     strategy:
       matrix:
         include:
@@ -102,7 +191,7 @@ jobs:
         if: matrix.ext == 'rpm'
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm
+          sudo apt-get install -y bash-completion rpm cargo rustc
 
       - name: Add Rust target
         if: matrix.ext != 'rpm'
@@ -152,8 +241,8 @@ jobs:
           RPM_PATH="$PWD/hwatch-${VERSION}.${{ matrix.target }}.rpm"
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
-          cp hwatch.spec "$SPECDIR/"
-          git archive --format=tar.gz --prefix="hwatch-${VERSION}/" -o "$SOURCEDIR/${VERSION}.tar.gz" HEAD
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
@@ -301,4 +390,42 @@ jobs:
           gh release upload "${{ needs.create-release.outputs.version }}" \
             --repo "$GH_REPO" \
             "release-assets/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}" \
+            --clobber
+
+  upload-release-debian-source:
+    needs: [create-release, packaging-debian]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: packaging-debian-source
+          path: release-assets
+
+      - name: Upload Debian source package assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            --repo "$GH_REPO" \
+            release-assets/* \
+            --clobber
+
+  upload-release-fedora-srpm:
+    needs: [create-release, packaging-fedora]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: packaging-fedora-srpm
+          path: release-assets
+
+      - name: Upload Fedora SRPM asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            --repo "$GH_REPO" \
+            release-assets/*.src.rpm \
             --clobber

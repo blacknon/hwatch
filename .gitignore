@@ -13,6 +13,8 @@ hwatch.sublime-project
 # Rust files
 #Cargo.lock
 tmp*
+.tmp*
+.tmp/*
 /target/
 plugins/*/target/
 examples/*/target/

@@ -1,0 +1,6 @@
+hwatch (0.4.2-1) unstable; urgency=medium
+
+  * Prepare Debian packaging for review.
+  * Align the build with dh-cargo and Debian's offline Rust packaging flow.
+
+ -- blacknon <blacknon@orebibou.com>  Tue, 28 Apr 2026 12:00:00 +0900
