@@ -16,6 +16,9 @@
 #![allow(clippy::wrong_self_convention)]
 
 // v0.4.3
+// clippy allowを全部解消していく
+
+// v0.4.4
 // TODO(blacknon): https://github.com/blacknon/hwatch/issues/42
 // TODO(blacknon): diff modeをさらに複数用意し、選択・切り替えできるdiffをオプションから指定できるようにする(watchをold-watchにして、モダンなwatchをデフォルトにしたり)
 // TODO(blacknon): formatを整える機能や、diff時に特定のフォーマットかどうかで扱いを変える機能について、追加する方法を模索する(プラグインか、もしくはパイプでうまいこときれいにする機能か？)
