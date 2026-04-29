@@ -39,11 +39,21 @@ jobs:
             python3 \
             rustc
 
-      - name: Debian packaging validation
+      - name: Debian source package build
         run: |
           rm -rf debian
           cp -a package/debian debian
-          dpkg-buildpackage -us -uc -d -b
+          dpkg-buildpackage -us -uc -d -S
+
+      - name: Upload Debian source package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaging-debian-source
+          path: |
+            ../hwatch_*.dsc
+            ../hwatch_*.debian.tar.*
+            ../hwatch_*.orig.tar.*
+            ../hwatch_*.changes
 
   packaging-fedora:
     runs-on: ubuntu-latest
@@ -87,6 +97,12 @@ jobs:
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
             --define "_target_cpu x86_64"
+
+      - name: Upload Fedora SRPM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaging-fedora-srpm
+          path: rpmbuild/SRPMS/*.src.rpm
 
   # build rust binary
   build:
@@ -374,4 +390,42 @@ jobs:
           gh release upload "${{ needs.create-release.outputs.version }}" \
             --repo "$GH_REPO" \
             "release-assets/hwatch-${{ needs.create-release.outputs.version }}.${{ matrix.target }}.${{ matrix.ext }}" \
+            --clobber
+
+  upload-release-debian-source:
+    needs: [create-release, packaging-debian]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: packaging-debian-source
+          path: release-assets
+
+      - name: Upload Debian source package assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            --repo "$GH_REPO" \
+            release-assets/* \
+            --clobber
+
+  upload-release-fedora-srpm:
+    needs: [create-release, packaging-fedora]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: packaging-fedora-srpm
+          path: release-assets
+
+      - name: Upload Fedora SRPM asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            --repo "$GH_REPO" \
+            release-assets/*.src.rpm \
             --clobber
