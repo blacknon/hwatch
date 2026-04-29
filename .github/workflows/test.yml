@@ -182,9 +182,13 @@ jobs:
             build-essential \
             cargo \
             debhelper \
+            dh-cargo \
+            dh-sequence-cargo \
             dpkg-dev \
             gcc \
+            python3 \
             librust-ansi-term-dev \
+            librust-assert-cmd-dev \
             librust-chardetng-dev \
             librust-chrono-dev \
             librust-clap+cargo-dev \
@@ -203,6 +207,7 @@ jobs:
             librust-ratatui+crossterm-dev \
             librust-rayon-dev \
             librust-regex-dev \
+            librust-predicates-dev \
             librust-serde+derive-dev \
             librust-serde-json-dev \
             librust-shell-words-dev \
