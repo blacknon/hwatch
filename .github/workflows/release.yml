@@ -42,9 +42,11 @@ jobs:
       - name: Debian source package build
         run: |
           VERSION="$(sed -n '1s/^hwatch (\\([^)]*\\)).*/\\1/p' package/debian/changelog | sed 's/-[^-]*$//')"
+          ORIG_TAR="$(dirname "$PWD")/hwatch_${VERSION}.orig.tar.gz"
           tar --exclude='./debian' --exclude='./package' --exclude='./target' --exclude='./rpmbuild' --exclude-vcs \
-            -czf "../hwatch_${VERSION}.orig.tar.gz" \
-            --transform "s,^,hwatch-${VERSION}/," .
+            --transform "s,^,hwatch-${VERSION}/," \
+            -czf "$ORIG_TAR" .
+          ls -l "$ORIG_TAR"
           rm -rf debian
           cp -a package/debian debian
           dpkg-buildpackage -us -uc -d -S
