@@ -44,7 +44,7 @@ jobs:
           VERSION="$(dpkg-parsechangelog -lpackage/debian/changelog -SVersion | sed 's/-[^-]*$//')"
           WORKDIR="$(dirname "$PWD")/debian-source-build"
           SRCDIR="$WORKDIR/hwatch-${VERSION}"
-          ORIG_TAR="$(dirname "$PWD")/hwatch_${VERSION}.orig.tar.gz"
+          ORIG_TAR="$WORKDIR/hwatch_${VERSION}.orig.tar.gz"
           rm -rf "$WORKDIR"
           mkdir -p "$SRCDIR"
           tar --exclude='./debian' --exclude='./package' --exclude='./target' --exclude='./rpmbuild' --exclude-vcs -cf - . | tar -xf - -C "$SRCDIR"
