@@ -54,15 +54,19 @@ jobs:
           cd "$SRCDIR"
           dpkg-buildpackage -us -uc -d -S
 
+      - name: Collect Debian source package files
+        run: |
+          mkdir -p release-artifacts/debian-source
+          cp -a ../debian-source-build/hwatch_*.dsc release-artifacts/debian-source/
+          cp -a ../debian-source-build/hwatch_*.debian.tar.* release-artifacts/debian-source/
+          cp -a ../debian-source-build/hwatch_*.orig.tar.* release-artifacts/debian-source/
+          cp -a ../debian-source-build/hwatch_*.changes release-artifacts/debian-source/
+
       - name: Upload Debian source package artifact
         uses: actions/upload-artifact@v7
         with:
           name: packaging-debian-source
-          path: |
-            ../hwatch_*.dsc
-            ../hwatch_*.debian.tar.*
-            ../hwatch_*.orig.tar.*
-            ../hwatch_*.changes
+          path: release-artifacts/debian-source/*
 
   packaging-fedora:
     runs-on: ubuntu-latest
