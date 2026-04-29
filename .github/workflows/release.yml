@@ -163,9 +163,9 @@ jobs:
             artifact: build-aarch64-apple-darwin
             os: macos-latest
             ext: tar.gz
-          - target: x86_64-pc-windows-gnu
-            artifact: build-x86_64-pc-windows-gnu
-            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            artifact: build-x86_64-pc-windows-msvc
+            os: windows-latest
             ext: zip
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.ext == 'rpm' && 'fedora:latest' || '' }}
@@ -405,9 +405,9 @@ jobs:
             artifact: build-aarch64-apple-darwin
             os: macos-latest
             ext: tar.gz
-          - target: x86_64-pc-windows-gnu
-            artifact: build-x86_64-pc-windows-gnu
-            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            artifact: build-x86_64-pc-windows-msvc
+            os: windows-latest
             ext: zip
     needs: [create-release]
     runs-on: ubuntu-latest
