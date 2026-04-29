@@ -20,6 +20,9 @@ pub struct Batch {
     after_command: String,
 
     ///
+    after_command_shell_command: String,
+
+    ///
     after_command_result_write_file: bool,
 
     ///
@@ -77,6 +80,7 @@ impl Batch {
 
         Self {
             after_command: "".to_string(),
+            after_command_shell_command: crate::SHELL_COMMAND.to_string(),
             after_command_result_write_file: false,
             line_number: false,
             is_color: true,
@@ -87,7 +91,7 @@ impl Batch {
             results: HashMap::new(),
             output_mode: OutputMode::Output,
             diff_mode: 0,
-            diff_modes: diff_modes,
+            diff_modes,
             is_only_diffline: false,
             ignore_spaceblock: false,
             logfile: "".to_string(),
@@ -169,11 +173,12 @@ impl Batch {
             let after_result = _result.clone();
 
             let after_command_result_write_file = self.after_command_result_write_file;
+            let shell_command = self.after_command_shell_command.clone();
 
             {
                 thread::spawn(move || {
                     exec_after_command(
-                        "sh -c".to_string(),
+                        shell_command,
                         after_command.clone(),
                         before_result,
                         after_result,
@@ -250,6 +255,11 @@ impl Batch {
     ///
     pub fn set_after_command(mut self, after_command: String) -> Self {
         self.after_command = after_command;
+        self
+    }
+
+    pub fn set_after_command_shell_command(mut self, shell_command: String) -> Self {
+        self.after_command_shell_command = shell_command;
         self
     }
 

@@ -23,7 +23,7 @@ impl<'a> PopupWindow<'a> {
     pub fn new(title: impl Into<String>, text: Vec<String>) -> Self {
         let text = text
             .into_iter()
-            .map(|s| Line::from(s)) // String -> Line<'static>
+            .map(Line::from) // String -> Line<'static>
             .collect::<Vec<_>>();
 
         Self {

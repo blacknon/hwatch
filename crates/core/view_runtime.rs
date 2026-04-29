@@ -29,6 +29,7 @@ impl View {
     ) -> io::Result<()> {
         app.set_keymap(self.keymap.clone());
         app.set_after_command(self.after_command.clone());
+        app.set_after_command_shell_command(self.after_command_shell_command.clone());
         app.set_after_command_result_write_file(self.after_command_result_write_file);
         app.set_watch_diff_colors(self.watch_diff_fg, self.watch_diff_bg);
 
@@ -55,6 +56,7 @@ impl View {
         app.set_diff_mode(self.diff_mode);
         app.set_is_only_diffline(self.is_only_diffline);
         app.set_ignore_spaceblock(self.ignore_spaceblock);
+        app.set_summary_enabled(self.summary_enabled);
         app.set_enable_summary_char(self.enable_summary_char);
 
         Ok(())

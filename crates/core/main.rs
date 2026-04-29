@@ -6,18 +6,12 @@
 #![allow(clippy::clone_on_copy)]
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::empty_docs)]
-#![allow(clippy::explicit_counter_loop)]
-#![allow(clippy::extra_unused_lifetimes)]
-#![allow(clippy::io_other_error)]
 #![allow(clippy::items_after_test_module)]
 #![allow(clippy::len_zero)]
 #![allow(clippy::needless_borrow)]
 #![allow(clippy::needless_late_init)]
 #![allow(clippy::needless_return)]
-#![allow(clippy::redundant_closure)]
-#![allow(clippy::redundant_field_names)]
 #![allow(clippy::single_char_add_str)]
-#![allow(clippy::unnecessary_sort_by)]
 #![allow(clippy::useless_format)]
 #![allow(clippy::wrong_self_convention)]
 
@@ -125,11 +119,13 @@ fn main() {
     let batch = matcher.get_flag("batch");
     let compress = matcher.get_flag("compress");
     let precise = matcher.get_flag("precise");
+    let no_summary = matcher.get_flag("no_summary");
     let exit_on_change = matcher.get_one::<u32>("chgexit").copied();
 
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
     let after_command_result_write_file = matcher.get_flag("after_command_result_write_file");
+    let shell_command = matcher.get_one::<String>("shell_command").unwrap().to_string();
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");
@@ -299,7 +295,7 @@ fn main() {
     {
         let m = matcher.clone();
         let tx = tx.clone();
-        let shell_command = m.get_one::<String>("shell_command").unwrap().to_string();
+        let shell_command = shell_command.clone();
         let command: Vec<_> = command_line;
         let is_exec = m.get_flag("exec");
         let is_pty = m.get_flag("use_pty");
@@ -466,6 +462,7 @@ fn main() {
             .set_diff_mode_width(diff_mode_width)
             .set_only_diffline(matcher.get_flag("diff_output_only"))
             .set_ignore_spaceblock(matcher.get_flag("ignore_spaceblock"))
+            .set_no_summary(no_summary)
             // Set enable summary char
             .set_enable_summary_char(enable_summary_char)
             .set_show_ui(!matcher.get_flag("no_title"))
@@ -479,6 +476,7 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             view = view.set_after_command(after_command.to_string());
+            view = view.set_after_command_shell_command(shell_command.clone());
             view = view.set_after_command_result_write_file(after_command_result_write_file);
         }
 
@@ -505,6 +503,7 @@ fn main() {
         // Set after_command
         if let Some(after_command) = after_command {
             batch = batch.set_after_command(after_command.to_string());
+            batch = batch.set_after_command_shell_command(shell_command.clone());
             batch = batch.set_after_command_result_write_file(after_command_result_write_file);
         }
 
