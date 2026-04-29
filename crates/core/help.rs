@@ -152,7 +152,7 @@ fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
     }
 
     // sort
-    keydata_list.sort_by(|a, b| a.action.cmp(&b.action));
+    keydata_list.sort_by_key(|a| a.action);
 
     let text = gen_help_text_from_key_data(keydata_list);
 

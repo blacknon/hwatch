@@ -162,7 +162,7 @@ impl App<'_> {
         let new_select = new_select.unwrap_or_else(|| get_near_index(&tmp_results, selected));
 
         let mut history = vec![];
-        tmp_history.sort_by(|a, b| b.num.cmp(&a.num));
+        tmp_history.sort_by_key(|entry| std::cmp::Reverse(entry.num));
 
         for h in tmp_history.into_iter() {
             if h.num == 0 {
