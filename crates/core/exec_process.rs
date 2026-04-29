@@ -11,6 +11,7 @@ use std::os::fd::OwnedFd;
 use std::process::{Command, Stdio};
 use std::thread;
 
+#[cfg(unix)]
 use super::pty::create_raw_pty;
 
 pub(super) fn create_exec_cmd_args(
