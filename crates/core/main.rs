@@ -125,7 +125,10 @@ fn main() {
     // Get after command
     let after_command = matcher.get_one::<String>("after_command");
     let after_command_result_write_file = matcher.get_flag("after_command_result_write_file");
-    let shell_command = matcher.get_one::<String>("shell_command").unwrap().to_string();
+    let shell_command = matcher
+        .get_one::<String>("shell_command")
+        .unwrap()
+        .to_string();
 
     // Get logfile
     let logfile = matcher.get_one::<String>("logfile");

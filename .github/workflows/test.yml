@@ -111,7 +111,10 @@ jobs:
             rustc
 
       - name: Debian package build
-        run: dpkg-buildpackage -us -uc -d -b
+        run: |
+          rm -rf debian
+          cp -a tmp/debian debian
+          dpkg-buildpackage -us -uc -d -b
 
   packaging-fedora:
     name: Packaging Check (Fedora)
@@ -139,7 +142,7 @@ jobs:
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
           cp hwatch.spec "$SPECDIR/"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
       - name: RPM package build
         run: |
@@ -206,7 +209,10 @@ jobs:
             rustc
 
       - name: Debian package build (strict)
-        run: dpkg-buildpackage -us -uc -b
+        run: |
+          rm -rf debian
+          cp -a tmp/debian debian
+          dpkg-buildpackage -us -uc -b
 
   packaging-fedora-strict:
     name: Packaging Check (Fedora, Strict)
@@ -236,7 +242,7 @@ jobs:
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
           cp hwatch.spec "$SPECDIR/"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
       - name: RPM package build (strict)
         run: |
