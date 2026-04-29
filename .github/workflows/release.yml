@@ -42,7 +42,7 @@ jobs:
       - name: Debian packaging validation
         run: |
           rm -rf debian
-          cp -a tmp/debian debian
+          cp -a package/debian debian
           dpkg-buildpackage -us -uc -d -b
 
   packaging-fedora:
@@ -68,8 +68,8 @@ jobs:
           SPECDIR="$TOPDIR/SPECS"
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
-          cp hwatch.spec "$SPECDIR/"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
           rpmbuild -bs "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
@@ -79,7 +79,14 @@ jobs:
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \
             --define "_target_cpu x86_64" \
-            --nodeps
+            || true
+
+          buildreq="$(find "$TOPDIR/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
+          dnf install -y "$buildreq"
+
+          rpmbuild -bb "$SPECDIR/hwatch.spec" \
+            --define "_topdir $TOPDIR" \
+            --define "_target_cpu x86_64"
 
   # build rust binary
   build:
@@ -218,8 +225,8 @@ jobs:
           RPM_PATH="$PWD/hwatch-${VERSION}.${{ matrix.target }}.rpm"
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
-          cp hwatch.spec "$SPECDIR/"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
           rpmbuild -bb "$SPECDIR/hwatch.spec" \
             --define "_topdir $TOPDIR" \

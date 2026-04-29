@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/default.mk
+include /usr/share/rustc/architecture.mk
+
+export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+export DEB_HOST_RUST_TYPE DEB_HOST_GNU_TYPE
+export PATH := /usr/share/cargo/bin:$(PATH)
+export CARGO = /usr/share/cargo/bin/cargo
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export CARGO_HOME = $(CURDIR)/debian/cargo_home
+export CARGO_REGISTRY = $(CURDIR)/debian/cargo_registry
+
+%:
+	dh $@ --buildsystem=cargo
+
+execute_after_dh_auto_clean:
+	rm -rf debian/cargo_home debian/cargo_registry
+
+override_dh_auto_build:
+	dh_auto_build -- --release --all-features
+
+override_dh_auto_test:
+	dh_auto_test -- test --release --all-features -- \
+		--skip test_exec_command_with_force_color_stdout_is_tty \
+		--skip test_exec_command_with_force_color_stdin_is_tty

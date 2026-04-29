@@ -113,7 +113,7 @@ jobs:
       - name: Debian package build
         run: |
           rm -rf debian
-          cp -a tmp/debian debian
+          cp -a package/debian debian
           dpkg-buildpackage -us -uc -d -b
 
   packaging-fedora:
@@ -141,8 +141,8 @@ jobs:
           SPECDIR="$TOPDIR/SPECS"
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
-          cp hwatch.spec "$SPECDIR/"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
       - name: RPM package build
         run: |
@@ -154,7 +154,14 @@ jobs:
           rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
             --define "_topdir $PWD/rpmbuild" \
             --define "_target_cpu x86_64" \
-            --nodeps
+            || true
+
+          buildreq="$(find "$PWD/rpmbuild/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
+          dnf install -y "$buildreq"
+
+          rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64"
 
   packaging-debian-strict:
     name: Packaging Check (Debian, Strict)
@@ -211,7 +218,7 @@ jobs:
       - name: Debian package build (strict)
         run: |
           rm -rf debian
-          cp -a tmp/debian debian
+          cp -a package/debian debian
           dpkg-buildpackage -us -uc -b
 
   packaging-fedora-strict:
@@ -241,14 +248,22 @@ jobs:
           SPECDIR="$TOPDIR/SPECS"
 
           mkdir -p "$SOURCEDIR" "$SPECDIR" "$TOPDIR/BUILD" "$TOPDIR/RPMS" "$TOPDIR/SRPMS" "$TOPDIR/BUILDROOT"
-          cp hwatch.spec "$SPECDIR/"
-          tar --exclude='./rpmbuild' --exclude='./target' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
+          cp package/fedora/hwatch.spec "$SPECDIR/hwatch.spec"
+          tar --exclude='./rpmbuild' --exclude='./target' --exclude='./package' --exclude-vcs -czf "$SOURCEDIR/hwatch-${VERSION}.tar.gz" --transform "s,^,hwatch-${VERSION}/," .
 
       - name: RPM package build (strict)
         run: |
           rpmbuild -bs "$PWD/rpmbuild/SPECS/hwatch.spec" \
             --define "_topdir $PWD/rpmbuild" \
             --define "_target_cpu x86_64"
+
+          rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
+            --define "_topdir $PWD/rpmbuild" \
+            --define "_target_cpu x86_64" \
+            || true
+
+          buildreq="$(find "$PWD/rpmbuild/SRPMS" -name '*.buildreqs.nosrc.rpm' -print -quit)"
+          dnf install -y "$buildreq"
 
           rpmbuild -bb "$PWD/rpmbuild/SPECS/hwatch.spec" \
             --define "_topdir $PWD/rpmbuild" \
