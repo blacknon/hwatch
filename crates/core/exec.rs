@@ -239,6 +239,7 @@ mod tests {
         assert_eq!(String::from_utf8(stdout).unwrap(), "notty");
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_exec_command_with_force_color_stdout_is_tty() {
         let exec_commands = vec![
@@ -251,6 +252,7 @@ mod tests {
         assert_eq!(String::from_utf8(stdout).unwrap(), "tty");
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_exec_command_with_force_color_stdin_is_tty() {
         let exec_commands = vec![
