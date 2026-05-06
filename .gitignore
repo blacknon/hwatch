@@ -22,3 +22,8 @@ examples/*/target/
 
 # tmp files
 old_*
+
+# package build files
+out
+rpmbuild/*
+hwatch-build-deps-*

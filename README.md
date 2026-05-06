@@ -9,8 +9,8 @@ hwatch - alternative watch command.
 
 ## Description
 
-`hwatch` is a alternative **watch** command.
-That records the result of command execution and can display it history and diffs.
+`hwatch` is a alternative **watch** command, it developed started in 2018.
+That records the result of command execution, can display it history and diffs, hook and run commands.
 
 ### Features
 
@@ -25,6 +25,50 @@ That records the result of command execution and can display it history and diff
 - If a difference occurs, you can have the specified command additionally executed.
 
 ## Install
+
+### Official Distro Packages
+
+#### Debian
+
+Official Debian packaging is in progress and not yet available from the Debian
+archive.
+
+#### Fedora
+
+Official Fedora packaging is in progress and not yet available from Fedora
+repositories.
+
+#### EPEL
+
+EPEL packaging is planned after Fedora packaging is finalized.
+
+#### Alpine Linux (edge/testing)
+
+```bash
+apk add hwatch
+```
+
+#### Packaging Status
+
+This repository includes packaging metadata for Debian-style `.deb` builds and
+RPM-based distributions, and GitHub Releases publishes prebuilt archives plus
+generated `.deb` and `.rpm` assets while official distro packaging is being
+worked on.
+
+GitHub Actions validates the packaging flow in distro-specific containers:
+
+- Debian packaging is checked in a `debian:sid` container
+- RPM packaging is checked in a `fedora:latest` container
+
+These checks are intended to catch packaging regressions early while the project
+works toward official distribution packaging. Alpine packages are available
+today, and Debian/Fedora distribution repository submissions are still in
+progress.
+
+### Other Package Managers
+
+Community-maintained packages are available in several ecosystems, but they may
+lag behind the latest upstream release.
 
 ### macOS
 
@@ -52,12 +96,6 @@ yay -S hwatch
 nix profile install nixpkgs#hwatch
 ```
 
-### Alpine Linux (edge/testing)
-
-```bash
-apk add hwatch
-```
-
 ### mise/asdf
 
 ```bash
@@ -70,49 +108,58 @@ asdf install hwatch latest
 asdf global hwatch latest
 ```
 
+### GitHub Releases
+
+If you want the latest upstream release immediately, use the assets published on
+[GitHub Releases](https://github.com/blacknon/hwatch/releases).
+
+Current release assets include:
+
+- Linux: `x86_64-unknown-linux-gnu.tar.gz`
+- Linux: `x86_64-unknown-linux-musl.tar.gz`
+- Linux: `aarch64-unknown-linux-musl.tar.gz`
+- Linux: `x86_64-unknown-linux-musl.deb`
+- Linux: `x86_64-fedora.rpm`
+- macOS: `x86_64-apple-darwin.tar.gz`
+- macOS: `aarch64-apple-darwin.tar.gz`
+- Windows: `x86_64-pc-windows-msvc.zip`
+
+For generic `.tar.gz` assets:
+
+```bash
+curl -LO https://github.com/blacknon/hwatch/releases/latest/download/hwatch-<VERSION>.<TARGET>.tar.gz
+tar xf hwatch-<VERSION>.<TARGET>.tar.gz
+sudo install -m 0755 bin/hwatch /usr/local/bin/hwatch
+```
+
+For the generated release packages:
+
+```bash
+# Debian/Ubuntu-style systems
+sudo dpkg -i hwatch-<VERSION>.x86_64-unknown-linux-musl.deb
+
+# Fedora/RHEL-style systems
+sudo dnf install ./hwatch-<VERSION>.x86_64-fedora.rpm
+```
+
 ### Cargo Install
 
 ```bash
 cargo install hwatch
 ```
 
-### Logfile Reuse
+## Notes
 
-When `--logfile` points to an existing file, `hwatch` tries to read and reuse its history.
-If the file is empty or unreadable, interactive sessions ask for confirmation before continuing.
-
-For non-interactive runs such as CI, scripts, and batch mode, use
-`--force-logfile-overwrite` to skip that confirmation and continue with the existing path:
-
-```bash
-hwatch --force-logfile-overwrite --logfile ./hwatch.jsonl -b -g 1 -n 0.1 sh ./script.sh
-```
-
-### Security Notes
+### Security
 
 - `--diff-plugin` loads native dynamic libraries. Only load plugins you trust.
 - `--shell`, the monitored command itself, and `--aftercommand` execute commands on your system. Treat those values as trusted input only.
-
-### Packaging Status
-
-This repository includes packaging metadata for Debian-style `.deb` builds and
-RPM-based distributions.
-
-GitHub Actions validates the packaging flow in distro-specific containers:
-
-- Debian packaging is checked in a `debian:sid` container
-- RPM packaging is checked in a `fedora:latest` container
-
-These checks are intended to catch packaging regressions early while the project
-works toward official distribution packaging.
-Additional strict packaging jobs also run in CI on a best-effort basis to track
-progress toward dependency-complete distro builds.
 
 ## Usage
 
 ### Command
 
-```shell
+```text
 $ hwatch --help
 A modern alternative to the watch command, records the differences in execution results and can check this differences at after.
 
@@ -340,7 +387,7 @@ hex colors like `#RRGGBB`, or RGB values like `255,0,0`.
 
 ## Example
 
-### interval 3 second
+### Interval 3 second
 
 Use the -n option to specify the command execution interval.
 
@@ -348,7 +395,7 @@ Use the -n option to specify the command execution interval.
 hwatch -n 3 command...
 ```
 
-### exit when output changes
+### Exit when output changes
 
 Use `-g` to exit after the first detected change, like `watch -g`.
 
@@ -362,7 +409,7 @@ Use `-g N` to exit after `N` detected changes.
 hwatch -g 3 command...
 ```
 
-### logging output
+### Logging output
 
 The command execution result can be output as a log in json format.
 
@@ -371,6 +418,20 @@ hwatch -n 3 -l hwatch_log.json command...
 ```
 
 When you check the json log, you can easily check it by using [this script](https://gist.github.com/blacknon/551e52dce1651d2510162def5a0da1f0).
+
+#### Logfile Reuse
+
+When `--logfile` points to an existing file, `hwatch` tries to read and reuse
+its history. If the file is empty or unreadable, interactive sessions ask for
+confirmation before continuing.
+
+For non-interactive runs such as CI, scripts, and batch mode, use
+`--force-logfile-overwrite` to skip that confirmation and continue with the
+existing path:
+
+```bash
+hwatch --force-logfile-overwrite --logfile ./hwatch.jsonl -b -g 1 -n 0.1 sh ./script.sh
+```
 
 ### Use shell function
 
@@ -395,7 +456,7 @@ Alternatively, you can enable / disable the color mode with the <kbd>C</kbd> key
 hwatch -n 3 -c command...
 ```
 
-### diff view
+### Diff view
 
 To enable color mode, run hwatch with the `-d` option.
 
@@ -406,29 +467,29 @@ Switching can be done with the <kbd>D</kbd> key.
 hwatch -n 3 -d command...
 ```
 
-#### watch diff
+#### Watch diff
 
 <p align="center">
 <img src="./img/watch_diff.gif" />
 </p>
 
-#### line diff
+#### Line diff
 
 <p align="center">
 <img src="./img/line_diff.gif" />
 </p>
 
-#### word diff
+#### Word diff
 
 <p align="center">
 <img src="./img/word_diff.gif" />
 </p>
 
-### history filtering
+### History filtering
 
 You can filter history as a string with <kbd>/</kbd> key and as a regular expression with <kbd>*</kbd> key.
 
-### run batch mode
+### Run batch mode
 
 You can have command diffs output directly to stdout instead with `-b` option of getting them as a TUI app.
 

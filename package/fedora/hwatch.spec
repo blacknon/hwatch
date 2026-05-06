@@ -1,10 +1,10 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 License:        MIT
-Source0:        https://github.com/blacknon/hwatch/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
+Source0:        https://github.com/blacknon/hwatch/releases/download/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  bash-completion
 BuildRequires:  gcc
@@ -90,6 +90,9 @@ install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-funct
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
+* Wed Apr 29 2026 blacknon <blacknon@orebibou.com> - 0.4.2-2
+- Use a fixed GitHub release asset for Source0 to avoid archive checksum drift.
+
 * Tue Apr 28 2026 blacknon <blacknon@orebibou.com> - 0.4.2-1
 - Prepare the package for Fedora review.
 * Sat Apr 25 2026 - blacknon - 0.4.1-1
