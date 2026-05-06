@@ -96,6 +96,14 @@ yay -S hwatch
 nix profile install nixpkgs#hwatch
 ```
 
+### conda-forge
+
+```bash
+conda install conda-forge::hwatch
+# or
+mamba install conda-forge::hwatch
+```
+
 ### mise/asdf
 
 ```bash
