@@ -10,7 +10,6 @@ Build-Depends:
  dh-sequence-cargo,
  cargo,
  rustc,
- gcc,
  libstd-rust-dev,
  python3,
  librust-ansi-term-dev,
@@ -46,7 +45,7 @@ Build-Depends:
  librust-tempfile-dev,
  librust-unicode-segmentation-dev,
  librust-unicode-width-dev
-Standards-Version: 4.7.0
+Standards-Version: 4.7.4
 Homepage: https://github.com/blacknon/hwatch
 Vcs-Browser: https://github.com/blacknon/hwatch
 Vcs-Git: https://github.com/blacknon/hwatch.git

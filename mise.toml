@@ -91,3 +91,121 @@ vhs img/plugin.tape -o img/plugin.gif
 description = "Generate demo GIFs"
 
 #
+
+# Tasks(Debian packaging)
+# ====================
+[tasks.debian_image_build]
+run = """
+  docker build -f package/debian/Dockerfile -t "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" .
+"""
+description = "Build the Debian packaging container image"
+
+[tasks.debian_source]
+depends = ["debian_image_build"]
+run = """
+  docker run --rm -it \
+    -v "$PWD":/work \
+    "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
+    hwatch-debian-build /work
+"""
+description = "Build the Debian source package in Docker"
+
+[tasks.debian_sign]
+depends = ["debian_source"]
+run = """
+  : "${DEBSIGN_FINGERPRINT:?set DEBSIGN_FINGERPRINT to your GPG fingerprint}"
+  keytmp="$(mktemp -d)"
+  trap 'rm -rf "$keytmp"' EXIT
+
+  gpg --armor --export "$DEBSIGN_FINGERPRINT" > "$keytmp/public.asc"
+  gpg --armor --export-secret-keys "$DEBSIGN_FINGERPRINT" > "$keytmp/secret.asc"
+
+  docker run --rm -it \
+    -v "$PWD":/work \
+    -v "$keytmp/public.asc:/tmp/public.asc:ro" \
+    -v "$keytmp/secret.asc:/tmp/secret.asc:ro" \
+    -v "$HOME/.devscripts:/root/.devscripts:ro" \
+    -e GNUPGHOME=/root/.gnupg \
+    -w /work \
+    "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
+    bash -lc '
+      mkdir -p /root/.gnupg &&
+      chmod 700 /root/.gnupg &&
+      gpgconf --kill gpg-agent || true &&
+      gpgconf --launch gpg-agent &&
+      gpg --import /tmp/public.asc &&
+      gpg --import /tmp/secret.asc &&
+      debsign out/debian-source/hwatch_*_source.changes
+    '
+"""
+description = "Sign the Debian source package in Docker using a temporary exported key"
+
+[tasks.debian_upload]
+run = """
+  : "${DEBSIGN_FINGERPRINT:?set DEBSIGN_FINGERPRINT to your GPG fingerprint}"
+  keytmp="$(mktemp -d)"
+  trap 'rm -rf "$keytmp"' EXIT
+
+  gpg --armor --export "$DEBSIGN_FINGERPRINT" > "$keytmp/public.asc"
+
+  docker_args=(
+    --rm -it
+    -v "$PWD":/work
+    -v "$keytmp/public.asc:/tmp/public.asc:ro"
+    -e "DPUT_TARGET=${DPUT_TARGET:-mentors}"
+    -w /work
+  )
+
+  if [ -f "$HOME/.dput.cf" ]; then
+    docker_args+=(-v "$HOME/.dput.cf:/root/.dput.cf:ro")
+  fi
+
+  docker run "${docker_args[@]}" \
+    "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
+    bash -lc '
+      mkdir -p /root/.gnupg &&
+      chmod 700 /root/.gnupg &&
+      gpgconf --kill gpg-agent || true &&
+      gpgconf --launch gpg-agent &&
+      gpg --import /tmp/public.asc &&
+      dput "$DPUT_TARGET" out/debian-source/hwatch_*_source.changes
+    '
+"""
+description = "Upload the signed Debian source package with dput"
+
+# Tasks(Fedora packaging)
+# ====================
+[tasks.fedora_source_tarball]
+run = """
+  version="$(sed -n 's/^Version:[[:space:]]*//p' package/fedora/hwatch.spec | head -n1)"
+  if [ -z "$version" ]; then
+    echo "failed to read Version from package/fedora/hwatch.spec" >&2
+    exit 1
+  fi
+
+  mkdir -p out/fedora
+  git archive \
+    --format=tar.gz \
+    --prefix="hwatch-${version}/" \
+    -o "out/fedora/hwatch-${version}.tar.gz" \
+    "refs/tags/${version}"
+
+  echo "Created out/fedora/hwatch-${version}.tar.gz"
+"""
+description = "Create the fixed Fedora source tarball from the matching git tag"
+
+[tasks.fedora_image_build]
+run = """
+  docker build -f package/fedora/Dockerfile -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" .
+"""
+description = "Build the Fedora packaging container image"
+
+[tasks.fedora_srpm]
+depends = ["fedora_source_tarball", "fedora_image_build"]
+run = """
+  docker run --rm \
+    -v "$PWD":/work \
+    "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    hwatch-fedora-build-srpm /work
+"""
+description = "Build the Fedora SRPM in Docker"
