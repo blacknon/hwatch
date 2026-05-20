@@ -131,25 +131,25 @@ fn generate_watch_diff_rows<'a>(
 
         let watch_line = match options.get_color() {
             false => create_watch_diff_output_line(
-                &dest_line,
-                &src_line,
+                dest_line,
+                src_line,
                 options.get_ignore_spaceblock(),
             ),
             true => create_watch_diff_output_line_with_ansi_for_watch(
-                &dest_line,
-                &src_line,
+                dest_line,
+                src_line,
                 options.get_ignore_spaceblock(),
             ),
         };
         let batch_line = match options.get_color() {
             false => create_watch_diff_output_line_for_batch(
-                &dest_line,
-                &src_line,
+                dest_line,
+                src_line,
                 options.get_ignore_spaceblock(),
             ),
             true => create_watch_diff_output_line_with_ansi_for_batch(
-                &dest_line,
-                &src_line,
+                dest_line,
+                src_line,
                 options.get_ignore_spaceblock(),
             ),
         };

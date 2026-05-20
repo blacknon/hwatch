@@ -3,13 +3,9 @@
 // that can be found in the LICENSE file.
 
 #![allow(clippy::arc_with_non_send_sync)]
-#![allow(clippy::collapsible_match)]
 #![allow(clippy::empty_docs)]
 #![allow(clippy::items_after_test_module)]
-#![allow(clippy::len_zero)]
-#![allow(clippy::needless_borrow)]
 #![allow(clippy::needless_late_init)]
-#![allow(clippy::needless_return)]
 #![allow(clippy::wrong_self_convention)]
 
 // v0.4.3
