@@ -317,17 +317,15 @@ pub fn should_continue_with_unreadable_logfile(
     stdin_is_terminal: bool,
 ) -> bool {
     if force_logfile_overwrite {
-        return true;
-    }
-
-    if !stdin_is_terminal {
+        true
+    } else if !stdin_is_terminal {
         eprintln!(
             "Refusing to reuse the existing logfile without confirmation in a non-interactive session. Rerun with --force-logfile-overwrite to continue."
         );
-        return false;
+        false
+    } else {
+        common::confirm_yes_default("Log to the same file?")
     }
-
-    common::confirm_yes_default("Log to the same file?")
 }
 
 fn builtin_diff_mode_names() -> HashSet<String> {
@@ -341,21 +339,24 @@ fn builtin_diff_mode_names() -> HashSet<String> {
 
 fn has_diff_plugin_option(args: &[OsString]) -> bool {
     let mut index = 0;
+    let mut found = false;
     while index < args.len() {
         let arg = args[index].to_string_lossy();
         if arg == "--" {
             break;
         }
         if arg == "--diff-plugin" {
-            return true;
+            found = true;
+            break;
         }
         if arg.starts_with("--diff-plugin=") {
-            return true;
+            found = true;
+            break;
         }
         index += 1;
     }
 
-    false
+    found
 }
 
 fn normalize_args(args: Vec<OsString>) -> Vec<OsString> {

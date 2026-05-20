@@ -31,13 +31,13 @@ impl DiffModeAtPlane {
 impl DiffMode for DiffModeAtPlane {
     fn generate_watch_diff(&mut self, dest: &str, _: &str) -> Vec<Line<'static>> {
         let (header_width, rows) = generate_plane_rows(dest, self.options.get_color());
-        self.header_width = header_width.clone();
+        self.header_width = header_width;
         render_diff_rows_as_watch(rows, self.options.get_line_number(), header_width)
     }
 
     fn generate_batch_diff(&mut self, dest: &str, _: &str) -> Vec<String> {
         let (header_width, rows) = generate_plane_rows(dest, self.options.get_color());
-        self.header_width = header_width.clone();
+        self.header_width = header_width;
         render_diff_rows_as_batch(
             rows,
             self.options.get_color(),
@@ -47,11 +47,11 @@ impl DiffMode for DiffModeAtPlane {
     }
 
     fn get_header_text(&self) -> String {
-        return String::from("None");
+        String::from("None")
     }
 
     fn get_support_only_diffline(&self) -> bool {
-        return false;
+        false
     }
 
     fn set_option(&mut self, options: DiffModeOptions) {

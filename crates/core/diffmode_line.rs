@@ -60,11 +60,11 @@ impl DiffMode for DiffModeAtLineDiff {
             (false, true) => "Line(Only)",
             (false, false) => "Line      ",
         };
-        return String::from(header_text);
+        String::from(header_text)
     }
 
     fn get_support_only_diffline(&self) -> bool {
-        return true;
+        true
     }
 
     fn set_option(&mut self, options: DiffModeOptions) {

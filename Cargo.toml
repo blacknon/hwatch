@@ -6,7 +6,7 @@ keywords = ["watch", "command", "monitoring"]
 license = "MIT"
 name = "hwatch"
 repository = "https://github.com/blacknon/hwatch"
-version = "0.4.2"
+version = "0.4.3"
 
 [workspace]
 members = ["crates/ansi", "crates/diffmode"]
@@ -31,13 +31,20 @@ tempfile = ">=3.24.0, <4"
 chardetng = "0.1.17"
 chrono = ">=0.4.42, <0.5"
 clap = { version = ">=4.5.45, <5", features = ["cargo", "derive"] }
-config = { version = ">=0.15.9, <0.16", default-features = false, features = ["ini"] }
+config = { version = ">=0.15.9, <0.16", default-features = false, features = [
+    "ini",
+] }
 crossbeam-channel = "0.5.15"
 crossterm = ">=0.28.1, <0.30"
 ctrlc = { version = ">=3.2.3, <4", features = ["termination"] }
 encoding_rs = "0.8"
 flate2 = "1.1.9"
-nix = { version = ">=0.30.1, <0.32", features = ["fs", "term", "process", "signal"] }
+nix = { version = ">=0.30.1, <0.32", features = [
+    "fs",
+    "term",
+    "process",
+    "signal",
+] }
 ratatui.workspace = true
 rayon = "1.10"
 regex = ">=1.12.2, <2"

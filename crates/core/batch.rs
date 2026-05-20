@@ -345,10 +345,10 @@ impl Batch {
             if *remaining > 0 {
                 *remaining -= 1;
             }
-            return *remaining == 0;
+            *remaining == 0
+        } else {
+            false
         }
-
-        false
     }
 }
 
