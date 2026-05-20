@@ -165,7 +165,7 @@ fn generate_watch_diff_rows<'a>(
     (header_width, result)
 }
 
-///
+// Builds a watch-mode line with reverse-video highlights for changed characters.
 fn create_watch_diff_output_line<'a>(
     dest_line: &str,
     src_line: &str,
@@ -319,7 +319,7 @@ fn create_watch_diff_output_line_for_batch(
     }
 }
 
-///
+// Builds an ANSI-aware watch-mode line while preserving original styling.
 fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
     dest_line: &str,
     src_line: &str,
@@ -348,20 +348,20 @@ fn create_watch_diff_output_line_with_ansi_for_watch<'a>(
     // NOTE: Used because tui-rs skips regular space characters.
     let space = '\u{00a0}'.to_string();
     let max_span = cmp::max(src_spans.len(), dest_spans.len());
-    //
+    // Compare each ANSI-preserving span position across both lines.
     let mut result = vec![];
     for x in 0..max_span {
-        //
+        // Pad missing source spans so both sides stay aligned.
         if src_spans.len() <= x {
             src_spans.push(Span::from(space.to_string()));
         }
 
-        //
+        // Pad missing destination spans so both sides stay aligned.
         if dest_spans.len() <= x {
             dest_spans.push(Span::from(space.to_string()));
         }
 
-        //
+        // Reverse-video only the spans whose content or style changed.
         if src_spans[x].content != dest_spans[x].content
             || src_spans[x].style != dest_spans[x].style
         {

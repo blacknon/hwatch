@@ -82,8 +82,7 @@ pub(super) fn exec_command(
     #[cfg(not(unix))]
     let stdin_master: Option<()> = None;
 
-    let stdout_reader;
-    let stderr_reader;
+    let (stdout_reader, stderr_reader);
 
     #[cfg(unix)]
     {
@@ -103,8 +102,10 @@ pub(super) fn exec_command(
             };
 
             stdin_master = Some(stdin_pty.master);
-            stdout_reader = ReaderHandle::Fd(stdout_pty.master);
-            stderr_reader = ReaderHandle::Fd(stderr_pty.master);
+            (stdout_reader, stderr_reader) = (
+                ReaderHandle::Fd(stdout_pty.master),
+                ReaderHandle::Fd(stderr_pty.master),
+            );
 
             command
                 .stdin(Stdio::from(stdin_pty.slave))
@@ -112,16 +113,14 @@ pub(super) fn exec_command(
                 .stderr(Stdio::from(stderr_pty.slave));
         } else {
             command.stdout(Stdio::piped()).stderr(Stdio::piped());
-            stdout_reader = ReaderHandle::Pipe;
-            stderr_reader = ReaderHandle::Pipe;
+            (stdout_reader, stderr_reader) = (ReaderHandle::Pipe, ReaderHandle::Pipe);
         }
     }
 
     #[cfg(not(unix))]
     {
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
-        stdout_reader = ReaderHandle::Pipe;
-        stderr_reader = ReaderHandle::Pipe;
+        (stdout_reader, stderr_reader) = (ReaderHandle::Pipe, ReaderHandle::Pipe);
     }
 
     let child_result = command.spawn();

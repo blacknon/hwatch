@@ -3,7 +3,6 @@
 // that can be found in the LICENSE file.
 
 use crossbeam_channel::Receiver;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{collections::HashMap, io};
 
@@ -11,72 +10,73 @@ use crate::common::{logging_result, OutputMode};
 use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
+use crate::DiffModeRef;
 
-use hwatch_diffmode::{text_eq_ignoring_space_blocks, DiffMode};
+use hwatch_diffmode::text_eq_ignoring_space_blocks;
 
 /// Struct at watch view window.
 pub struct Batch {
-    ///
+    // Command executed after a change is detected.
     after_command: String,
 
-    ///
+    // Shell used to execute the after-command hook.
     after_command_shell_command: String,
 
-    ///
+    // Whether hook payloads are written to a temp file first.
     after_command_result_write_file: bool,
 
-    ///
+    // Whether to print line numbers in diff output.
     line_number: bool,
 
-    ///
+    // Whether ANSI color output should be preserved.
     is_color: bool,
 
-    ///
+    // Whether to beep when output changes.
     is_beep: bool,
 
-    ///
+    // Remaining change count before exiting, if enabled.
     exit_on_change: Option<u32>,
 
-    ///
+    // Prevents the first observed result from counting as a change.
     exit_on_change_armed: bool,
 
-    ///
+    // Whether batch output should be reversed.
     is_reverse: bool,
 
-    ///
+    // Accumulated command history for batch mode.
     results: HashMap<usize, CommandResult>,
 
-    ///
+    // Selected output stream to compare and print.
     output_mode: OutputMode,
 
-    ///
+    // Selected diff mode index.
     diff_mode: usize,
 
-    ///
-    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+    // Available diff mode implementations.
+    diff_modes: Vec<DiffModeRef>,
 
-    ///
+    // Whether only changed lines should be shown.
     is_only_diffline: bool,
 
-    ///
+    // Whether whitespace-only block changes should be ignored.
     ignore_spaceblock: bool,
 
-    ///
+    // Optional logfile path for persisted history.
     logfile: String,
 
-    ///
+    // Shared rendering helper for batch output.
     printer: output::Printer,
 
-    ///
+    // Receives command execution events from the runner thread.
     pub rx: Receiver<AppEvent>,
 }
 
 impl Batch {
-    ///
-    pub fn new(rx: Receiver<AppEvent>, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
+    // Creates batch-mode application state.
+    pub fn new(rx: Receiver<AppEvent>, diff_modes: Vec<DiffModeRef>) -> Self {
         // Create Default DiffMode
         let diff_mode_counter = 0;
-        let mutex_diff_mode = Arc::clone(&diff_modes[diff_mode_counter]);
+        let diff_mode_ref = diff_modes[diff_mode_counter].clone();
 
         Self {
             after_command: "".to_string(),
@@ -95,7 +95,7 @@ impl Batch {
             is_only_diffline: false,
             ignore_spaceblock: false,
             logfile: "".to_string(),
-            printer: output::Printer::new(mutex_diff_mode),
+            printer: output::Printer::new(diff_mode_ref),
             rx,
         }
     }
@@ -139,7 +139,7 @@ impl Batch {
         }
     }
 
-    ///
+    // Processes a new command result and prints when the selected stream changes.
     fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
         let mut latest_result = CommandResult::default();
@@ -221,7 +221,7 @@ impl Batch {
         }
     }
 
-    ///
+    // Prints the currently selected diff to stdout.
     fn printout_result(&mut self) {
         // output result
         let latest = self.results.len() - 1;
@@ -252,7 +252,7 @@ impl Batch {
         println!("{:}", printout_data.join("\n"));
     }
 
-    ///
+    // Sets the after-command hook.
     pub fn set_after_command(mut self, after_command: String) -> Self {
         self.after_command = after_command;
         self
@@ -268,65 +268,68 @@ impl Batch {
         self
     }
 
-    ///
+    // Enables or disables line numbers in batch output.
     pub fn set_line_number(mut self, line_number: bool) -> Self {
         self.line_number = line_number;
         self
     }
 
-    ///
+    // Enables or disables terminal beeps on changes.
     pub fn set_beep(mut self, is_beep: bool) -> Self {
         self.is_beep = is_beep;
         self
     }
 
-    ///
+    // Enables or disables ANSI color output.
     pub fn set_color(mut self, is_color: bool) -> Self {
         self.is_color = is_color;
         self
     }
 
-    ///
+    // Configures change-count based exit behavior.
     pub fn set_exit_on_change(mut self, exit_on_change: Option<u32>) -> Self {
         self.exit_on_change = exit_on_change;
         self.exit_on_change_armed = false;
         self
     }
 
-    ///
+    // Enables or disables reverse output order.
     pub fn set_reverse(mut self, is_reverse: bool) -> Self {
         self.is_reverse = is_reverse;
         self
     }
 
-    ///
+    // Selects the stream shown in batch mode.
     pub fn set_output_mode(mut self, output_mode: OutputMode) -> Self {
         self.output_mode = output_mode;
         self
     }
 
-    ///
+    // Selects the active diff mode by index.
     pub fn set_diff_mode(mut self, diff_mode: usize) -> Self {
         self.diff_mode = diff_mode;
         self
     }
 
-    ///
+    // Enables or disables diff-only output.
     pub fn set_only_diffline(mut self, is_only_diffline: bool) -> Self {
         self.is_only_diffline = is_only_diffline;
         self
     }
 
+    // Enables or disables whitespace-block normalization in comparisons.
     pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
         self.ignore_spaceblock = ignore_spaceblock;
         self
     }
 
+    // Sets the logfile path used for persisted history.
     pub fn set_logfile(mut self, logfile: String) -> Self {
         self.logfile = logfile;
         self
     }
 
+    // Handles deferred exit-on-change activation and countdown.
     fn handle_exit_on_change(&mut self, changed: bool) -> bool {
         if self.exit_on_change.is_none() {
             return false;
@@ -389,8 +392,9 @@ mod tests {
 
     fn new_batch(output_mode: OutputMode) -> Batch {
         let (_tx, rx) = unbounded();
-        let diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> =
-            vec![Arc::new(Mutex::new(Box::new(DiffModeAtPlane::new())))];
+        let diff_modes: Vec<DiffModeRef> = vec![std::rc::Rc::new(std::cell::RefCell::new(
+            Box::new(DiffModeAtPlane::new()),
+        ))];
 
         Batch::new(rx, diff_modes).set_output_mode(output_mode)
     }

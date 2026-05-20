@@ -10,7 +10,7 @@ use serde::ser::Error as SerError;
 use serde::{de, Deserialize, Serialize};
 
 impl Input {
-    pub fn to_str(&self) -> String {
+    pub fn format_key(&self) -> String {
         match &self.input {
             InputType::Key(key) => {
                 let modifiers = key

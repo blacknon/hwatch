@@ -2,12 +2,6 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-#![allow(clippy::arc_with_non_send_sync)]
-#![allow(clippy::empty_docs)]
-#![allow(clippy::items_after_test_module)]
-#![allow(clippy::needless_late_init)]
-#![allow(clippy::wrong_self_convention)]
-
 // v0.4.3
 // clippy allowを全部解消していく
 
@@ -51,10 +45,12 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, Ke
 use diff_mode_registry::{calculate_diff_mode_header_width, register_diff_mode_name};
 use hwatch_diffmode::DiffMode;
 use interval::RunInterval;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::IsTerminal;
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
@@ -88,6 +84,7 @@ pub const HISTORY_WIDTH: u16 = 25;
 pub const SHELL_COMMAND_EXECCMD: &str = "{COMMAND}";
 pub const HISTORY_LIMIT: &str = "5000";
 type SharedInterval = Arc<RwLock<RunInterval>>;
+type DiffModeRef = Rc<RefCell<Box<dyn DiffMode>>>;
 
 // const at Windows
 #[cfg(windows)]
@@ -263,9 +260,8 @@ fn main() {
     };
 
     // set command
-    let command_line: Vec<String>;
-    if let Some(value) = matcher.get_many::<String>("command") {
-        command_line = value.into_iter().cloned().collect();
+    let command_line: Vec<String> = if let Some(value) = matcher.get_many::<String>("command") {
+        value.into_iter().cloned().collect()
     } else {
         // check load_results
         if load_results.is_empty() {
@@ -278,7 +274,7 @@ fn main() {
 
         // set command
         let command = load_results.last().unwrap().command.clone();
-        command_line = match shell_words::split(&command) {
+        match shell_words::split(&command) {
             Ok(command_line) => command_line,
             Err(err) => {
                 let err = cmd_app.error(
@@ -287,8 +283,8 @@ fn main() {
                 );
                 err.exit();
             }
-        };
-    }
+        }
+    };
 
     // Start Command Thread
     {
@@ -360,11 +356,11 @@ fn main() {
     diff_mode_word.is_word_highlight = true;
 
     // set diff_modes
-    let mut diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>> = vec![
-        Arc::new(Mutex::new(Box::new(diff_mode_plane))),
-        Arc::new(Mutex::new(Box::new(diff_mode_watch))),
-        Arc::new(Mutex::new(Box::new(diff_mode_line))),
-        Arc::new(Mutex::new(Box::new(diff_mode_word))),
+    let mut diff_modes: Vec<DiffModeRef> = vec![
+        Rc::new(RefCell::new(Box::new(diff_mode_plane))),
+        Rc::new(RefCell::new(Box::new(diff_mode_watch))),
+        Rc::new(RefCell::new(Box::new(diff_mode_line))),
+        Rc::new(RefCell::new(Box::new(diff_mode_word))),
     ];
 
     for (index, name) in ["none", "watch", "line", "word"].into_iter().enumerate() {
@@ -390,7 +386,7 @@ fn main() {
                 err.exit();
             }
 
-            diff_modes.push(Arc::new(Mutex::new(registration.mode)));
+            diff_modes.push(Rc::new(RefCell::new(registration.mode)));
         }
     }
 

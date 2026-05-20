@@ -8,9 +8,6 @@
 // TODO: 行・文字差分数の取得を行うための関数を作成する(ここじゃないかも？？)
 
 // modules
-// use std::borrow::Cow;
-// use std::fmt::Write;
-use std::sync::{Arc, Mutex};
 use tui::prelude::Line;
 use tui::style::Color;
 
@@ -20,7 +17,8 @@ use crate::DEFAULT_TAB_SIZE;
 // local module
 use crate::common::OutputMode;
 use crate::exec::CommandResult;
-use hwatch_diffmode::{DiffMode, DiffModeOptions};
+use crate::DiffModeRef;
+use hwatch_diffmode::DiffModeOptions;
 
 #[path = "output_render.rs"]
 mod render;
@@ -40,7 +38,7 @@ pub enum WatchRenderData {
 
 pub struct Printer {
     // diff mode.
-    diff_mode: Arc<Mutex<Box<dyn DiffMode>>>,
+    diff_mode: DiffModeRef,
 
     // output mode.
     output_mode: OutputMode,
@@ -59,7 +57,7 @@ pub struct Printer {
 }
 
 impl Printer {
-    pub fn new(diffmode: Arc<Mutex<Box<dyn DiffMode>>>) -> Self {
+    pub fn new(diffmode: DiffModeRef) -> Self {
         Self {
             diff_mode: diffmode,
             output_mode: OutputMode::Output,
@@ -70,7 +68,7 @@ impl Printer {
         }
     }
 
-    ///
+    // Builds watch-mode render output for the selected result pair.
     pub fn get_watch_data(&mut self, dest: &CommandResult, src: &CommandResult) -> WatchRenderData {
         let text_dest = prepare_watch_text(
             dest,
@@ -85,7 +83,7 @@ impl Printer {
             self.options.get_color(),
         );
 
-        let mut diff_mode = self.diff_mode.lock().unwrap();
+        let mut diff_mode = self.diff_mode.borrow_mut();
 
         // set diff mode options
         diff_mode.set_option(self.options);
@@ -103,12 +101,12 @@ impl Printer {
         })
     }
 
-    ///
+    // Builds batch-mode text output for the selected result pair.
     pub fn get_batch_text(&mut self, dest: &CommandResult, src: &CommandResult) -> Vec<String> {
         let text_dest = prepare_batch_text(dest, self.output_mode);
         let text_src = prepare_batch_text(src, self.output_mode);
 
-        let mut diff_mode = self.diff_mode.lock().unwrap();
+        let mut diff_mode = self.diff_mode.borrow_mut();
 
         // set diff mode options
         diff_mode.set_option(self.options);
@@ -120,7 +118,7 @@ impl Printer {
     }
 
     /// set diff mode.
-    pub fn set_diff_mode(&mut self, diff_mode: Arc<Mutex<Box<dyn DiffMode>>>) -> &mut Self {
+    pub fn set_diff_mode(&mut self, diff_mode: DiffModeRef) -> &mut Self {
         self.diff_mode = diff_mode;
         self
     }
@@ -189,8 +187,9 @@ mod tests {
     use crate::exec::CommandResult;
 
     fn line_diff_printer() -> Printer {
-        let diff_mode: Arc<Mutex<Box<dyn DiffMode>>> =
-            Arc::new(Mutex::new(Box::new(DiffModeAtLineDiff::new())));
+        let diff_mode: DiffModeRef = std::rc::Rc::new(std::cell::RefCell::new(Box::new(
+            DiffModeAtLineDiff::new(),
+        )));
         Printer::new(diff_mode)
     }
 

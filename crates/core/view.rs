@@ -10,7 +10,6 @@ use self::runtime::{restore_terminal, setup_terminal, spawn_input_thread};
 // module
 use crossbeam_channel::{Receiver, Sender};
 use std::error::Error;
-use std::sync::{Arc, Mutex};
 use tui::style::Color;
 
 // local module
@@ -19,8 +18,7 @@ use crate::common::OutputMode;
 use crate::event::AppEvent;
 use crate::exec::CommandResult;
 use crate::keymap::{default_keymap, Keymap};
-
-use hwatch_diffmode::DiffMode;
+use crate::DiffModeRef;
 
 // local const
 use crate::SharedInterval;
@@ -51,7 +49,7 @@ pub struct View {
     wrap: bool,
     output_mode: OutputMode,
     diff_mode: usize,
-    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+    diff_modes: Vec<DiffModeRef>,
     diff_mode_width: usize,
     is_only_diffline: bool,
     ignore_spaceblock: bool,
@@ -60,9 +58,9 @@ pub struct View {
     log_path: String,
 }
 
-///
+// Builds a configured view before the TUI runtime starts.
 impl View {
-    pub fn new(interval: SharedInterval, diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>) -> Self {
+    pub fn new(interval: SharedInterval, diff_modes: Vec<DiffModeRef>) -> Self {
         Self {
             after_command: "".to_string(),
             after_command_shell_command: crate::SHELL_COMMAND.to_string(),

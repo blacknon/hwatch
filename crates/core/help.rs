@@ -21,16 +21,16 @@ pub struct KeyData {
 }
 
 pub struct HelpWindow<'a> {
-    ///
+    // Render-ready help text lines.
     text: Vec<Line<'a>>,
 
-    ///
+    // Popup rectangle inside the terminal.
     area: Rect,
 
-    ///
+    // Current vertical scroll position.
     position: i16,
 
-    ///
+    // Total rendered line count.
     lines: i16,
 }
 
@@ -47,7 +47,7 @@ impl HelpWindow<'_> {
         }
     }
 
-    ///
+    // Draws the help popup in the center of the screen.
     pub fn draw(&mut self, f: &mut Frame) {
         let title = " [help] ";
 
@@ -74,12 +74,12 @@ impl HelpWindow<'_> {
         f.render_widget(block, self.area);
     }
 
-    ///
+    // Scrolls the help popup upward.
     pub fn scroll_up(&mut self, num: i16) {
         self.position = std::cmp::max(0, self.position - num);
     }
 
-    ///
+    // Scrolls the help popup downward.
     pub fn scroll_down(&mut self, num: i16) {
         let height: u16 = self.area.height.saturating_sub(2); // top/bottom border = 2
         if self.lines > height as i16 {
@@ -136,12 +136,12 @@ fn gen_help_text_from_key_data<'a>(data: Vec<KeyData>) -> Vec<Line<'a>> {
     text
 }
 
-///
+// Converts keymap entries into the formatted help text shown in the popup.
 fn gen_help_text<'a>(keymap: Keymap) -> Vec<Line<'a>> {
     let mut keydata_list = vec![];
 
     for input_event_content in keymap.values() {
-        let key = input_event_content.input.to_str();
+        let key = input_event_content.input.format_key();
         let description = get_input_action_description(input_event_content.action);
 
         keydata_list.push(KeyData {

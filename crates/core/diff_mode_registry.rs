@@ -2,10 +2,10 @@
 // Use of this source code is governed by an MIT license
 // that can be found in the LICENSE file.
 
-use hwatch_diffmode::DiffMode;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use unicode_width::UnicodeWidthStr;
+
+use crate::DiffModeRef;
 
 pub fn register_diff_mode_name(
     diff_mode_name_to_index: &mut HashMap<String, usize>,
@@ -20,11 +20,11 @@ pub fn register_diff_mode_name(
     Ok(())
 }
 
-pub fn calculate_diff_mode_header_width(diff_modes: &[Arc<Mutex<Box<dyn DiffMode>>>]) -> usize {
+pub fn calculate_diff_mode_header_width(diff_modes: &[DiffModeRef]) -> usize {
     let mut max_width = 0;
 
     for diff_mode in diff_modes {
-        let mut diff_mode = diff_mode.lock().unwrap();
+        let mut diff_mode = diff_mode.borrow_mut();
         for only_diffline in [false, true] {
             let mut options = hwatch_diffmode::DiffModeOptions::new();
             options.set_only_diffline(only_diffline);
