@@ -49,11 +49,11 @@ impl DiffMode for DiffModeAtWatch {
     }
 
     fn get_header_text(&self) -> String {
-        return String::from("Watch");
+        String::from("Watch")
     }
 
     fn get_support_only_diffline(&self) -> bool {
-        return false;
+        false
     }
 
     fn set_option(&mut self, options: DiffModeOptions) {
@@ -85,26 +85,26 @@ fn generate_watch_diff_rows<'a>(
 
     // create dest text
     let text_dest_str = dest.to_string();
-    let mut text_dest: String = "".to_string();
+    let mut text_dest = String::new();
     for mut l in text_dest_str.lines() {
         if l.is_empty() {
             l = "\u{200B}";
         }
 
         text_dest.push_str(l);
-        text_dest.push_str("\n");
+        text_dest.push('\n');
     }
 
     // create src text
     let text_src_str = src.to_string();
-    let mut text_src: String = "".to_string();
+    let mut text_src = String::new();
     for mut l in text_src_str.lines() {
         if l.is_empty() {
             l = "\u{200B}";
         }
 
         text_src.push_str(l);
-        text_src.push_str("\n");
+        text_src.push('\n');
     }
 
     // create text vector
@@ -172,86 +172,86 @@ fn create_watch_diff_output_line<'a>(
     ignore_spaceblock: bool,
 ) -> Line<'a> {
     if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
-        return Line::from(String::from(dest_line));
-    }
+        Line::from(String::from(dest_line))
+    } else {
+        // Decompose lines by character.
+        let mut src_chars: Vec<char> = src_line.chars().collect();
+        let mut dest_chars: Vec<char> = dest_line.chars().collect();
 
-    // Decompose lines by character.
-    let mut src_chars: Vec<char> = src_line.chars().collect();
-    let mut dest_chars: Vec<char> = dest_line.chars().collect();
+        // 00a0 ... non-breaking space. watch mode only.
+        // NOTE: Used because tui-rs skips regular space characters.
+        let space: char = '\u{00a0}';
 
-    // 00a0 ... non-breaking space. watch mode only.
-    // NOTE: Used because tui-rs skips regular space characters.
-    let space: char = '\u{00a0}';
+        // max char
+        let max_char = cmp::max(src_chars.len(), dest_chars.len());
 
-    // max char
-    let max_char = cmp::max(src_chars.len(), dest_chars.len());
+        let mut result_spans = vec![];
+        let mut result_chars = vec![];
 
-    let mut result_spans = vec![];
-    let mut result_chars = vec![];
-
-    let mut is_escape = false;
-    let mut escape_code = "".to_string();
-    for x in 0..max_char {
-        if src_chars.len() <= x {
-            src_chars.push(space);
-        }
-
-        if dest_chars.len() <= x {
-            dest_chars.push(space);
-        }
-
-        let src_char = src_chars[x];
-        let dest_char = dest_chars[x];
-
-        if src_char != dest_char {
-            // create spans
-            let span_data = if dest_char == space {
-                Span::from(' '.to_string())
-            } else {
-                Span::styled(
-                    dest_chars[x].to_string(),
-                    Style::default().add_modifier(Modifier::REVERSED),
-                )
-            };
-            result_spans.push(span_data);
-
-            // create chars
-            let ansi_escape_sequence = '\x1b';
-            let char_data = if dest_char == space {
-                ' '
-            } else {
-                dest_chars[x]
-            };
-
-            if char_data == ansi_escape_sequence {
-                escape_code = "".to_string();
-                escape_code.push(char_data);
-                is_escape = true;
-            } else if is_escape {
-                escape_code.push(char_data);
-                if char_data == 'm' {
-                    is_escape = false;
-                }
-                for c in escape_code.chars() {
-                    result_chars.push(c);
-                }
-            } else {
-                // let ansi_revese_style = ansi_term::Style::new().reverse();
-                let ansi_reverse = format!("\x1b[7m{char_data}\x1b[7m");
-                for c in ansi_reverse.chars() {
-                    result_chars.push(c);
-                }
+        let mut is_escape = false;
+        let mut escape_code = String::new();
+        for x in 0..max_char {
+            if src_chars.len() <= x {
+                src_chars.push(space);
             }
-        } else {
-            // create spans
-            result_spans.push(Span::styled(dest_chars[x].to_string(), Style::default()));
 
-            // create chars
-            result_chars.push(dest_chars[x]);
+            if dest_chars.len() <= x {
+                dest_chars.push(space);
+            }
+
+            let src_char = src_chars[x];
+            let dest_char = dest_chars[x];
+
+            if src_char != dest_char {
+                // create spans
+                let span_data = if dest_char == space {
+                    Span::from(' '.to_string())
+                } else {
+                    Span::styled(
+                        dest_chars[x].to_string(),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                    )
+                };
+                result_spans.push(span_data);
+
+                // create chars
+                let ansi_escape_sequence = '\x1b';
+                let char_data = if dest_char == space {
+                    ' '
+                } else {
+                    dest_chars[x]
+                };
+
+                if char_data == ansi_escape_sequence {
+                    escape_code = String::new();
+                    escape_code.push(char_data);
+                    is_escape = true;
+                } else if is_escape {
+                    escape_code.push(char_data);
+                    if char_data == 'm' {
+                        is_escape = false;
+                    }
+                    for c in escape_code.chars() {
+                        result_chars.push(c);
+                    }
+                } else {
+                    // let ansi_revese_style = ansi_term::Style::new().reverse();
+                    let ansi_reverse = format!("\x1b[7m{char_data}\x1b[7m");
+                    for c in ansi_reverse.chars() {
+                        result_chars.push(c);
+                    }
+                }
+            } else {
+                // create spans
+                result_spans.push(Span::styled(dest_chars[x].to_string(), Style::default()));
+
+                // create chars
+                result_chars.push(dest_chars[x]);
+            }
         }
+        let _ = result_chars;
+        Line::from(result_spans)
     }
-    let _ = result_chars;
-    Line::from(result_spans)
 }
 
 fn create_watch_diff_output_line_for_batch(
@@ -260,63 +260,63 @@ fn create_watch_diff_output_line_for_batch(
     ignore_spaceblock: bool,
 ) -> String {
     if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
-        return dest_line.to_string();
-    }
+        dest_line.to_string()
+    } else {
+        let mut src_chars: Vec<char> = src_line.chars().collect();
+        let mut dest_chars: Vec<char> = dest_line.chars().collect();
+        let space: char = '\u{00a0}';
+        let max_char = cmp::max(src_chars.len(), dest_chars.len());
+        let mut result_chars = vec![];
 
-    let mut src_chars: Vec<char> = src_line.chars().collect();
-    let mut dest_chars: Vec<char> = dest_line.chars().collect();
-    let space: char = '\u{00a0}';
-    let max_char = cmp::max(src_chars.len(), dest_chars.len());
-    let mut result_chars = vec![];
-
-    let mut is_escape = false;
-    let mut escape_code = "".to_string();
-    for x in 0..max_char {
-        if src_chars.len() <= x {
-            src_chars.push(space);
-        }
-
-        if dest_chars.len() <= x {
-            dest_chars.push(space);
-        }
-
-        let src_char = src_chars[x];
-        let dest_char = dest_chars[x];
-
-        if src_char != dest_char {
-            let ansi_escape_sequence = '\x1b';
-            let char_data = if dest_char == space {
-                ' '
-            } else {
-                dest_chars[x]
-            };
-
-            if char_data == ansi_escape_sequence {
-                escape_code = "".to_string();
-                escape_code.push(char_data);
-                is_escape = true;
-            } else if is_escape {
-                escape_code.push(char_data);
-                if char_data == 'm' {
-                    is_escape = false;
-                }
-                for c in escape_code.chars() {
-                    result_chars.push(c);
-                }
-            } else {
-                let ansi_reverse = format!("\x1b[7m{char_data}\x1b[7m");
-                for c in ansi_reverse.chars() {
-                    result_chars.push(c);
-                }
+        let mut is_escape = false;
+        let mut escape_code = String::new();
+        for x in 0..max_char {
+            if src_chars.len() <= x {
+                src_chars.push(space);
             }
-        } else {
-            result_chars.push(dest_chars[x]);
-        }
-    }
 
-    let mut data_str: String = result_chars.iter().collect();
-    data_str.push_str("\x1b[0m");
-    data_str
+            if dest_chars.len() <= x {
+                dest_chars.push(space);
+            }
+
+            let src_char = src_chars[x];
+            let dest_char = dest_chars[x];
+
+            if src_char != dest_char {
+                let ansi_escape_sequence = '\x1b';
+                let char_data = if dest_char == space {
+                    ' '
+                } else {
+                    dest_chars[x]
+                };
+
+                if char_data == ansi_escape_sequence {
+                    escape_code = String::new();
+                    escape_code.push(char_data);
+                    is_escape = true;
+                } else if is_escape {
+                    escape_code.push(char_data);
+                    if char_data == 'm' {
+                        is_escape = false;
+                    }
+                    for c in escape_code.chars() {
+                        result_chars.push(c);
+                    }
+                } else {
+                    let ansi_reverse = format!("\x1b[7m{char_data}\x1b[7m");
+                    for c in ansi_reverse.chars() {
+                        result_chars.push(c);
+                    }
+                }
+            } else {
+                result_chars.push(dest_chars[x]);
+            }
+        }
+
+        let mut data_str: String = result_chars.iter().collect();
+        data_str.push_str("\x1b[0m");
+        data_str
+    }
 }
 
 ///
@@ -391,55 +391,55 @@ fn create_watch_diff_output_line_with_ansi_for_batch(
     ignore_spaceblock: bool,
 ) -> String {
     if text_eq_ignoring_space_blocks(src_line, dest_line, ignore_spaceblock) {
-        return dest_line.to_string();
-    }
-
-    let mut rendered = String::new();
-    let src_colored_spans = gen_ansi_all_set_str(src_line);
-    let dest_colored_spans = gen_ansi_all_set_str(dest_line);
-    let mut src_spans = vec![];
-    for mut src_span in src_colored_spans {
-        src_spans.append(&mut src_span);
-    }
-    let mut dest_spans = vec![];
-    for mut dest_span in dest_colored_spans {
-        dest_spans.append(&mut dest_span);
-    }
-
-    let space = '\u{00a0}'.to_string();
-    let max_span = cmp::max(src_spans.len(), dest_spans.len());
-    for x in 0..max_span {
-        if src_spans.len() <= x {
-            src_spans.push(Span::from(space.to_string()));
+        dest_line.to_string()
+    } else {
+        let mut rendered = String::new();
+        let src_colored_spans = gen_ansi_all_set_str(src_line);
+        let dest_colored_spans = gen_ansi_all_set_str(dest_line);
+        let mut src_spans = vec![];
+        for mut src_span in src_colored_spans {
+            src_spans.append(&mut src_span);
         }
-        if dest_spans.len() <= x {
-            dest_spans.push(Span::from(space.to_string()));
+        let mut dest_spans = vec![];
+        for mut dest_span in dest_colored_spans {
+            dest_spans.append(&mut dest_span);
         }
 
-        let mut span = dest_spans[x].clone();
-        if src_spans[x].content != dest_spans[x].content
-            || src_spans[x].style != dest_spans[x].style
-        {
-            if dest_spans[x].content == space {
-                span = Span::raw(" ");
-            } else {
-                span.style = span
-                    .style
-                    .patch(Style::default().add_modifier(Modifier::REVERSED));
+        let space = '\u{00a0}'.to_string();
+        let max_span = cmp::max(src_spans.len(), dest_spans.len());
+        for x in 0..max_span {
+            if src_spans.len() <= x {
+                src_spans.push(Span::from(space.to_string()));
             }
+            if dest_spans.len() <= x {
+                dest_spans.push(Span::from(space.to_string()));
+            }
+
+            let mut span = dest_spans[x].clone();
+            if src_spans[x].content != dest_spans[x].content
+                || src_spans[x].style != dest_spans[x].style
+            {
+                if dest_spans[x].content == space {
+                    span = Span::raw(" ");
+                } else {
+                    span.style = span
+                        .style
+                        .patch(Style::default().add_modifier(Modifier::REVERSED));
+                }
+            }
+
+            let ansi_style = ansi_span_to_style(&span.style);
+            let content = if span.content == space {
+                " ".to_string()
+            } else {
+                span.content.into_owned()
+            };
+            rendered.push_str(&ansi_style.paint(content).to_string());
         }
 
-        let ansi_style = ansi_span_to_style(&span.style);
-        let content = if span.content == space {
-            " ".to_string()
-        } else {
-            span.content.into_owned()
-        };
-        rendered.push_str(&ansi_style.paint(content).to_string());
+        rendered.push_str("\x1b[0m");
+        rendered
     }
-
-    rendered.push_str("\x1b[0m");
-    rendered
 }
 
 fn ansi_span_to_style(style: &Style) -> ansi_term::Style {

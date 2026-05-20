@@ -94,15 +94,15 @@ impl HeaderArea<'_> {
 
             interval,
 
-            command: "".to_string(),
-            timestamp: "".to_string(),
+            command: String::new(),
+            timestamp: String::new(),
             exec_status: true,
 
             data: vec![Line::from("")],
             ansi_color: false,
             line_number: false,
             reverse: false,
-            banner: "".to_string(),
+            banner: String::new(),
 
             active_area: ActiveArea::History,
 
@@ -112,8 +112,8 @@ impl HeaderArea<'_> {
             output_mode: OutputMode::Output,
 
             input_mode: InputMode::None,
-            input_prompt: "".to_string(),
-            input_text: "".to_string(),
+            input_prompt: String::new(),
+            input_text: String::new(),
             diff_mode_width: 0,
         }
     }
@@ -165,14 +165,12 @@ impl HeaderArea<'_> {
     }
 
     pub fn set_input_mode(&mut self, input_mode: InputMode) {
-        match self.input_mode {
-            InputMode::Filter => self.input_prompt = "/".to_string(),
-            InputMode::RegexFilter => self.input_prompt = "*".to_string(),
-
-            _ => self.input_prompt = " ".to_string(),
-        }
-
         self.input_mode = input_mode;
+        self.input_prompt = match self.input_mode {
+            InputMode::Filter => "/".to_string(),
+            InputMode::RegexFilter => "*".to_string(),
+            _ => " ".to_string(),
+        };
     }
 
     ///
@@ -395,6 +393,6 @@ fn format_with_multibyte_width(input: &str, target_width: usize) -> String {
     } else {
         // 残りの幅を計算し、スペースでパディングを追加
         let padding = " ".repeat(target_width - current_width);
-        format!("{}{}", input, padding)
+        [input, padding.as_str()].concat()
     }
 }
