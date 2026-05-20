@@ -116,7 +116,7 @@ fn gen_line_diff_rows<'a>(
     for op in diff_set.ops().iter() {
         if options.get_ignore_spaceblock()
             && op.old_range().len() == op.new_range().len()
-            && op.old_range().len() > 0
+            && !op.old_range().is_empty()
         {
             let old_slices = &diff_set.old_slices()[op.old_range()];
             let new_slices = &diff_set.new_slices()[op.new_range()];
@@ -524,10 +524,10 @@ fn gen_line_diff_row<'a>(
     };
 
     // create result_line and result_str
-    result_line_spans.push(Span::styled(format!("{line_header}"), tui_line_style));
+    result_line_spans.push(Span::styled(line_header.to_string(), tui_line_style));
     result_str_elements.push(
         str_line_style
-            .paint(format!("{line_header}").to_string())
+            .paint(line_header.to_string())
             .to_string(),
     );
     for (emphasized, value) in change.iter_strings_lossy() {
@@ -539,15 +539,12 @@ fn gen_line_diff_row<'a>(
         if is_word_highlight && emphasized {
             // word highlight
             // line push
-            result_line_spans.push(Span::styled(
-                format!("{line_data}"),
-                tui_line_highlight_style,
-            ));
+            result_line_spans.push(Span::styled(line_data.to_string(), tui_line_highlight_style));
 
             // str push
             result_str_elements.push(
                 str_line_highlight_style
-                    .paint(format!("{line_data}"))
+                    .paint(line_data.to_string())
                     .to_string(),
             );
         } else {
@@ -556,7 +553,7 @@ fn gen_line_diff_row<'a>(
                 ChangeTag::Equal => {
                     if options.get_color() {
                         result_line_spans = vec![Span::from(line_header)];
-                        let colored_data = ansi::bytes_to_text(format!("{line_data}").as_bytes());
+                        let colored_data = ansi::bytes_to_text(line_data.as_bytes());
 
                         for d in colored_data.lines {
                             for x in d.spans {
@@ -565,16 +562,16 @@ fn gen_line_diff_row<'a>(
                         }
                         result_str_elements.push(
                             str_line_style
-                                .paint(format!("{line_data}").to_string())
+                                .paint(line_data.to_string())
                                 .to_string(),
                         );
                     } else {
                         let color_strip_data = ansi::get_ansi_strip_str(&line_data);
                         result_line_spans
-                            .push(Span::styled(format!("{line_data}"), tui_line_style));
+                            .push(Span::styled(line_data.to_string(), tui_line_style));
                         result_str_elements.push(
                             str_line_style
-                                .paint(format!("{color_strip_data}").to_string())
+                                .paint(color_strip_data.to_string())
                                 .to_string(),
                         );
                     }
@@ -584,10 +581,10 @@ fn gen_line_diff_row<'a>(
                     let color_strip_data = ansi::get_ansi_strip_str(&line_data)
                         .trim_end_matches('\n')
                         .to_string();
-                    result_line_spans.push(Span::styled(format!("{line_data}"), tui_line_style));
+                    result_line_spans.push(Span::styled(line_data.to_string(), tui_line_style));
                     result_str_elements.push(
                         str_line_style
-                            .paint(format!("{color_strip_data}").to_string())
+                            .paint(color_strip_data.to_string())
                             .to_string(),
                     );
                 }
