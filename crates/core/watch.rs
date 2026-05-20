@@ -78,7 +78,7 @@ pub struct WatchArea<'a> {
 
 /// Watch Area Object Trait
 impl<'a> WatchArea<'a> {
-    ///
+    // Creates the watch pane state with empty render buffers.
     pub fn new() -> Self {
         //! new Self
         Self {
@@ -120,17 +120,17 @@ impl<'a> WatchArea<'a> {
         }
     }
 
-    ///
+    // Updates the drawing area assigned to the watch pane.
     pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
     }
 
-    ///
+    // Returns the current pane height in terminal rows.
     pub fn get_area_size(&mut self) -> i16 {
         self.area.height as i16
     }
 
-    ///
+    // Replaces the rendered output and refreshes wrapping and highlighting.
     pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         // update data
         self.data = data;
@@ -172,7 +172,7 @@ impl<'a> WatchArea<'a> {
         );
     }
 
-    ///
+    // Rebuilds wrapped and highlighted data after layout-related changes.
     pub fn update_wrap(&mut self) {
         // get maximum width
         self.width = 0;
@@ -211,22 +211,22 @@ impl<'a> WatchArea<'a> {
         );
     }
 
-    ///
+    // Enables or disables pane borders.
     pub fn set_border(&mut self, border: bool) {
         self.border = border;
     }
 
-    ///
+    // Enables or disables scrollbars for the watch pane.
     pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
         self.scroll_bar = scroll_bar;
     }
 
-    ///
+    // Hides the header-side border connection when the header is not shown.
     pub fn set_hide_header(&mut self, hide_header: bool) {
         self.hide_header = hide_header;
     }
 
-    ///
+    // Updates the active search keyword and refreshes matches.
     pub fn set_keyword(&mut self, keyword: String, is_regex: bool) {
         self.keyword = keyword;
         self.keyword_is_regex = is_regex;
@@ -270,7 +270,7 @@ impl<'a> WatchArea<'a> {
         );
     }
 
-    ///
+    // Clears the active search keyword and highlight state.
     pub fn reset_keyword(&mut self) {
         self.keyword = String::from("");
         self.keyword_is_regex = false;
@@ -287,7 +287,7 @@ impl<'a> WatchArea<'a> {
         );
     }
 
-    ///
+    // Selects the previous search hit and scrolls it into view.
     pub fn previous_keyword(&mut self) {
         // update keyword position
         self.keyword_position = get_keyword_positions(
@@ -326,7 +326,7 @@ impl<'a> WatchArea<'a> {
         );
     }
 
-    ///
+    // Selects the next search hit and scrolls it into view.
     pub fn next_keyword(&mut self) {
         // update keyword position
         self.keyword_position = get_keyword_positions(
@@ -372,17 +372,17 @@ impl<'a> WatchArea<'a> {
         );
     }
 
-    ///
+    // Toggles line wrapping for the watch pane.
     pub fn toggle_wrap_mode(&mut self) {
         self.is_line_wrap = !self.is_line_wrap;
     }
 
-    ///
+    // Sets line wrapping for the watch pane.
     pub fn set_wrap_mode(&mut self, wrap: bool) {
         self.is_line_wrap = wrap;
     }
 
-    ///
+    // Renders the watch pane and any active scrollbars.
     pub fn draw(&mut self, frame: &mut Frame) {
         let block_data = self.highlight_data.clone();
 
@@ -412,7 +412,7 @@ impl<'a> WatchArea<'a> {
             pane_block = Block::default()
         }
 
-        //
+        // Build the scrollable paragraph from the highlighted lines.
         let block = Paragraph::new(block_data)
             .style(Style::default())
             .block(pane_block)
@@ -480,12 +480,12 @@ impl<'a> WatchArea<'a> {
         width
     }
 
-    ///
+    // Scrolls the watch pane upward by the requested number of rows.
     pub fn scroll_up(&mut self, num: i16) {
         self.position = std::cmp::max(0, self.position - num);
     }
 
-    ///
+    // Scrolls the watch pane downward by the requested number of rows.
     pub fn scroll_down(&mut self, num: i16) {
         let mut height: u16 = self.area.height;
         if self.border && !self.hide_header {
@@ -497,7 +497,7 @@ impl<'a> WatchArea<'a> {
         }
     }
 
-    ///
+    // Scrolls horizontally to the right when wrapping is disabled.
     pub fn scroll_right(&mut self, num: i16) {
         let view_width = self.horizontal_view_width();
 
@@ -506,29 +506,29 @@ impl<'a> WatchArea<'a> {
         }
     }
 
-    ///
+    // Scrolls horizontally to the left.
     pub fn scroll_left(&mut self, num: i16) {
         self.horizontal_position = std::cmp::max(0, self.horizontal_position - num);
     }
 
-    ///
+    // Jumps to the leftmost horizontal position.
     pub fn scroll_horizontal_home(&mut self) {
         self.horizontal_position = 0
     }
 
-    ///
+    // Jumps to the rightmost visible horizontal position.
     pub fn scroll_horizontal_end(&mut self) {
         let view_width = self.horizontal_view_width();
 
         self.horizontal_position = std::cmp::max(0, self.width - view_width);
     }
 
-    ///
+    // Jumps to the top of the watch output.
     pub fn scroll_home(&mut self) {
         self.position = 0;
     }
 
-    ///
+    // Jumps to the bottom of the watch output.
     pub fn scroll_end(&mut self) {
         let mut height: i16 = self.area.height as i16;
         if self.border && !self.hide_header {
@@ -540,7 +540,7 @@ impl<'a> WatchArea<'a> {
         }
     }
 
-    ///
+    // Scrolls just enough to bring the target row into view.
     pub fn scroll_move(&mut self, position: i16) {
         let mut height: i16 = self.area.height as i16;
         if self.border && !self.hide_header {
@@ -559,7 +559,7 @@ impl<'a> WatchArea<'a> {
     }
 }
 
-///
+// Finds all keyword hit ranges in the rendered watch lines.
 fn get_keyword_positions(
     lines: &Vec<Line>,
     keyword: &str,
@@ -570,7 +570,7 @@ fn get_keyword_positions(
     // Ignore the number of characters at the beginning of the line specified by `ignore_head_count` when searching.
     let mut ignore_head_count = 0;
 
-    //
+    // Skip the rendered line-number prefix when searching.
     if is_line_number {
         let num_count = lines.len().to_string().len();
         ignore_head_count = num_count + 3; // ^<number>` | `
@@ -688,7 +688,7 @@ fn wrap_utf8_lines<'a>(lines: &Vec<Line>, width: usize) -> Vec<Line<'a>> {
     wrapped_lines
 }
 
-///
+// Applies keyword highlight styles to the matching spans.
 fn highlight_text(
     lines: Vec<Line>,
     positions: Vec<(usize, usize, usize)>,

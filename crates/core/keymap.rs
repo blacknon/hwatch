@@ -339,7 +339,7 @@ mod tests {
             }),
         };
 
-        assert_eq!(input.to_str(), "ctrl-unknown");
+        assert_eq!(input.format_key(), "ctrl-unknown");
     }
 
     #[test]

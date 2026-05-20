@@ -37,8 +37,7 @@ impl App<'_> {
         let mut src = dest;
 
         let support_only_diffline = self.diff_modes[self.diff_mode]
-            .lock()
-            .unwrap()
+            .borrow()
             .get_support_only_diffline();
 
         if previous_dst > 0 {
@@ -121,8 +120,7 @@ impl App<'_> {
             }
 
             let support_only_diffline: bool = self.diff_modes[self.diff_mode]
-                .lock()
-                .unwrap()
+                .borrow()
                 .get_support_only_diffline();
 
             let mut is_push = true;
@@ -283,8 +281,7 @@ impl App<'_> {
         }
 
         let support_only_diffline: bool = self.diff_modes[self.diff_mode]
-            .lock()
-            .unwrap()
+            .borrow()
             .get_support_only_diffline();
 
         let mut is_push = true;

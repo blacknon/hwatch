@@ -5,7 +5,6 @@
 // TODO: commandの表示を単色ではなく、Syntax highlightしたカラーリングに書き換える??(v0.3.9)
 // TODO: 幅調整系の数字をconstにする(生数字で雑計算だとわけわからん)
 
-use std::sync::{Arc, Mutex};
 use tui::{
     prelude::Line,
     style::{Color, Modifier, Style},
@@ -20,9 +19,10 @@ use crate::common::OutputMode;
 use crate::exec::CommandResult;
 use crate::{
     app::{ActiveArea, InputMode},
+    DiffModeRef,
     SharedInterval,
 };
-use hwatch_diffmode::{DiffMode, DiffModeOptions};
+use hwatch_diffmode::DiffModeOptions;
 
 //const
 // const POSITION_X_HELP_TEXT: usize = 47;
@@ -31,64 +31,64 @@ const WIDTH_TIMESTAMP: usize = 23; // "20XX-XX-XX XX:XX:XX.XXX".len() .. 19
 
 #[derive(Clone)]
 pub struct HeaderArea<'a> {
-    ///
+    // Screen region occupied by the header.
     pub area: tui::layout::Rect,
 
-    ///
+    // Shared watch interval state.
     interval: SharedInterval,
 
-    ///
+    // Displayed command string.
     command: String,
 
-    ///
+    // Timestamp of the current result.
     timestamp: String,
 
-    ///
+    // Exit status of the current result.
     exec_status: bool,
 
-    ///
+    // Render-ready header lines.
     data: Vec<Line<'a>>,
 
-    ///
+    // Whether line numbers are enabled.
     line_number: bool,
 
-    ///
+    // Whether output is rendered in reverse order.
     reverse: bool,
 
-    ///
+    // Whether ANSI color interpretation is enabled.
     ansi_color: bool,
 
-    ///
+    // Currently focused pane.
     active_area: ActiveArea,
 
-    ///
-    diff_mode: Arc<Mutex<Box<dyn DiffMode>>>,
+    // Active diff mode used for the header summary.
+    diff_mode: DiffModeRef,
 
-    ///
+    // Whether only changed lines are displayed.
     is_only_diffline: bool,
 
-    ///
+    // Optional banner message shown in the header.
     banner: String,
 
-    ///
+    // Selected output stream.
     output_mode: OutputMode,
 
-    ///
+    // Current input mode for the filter prompt.
     input_mode: InputMode,
 
-    ///
+    // Prompt prefix shown before filter text.
     input_prompt: String,
 
-    ///
+    // Current filter input text.
     pub input_text: String,
 
-    ///
+    // Reserved width for the diff mode label.
     diff_mode_width: usize,
 }
 
 /// Header Area Object Trait
 impl HeaderArea<'_> {
-    pub fn new(interval: SharedInterval, diffmode: Arc<Mutex<Box<dyn DiffMode>>>) -> Self {
+    pub fn new(interval: SharedInterval, diffmode: DiffModeRef) -> Self {
         Self {
             area: tui::layout::Rect::new(0, 0, 0, 0),
 
@@ -152,7 +152,7 @@ impl HeaderArea<'_> {
         self.exec_status = result.status;
     }
 
-    pub fn set_diff_mode(&mut self, diff_mode: Arc<Mutex<Box<dyn DiffMode>>>) {
+    pub fn set_diff_mode(&mut self, diff_mode: DiffModeRef) {
         self.diff_mode = diff_mode;
     }
 
@@ -173,7 +173,7 @@ impl HeaderArea<'_> {
         };
     }
 
-    ///
+    // Rebuilds both header lines from the current app state.
     pub fn update(&mut self) {
         // init data
         self.data = vec![];
@@ -182,8 +182,6 @@ impl HeaderArea<'_> {
         let width = self.area.width as usize;
 
         // Value for width calculation.
-        let command_width: usize;
-        let timestamp_width: usize;
         // WIDTH_TIMESTAMP ... timestamp width
         // WIDTH_TEXT_INTERVAL ... interval sec width
         // 2 ... space
@@ -192,13 +190,11 @@ impl HeaderArea<'_> {
         // 1 ... space
         let command_width_offset =
             WIDTH_TEXT_INTERVAL + (2 + 1 + self.banner.len() + 1 + WIDTH_TIMESTAMP);
-        if command_width_offset < width {
-            command_width = width - command_width_offset;
-            timestamp_width = WIDTH_TIMESTAMP;
+        let (command_width, timestamp_width) = if command_width_offset < width {
+            (width - command_width_offset, WIDTH_TIMESTAMP)
         } else {
-            command_width = 0;
-            timestamp_width = 0;
-        }
+            (0, 0)
+        };
 
         let interval = self.interval.read().unwrap();
         // Get the data to display at header.
@@ -257,16 +253,15 @@ impl HeaderArea<'_> {
         };
 
         // Set Diff mode value
-        let value_diff: String;
-        {
-            let mut diff_mode = self.diff_mode.lock().unwrap();
+        let value_diff = {
+            let mut diff_mode = self.diff_mode.borrow_mut();
             let mut options = DiffModeOptions::new();
             options.set_color(self.ansi_color);
             options.set_line_number(self.line_number);
             options.set_only_diffline(self.is_only_diffline);
             diff_mode.set_option(options);
-            value_diff = diff_mode.get_header_text();
-        }
+            diff_mode.get_header_text()
+        };
         let value_diff = format_with_multibyte_width(&value_diff, self.diff_mode_width);
 
         let second_line_fixed_width =
@@ -277,9 +272,7 @@ impl HeaderArea<'_> {
 
         let filter_keyword_width = width.saturating_sub(second_line_fixed_width);
         let filter_keyword = format_with_multibyte_width(&self.input_text, filter_keyword_width);
-        let filter_keyword_style: Style;
-
-        if self.input_text.is_empty() {
+        let filter_keyword_style = if self.input_text.is_empty() {
             match self.input_mode {
                 InputMode::Filter => self.input_prompt = "/".to_string(),
                 InputMode::RegexFilter => self.input_prompt = "*".to_string(),
@@ -287,12 +280,12 @@ impl HeaderArea<'_> {
                 _ => {}
             }
 
-            filter_keyword_style = Style::default().fg(Color::Gray);
+            Style::default().fg(Color::Gray)
         } else {
-            filter_keyword_style = Style::default()
+            Style::default()
                 .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD);
-        }
+                .add_modifier(Modifier::BOLD)
+        };
 
         // Set Color
         let command_color = match self.exec_status {
@@ -379,7 +372,7 @@ impl HeaderArea<'_> {
         ]));
     }
 
-    ///
+    // Draws the header area.
     pub fn draw(&mut self, frame: &mut Frame) {
         let block = Paragraph::new(self.data.clone());
         frame.render_widget(block, self.area);

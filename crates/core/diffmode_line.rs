@@ -398,59 +398,6 @@ fn gen_word_diff_rows_ignoring_spaceblocks<'a>(
     ]
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tui::style::Modifier;
-
-    #[test]
-    fn spaceblock_only_changes_become_equal_rows_when_enabled() {
-        let mut options = DiffModeOptions::new();
-        options.set_ignore_spaceblock(true);
-
-        let (_, rows) = gen_line_diff_rows("alpha   beta\n", "alpha  beta\n", false, &options);
-
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].diff_type, DifferenceType::Same);
-        assert_eq!(rows[0].batch_line, "alpha   beta");
-    }
-
-    #[test]
-    fn spaceblock_only_changes_are_hidden_in_only_diff_mode_when_enabled() {
-        let mut options = DiffModeOptions::new();
-        options.set_ignore_spaceblock(true);
-        options.set_only_diffline(true);
-
-        let (_, rows) = gen_line_diff_rows("alpha   beta\n", "alpha  beta\n", false, &options);
-
-        assert!(rows.is_empty());
-    }
-
-    #[test]
-    fn word_highlight_marks_non_space_changes_when_spaceblock_ignore_is_enabled() {
-        let mut options = DiffModeOptions::new();
-        options.set_ignore_spaceblock(true);
-
-        let (_, rows) = gen_line_diff_rows("alpha   gamma\n", "alpha beta\n", true, &options);
-
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].diff_type, DifferenceType::Rem);
-        assert_eq!(rows[1].diff_type, DifferenceType::Add);
-        assert_eq!(rows[0].watch_line.spans[1].content.as_ref(), "alpha");
-        assert_eq!(rows[0].watch_line.spans[2].content.as_ref(), " ");
-        assert_eq!(rows[0].watch_line.spans[3].content.as_ref(), "beta\n");
-        assert!(rows[0].watch_line.spans[3]
-            .style
-            .add_modifier
-            .contains(Modifier::REVERSED));
-        assert_eq!(rows[1].watch_line.spans[3].content.as_ref(), "gamma\n");
-        assert!(rows[1].watch_line.spans[3]
-            .style
-            .add_modifier
-            .contains(Modifier::REVERSED));
-    }
-}
-
 fn gen_line_diff_row<'a>(
     change: &InlineChange<[u8]>,
     is_word_highlight: bool,
@@ -460,66 +407,70 @@ fn gen_line_diff_row<'a>(
     let mut result_str_elements = vec![];
 
     // set variables related to output
-    let line_number: i32;
-    let line_header: &str;
-    let diff_type: DifferenceType;
-    let tui_line_style: Style;
-    let tui_line_highlight_style: Style;
-    let tui_line_header_style: Style;
-    let str_line_style: ansi_term::Style;
-    let str_line_highlight_style: ansi_term::Style;
-    let strip_ansi: bool;
-    match change.tag() {
+    let (
+        line_number,
+        line_header,
+        diff_type,
+        tui_line_style,
+        tui_line_highlight_style,
+        tui_line_header_style,
+        str_line_style,
+        str_line_highlight_style,
+        strip_ansi,
+    ) = match change.tag() {
         ChangeTag::Equal => {
             // If is_only_diffline is valid, it will not be output in the first place, so it will return here.
             if options.get_only_diffline() {
                 return None;
             }
 
-            line_number = change.old_index().unwrap() as i32;
-            line_header = "   ";
-            diff_type = DifferenceType::Same;
-            tui_line_style = Style::default();
-            tui_line_highlight_style = Style::default();
-            tui_line_header_style =
-                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_DEFAULT);
-            str_line_style = ansi_term::Style::new();
-            str_line_highlight_style = ansi_term::Style::new();
-            strip_ansi = false;
+            (
+                change.old_index().unwrap() as i32,
+                "   ",
+                DifferenceType::Same,
+                Style::default(),
+                Style::default(),
+                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_DEFAULT),
+                ansi_term::Style::new(),
+                ansi_term::Style::new(),
+                false,
+            )
         }
         ChangeTag::Delete => {
-            line_number = change.old_index().unwrap() as i32;
-            line_header = "-  ";
-            diff_type = DifferenceType::Rem;
-            tui_line_style = Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_REM);
-            tui_line_highlight_style = Style::default()
-                .fg(hwatch_diffmode::COLOR_WATCH_LINE_REM)
-                .reversed()
-                .bg(hwatch_diffmode::COLOR_WATCH_LINE_REVERSE_FG);
-            tui_line_header_style =
-                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_REM);
-            str_line_style = ansi_term::Style::new().fg(hwatch_diffmode::COLOR_BATCH_LINE_REM);
-            str_line_highlight_style = ansi_term::Style::new()
-                .fg(hwatch_diffmode::COLOR_BATCH_LINE_REVERSE_FG)
-                .on(hwatch_diffmode::COLOR_BATCH_LINE_REM);
-            strip_ansi = true;
+            (
+                change.old_index().unwrap() as i32,
+                "-  ",
+                DifferenceType::Rem,
+                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_REM),
+                Style::default()
+                    .fg(hwatch_diffmode::COLOR_WATCH_LINE_REM)
+                    .reversed()
+                    .bg(hwatch_diffmode::COLOR_WATCH_LINE_REVERSE_FG),
+                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_REM),
+                ansi_term::Style::new().fg(hwatch_diffmode::COLOR_BATCH_LINE_REM),
+                ansi_term::Style::new()
+                    .fg(hwatch_diffmode::COLOR_BATCH_LINE_REVERSE_FG)
+                    .on(hwatch_diffmode::COLOR_BATCH_LINE_REM),
+                true,
+            )
         }
         ChangeTag::Insert => {
-            line_number = change.new_index().unwrap() as i32;
-            line_header = "+  ";
-            diff_type = DifferenceType::Add;
-            tui_line_style = Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_ADD);
-            tui_line_highlight_style = Style::default()
-                .fg(hwatch_diffmode::COLOR_WATCH_LINE_ADD)
-                .reversed()
-                .bg(hwatch_diffmode::COLOR_WATCH_LINE_REVERSE_FG);
-            tui_line_header_style =
-                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_ADD);
-            str_line_style = ansi_term::Style::new().fg(hwatch_diffmode::COLOR_BATCH_LINE_ADD);
-            str_line_highlight_style = ansi_term::Style::new()
-                .fg(hwatch_diffmode::COLOR_BATCH_LINE_REVERSE_FG)
-                .on(hwatch_diffmode::COLOR_BATCH_LINE_ADD);
-            strip_ansi = true;
+            (
+                change.new_index().unwrap() as i32,
+                "+  ",
+                DifferenceType::Add,
+                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_ADD),
+                Style::default()
+                    .fg(hwatch_diffmode::COLOR_WATCH_LINE_ADD)
+                    .reversed()
+                    .bg(hwatch_diffmode::COLOR_WATCH_LINE_REVERSE_FG),
+                Style::default().fg(hwatch_diffmode::COLOR_WATCH_LINE_NUMBER_ADD),
+                ansi_term::Style::new().fg(hwatch_diffmode::COLOR_BATCH_LINE_ADD),
+                ansi_term::Style::new()
+                    .fg(hwatch_diffmode::COLOR_BATCH_LINE_REVERSE_FG)
+                    .on(hwatch_diffmode::COLOR_BATCH_LINE_ADD),
+                true,
+            )
         }
     };
 
@@ -605,4 +556,57 @@ fn gen_line_diff_row<'a>(
         line_number: Some((line_number + 1) as usize),
         diff_type,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tui::style::Modifier;
+
+    #[test]
+    fn spaceblock_only_changes_become_equal_rows_when_enabled() {
+        let mut options = DiffModeOptions::new();
+        options.set_ignore_spaceblock(true);
+
+        let (_, rows) = gen_line_diff_rows("alpha   beta\n", "alpha  beta\n", false, &options);
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].diff_type, DifferenceType::Same);
+        assert_eq!(rows[0].batch_line, "alpha   beta");
+    }
+
+    #[test]
+    fn spaceblock_only_changes_are_hidden_in_only_diff_mode_when_enabled() {
+        let mut options = DiffModeOptions::new();
+        options.set_ignore_spaceblock(true);
+        options.set_only_diffline(true);
+
+        let (_, rows) = gen_line_diff_rows("alpha   beta\n", "alpha  beta\n", false, &options);
+
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn word_highlight_marks_non_space_changes_when_spaceblock_ignore_is_enabled() {
+        let mut options = DiffModeOptions::new();
+        options.set_ignore_spaceblock(true);
+
+        let (_, rows) = gen_line_diff_rows("alpha   gamma\n", "alpha beta\n", true, &options);
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].diff_type, DifferenceType::Rem);
+        assert_eq!(rows[1].diff_type, DifferenceType::Add);
+        assert_eq!(rows[0].watch_line.spans[1].content.as_ref(), "alpha");
+        assert_eq!(rows[0].watch_line.spans[2].content.as_ref(), " ");
+        assert_eq!(rows[0].watch_line.spans[3].content.as_ref(), "beta\n");
+        assert!(rows[0].watch_line.spans[3]
+            .style
+            .add_modifier
+            .contains(Modifier::REVERSED));
+        assert_eq!(rows[1].watch_line.spans[3].content.as_ref(), "gamma\n");
+        assert!(rows[1].watch_line.spans[3]
+            .style
+            .add_modifier
+            .contains(Modifier::REVERSED));
+    }
 }

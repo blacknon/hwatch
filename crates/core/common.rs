@@ -15,7 +15,7 @@ use tui::style::Color;
 // local module
 use crate::exec::{CommandResult, CommandResultData};
 
-///
+// Selects which command stream the UI and batch output should display.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OutputMode {
     Output,
@@ -23,7 +23,7 @@ pub enum OutputMode {
     Stderr,
 }
 
-///
+// Returns the current local timestamp in the format used by history records.
 pub fn now_str() -> String {
     let date = Local::now();
     date.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
@@ -103,7 +103,7 @@ pub fn confirm_yes_default(prompt: &str) -> bool {
     }
 }
 
-///
+// Creates a centered rectangle sized by percentages of the parent area.
 pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)

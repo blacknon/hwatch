@@ -25,7 +25,6 @@ use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
 };
-use std::sync::{Arc, Mutex};
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -41,22 +40,22 @@ use crate::header::HeaderArea;
 use crate::help::HelpWindow;
 use crate::history::{HistoryArea, HistorySummary};
 use crate::hwatch_ansi::get_ansi_strip_str;
-use crate::hwatch_diffmode::DiffMode;
 use crate::keymap::{default_keymap, Keymap};
 use crate::output;
 use crate::watch::WatchArea;
 // local const
+use crate::DiffModeRef;
 use crate::SharedInterval;
 use crate::DEFAULT_TAB_SIZE;
 
-///
+// Identifies which pane currently has focus.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveArea {
     Watch,
     History,
 }
 
-///
+// Identifies which top-level popup or window is active.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveWindow {
     Normal,
@@ -66,7 +65,7 @@ pub enum ActiveWindow {
     Clear,
 }
 
-///
+// Identifies the current keyboard input mode.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InputMode {
     None,
@@ -108,58 +107,58 @@ impl ResultItems {
 
 /// Struct at watch view window.
 pub struct App<'a> {
-    ///
+    // Active key bindings.
     keymap: Keymap,
 
-    ///
+    // Currently focused pane.
     area: ActiveArea,
 
-    ///
+    // Currently active popup window.
     window: ActiveWindow,
 
-    ///
+    // Command executed after a change is detected.
     after_command: String,
 
-    ///
+    // Shell used to execute the after-command hook.
     after_command_shell_command: String,
 
-    ///
+    // Whether hook payloads are written to a temp file first.
     after_command_result_write_file: bool,
 
-    ///
+    // Maximum number of history entries to keep.
     limit: u32,
 
-    ///
+    // Whether ANSI color interpretation is enabled.
     ansi_color: bool,
 
-    ///
+    // Whether line numbers are enabled.
     line_number: bool,
 
-    ///
+    // Whether output order is reversed.
     reverse: bool,
 
-    ///
+    // Whether quit confirmation is bypassed.
     disable_exit_dialog: bool,
 
-    ///
+    // Whether to beep when output changes.
     is_beep: bool,
 
-    ///
+    // Remaining change count before exiting, if enabled.
     exit_on_change: Option<u32>,
 
-    ///
+    // Prevents the first observed result from counting as a change.
     exit_on_change_armed: bool,
 
-    ///
+    // Whether pane borders are enabled.
     is_border: bool,
 
-    ///
+    // Whether history summaries are visible.
     is_history_summary: bool,
 
-    ///
+    // Whether summary calculation is enabled at all.
     summary_enabled: bool,
 
-    ///
+    // Whether scrollbars are enabled.
     is_scroll_bar: bool,
 
     /// If text search filtering is enabled.
@@ -168,31 +167,31 @@ pub struct App<'a> {
     /// If regex search filtering is enabled.
     is_regex_filter: bool,
 
-    ///
+    // Whether the history pane is visible.
     show_history: bool,
 
-    ///
+    // Whether the header pane is visible.
     show_header: bool,
 
-    ///
+    // Current filter text.
     filtered_text: String,
 
-    ///
+    // Current input mode.
     input_mode: InputMode,
 
-    ///
+    // Selected output stream.
     output_mode: OutputMode,
 
-    //
+    // Selected diff mode index.
     diff_mode: usize,
 
-    ///
-    diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+    // Available diff mode implementations.
+    diff_modes: Vec<DiffModeRef>,
 
-    ///
+    // Whether only changed lines should be displayed.
     is_only_diffline: bool,
 
-    ///
+    // Whether whitespace-only block changes should be ignored.
     ignore_spaceblock: bool,
 
     /// result at output.
@@ -209,31 +208,31 @@ pub struct App<'a> {
     /// Use the same value as the key usize for results, results_stdout, and results_stderr, and use it as the key when switching outputs.
     results_stderr: HashMap<usize, ResultItems>,
 
-    ///
+    // Whether character-level history summaries are enabled.
     enable_summary_char: bool,
 
-    ///
+    // Shared watch interval state.
     interval: SharedInterval,
 
-    ///
+    // Tab width used during rendering.
     tab_size: u16,
 
-    ///
+    // Header pane state.
     header_area: HeaderArea<'a>,
 
-    ///
+    // History pane state.
     history_area: HistoryArea,
 
-    ///
+    // Watch pane state.
     watch_area: WatchArea<'a>,
 
-    ///
+    // Help popup state.
     help_window: HelpWindow<'a>,
 
     /// Enable mouse wheel support.
     mouse_events: bool,
 
-    ///
+    // Shared render helper for watch and batch-style views.
     printer: output::Printer,
 
     /// It is a flag value to confirm the done of the app.
@@ -243,26 +242,26 @@ pub struct App<'a> {
     /// logfile path.
     logfile: String,
 
-    ///
+    // Sends events back into the app loop.
     pub tx: Sender<AppEvent>,
 
-    ///
+    // Receives events from command execution and terminal input.
     pub rx: Receiver<AppEvent>,
 }
 
 /// Trail at watch view window.
 impl App<'_> {
-    ///
+    // Creates a new app state for interactive watch mode.
     pub fn new(
         tx: Sender<AppEvent>,
         rx: Receiver<AppEvent>,
         interval: SharedInterval,
-        diff_modes: Vec<Arc<Mutex<Box<dyn DiffMode>>>>,
+        diff_modes: Vec<DiffModeRef>,
         diff_mode_width: usize,
     ) -> Self {
         // Create Default DiffMode
         let diff_mode_counter = 0;
-        let mutex_diff_mode = Arc::clone(&diff_modes[diff_mode_counter]);
+        let diff_mode_ref = diff_modes[diff_mode_counter].clone();
 
         // method at create new view trail.
         Self {
@@ -311,7 +310,7 @@ impl App<'_> {
             tab_size: DEFAULT_TAB_SIZE,
 
             header_area: {
-                let mut header_area = HeaderArea::new(interval.clone(), mutex_diff_mode.clone());
+                let mut header_area = HeaderArea::new(interval.clone(), diff_mode_ref.clone());
                 header_area.set_diff_mode_width(diff_mode_width);
                 header_area
             },
@@ -322,7 +321,7 @@ impl App<'_> {
 
             mouse_events: false,
 
-            printer: output::Printer::new(mutex_diff_mode.clone()),
+            printer: output::Printer::new(diff_mode_ref.clone()),
 
             done: false,
             logfile: "".to_string(),
@@ -331,7 +330,7 @@ impl App<'_> {
         }
     }
 
-    ///
+    // Runs the interactive application loop.
     pub fn run<B: Backend + Write>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         // set history setting
         self.history_area
@@ -396,7 +395,7 @@ impl App<'_> {
                     update_draw = true;
                 }
 
-                //
+                // Applies mouse capture changes after the setting flips.
                 Ok(AppEvent::ChangeFlagMouseEvent) => {
                     if self.mouse_events {
                         execute!(terminal.backend_mut(), EnableMouseCapture)?;
@@ -417,28 +416,28 @@ impl App<'_> {
         }
     }
 
-    ///
+    // Replaces the active keymap and rebuilds help text from it.
     pub fn set_keymap(&mut self, keymap: Keymap) {
         self.keymap = keymap.clone();
         self.help_window = HelpWindow::new(self.keymap.clone());
     }
 
-    ///
+    // Sets the after-command hook.
     pub fn set_after_command(&mut self, command: String) {
         self.after_command = command;
     }
 
-    ///
+    // Sets the shell used for the after-command hook.
     pub fn set_after_command_shell_command(&mut self, shell_command: String) {
         self.after_command_shell_command = shell_command;
     }
 
-    ///
+    // Controls whether after-command data is written to a temp file.
     pub fn set_after_command_result_write_file(&mut self, write_file: bool) {
         self.after_command_result_write_file = write_file;
     }
 
-    ///
+    // Selects which output stream the UI should display.
     pub fn set_output_mode(&mut self, mode: OutputMode) {
         // header update
         self.output_mode = mode;
@@ -463,7 +462,7 @@ impl App<'_> {
         }
     }
 
-    ///
+    // Enables or disables ANSI color rendering.
     pub fn set_ansi_color(&mut self, ansi_color: bool) {
         self.ansi_color = ansi_color;
 
@@ -475,18 +474,18 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Enables or disables terminal beeps on changes.
     pub fn set_beep(&mut self, beep: bool) {
         self.is_beep = beep;
     }
 
-    ///
+    // Configures change-count based exit behavior.
     pub fn set_exit_on_change(&mut self, exit_on_change: Option<u32>) {
         self.exit_on_change = exit_on_change;
         self.exit_on_change_armed = false;
     }
 
-    ///
+    // Enables or disables pane borders.
     pub fn set_border(&mut self, border: bool) {
         self.is_border = border;
 
@@ -497,12 +496,12 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Sets the maximum history size.
     pub fn set_limit(&mut self, limit: u32) {
         self.limit = limit;
     }
 
-    ///
+    // Enables or disables history summary display.
     pub fn set_history_summary(&mut self, history_summary: bool) {
         self.is_history_summary = self.summary_enabled && history_summary;
 
@@ -512,7 +511,7 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Enables or disables summary calculation globally.
     pub fn set_summary_enabled(&mut self, summary_enabled: bool) {
         self.summary_enabled = summary_enabled;
         if !summary_enabled {
@@ -522,7 +521,7 @@ impl App<'_> {
         }
     }
 
-    ///
+    // Enables or disables pane scrollbars.
     pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
         self.is_scroll_bar = scroll_bar;
 
@@ -533,14 +532,14 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Updates the watch diff highlight colors.
     pub fn set_watch_diff_colors(&mut self, fg: Option<Color>, bg: Option<Color>) {
         self.printer.set_watch_diff_colors(fg, bg);
 
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Enables or disables line numbers.
     pub fn set_line_number(&mut self, line_number: bool) {
         self.line_number = line_number;
 
@@ -552,7 +551,7 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Enables or disables reverse output order.
     pub fn set_reverse(&mut self, reverse: bool) {
         self.reverse = reverse;
 
@@ -564,56 +563,56 @@ impl App<'_> {
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Sets the tab width used during rendering.
     pub fn set_tab_size(&mut self, tab_size: u16) {
         self.tab_size = tab_size;
         self.printer.set_tab_size(tab_size);
     }
 
-    ///
+    // Enables or disables character-level history summaries.
     pub fn set_enable_summary_char(&mut self, enable_summary_char: bool) {
         self.enable_summary_char = enable_summary_char;
     }
 
-    ///
+    // Enables or disables mouse support.
     pub fn set_mouse_events(&mut self, mouse_events: bool) {
         self.mouse_events = mouse_events;
         self.tx.send(AppEvent::ChangeFlagMouseEvent).unwrap();
     }
 
-    ///
+    // Enables or disables line wrapping in the watch pane.
     pub fn set_wrap_mode(&mut self, wrap: bool) {
         self.watch_area.set_wrap_mode(wrap);
 
         self.refresh_selected_watch_output();
     }
 
-    ///
+    // Loads existing results into the app state.
     pub fn add_results(&mut self, results: Vec<CommandResult>) {
         for result in results {
             self.create_result_items(result, false);
         }
     }
 
-    ///
+    // Increases the watch interval by 0.5 seconds.
     fn increase_interval(&mut self) {
         self.interval.write().unwrap().increase(0.5);
         self.header_area.update();
     }
 
-    ///
+    // Decreases the watch interval by 0.5 seconds.
     fn decrease_interval(&mut self) {
         self.interval.write().unwrap().decrease(0.5);
         self.header_area.update();
     }
 
-    ///
+    // Toggles paused execution state.
     fn toggle_pause(&mut self) {
         self.interval.write().unwrap().toggle_pause();
         self.header_area.update();
     }
 
-    ///
+    // Switches the active diff mode and refreshes derived UI state.
     pub fn set_diff_mode(&mut self, diff_mode: usize) {
         self.diff_mode = diff_mode;
 
@@ -634,7 +633,7 @@ impl App<'_> {
         }
     }
 
-    ///
+    // Enables or disables diff-only output.
     pub fn set_is_only_diffline(&mut self, is_only_diffline: bool) {
         self.is_only_diffline = is_only_diffline;
 
@@ -665,12 +664,12 @@ impl App<'_> {
         }
     }
 
-    ///
+    // Sets the log file path used for persisted output.
     pub fn set_logpath(&mut self, logpath: String) {
         self.logfile = logpath;
     }
 
-    ///
+    // Switches the current keyboard input mode and refreshes the header.
     fn set_input_mode(&mut self, input_mode: InputMode) {
         self.input_mode = input_mode;
         self.header_area.set_input_mode(self.input_mode);
@@ -695,7 +694,7 @@ mod tests {
     use crossbeam_channel::unbounded;
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
     use std::io::{self, Write};
-    use std::sync::RwLock;
+    use std::sync::{Arc, RwLock};
     use tui::{
         backend::{Backend, ClearType, TestBackend, WindowSize},
         buffer::Cell,
@@ -819,8 +818,10 @@ mod tests {
         }
     }
 
-    fn test_diff_modes() -> Vec<Arc<Mutex<Box<dyn DiffMode>>>> {
-        vec![Arc::new(Mutex::new(Box::new(DiffModeAtPlane::new())))]
+    fn test_diff_modes() -> Vec<DiffModeRef> {
+        vec![std::rc::Rc::new(std::cell::RefCell::new(Box::new(
+            DiffModeAtPlane::new(),
+        )))]
     }
 
     #[test]

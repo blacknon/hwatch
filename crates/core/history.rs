@@ -52,16 +52,16 @@ impl HistorySummary {
 }
 
 pub struct HistoryArea {
-    ///
+    // Drawing area assigned to the history pane.
     pub area: tui::layout::Rect,
 
-    ///
+    // Whether the history pane currently has focus.
     pub active: bool,
 
     /// View data
 
     /// History data.
-    ///
+    // History rows grouped for table rendering.
     data: Vec<Vec<History>>,
 
     /// State information including the selected position
@@ -85,7 +85,7 @@ pub struct HistoryArea {
 
 /// History Area Object Trait
 impl HistoryArea {
-    ///
+    // Creates the history pane state with the synthetic latest row.
     pub fn new() -> Self {
         //! new Self
         Self {
@@ -106,47 +106,47 @@ impl HistoryArea {
         }
     }
 
-    ///
+    // Enables or disables character-level diff summaries.
     pub fn set_enable_char_diff(&mut self, enable_char_diff: bool) {
         self.enable_char_diff = enable_char_diff;
     }
 
-    ///
+    // Updates the drawing area assigned to the history pane.
     pub fn set_area(&mut self, area: tui::layout::Rect) {
         self.area = area;
     }
 
-    ///
+    // Marks whether the history pane is the active pane.
     pub fn set_active(&mut self, active: bool) {
         self.active = active;
     }
 
-    ///
+    // Updates the status color shown on the synthetic latest row.
     pub fn set_latest_status(&mut self, latest_status: bool) {
         self.data[0][0].status = latest_status;
     }
 
-    ///
+    // Enables or disables pane borders.
     pub fn set_border(&mut self, border: bool) {
         self.border = border;
     }
 
-    ///
+    // Enables or disables the history scrollbar.
     pub fn set_scroll_bar(&mut self, scroll_bar: bool) {
         self.scroll_bar = scroll_bar;
     }
 
-    ///
+    // Enables or disables summary rows in the history table.
     pub fn set_summary(&mut self, summary: bool) {
         self.summary = summary;
     }
 
-    ///
+    // Hides the header-side border connection when the header is not shown.
     pub fn set_hide_header(&mut self, hide_header: bool) {
         self.hide_header = hide_header;
     }
 
-    ///
+    // Inserts a new history entry directly below the synthetic latest row.
     pub fn update(
         &mut self,
         timestamp: String,
@@ -169,7 +169,7 @@ impl HistoryArea {
         );
     }
 
-    ///
+    // Removes the history entry that points at the requested result index.
     pub fn delete(&mut self, index: usize) {
         // find index
         let mut i = 0;
@@ -188,7 +188,7 @@ impl HistoryArea {
         self.state.select(Some(0));
     }
 
-    ///
+    // Replaces the full history dataset and resets the selection.
     pub fn reset_history_data(&mut self, data: Vec<Vec<History>>) {
         // @TODO: output mode切り替えでも使えるようにするため、indexを受け取るようにする
         // update data
@@ -198,7 +198,7 @@ impl HistoryArea {
         self.state.select(Some(0));
     }
 
-    ///
+    // Renders the history table and current selection state.
     pub fn draw(&mut self, frame: &mut Frame) {
         // insert latest timestamp
         const LATEST_COLOR: Color = Color::Blue;
@@ -293,25 +293,24 @@ impl HistoryArea {
             false => base_selected_style.fg(Color::Gray),
         };
 
-        let pane_block: Block<'_>;
-        let history_width: u16;
-        if self.border {
-            history_width = crate::HISTORY_WIDTH + 1;
+        let (pane_block, history_width): (Block<'_>, u16) = if self.border {
             if self.hide_header {
-                pane_block = Block::default();
+                (Block::default(), crate::HISTORY_WIDTH + 1)
             } else {
-                pane_block = Block::default()
-                    .borders(Borders::TOP)
-                    .border_style(Style::default().fg(Color::DarkGray))
-                    .border_set(symbols::border::Set {
-                        top_left: symbols::line::NORMAL.horizontal_down,
-                        ..symbols::border::PLAIN
-                    });
+                (
+                    Block::default()
+                        .borders(Borders::TOP)
+                        .border_style(Style::default().fg(Color::DarkGray))
+                        .border_set(symbols::border::Set {
+                            top_left: symbols::line::NORMAL.horizontal_down,
+                            ..symbols::border::PLAIN
+                        }),
+                    crate::HISTORY_WIDTH + 1,
+                )
             }
         } else {
-            history_width = crate::HISTORY_WIDTH;
-            pane_block = Block::default()
-        }
+            (Block::default(), crate::HISTORY_WIDTH)
+        };
 
         let table = Table::new(rows, [Constraint::Length(history_width)])
             .block(pane_block)
@@ -323,7 +322,7 @@ impl HistoryArea {
         frame.render_stateful_widget(table, self.area, &mut self.state);
     }
 
-    ///
+    // Returns the number of rows currently tracked in history.
     pub fn get_history_size(&self) -> usize {
         self.data.len()
     }
@@ -339,7 +338,7 @@ impl HistoryArea {
         }
     }
 
-    ///
+    // Returns the currently selected result index.
     pub fn get_state_select(&self) -> usize {
         let i = match self.state.selected() {
             Some(i) => i,
@@ -353,7 +352,7 @@ impl HistoryArea {
         }
     }
 
-    ///
+    // Selects the history row associated with the requested result index.
     pub fn set_state_select(&mut self, index: usize) {
         // find index
         let mut i = 0;
@@ -367,7 +366,7 @@ impl HistoryArea {
         self.state.select(Some(i));
     }
 
-    ///
+    // Moves the selection toward newer entries.
     pub fn next(&mut self, num: usize) {
         let i = match self.state.selected() {
             Some(i) => i.saturating_sub(num),
@@ -376,7 +375,7 @@ impl HistoryArea {
         self.state.select(Some(i));
     }
 
-    ///
+    // Moves the selection toward older entries.
     pub fn previous(&mut self, num: usize) {
         let i = match self.state.selected() {
             Some(i) => {
@@ -391,7 +390,7 @@ impl HistoryArea {
         self.state.select(Some(i));
     }
 
-    ///
+    // Selects a history row based on a clicked table row.
     pub fn click_row(&mut self, row: u16) {
         let first_row = self.state.offset();
 
