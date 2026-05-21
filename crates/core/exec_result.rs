@@ -76,7 +76,7 @@ impl PartialEq for CommandResult {
 }
 
 impl CommandResult {
-    fn set_data(&self, data: Vec<u8>, data_type: OutputMode) -> Self {
+    fn set_data(mut self, data: Vec<u8>, data_type: OutputMode) -> Self {
         let u8_data = if self.is_compress {
             let mut encoder = GzEncoder::new(Vec::new(), flate2::Compression::default());
             encoder.write_all(&data).unwrap();
@@ -86,30 +86,23 @@ impl CommandResult {
         };
 
         match data_type {
-            OutputMode::Output => CommandResult {
-                output: u8_data,
-                ..self.clone()
-            },
-            OutputMode::Stdout => CommandResult {
-                stdout: u8_data,
-                ..self.clone()
-            },
-            OutputMode::Stderr => CommandResult {
-                stderr: u8_data,
-                ..self.clone()
-            },
+            OutputMode::Output => self.output = u8_data,
+            OutputMode::Stdout => self.stdout = u8_data,
+            OutputMode::Stderr => self.stderr = u8_data,
         }
+
+        self
     }
 
-    pub fn set_output(&self, data: Vec<u8>) -> Self {
+    pub fn set_output(self, data: Vec<u8>) -> Self {
         self.set_data(data, OutputMode::Output)
     }
 
-    pub fn set_stdout(&self, data: Vec<u8>) -> Self {
+    pub fn set_stdout(self, data: Vec<u8>) -> Self {
         self.set_data(data, OutputMode::Stdout)
     }
 
-    pub fn set_stderr(&self, data: Vec<u8>) -> Self {
+    pub fn set_stderr(self, data: Vec<u8>) -> Self {
         self.set_data(data, OutputMode::Stderr)
     }
 

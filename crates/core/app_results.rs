@@ -12,6 +12,44 @@ use similar::{ChangeTag, TextDiff};
 use std::collections::HashMap;
 use std::thread;
 
+struct DecodedCommandResult {
+    output: String,
+    stdout: String,
+    stderr: String,
+}
+
+impl DecodedCommandResult {
+    fn from_result(result: &CommandResult) -> Self {
+        Self {
+            output: result.get_output(),
+            stdout: result.get_stdout(),
+            stderr: result.get_stderr(),
+        }
+    }
+
+    fn selected_text(&self, output_mode: OutputMode) -> &str {
+        match output_mode {
+            OutputMode::Output => &self.output,
+            OutputMode::Stdout => &self.stdout,
+            OutputMode::Stderr => &self.stderr,
+        }
+    }
+}
+
+struct DecodedResultPair {
+    before: DecodedCommandResult,
+    after: DecodedCommandResult,
+}
+
+impl DecodedResultPair {
+    fn new(before: &CommandResult, after: &CommandResult) -> Self {
+        Self {
+            before: DecodedCommandResult::from_result(before),
+            after: DecodedCommandResult::from_result(after),
+        }
+    }
+}
+
 impl App<'_> {
     pub(super) fn set_output_data(&mut self, num: usize) {
         let results = match self.output_mode {
@@ -133,9 +171,9 @@ impl App<'_> {
                     (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
                         result.get_diff_only_data(self.ansi_color)
                     }
-                    (OutputMode::Output, _, _) => result.command_result.get_output(),
-                    (OutputMode::Stdout, _, _) => result.command_result.get_stdout(),
-                    (OutputMode::Stderr, _, _) => result.command_result.get_stderr(),
+                    (_, _, _) => DecodedCommandResult::from_result(&result.command_result)
+                        .selected_text(self.output_mode)
+                        .to_string(),
                 };
 
                 is_push = self.matches_filter_text(&result_text);
@@ -245,13 +283,9 @@ impl App<'_> {
 
         if !self.after_command.is_empty() && is_running_app {
             let after_command = self.after_command.clone();
-
-            let results = self.results.clone();
-            let latest_num = results.len() - 1;
-
+            let latest_num = get_results_latest_index(&self.results);
             let before_result: CommandResult = self.results[&latest_num].command_result.clone();
             let after_result = output_result_items.command_result.clone();
-
             let after_command_result_write_file = self.after_command_result_write_file;
             let shell_command = self.after_command_shell_command.clone();
 
@@ -294,15 +328,11 @@ impl App<'_> {
                 (OutputMode::Output | OutputMode::Stdout | OutputMode::Stderr, true, true) => {
                     self.results[&result_index].get_diff_only_data(self.ansi_color)
                 }
-                (OutputMode::Output, _, _) => {
-                    self.results[&result_index].command_result.get_output()
-                }
-                (OutputMode::Stdout, _, _) => {
-                    self.results[&result_index].command_result.get_stdout()
-                }
-                (OutputMode::Stderr, _, _) => {
-                    self.results[&result_index].command_result.get_stderr()
-                }
+                (_, _, _) => DecodedCommandResult::from_result(
+                    &self.results[&result_index].command_result,
+                )
+                .selected_text(self.output_mode)
+                .to_string(),
             };
 
             is_push = self.matches_filter_text(&result_text);
@@ -371,14 +401,13 @@ impl App<'_> {
         self.results.insert(result_index, output_result_items);
 
         let stdout_latest_index = get_results_latest_index(&self.results_stdout);
-        let before_result_stdout = &self.results_stdout[&stdout_latest_index]
-            .command_result
-            .get_stdout();
-        let result_stdout = &stdout_result_items.command_result.get_stdout();
+        let before_result_stdout =
+            DecodedCommandResult::from_result(&self.results_stdout[&stdout_latest_index].command_result);
+        let result_stdout = DecodedCommandResult::from_result(&stdout_result_items.command_result);
         let mut is_stdout_update = false;
         if !text_eq_ignoring_space_blocks(
-            before_result_stdout,
-            result_stdout,
+            &before_result_stdout.stdout,
+            &result_stdout.stdout,
             self.ignore_spaceblock,
         ) {
             is_stdout_update = true;
@@ -387,14 +416,13 @@ impl App<'_> {
         }
 
         let stderr_latest_index = get_results_latest_index(&self.results_stderr);
-        let before_result_stderr = &self.results_stderr[&stderr_latest_index]
-            .command_result
-            .get_stderr();
-        let result_stderr = &stderr_result_items.command_result.get_stderr();
+        let before_result_stderr =
+            DecodedCommandResult::from_result(&self.results_stderr[&stderr_latest_index].command_result);
+        let result_stderr = DecodedCommandResult::from_result(&stderr_result_items.command_result);
         let mut is_stderr_update = false;
         if !text_eq_ignoring_space_blocks(
-            before_result_stderr,
-            result_stderr,
+            &before_result_stderr.stderr,
+            &result_stderr.stderr,
             self.ignore_spaceblock,
         ) {
             is_stderr_update = true;
@@ -532,9 +560,13 @@ pub(super) fn gen_result_items(
     stdout_latest_result: &CommandResult,
     stderr_latest_result: &CommandResult,
 ) -> (ResultItems, ResultItems, ResultItems) {
+    let decoded_output = DecodedResultPair::new(output_latest_result, &result);
+    let decoded_stdout = DecodedResultPair::new(stdout_latest_result, &result);
+    let decoded_stderr = DecodedResultPair::new(stderr_latest_result, &result);
+
     let output_diff_only_data = gen_diff_only_data(
-        &output_latest_result.get_output(),
-        &result.get_output(),
+        &decoded_output.before.output,
+        &decoded_output.after.output,
         ignore_spaceblock,
     );
     let mut output_result_items = ResultItems {
@@ -544,16 +576,16 @@ pub(super) fn gen_result_items(
     };
     if summary_enabled {
         output_result_items.summary.calc(
-            &output_latest_result.get_output(),
-            &output_result_items.command_result.get_output(),
+            &decoded_output.before.output,
+            &decoded_output.after.output,
             enable_summary_char,
             ignore_spaceblock,
         );
     }
 
     let stdout_diff_only_data = gen_diff_only_data(
-        &stdout_latest_result.get_stdout(),
-        &result.get_stdout(),
+        &decoded_stdout.before.stdout,
+        &decoded_stdout.after.stdout,
         ignore_spaceblock,
     );
     let mut stdout_result_items = ResultItems {
@@ -563,16 +595,16 @@ pub(super) fn gen_result_items(
     };
     if summary_enabled {
         stdout_result_items.summary.calc(
-            &stdout_latest_result.get_stdout(),
-            &stdout_result_items.command_result.get_stdout(),
+            &decoded_stdout.before.stdout,
+            &decoded_stdout.after.stdout,
             enable_summary_char,
             ignore_spaceblock,
         );
     }
 
     let stderr_diff_only_data = gen_diff_only_data(
-        &stderr_latest_result.get_stderr(),
-        &result.get_stderr(),
+        &decoded_stderr.before.stderr,
+        &decoded_stderr.after.stderr,
         ignore_spaceblock,
     );
     let mut stderr_result_items = ResultItems {
@@ -582,8 +614,8 @@ pub(super) fn gen_result_items(
     };
     if summary_enabled {
         stderr_result_items.summary.calc(
-            &stderr_latest_result.get_stderr(),
-            &stderr_result_items.command_result.get_stderr(),
+            &decoded_stderr.before.stderr,
+            &decoded_stderr.after.stderr,
             enable_summary_char,
             ignore_spaceblock,
         );
@@ -601,21 +633,23 @@ pub(super) fn command_results_equivalent(
     after: &CommandResult,
     ignore_spaceblock: bool,
 ) -> bool {
+    let decoded = DecodedResultPair::new(before, after);
+
     before.command == after.command
         && before.status == after.status
         && text_eq_ignoring_space_blocks(
-            &before.get_output(),
-            &after.get_output(),
+            &decoded.before.output,
+            &decoded.after.output,
             ignore_spaceblock,
         )
         && text_eq_ignoring_space_blocks(
-            &before.get_stdout(),
-            &after.get_stdout(),
+            &decoded.before.stdout,
+            &decoded.after.stdout,
             ignore_spaceblock,
         )
         && text_eq_ignoring_space_blocks(
-            &before.get_stderr(),
-            &after.get_stderr(),
+            &decoded.before.stderr,
+            &decoded.after.stderr,
             ignore_spaceblock,
         )
 }

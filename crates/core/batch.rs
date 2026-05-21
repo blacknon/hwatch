@@ -14,6 +14,22 @@ use crate::DiffModeRef;
 
 use hwatch_diffmode::text_eq_ignoring_space_blocks;
 
+struct DecodedCommandResult {
+    output: String,
+    stdout: String,
+    stderr: String,
+}
+
+impl DecodedCommandResult {
+    fn from_result(result: &CommandResult) -> Self {
+        Self {
+            output: result.get_output(),
+            stdout: result.get_stdout(),
+            stderr: result.get_stderr(),
+        }
+    }
+}
+
 /// Struct at watch view window.
 pub struct Batch {
     // Command executed after a change is detected.
@@ -165,13 +181,9 @@ impl Batch {
 
         if !self.after_command.is_empty() {
             let after_command = self.after_command.clone();
-
-            let results = self.results.clone();
-            let latest_num = results.len() - 1;
-
-            let before_result = results[&latest_num].clone();
+            let latest_num = self.results.len() - 1;
+            let before_result = self.results[&latest_num].clone();
             let after_result = _result.clone();
-
             let after_command_result_write_file = self.after_command_result_write_file;
             let shell_command = self.after_command_shell_command.clone();
 
@@ -202,20 +214,23 @@ impl Batch {
     }
 
     fn should_print_for_output_mode(&self, before: &CommandResult, after: &CommandResult) -> bool {
+        let before = DecodedCommandResult::from_result(before);
+        let after = DecodedCommandResult::from_result(after);
+
         match self.output_mode {
             OutputMode::Output => !text_eq_ignoring_space_blocks(
-                &before.get_output(),
-                &after.get_output(),
+                &before.output,
+                &after.output,
                 self.ignore_spaceblock,
             ),
             OutputMode::Stdout => !text_eq_ignoring_space_blocks(
-                &before.get_stdout(),
-                &after.get_stdout(),
+                &before.stdout,
+                &after.stdout,
                 self.ignore_spaceblock,
             ),
             OutputMode::Stderr => !text_eq_ignoring_space_blocks(
-                &before.get_stderr(),
-                &after.get_stderr(),
+                &before.stderr,
+                &after.stderr,
                 self.ignore_spaceblock,
             ),
         }

@@ -29,9 +29,6 @@ pub struct WatchArea<'a> {
     /// Wrapped data.
     wrap_data: Vec<Line<'a>>,
 
-    /// highlighted data.
-    highlight_data: Vec<Line<'a>>,
-
     /// search keyword.
     keyword: String,
 
@@ -88,8 +85,6 @@ impl<'a> WatchArea<'a> {
 
             wrap_data: vec![Line::from("")],
 
-            highlight_data: vec![Line::from("")],
-
             keyword: String::from(""),
 
             keyword_is_regex: false,
@@ -134,46 +129,15 @@ impl<'a> WatchArea<'a> {
     pub fn update_output(&mut self, data: Vec<Line<'a>>) {
         // update data
         self.data = data;
-
-        // get maximum width
-        self.width = 0;
-        for line in &self.data {
-            let line_width = line.width();
-
-            self.width = std::cmp::max(self.width, line_width as i16);
-        }
-
-        // update wrap data
-        if self.is_line_wrap {
-            self.horizontal_position = 0;
-            self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
-        } else {
-            self.wrap_data = self.data.clone()
-        }
-
-        if !self.keyword.is_empty() {
-            // update keyword position
-            self.keyword_position = get_keyword_positions(
-                &self.wrap_data,
-                &self.keyword,
-                self.keyword_is_regex,
-                self.is_line_number,
-                self.is_line_diff_head,
-            );
-        }
-
-        // set highlight style
-        self.highlight_data = highlight_text(
-            self.wrap_data.clone(),
-            self.keyword_position.clone(),
-            self.selected_keyword,
-            KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
-        );
+        self.refresh_wrapped_data();
     }
 
     // Rebuilds wrapped and highlighted data after layout-related changes.
     pub fn update_wrap(&mut self) {
+        self.refresh_wrapped_data();
+    }
+
+    fn refresh_wrapped_data(&mut self) {
         // get maximum width
         self.width = 0;
         for line in &self.data {
@@ -190,25 +154,32 @@ impl<'a> WatchArea<'a> {
             self.wrap_data = self.data.clone()
         }
 
-        if !self.keyword.is_empty() {
-            // update keyword position
-            self.keyword_position = get_keyword_positions(
-                &self.wrap_data,
-                &self.keyword,
-                self.keyword_is_regex,
-                self.is_line_number,
-                self.is_line_diff_head,
-            );
+        self.refresh_keyword_positions();
+    }
+
+    fn refresh_keyword_positions(&mut self) {
+        if self.keyword.is_empty() {
+            self.keyword_position.clear();
+            return;
         }
 
-        // set highlight style
-        self.highlight_data = highlight_text(
+        self.keyword_position = get_keyword_positions(
+            &self.wrap_data,
+            &self.keyword,
+            self.keyword_is_regex,
+            self.is_line_number,
+            self.is_line_diff_head,
+        );
+    }
+
+    fn build_highlight_data(&self) -> Vec<Line<'a>> {
+        highlight_text(
             self.wrap_data.clone(),
             self.keyword_position.clone(),
             self.selected_keyword,
             KEYWORD_HIGHLIGHT_STYLE,
             SELECTED_KEYWORD_HIGHLIGHT_STYLE,
-        );
+        )
     }
 
     // Enables or disables pane borders.
@@ -236,38 +207,13 @@ impl<'a> WatchArea<'a> {
             self.selected_keyword = -1;
         }
 
-        // update wrap data
-        if self.is_line_wrap {
-            self.horizontal_position = 0;
-            self.wrap_data = wrap_utf8_lines(&self.data, self.area.width as usize);
-        } else {
-            self.wrap_data = self.data.clone()
-        }
+        self.refresh_wrapped_data();
 
-        if !self.keyword.is_empty() {
-            // update keyword position
-            self.keyword_position = get_keyword_positions(
-                &self.wrap_data,
-                &self.keyword,
-                self.keyword_is_regex,
-                self.is_line_number,
-                self.is_line_diff_head,
-            );
-            if !self.keyword_position.is_empty() {
-                self.next_keyword();
-            }
+        if !self.keyword_position.is_empty() {
+            self.next_keyword();
         } else {
             self.keyword_position = vec![];
         }
-
-        // set highlight style
-        self.highlight_data = highlight_text(
-            self.wrap_data.clone(),
-            self.keyword_position.clone(),
-            self.selected_keyword,
-            KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
-        );
     }
 
     // Clears the active search keyword and highlight state.
@@ -276,27 +222,11 @@ impl<'a> WatchArea<'a> {
         self.keyword_is_regex = false;
         self.keyword_position = vec![];
         self.selected_keyword = -1;
-
-        // set highlight style
-        self.highlight_data = highlight_text(
-            self.wrap_data.clone(),
-            self.keyword_position.clone(),
-            self.selected_keyword,
-            KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
-        );
     }
 
     // Selects the previous search hit and scrolls it into view.
     pub fn previous_keyword(&mut self) {
-        // update keyword position
-        self.keyword_position = get_keyword_positions(
-            &self.wrap_data,
-            &self.keyword,
-            self.keyword_is_regex,
-            self.is_line_number,
-            self.is_line_diff_head,
-        );
+        self.refresh_keyword_positions();
 
         if !self.keyword_position.is_empty() {
             if self.selected_keyword > 0 {
@@ -315,27 +245,11 @@ impl<'a> WatchArea<'a> {
             // scroll move
             self.scroll_move(position.0 as i16);
         }
-
-        // set highlight style
-        self.highlight_data = highlight_text(
-            self.wrap_data.clone(),
-            self.keyword_position.clone(),
-            self.selected_keyword,
-            KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
-        );
     }
 
     // Selects the next search hit and scrolls it into view.
     pub fn next_keyword(&mut self) {
-        // update keyword position
-        self.keyword_position = get_keyword_positions(
-            &self.wrap_data,
-            &self.keyword,
-            self.keyword_is_regex,
-            self.is_line_number,
-            self.is_line_diff_head,
-        );
+        self.refresh_keyword_positions();
 
         if !self.keyword_position.is_empty() {
             // get selected keyword position
@@ -361,15 +275,6 @@ impl<'a> WatchArea<'a> {
                 self.scroll_move(position.0 as i16);
             }
         }
-
-        // set highlight style
-        self.highlight_data = highlight_text(
-            self.wrap_data.clone(),
-            self.keyword_position.clone(),
-            self.selected_keyword,
-            KEYWORD_HIGHLIGHT_STYLE,
-            SELECTED_KEYWORD_HIGHLIGHT_STYLE,
-        );
     }
 
     // Toggles line wrapping for the watch pane.
@@ -384,7 +289,7 @@ impl<'a> WatchArea<'a> {
 
     // Renders the watch pane and any active scrollbars.
     pub fn draw(&mut self, frame: &mut Frame) {
-        let block_data = self.highlight_data.clone();
+        let block_data = self.build_highlight_data();
 
         // declare variables
         let pane_block: Block<'_>;
