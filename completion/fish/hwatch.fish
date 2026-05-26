@@ -9,7 +9,7 @@ complete -c hwatch -s d -l differences -d 'highlight changes between updates' -r
 complete -c hwatch -s o -l output -d 'Select command output.' -r -f -a "{output\t'',stdout\t'',stderr\t''}"
 complete -c hwatch -s K -l keymap -d 'Add keymap' -r
 complete -c hwatch -l completion -d 'Output shell completion script' -r -f -a "bash fish zsh"
-complete -c hwatch -s b -l batch -d 'output exection results to stdout'
+complete -c hwatch -s b -l batch -d 'output execution results to stdout'
 complete -c hwatch -s B -l beep -d 'beep if command has a change result'
 complete -c hwatch -s g -l chgexit -d 'exit when output changes. With no value, exits after the first change; with N, exits after N changes' -r
 complete -c hwatch -l border -d 'Surround each pane with a border frame'

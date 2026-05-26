@@ -34,8 +34,8 @@ _hwatch() {
 '*-K+[Add keymap]: : ' \
 '*--keymap=[Add keymap]: : ' \
 '--completion=[Output shell completion script]: :(bash fish zsh)' \
-'-b[output exection results to stdout]' \
-'--batch[output exection results to stdout]' \
+'-b[output execution results to stdout]' \
+'--batch[output execution results to stdout]' \
 '-B[beep if command has a change result]' \
 '--beep[beep if command has a change result]' \
 '*-g[exit when output changes. With no value, exits after the first change; with N, exits after N changes]:count: ' \

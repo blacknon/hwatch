@@ -210,12 +210,8 @@ Configuration
 -------
 
 If you always want to use some command-line options, you can set them in the
-`HWATCH` environment variable. For example, if you use `bash`, you can add
-the following to your `.bashrc`:
-
-```bash
-export HWATCH="--no-title --color --no-help-banner"
-```
+`HWATCH` environment variable. For example, if you use `bash`, add
+`export HWATCH="--no-title --color --no-help-banner"` to your `.bashrc`.
 
 `HWATCH_WATCH_FG` and `HWATCH_WATCH_BG` can also be used to customize watch diff
 highlight colors. Supported formats are named colors, `0-255`, `#RRGGBB`, and
@@ -345,7 +341,7 @@ Shift+O
 
 Shift+S
 
-:   Show summary infomation in history.
+:   Show summary information in history.
 
 \+
 

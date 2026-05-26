@@ -103,12 +103,29 @@ description = "Build the Debian packaging container image"
 [tasks.debian_source]
 depends = ["debian_image_build"]
 run = """
-  docker run --rm -it \
+  docker run --rm \
     -v "$PWD":/work \
     "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
-    hwatch-debian-build /work
+    hwatch-debian-build /work build-source
 """
 description = "Build the Debian source package in Docker"
+
+[tasks.debian_lintian]
+depends = ["debian_source"]
+run = """
+  docker run --rm \
+    -v "$PWD":/work \
+    "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
+    hwatch-debian-build /work lintian
+"""
+description = "Run lintian -EvIL +pedantic for the Debian source package in Docker"
+
+[tasks.debian_test]
+depends = ["debian_lintian"]
+run = """
+  printf '%s\n' "Debian packaging checks completed."
+"""
+description = "Build the Debian source package and run lintian checks in Docker"
 
 [tasks.debian_sign]
 depends = ["debian_source"]
@@ -149,7 +166,7 @@ run = """
   gpg --armor --export "$DEBSIGN_FINGERPRINT" > "$keytmp/public.asc"
 
   docker_args=(
-    --rm -it
+    --rm
     -v "$PWD":/work
     -v "$keytmp/public.asc:/tmp/public.asc:ro"
     -e "DPUT_TARGET=${DPUT_TARGET:-mentors}"

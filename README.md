@@ -289,7 +289,7 @@ Watch mode keybind(Default).
 | <kbd>F3</kbd>                                                                              | print output.                                               |
 | <kbd>Ctrl</kbd>+<kbd>N</kbd>                                                               | Forcus next keyword.                                        |
 | <kbd>Ctrl</kbd>+<kbd>P</kbd>                                                               | Forcus before keyword.                                      |
-| <kbd>Shift</kbd>+<kbd>S</kbd>                                                              | show summary infomation in history.                         |
+| <kbd>Shift</kbd>+<kbd>S</kbd>                                                              | show summary information in history.                        |
 | <kbd>+</kbd>                                                                               | increase interval.                                          |
 | <kbd>-</kbd>                                                                               | decrease interval.                                          |
 | <kbd>P</kbd>                                                                               | Pause/unpause execution.                                    |

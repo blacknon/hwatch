@@ -181,14 +181,9 @@ Customize Keymap.\[u3000]Keymap is specified in the format of
 .PP
 If you always want to use some command-line options, you can set them in
 the \f[B]HWATCH\f[R] environment variable.
-For example, if you use \f[B]bash\f[R], you can add the following to
-your \f[B].bashrc\f[R]:
-.IP
-.nf
-\f[C]
-export HWATCH=\[dq]--no-title --color --no-help-banner\[dq]
-\f[R]
-.fi
+For example, if you use \f[B]bash\f[R], add
+\f[B]export HWATCH=\[dq]--no-title --color --no-help-banner\[dq]\f[R]
+to your \f[B].bashrc\f[R].
 .PP
 \f[B]HWATCH_WATCH_FG\f[R] and \f[B]HWATCH_WATCH_BG\f[R] can also be used
 to customize watch diff highlight colors.
@@ -295,7 +290,7 @@ Shift+O
 Show only lines with differences(line/word diff mode only).
 .TP
 Shift+S
-Show summary infomation in history.
+Show summary information in history.
 .TP
 +
 Increase interval by 0.5 seconds.

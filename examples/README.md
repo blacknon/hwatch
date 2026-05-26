@@ -1,4 +1,8 @@
-NOTE
-===
+Examples
+========
 
-It is not actually an example because it is used for a github-job.
+This directory contains small hwatch-related example files.
+
+- `version.rs` prints the current package version.
+- `plugin_cdylib_sample/` contains a sample diffmode plugin implemented as a
+  `cdylib`.

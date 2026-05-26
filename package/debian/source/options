@@ -1,1 +1,2 @@
 tar-ignore=.DS_Store*
+tar-ignore=examples/plugin_cdylib_sample/target
