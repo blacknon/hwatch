@@ -1,4 +1,5 @@
 Version: 5
-Template: Github
-Owner: blacknon
-Project: hwatch
+Search-Mode: plain
+Pgp-Mode: auto
+Source: https://api.github.com/repos/blacknon/@PACKAGE@/releases?per_page=50
+Matching-Pattern: https://github.com/[^/]+/[^/]+/releases/download/(?:[\d\.]+)/@PACKAGE@-@ANY_VERSION@@ARCHIVE_EXT@
