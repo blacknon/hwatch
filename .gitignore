@@ -26,4 +26,5 @@ old_*
 # package build files
 out
 rpmbuild/*
+rpmbuild
 hwatch-build-deps-*

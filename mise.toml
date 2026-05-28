@@ -213,16 +213,44 @@ description = "Create the fixed Fedora source tarball from the matching git tag"
 
 [tasks.fedora_image_build]
 run = """
-  docker build -f package/fedora/Dockerfile -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" .
+  docker_args=()
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+  fi
+
+  docker build "${docker_args[@]}" \
+    -f package/fedora/Dockerfile \
+    -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    .
 """
 description = "Build the Fedora packaging container image"
 
 [tasks.fedora_srpm]
 depends = ["fedora_source_tarball", "fedora_image_build"]
 run = """
-  docker run --rm \
+  docker_args=(--rm)
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+  fi
+
+  docker run "${docker_args[@]}" \
     -v "$PWD":/work \
     "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     hwatch-fedora-build-srpm /work
 """
 description = "Build the Fedora SRPM in Docker"
+
+[tasks.fedora_test]
+depends = ["fedora_source_tarball", "fedora_image_build"]
+run = """
+  docker_args=(--rm)
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+  fi
+
+  docker run "${docker_args[@]}" \
+    -v "$PWD":/work \
+    "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    hwatch-fedora-build-srpm /work rpm-test
+"""
+description = "Build the Fedora package in Docker using generated BuildRequires"

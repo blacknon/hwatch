@@ -1,10 +1,12 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 License:        MIT
 Source0:        https://github.com/blacknon/hwatch/releases/download/%{version}/%{name}-%{version}.tar.gz
+
+%bcond_without check
 
 BuildRequires:  bash-completion
 BuildRequires:  gcc
@@ -17,46 +19,15 @@ differences between runs, export logs, and optionally trigger follow-up
 commands when output changes.
 
 %generate_buildrequires
+%if %{with check}
+%cargo_generate_buildrequires -a -t
+%else
 %cargo_generate_buildrequires -a
+%endif
 
 %prep
 %autosetup -n %{name}-%{version}
 %cargo_prep
-# Temporary workaround for a broken Fedora-packaged compact_str 0.9.0 crate:
-# the source file includes ../README.md, but that file is missing from the
-# installed cargo registry copy.
-if [ ! -f /usr/share/cargo/registry/compact_str-0.9.0/README.md ] && [ -d /usr/share/cargo/registry/compact_str-0.9.0 ]; then
-cat > /usr/share/cargo/registry/compact_str-0.9.0/README.md <<'EOF'
-# compact_str
-
-Temporary placeholder README injected during hwatch package builds.
-The Fedora-packaged compact_str 0.9.0 crate references this file from
-src/lib.rs via include_str!("../README.md").
-EOF
-fi
-
-# Temporary workaround for a broken Fedora-packaged clap_derive 4.6.0 crate:
-# the source file includes ../README.md, but that file is missing from the
-# installed cargo registry copy.
-if [ ! -f /usr/share/cargo/registry/clap_derive-4.6.0/README.md ] && [ -d /usr/share/cargo/registry/clap_derive-4.6.0 ]; then
-cat > /usr/share/cargo/registry/clap_derive-4.6.0/README.md <<'EOF'
-# clap_derive
-
-Temporary placeholder README injected during hwatch package builds.
-The Fedora-packaged clap_derive 4.6.0 crate references this file from
-src/lib.rs via include_str!("../README.md").
-EOF
-fi
-
-# Fedora's offline cargo registry currently lacks some integration-test-only
-# crates used from tests/ and property tests (assert_cmd, predicates, and
-# proptest). Remove them from dev-dependencies for the RPM build because
-# %check only runs binary unit tests in this environment.
-sed -i \
-  -e '/^assert_cmd = /d' \
-  -e '/^predicates = /d' \
-  -e '/^proptest = /d' \
-  Cargo.toml
 
 %build
 %cargo_build -a
@@ -69,16 +40,11 @@ install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-funct
 %cargo_install -a
 
 %check
-# Fedora's offline cargo registry currently lacks some integration-test-only
-# crates used from tests/ and property tests, so run the binary target's unit
-# tests here and leave CLI/property-test coverage to upstream CI and local
-# development environments.
-/usr/bin/env CARGO_HOME=.cargo RUSTC_BOOTSTRAP=1 \
-  RUSTFLAGS="$RUSTFLAGS --cfg skip_proptest_tests --check-cfg=cfg(skip_proptest_tests)" \
-  /usr/bin/cargo test -j%{_smp_build_ncpus} -Z avoid-dev-deps --profile rpm \
-  --no-fail-fast --all-features --bins -- -- \
+%if %{with check}
+%cargo_test -a -- -- \
   --skip test_exec_command_with_force_color_stdout_is_tty \
   --skip test_exec_command_with_force_color_stdin_is_tty
+%endif
 
 %files
 %license LICENSE
@@ -90,6 +56,11 @@ install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-funct
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
+* Thu May 28 2026 blacknon <blacknon@orebibou.com> - 0.4.2-3
+- Align the package with the current Fedora Rust packaging workflow.
+- Generate test build requirements with cargo macros and use %cargo_test.
+- Remove local monkey-patching of packaged crates and dev-dependency edits.
+
 * Wed Apr 29 2026 blacknon <blacknon@orebibou.com> - 0.4.2-2
 - Use a fixed GitHub release asset for Source0 to avoid archive checksum drift.
 
