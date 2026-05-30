@@ -3,11 +3,10 @@ FROM fedora:latest
 RUN dnf install -y \
     bash \
     bash-completion \
+    cargo-rpm-macros \
     fedpkg \
-    gcc \
     git \
     rpm-build \
-    rust-packaging \
     tar \
     which \
  && dnf clean all

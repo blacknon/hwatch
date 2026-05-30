@@ -1,16 +1,15 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
-License:        MIT
+License:        MIT AND Apache-2.0 AND BSD-3-Clause AND ISC AND Zlib
 Source0:        https://github.com/blacknon/hwatch/releases/download/%{version}/%{name}-%{version}.tar.gz
 
 %bcond_without check
 
 BuildRequires:  bash-completion
-BuildRequires:  gcc
-BuildRequires:  rust-packaging
+BuildRequires:  cargo-rpm-macros
 
 %description
 hwatch is an interactive terminal application similar to watch.
@@ -31,23 +30,23 @@ commands when output changes.
 
 %build
 %cargo_build -a
+%cargo_license_summary -a
+%cargo_license -a > LICENSE.dependencies
 
 %install
 install -D -m 644 man/hwatch.1 %{buildroot}%{_mandir}/man1/%{name}.1
 install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}%{_datadir}/bash-completion/completions/%{name}
 install -D -m 644 completion/fish/%{name}.fish %{buildroot}%{_datadir}/fish/vendor_completions.d/%{name}.fish
 install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-functions/_%{name}
-%cargo_install -a
+install -D -m 0755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 
 %check
 %if %{with check}
-%cargo_test -a -- -- \
-  --skip test_exec_command_with_force_color_stdout_is_tty \
-  --skip test_exec_command_with_force_color_stdin_is_tty
+%cargo_test -a -- --skip test_exec_command_with_force_color_stdout_is_tty --skip test_exec_command_with_force_color_stdin_is_tty
 %endif
 
 %files
-%license LICENSE
+%license LICENSE LICENSE.dependencies
 %doc README.md
 %{_bindir}/%{name}
 %{_mandir}/man1/%{name}.1*
@@ -56,8 +55,16 @@ install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-funct
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
+* Sat May 30 2026 blacknon <blacknon@orebibou.com> - 0.4.2-4
+- Remove unnecessary gcc BuildRequires.
+- Replace rust-packaging with cargo-rpm-macros.
+- Use plain install instead of %%cargo_install.
+- Fix %%cargo_test argument passing for skipped tests.
+- Update the License field for statically linked Rust dependencies.
+
 * Thu May 28 2026 blacknon <blacknon@orebibou.com> - 0.4.2-3
 - Align the package with the current Fedora Rust packaging workflow.
+- Update the License field for statically linked Rust dependencies.
 - Generate test build requirements with cargo macros and use %cargo_test.
 - Remove local monkey-patching of packaged crates and dev-dependency edits.
 

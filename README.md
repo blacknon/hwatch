@@ -30,13 +30,13 @@ That records the result of command execution, can display it history and diffs, 
 
 #### Debian
 
-Official Debian packaging is in progress and not yet available from the Debian
-archive.
+`hwatch` has been accepted into Debian `unstable`, although availability may depend on mirror sync status.
+
+If you need it immediately, use the release `.deb` package from [GitHub Releases](https://github.com/blacknon/hwatch/releases).
 
 #### Fedora
 
-Official Fedora packaging is in progress and not yet available from Fedora
-repositories.
+Official Fedora packaging is in progress and not yet available from Fedora repositories.
 
 #### EPEL
 
@@ -50,25 +50,18 @@ apk add hwatch
 
 #### Packaging Status
 
-This repository includes packaging metadata for Debian-style `.deb` builds and
-RPM-based distributions, and GitHub Releases publishes prebuilt archives plus
-generated `.deb` and `.rpm` assets while official distro packaging is being
-worked on.
+This repository includes packaging metadata for Debian-style `.deb` builds and RPM-based distributions, and GitHub Releases publishes prebuilt archives plus generated `.deb` and `.rpm` assets while official distro packaging is being worked on.
 
 GitHub Actions validates the packaging flow in distro-specific containers:
 
 - Debian packaging is checked in a `debian:sid` container
 - RPM packaging is checked in a `fedora:latest` container
 
-These checks are intended to catch packaging regressions early while the project
-works toward official distribution packaging. Alpine packages are available
-today, and Debian/Fedora distribution repository submissions are still in
-progress.
+These checks are intended to catch packaging regressions early while the project works toward official distribution packaging. Alpine packages are available today, and Debian/Fedora distribution repository submissions are still in progress.
 
 ### Other Package Managers
 
-Community-maintained packages are available in several ecosystems, but they may
-lag behind the latest upstream release.
+Community-maintained packages are available in several ecosystems, but they may lag behind the latest upstream release.
 
 ### macOS
 
@@ -118,8 +111,7 @@ asdf global hwatch latest
 
 ### GitHub Releases
 
-If you want the latest upstream release immediately, use the assets published on
-[GitHub Releases](https://github.com/blacknon/hwatch/releases).
+If you want the latest upstream release immediately, use the assets published on [GitHub Releases](https://github.com/blacknon/hwatch/releases).
 
 Current release assets include:
 
@@ -429,13 +421,10 @@ When you check the json log, you can easily check it by using [this script](http
 
 #### Logfile Reuse
 
-When `--logfile` points to an existing file, `hwatch` tries to read and reuse
-its history. If the file is empty or unreadable, interactive sessions ask for
-confirmation before continuing.
+When `--logfile` points to an existing file, `hwatch` tries to read and reuse its history.
+If the file is empty or unreadable, interactive sessions ask for confirmation before continuing.
 
-For non-interactive runs such as CI, scripts, and batch mode, use
-`--force-logfile-overwrite` to skip that confirmation and continue with the
-existing path:
+For non-interactive runs such as CI, scripts, and batch mode, use `--force-logfile-overwrite` to skip that confirmation and continue with the existing path:
 
 ```bash
 hwatch --force-logfile-overwrite --logfile ./hwatch.jsonl -b -g 1 -n 0.1 sh ./script.sh
@@ -516,10 +505,8 @@ This allows you to add custom diff rendering for command output.
 <img src="./img/plugin.gif" />
 </p>
 
-The bundled `numeric-diff` plugin highlights numeric changes when the
-surrounding text stays the same. Built-in plugins use the core default gutter
-for line numbers and can optionally override gutter text or style when they
-need a custom prefix.
+The bundled `numeric-diff` plugin highlights numeric changes when the surrounding text stays the same.
+Built-in plugins use the core default gutter for line numbers and can optionally override gutter text or style when they need a custom prefix.
 
 Build the plugin:
 
