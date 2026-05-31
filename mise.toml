@@ -213,12 +213,12 @@ description = "Create the fixed Fedora source tarball from the matching git tag"
 
 [tasks.fedora_image_build]
 run = """
-  docker_args=()
+  set --
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
-    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
   fi
 
-  docker build "${docker_args[@]}" \
+  docker build "$@" \
     --build-arg "FEDORA_VERSION=${FEDORA_PACKAGING_RELEASE:-42}" \
     -f package/fedora/Dockerfile \
     -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
@@ -229,12 +229,12 @@ description = "Build the Fedora packaging container image"
 [tasks.fedora_srpm]
 depends = ["fedora_source_tarball", "fedora_image_build"]
 run = """
-  docker_args=(--rm)
+  set -- --rm
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
-    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
   fi
 
-  docker run "${docker_args[@]}" \
+  docker run "$@" \
     -v "$PWD":/work \
     "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     hwatch-fedora-build-srpm /work
@@ -244,12 +244,12 @@ description = "Build the Fedora SRPM in Docker"
 [tasks.fedora_test]
 depends = ["fedora_source_tarball", "fedora_image_build"]
 run = """
-  docker_args=(--rm)
+  set -- --rm
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
-    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
   fi
 
-  docker run "${docker_args[@]}" \
+  docker run "$@" \
     -v "$PWD":/work \
     "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     hwatch-fedora-build-srpm /work rpm-test
@@ -259,12 +259,12 @@ description = "Build the Fedora package in Docker using generated BuildRequires"
 [tasks.fedora_mock_test]
 depends = ["fedora_source_tarball", "fedora_image_build"]
 run = """
-  docker_args=(--rm --privileged)
+  set -- --rm --privileged
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
-    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
   fi
 
-  docker run "${docker_args[@]}" \
+  docker run "$@" \
     -v "$PWD":/work \
     "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     hwatch-fedora-build-with-mock /work "${FEDORA_MOCK_CHROOT:-fedora-rawhide-x86_64}"
