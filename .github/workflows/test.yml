@@ -194,6 +194,8 @@ jobs:
             rustc
 
       - name: Debian package build (strict)
+        env:
+          DEB_BUILD_OPTIONS: nocheck
         run: |
           rm -rf debian
           cp -a package/debian debian

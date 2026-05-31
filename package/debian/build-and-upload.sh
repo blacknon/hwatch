@@ -3,9 +3,10 @@ set -euo pipefail
 
 REPO_DIR="${1:-/work}"
 ACTION="${2:-build-source}"
-OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/out/debian-source}"
+OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/tmp/debian-source}"
 SIGN_SOURCE_PACKAGE="${SIGN_SOURCE_PACKAGE:-0}"
 DPUT_TARGET="${DPUT_TARGET:-}"
+TMP_DIR="${TMP_DIR:-$REPO_DIR/tmp}"
 
 if [[ ! -f "$REPO_DIR/package/debian/changelog" ]]; then
   echo "package/debian/changelog was not found under: $REPO_DIR" >&2
@@ -13,12 +14,21 @@ if [[ ! -f "$REPO_DIR/package/debian/changelog" ]]; then
 fi
 
 install_build_deps() {
+  local builddeps_dir
+
   apt-get update
-  mk-build-deps \
-    --install \
-    --remove \
-    --tool 'apt-get --no-install-recommends -y' \
-    "$REPO_DIR/package/debian/control"
+  builddeps_dir="$(mktemp -d "$TMP_DIR/mk-build-deps.XXXXXX")"
+
+  (
+    cd "$builddeps_dir"
+    mk-build-deps \
+      --install \
+      --remove \
+      --tool 'apt-get --no-install-recommends -y' \
+      "$REPO_DIR/package/debian/control"
+  )
+
+  rm -rf "$builddeps_dir"
 }
 
 latest_changes_file() {
@@ -63,7 +73,8 @@ build_source_package() {
   install_build_deps
 
   VERSION="$(dpkg-parsechangelog -l"$REPO_DIR/package/debian/changelog" -SVersion | sed 's/-[^-]*$//')"
-  WORKDIR="$(mktemp -d)"
+  mkdir -p "$TMP_DIR"
+  WORKDIR="$(mktemp -d "$TMP_DIR/debian-build.XXXXXX")"
   SRCDIR=""
 
   cleanup() {

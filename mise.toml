@@ -152,7 +152,7 @@ run = """
       gpgconf --launch gpg-agent &&
       gpg --import /tmp/public.asc &&
       gpg --import /tmp/secret.asc &&
-      debsign out/debian-source/hwatch_*_source.changes
+      debsign tmp/debian-source/hwatch_*_source.changes
     '
 """
 description = "Sign the Debian source package in Docker using a temporary exported key"
@@ -165,19 +165,18 @@ run = """
 
   gpg --armor --export "$DEBSIGN_FINGERPRINT" > "$keytmp/public.asc"
 
-  docker_args=(
-    --rm
-    -v "$PWD":/work
-    -v "$keytmp/public.asc:/tmp/public.asc:ro"
-    -e "DPUT_TARGET=${DPUT_TARGET:-mentors}"
+  set -- \
+    --rm \
+    -v "$PWD":/work \
+    -v "$keytmp/public.asc:/tmp/public.asc:ro" \
+    -e "DPUT_TARGET=${DPUT_TARGET:-mentors}" \
     -w /work
-  )
 
   if [ -f "$HOME/.dput.cf" ]; then
-    docker_args+=(-v "$HOME/.dput.cf:/root/.dput.cf:ro")
+    set -- "$@" -v "$HOME/.dput.cf:/root/.dput.cf:ro"
   fi
 
-  docker run "${docker_args[@]}" \
+  docker run "$@" \
     "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
     bash -lc '
       mkdir -p /root/.gnupg &&
@@ -185,7 +184,7 @@ run = """
       gpgconf --kill gpg-agent || true &&
       gpgconf --launch gpg-agent &&
       gpg --import /tmp/public.asc &&
-      dput "$DPUT_TARGET" out/debian-source/hwatch_*_source.changes
+      dput "$DPUT_TARGET" tmp/debian-source/hwatch_*_source.changes
     '
 """
 description = "Upload the signed Debian source package with dput"
