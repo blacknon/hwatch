@@ -219,6 +219,7 @@ run = """
   fi
 
   docker build "${docker_args[@]}" \
+    --build-arg "FEDORA_VERSION=${FEDORA_PACKAGING_RELEASE:-42}" \
     -f package/fedora/Dockerfile \
     -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     .

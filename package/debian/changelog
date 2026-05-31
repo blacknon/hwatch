@@ -1,3 +1,10 @@
+hwatch (0.4.2-2) unstable; urgency=medium
+
+  * Relax the ratatui dependency upper bound in Debian packaging so the
+    package can build with ratatui 0.30 from unstable. (Closes: #1138281)
+
+ -- blacknon <blacknon@orebibou.com>  Sat, 30 May 2026 18:40:00 +0900
+
 hwatch (0.4.2-1) unstable; urgency=low
 
   * Initial release. (Closes: #1135216)

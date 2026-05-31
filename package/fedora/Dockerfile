@@ -1,4 +1,5 @@
-FROM fedora:latest
+ARG FEDORA_VERSION=42
+FROM fedora:${FEDORA_VERSION}
 
 RUN dnf install -y \
     bash \
