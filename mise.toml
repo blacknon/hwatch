@@ -200,14 +200,19 @@ run = """
     exit 1
   fi
 
+  ref="HEAD"
+  if git rev-parse --verify "refs/tags/${version}" >/dev/null 2>&1; then
+    ref="refs/tags/${version}"
+  fi
+
   mkdir -p out/fedora
   git archive \
     --format=tar.gz \
     --prefix="hwatch-${version}/" \
     -o "out/fedora/hwatch-${version}.tar.gz" \
-    "refs/tags/${version}"
+    "$ref"
 
-  echo "Created out/fedora/hwatch-${version}.tar.gz"
+  echo "Created out/fedora/hwatch-${version}.tar.gz from $ref"
 """
 description = "Create the fixed Fedora source tarball from the matching git tag"
 
