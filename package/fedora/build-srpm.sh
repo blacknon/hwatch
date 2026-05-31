@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_DIR="${1:-/work}"
 MODE="${2:-srpm}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/out/fedora}"
-TOPDIR="${TOPDIR:-$REPO_DIR/rpmbuild}"
+TOPDIR="${TOPDIR:-$REPO_DIR/tmp/rpmbuild}"
 SPEC_FILE="${SPEC_FILE:-$REPO_DIR/package/fedora/hwatch.spec}"
 TARGET_CPU="${TARGET_CPU:-$(rpm --eval '%{_arch}')}"
 

@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_DIR="${1:-/work}"
 CHROOT="${2:-fedora-rawhide-x86_64}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/out/fedora/mock-${CHROOT}}"
-TOPDIR="${TOPDIR:-$REPO_DIR/rpmbuild-mock}"
+TOPDIR="${TOPDIR:-$REPO_DIR/tmp/rpmbuild-mock}"
 SPEC_FILE="${SPEC_FILE:-$REPO_DIR/package/fedora/hwatch.spec}"
 
 if [[ ! -f "$SPEC_FILE" ]]; then

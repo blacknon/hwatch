@@ -27,4 +27,6 @@ old_*
 out
 rpmbuild/*
 rpmbuild
+rpmbuild-mock/*
+rpmbuild-mock
 hwatch-build-deps-*
