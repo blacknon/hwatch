@@ -15,7 +15,8 @@ RUN dnf install -y \
 WORKDIR /work
 
 COPY package/fedora/build-srpm.sh /usr/local/bin/hwatch-fedora-build-srpm
+COPY package/fedora/build-with-mock.sh /usr/local/bin/hwatch-fedora-build-with-mock
 
-RUN chmod +x /usr/local/bin/hwatch-fedora-build-srpm
+RUN chmod +x /usr/local/bin/hwatch-fedora-build-srpm /usr/local/bin/hwatch-fedora-build-with-mock
 
 CMD ["/bin/bash"]

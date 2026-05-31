@@ -255,3 +255,18 @@ run = """
     hwatch-fedora-build-srpm /work rpm-test
 """
 description = "Build the Fedora package in Docker using generated BuildRequires"
+
+[tasks.fedora_mock_test]
+depends = ["fedora_source_tarball", "fedora_image_build"]
+run = """
+  docker_args=(--rm --privileged)
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    docker_args+=(--platform "$FEDORA_PACKAGING_PLATFORM")
+  fi
+
+  docker run "${docker_args[@]}" \
+    -v "$PWD":/work \
+    "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    hwatch-fedora-build-with-mock /work "${FEDORA_MOCK_CHROOT:-fedora-rawhide-x86_64}"
+"""
+description = "Rebuild the Fedora SRPM in mock using a Fedora chroot close to Copr"
