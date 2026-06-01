@@ -3,7 +3,33 @@ Version:        0.4.2
 Release:        5%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
-License:        MIT AND Apache-2.0 AND BSD-3-Clause AND ISC AND Zlib
+# Output of %%{cargo_license_summary}
+# (Apache-2.0 OR MIT) AND BSD-3-Clause
+# (MIT OR Apache-2.0) AND Unicode-DFS-2016
+# 0BSD OR MIT OR Apache-2.0
+# Apache-2.0
+# Apache-2.0 OR BSL-1.0
+# Apache-2.0 OR MIT
+# Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+# ISC
+# MIT
+# MIT OR Zlib OR Apache-2.0
+# Unlicense OR MIT
+# Zlib
+License:        %{shrink:
+                MIT AND
+                Apache-2.0 AND
+                ISC AND
+                BSD-3-Clause AND
+                Unicode-DFS-2016 AND
+                Zlib AND
+                (Apache-2.0 OR MIT) AND
+                (Apache-2.0 OR BSL-1.0) AND
+                (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND
+                (MIT OR Zlib OR Apache-2.0) AND
+                (Unlicense OR MIT) AND
+                (0BSD OR MIT OR Apache-2.0)
+                }
 Source0:        https://github.com/blacknon/hwatch/releases/download/%{version}/%{name}-%{version}.tar.gz
 
 %bcond_without check
@@ -57,6 +83,7 @@ install -D -m 0755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 %changelog
 * Sun May 31 2026 blacknon <blacknon@orebibou.com> - 0.4.2-5
 - Update the package to follow current Fedora Rust packaging guidance more closely.
+- Rewrite the License expression to preserve OR operators for bundled Rust dependencies.
 
 * Sat May 30 2026 blacknon <blacknon@orebibou.com> - 0.4.2-4
 - Remove unnecessary gcc BuildRequires.
