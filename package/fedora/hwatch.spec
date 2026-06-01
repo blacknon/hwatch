@@ -55,9 +55,6 @@ install -D -m 0755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
-* Mon Jun 01 2026 blacknon <blacknon@orebibou.com> - 0.4.2-6
-- Fix the %%check cargo test invocation so skipped tests are passed to the test binary.
-
 * Sun May 31 2026 blacknon <blacknon@orebibou.com> - 0.4.2-5
 - Update the package to follow current Fedora Rust packaging guidance more closely.
 
