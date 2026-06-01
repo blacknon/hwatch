@@ -1,6 +1,6 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        5%{?dist}
+Release:        6%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 # Output of %%{cargo_license_summary}
@@ -57,7 +57,9 @@ commands when output changes.
 %build
 %cargo_build -a
 %cargo_license_summary -a
-%cargo_license -a > LICENSE.dependencies
+# Keep a concrete dependency license manifest in the package, similar to helix.
+/usr/bin/cargo2rpm --path Cargo.toml license-breakdown --all-features > LICENSE.dependencies
+test -s LICENSE.dependencies
 
 %install
 install -D -m 644 man/hwatch.1 %{buildroot}%{_mandir}/man1/%{name}.1
@@ -81,9 +83,10 @@ install -D -m 0755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
-* Sun May 31 2026 blacknon <blacknon@orebibou.com> - 0.4.2-5
+* Mon Jun 01 2026 blacknon <blacknon@orebibou.com> - 0.4.2-6
 - Update the package to follow current Fedora Rust packaging guidance more closely.
 - Rewrite the License expression to preserve OR operators for bundled Rust dependencies.
+- Generate LICENSE.dependencies explicitly so it is shipped reliably in the package.
 
 * Sat May 30 2026 blacknon <blacknon@orebibou.com> - 0.4.2-4
 - Remove unnecessary gcc BuildRequires.
