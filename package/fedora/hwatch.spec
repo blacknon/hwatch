@@ -1,6 +1,6 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        6%{?dist}
+Release:        8%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 # Output of %%{cargo_license_summary}
@@ -32,7 +32,7 @@ License:        %{shrink:
                 }
 Source0:        https://github.com/blacknon/hwatch/releases/download/%{version}/%{name}-%{version}.tar.gz
 
-%bcond_without check
+%bcond check 1
 
 BuildRequires:  bash-completion
 BuildRequires:  cargo-rpm-macros
@@ -58,19 +58,21 @@ commands when output changes.
 %cargo_build -a
 %cargo_license_summary -a
 # Keep a concrete dependency license manifest in the package, similar to helix.
-/usr/bin/cargo2rpm --path Cargo.toml license-breakdown --all-features > LICENSE.dependencies
+cargo2rpm --path Cargo.toml license-breakdown --all-features > LICENSE.dependencies
 test -s LICENSE.dependencies
 
 %install
-install -D -m 644 man/hwatch.1 %{buildroot}%{_mandir}/man1/%{name}.1
+install -D -m 644 man/hwatch.1 -t %{buildroot}%{_mandir}/man1/
 install -D -m 644 completion/bash/%{name}-completion.bash %{buildroot}%{_datadir}/bash-completion/completions/%{name}
-install -D -m 644 completion/fish/%{name}.fish %{buildroot}%{_datadir}/fish/vendor_completions.d/%{name}.fish
-install -D -m 644 completion/zsh/_%{name} %{buildroot}%{_datadir}/zsh/site-functions/_%{name}
-install -D -m 0755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
+install -D -m 644 completion/fish/%{name}.fish -t %{buildroot}%{_datadir}/fish/vendor_completions.d/
+install -D -m 644 completion/zsh/_%{name} -t %{buildroot}%{_datadir}/zsh/site-functions/
+install -D -m 0755 target/release/%{name} -t %{buildroot}%{_bindir}/
 
 %check
 %if %{with check}
-/usr/bin/env CARGO_HOME=.cargo RUSTC_BOOTSTRAP=1 /usr/bin/cargo test -j%{_smp_build_ncpus} -Z avoid-dev-deps --profile rpm --no-fail-fast --all-features -- --skip test_exec_command_with_force_color_stdout_is_tty --skip test_exec_command_with_force_color_stdin_is_tty
+# Skip TTY-sensitive tests because the Fedora build environment does not provide
+# a real interactive terminal for them.
+CARGO_HOME=.cargo RUSTC_BOOTSTRAP=1 cargo test -j%{_smp_build_ncpus} -Z avoid-dev-deps --profile rpm --no-fail-fast --all-features -- --skip test_exec_command_with_force_color_stdout_is_tty --skip test_exec_command_with_force_color_stdin_is_tty
 %endif
 
 %files
@@ -83,6 +85,9 @@ install -D -m 0755 target/release/%{name} %{buildroot}%{_bindir}/%{name}
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
+* Fri Jun 05 2026 blacknon <blacknon@orebibou.com> - 0.4.2-8
+- Install bash completion under the expected command name.
+
 * Mon Jun 01 2026 blacknon <blacknon@orebibou.com> - 0.4.2-6
 - Update the package to follow current Fedora Rust packaging guidance more closely.
 - Rewrite the License expression to preserve OR operators for bundled Rust dependencies.
