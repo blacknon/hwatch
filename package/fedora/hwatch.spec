@@ -1,6 +1,6 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        8%{?dist}
+Release:        9%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 # Output of %%{cargo_license_summary}
