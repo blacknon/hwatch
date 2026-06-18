@@ -1,8 +1,6 @@
 Source: hwatch
 Section: utils
-Priority: optional
 Maintainer: blacknon <blacknon@orebibou.com>
-Rules-Requires-Root: no
 Build-Depends:
  bash-completion,
  debhelper-compat (= 13),
@@ -47,7 +45,7 @@ Build-Depends:
  librust-unicode-width-dev
 Standards-Version: 4.7.4
 Homepage: https://github.com/blacknon/hwatch
-Vcs-Browser: https://github.com/blacknon/hwatch
+Vcs-Browser: https://github.com/blacknon/hwatch/tree/master/package/debian
 Vcs-Git: https://github.com/blacknon/hwatch.git
 
 Package: hwatch

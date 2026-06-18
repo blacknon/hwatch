@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     cargo \
+    curl \
     debhelper \
     devscripts \
     dh-cargo \
@@ -18,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     git \
     gnupg2 \
+    gpgv \
     libstd-rust-dev \
     lintian \
     python3 \

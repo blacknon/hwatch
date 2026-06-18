@@ -1,0 +1,19 @@
+Description: Relax ratatui upper bound for Debian unstable
+Author: blacknon <blacknon@orebibou.com>
+Forwarded: not-needed
+Last-Update: 2026-05-30
+---
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -13,7 +13,7 @@ members = ["crates/ansi", "crates/diffmode"]
+ 
+ [workspace.dependencies]
+ ansi_term = "0.12.1"
+-ratatui = { version = ">=0.29, <0.30", default-features = false, features = [
++ratatui = { version = ">=0.29, <0.31", default-features = false, features = [
+     "crossterm",
+     "unstable-rendered-line-info",
+ ] }

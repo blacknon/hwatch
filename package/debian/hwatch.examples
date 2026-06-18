@@ -1,0 +1,5 @@
+examples/README.md
+examples/version.rs
+examples/plugin_cdylib_sample/Cargo.toml
+examples/plugin_cdylib_sample/README.md
+examples/plugin_cdylib_sample/src/lib.rs

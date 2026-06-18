@@ -2,9 +2,11 @@
 set -euo pipefail
 
 REPO_DIR="${1:-/work}"
+MODE="${2:-srpm}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/out/fedora}"
-TOPDIR="${TOPDIR:-$REPO_DIR/rpmbuild}"
+TOPDIR="${TOPDIR:-$REPO_DIR/tmp/rpmbuild}"
 SPEC_FILE="${SPEC_FILE:-$REPO_DIR/package/fedora/hwatch.spec}"
+TARGET_CPU="${TARGET_CPU:-$(rpm --eval '%{_arch}')}"
 
 if [[ ! -f "$SPEC_FILE" ]]; then
   echo "spec file was not found: $SPEC_FILE" >&2
@@ -39,7 +41,30 @@ mkdir -p "${BUILDDIRS[@]}"
 cp "$TARBALL" "$SOURCEDIR/"
 cp "$SPEC_FILE" "$SPECDIR/"
 
-rpmbuild -bs "$SPECDIR/$(basename "$SPEC_FILE")" --define "_topdir $TOPDIR" --define "_target_cpu x86_64"
+rpmbuild -bs "$SPECDIR/$(basename "$SPEC_FILE")" --define "_topdir $TOPDIR" --define "_target_cpu $TARGET_CPU"
+
+if [[ "$MODE" == "rpm-test" ]]; then
+  rpmbuild -bb "$SPECDIR/$(basename "$SPEC_FILE")" --define "_topdir $TOPDIR" --define "_target_cpu $TARGET_CPU" || true
+
+  BUILDREQ_RPM="$(find "$TOPDIR" -type f -name '*.buildreqs.nosrc.rpm' | sort | tail -n1)"
+  if [[ -z "$BUILDREQ_RPM" ]]; then
+    echo "failed to locate generated build requirements RPM under $TOPDIR" >&2
+    exit 1
+  fi
+
+  dnf install -y "$BUILDREQ_RPM"
+
+  rpmbuild -bb "$SPECDIR/$(basename "$SPEC_FILE")" --define "_topdir $TOPDIR" --define "_target_cpu $TARGET_CPU"
+
+  RPM_PATH="$(find "$TOPDIR/RPMS" -type f -name 'hwatch-*.rpm' | sort | tail -n1)"
+  if [[ -z "$RPM_PATH" ]]; then
+    echo "failed to locate the generated RPM under $TOPDIR/RPMS" >&2
+    exit 1
+  fi
+
+  echo "Fedora RPM build test succeeded: $RPM_PATH"
+  exit 0
+fi
 
 SRPM_PATH="$(find "$SRPMDIR" -maxdepth 1 -type f -name 'hwatch-*.src.rpm' | sort | tail -n1)"
 if [[ -z "$SRPM_PATH" ]]; then

@@ -103,12 +103,29 @@ description = "Build the Debian packaging container image"
 [tasks.debian_source]
 depends = ["debian_image_build"]
 run = """
-  docker run --rm -it \
+  docker run --rm \
     -v "$PWD":/work \
     "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
-    hwatch-debian-build /work
+    hwatch-debian-build /work build-source
 """
 description = "Build the Debian source package in Docker"
+
+[tasks.debian_lintian]
+depends = ["debian_source"]
+run = """
+  docker run --rm \
+    -v "$PWD":/work \
+    "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
+    hwatch-debian-build /work lintian
+"""
+description = "Run lintian -EvIL +pedantic for the Debian source package in Docker"
+
+[tasks.debian_test]
+depends = ["debian_lintian"]
+run = """
+  printf '%s\n' "Debian packaging checks completed."
+"""
+description = "Build the Debian source package and run lintian checks in Docker"
 
 [tasks.debian_sign]
 depends = ["debian_source"]
@@ -135,7 +152,7 @@ run = """
       gpgconf --launch gpg-agent &&
       gpg --import /tmp/public.asc &&
       gpg --import /tmp/secret.asc &&
-      debsign out/debian-source/hwatch_*_source.changes
+      debsign tmp/debian-source/hwatch_*_source.changes
     '
 """
 description = "Sign the Debian source package in Docker using a temporary exported key"
@@ -148,19 +165,18 @@ run = """
 
   gpg --armor --export "$DEBSIGN_FINGERPRINT" > "$keytmp/public.asc"
 
-  docker_args=(
-    --rm -it
-    -v "$PWD":/work
-    -v "$keytmp/public.asc:/tmp/public.asc:ro"
-    -e "DPUT_TARGET=${DPUT_TARGET:-mentors}"
+  set -- \
+    --rm \
+    -v "$PWD":/work \
+    -v "$keytmp/public.asc:/tmp/public.asc:ro" \
+    -e "DPUT_TARGET=${DPUT_TARGET:-mentors}" \
     -w /work
-  )
 
   if [ -f "$HOME/.dput.cf" ]; then
-    docker_args+=(-v "$HOME/.dput.cf:/root/.dput.cf:ro")
+    set -- "$@" -v "$HOME/.dput.cf:/root/.dput.cf:ro"
   fi
 
-  docker run "${docker_args[@]}" \
+  docker run "$@" \
     "${DEBIAN_PACKAGING_IMAGE:-hwatch-debian-upload}" \
     bash -lc '
       mkdir -p /root/.gnupg &&
@@ -168,7 +184,7 @@ run = """
       gpgconf --kill gpg-agent || true &&
       gpgconf --launch gpg-agent &&
       gpg --import /tmp/public.asc &&
-      dput "$DPUT_TARGET" out/debian-source/hwatch_*_source.changes
+      dput "$DPUT_TARGET" tmp/debian-source/hwatch_*_source.changes
     '
 """
 description = "Upload the signed Debian source package with dput"
@@ -183,29 +199,78 @@ run = """
     exit 1
   fi
 
+  ref="HEAD"
+  if git rev-parse --verify "refs/tags/${version}" >/dev/null 2>&1; then
+    ref="refs/tags/${version}"
+  fi
+
   mkdir -p out/fedora
   git archive \
     --format=tar.gz \
     --prefix="hwatch-${version}/" \
     -o "out/fedora/hwatch-${version}.tar.gz" \
-    "refs/tags/${version}"
+    "$ref"
 
-  echo "Created out/fedora/hwatch-${version}.tar.gz"
+  echo "Created out/fedora/hwatch-${version}.tar.gz from $ref"
 """
 description = "Create the fixed Fedora source tarball from the matching git tag"
 
 [tasks.fedora_image_build]
 run = """
-  docker build -f package/fedora/Dockerfile -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" .
+  set --
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
+  fi
+
+  docker build "$@" \
+    --build-arg "FEDORA_VERSION=${FEDORA_PACKAGING_RELEASE:-42}" \
+    -f package/fedora/Dockerfile \
+    -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    .
 """
 description = "Build the Fedora packaging container image"
 
 [tasks.fedora_srpm]
 depends = ["fedora_source_tarball", "fedora_image_build"]
 run = """
-  docker run --rm \
+  set -- --rm
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
+  fi
+
+  docker run "$@" \
     -v "$PWD":/work \
     "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     hwatch-fedora-build-srpm /work
 """
 description = "Build the Fedora SRPM in Docker"
+
+[tasks.fedora_test]
+depends = ["fedora_source_tarball", "fedora_image_build"]
+run = """
+  set -- --rm
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
+  fi
+
+  docker run "$@" \
+    -v "$PWD":/work \
+    "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    hwatch-fedora-build-srpm /work rpm-test
+"""
+description = "Build the Fedora package in Docker using generated BuildRequires"
+
+[tasks.fedora_mock_test]
+depends = ["fedora_source_tarball", "fedora_image_build"]
+run = """
+  set -- --rm --privileged
+  if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
+    set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
+  fi
+
+  docker run "$@" \
+    -v "$PWD":/work \
+    "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
+    hwatch-fedora-build-with-mock /work "${FEDORA_MOCK_CHROOT:-fedora-rawhide-x86_64}"
+"""
+description = "Rebuild the Fedora SRPM in mock using a Fedora chroot close to Copr"

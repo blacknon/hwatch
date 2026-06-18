@@ -1,4 +1,5 @@
-version=4
-opts=filenamemangle=s%.*/v?(\d[\d\.]*)\.tar\.gz%hwatch-$1.tar.gz% \
-  https://github.com/blacknon/hwatch/tags \
-  .*/v?(\d[\d\.]*)\.tar\.gz
+Version: 5
+Search-Mode: plain
+Pgp-Mode: auto
+Source: https://api.github.com/repos/blacknon/@PACKAGE@/releases?per_page=50
+Matching-Pattern: https://github.com/[^/]+/[^/]+/releases/download/(?:[\d\.]+)/@PACKAGE@-@ANY_VERSION@@ARCHIVE_EXT@
