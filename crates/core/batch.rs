@@ -11,7 +11,6 @@ use crate::event::AppEvent;
 use crate::exec::{exec_after_command, CommandResult};
 use crate::output;
 use crate::DiffModeRef;
-use crate::DiffModeRef;
 
 use hwatch_diffmode::text_eq_ignoring_space_blocks;
 
@@ -34,75 +33,56 @@ impl DecodedCommandResult {
 /// Struct at watch view window.
 pub struct Batch {
     // Command executed after a change is detected.
-    // Command executed after a change is detected.
     after_command: String,
 
-    // Shell used to execute the after-command hook.
     // Shell used to execute the after-command hook.
     after_command_shell_command: String,
 
     // Whether hook payloads are written to a temp file first.
-    // Whether hook payloads are written to a temp file first.
     after_command_result_write_file: bool,
 
-    // Whether to print line numbers in diff output.
     // Whether to print line numbers in diff output.
     line_number: bool,
 
     // Whether ANSI color output should be preserved.
-    // Whether ANSI color output should be preserved.
     is_color: bool,
 
-    // Whether to beep when output changes.
     // Whether to beep when output changes.
     is_beep: bool,
 
     // Remaining change count before exiting, if enabled.
-    // Remaining change count before exiting, if enabled.
     exit_on_change: Option<u32>,
 
-    // Prevents the first observed result from counting as a change.
     // Prevents the first observed result from counting as a change.
     exit_on_change_armed: bool,
 
     // Whether batch output should be reversed.
-    // Whether batch output should be reversed.
     is_reverse: bool,
 
-    // Accumulated command history for batch mode.
     // Accumulated command history for batch mode.
     results: HashMap<usize, CommandResult>,
 
     // Selected output stream to compare and print.
-    // Selected output stream to compare and print.
     output_mode: OutputMode,
 
-    // Selected diff mode index.
     // Selected diff mode index.
     diff_mode: usize,
 
     // Available diff mode implementations.
     diff_modes: Vec<DiffModeRef>,
-    // Available diff mode implementations.
-    diff_modes: Vec<DiffModeRef>,
 
-    // Whether only changed lines should be shown.
     // Whether only changed lines should be shown.
     is_only_diffline: bool,
 
     // Whether whitespace-only block changes should be ignored.
-    // Whether whitespace-only block changes should be ignored.
     ignore_spaceblock: bool,
 
-    // Optional logfile path for persisted history.
     // Optional logfile path for persisted history.
     logfile: String,
 
     // Shared rendering helper for batch output.
-    // Shared rendering helper for batch output.
     printer: output::Printer,
 
-    // Receives command execution events from the runner thread.
     // Receives command execution events from the runner thread.
     pub rx: Receiver<AppEvent>,
 }
@@ -110,11 +90,8 @@ pub struct Batch {
 impl Batch {
     // Creates batch-mode application state.
     pub fn new(rx: Receiver<AppEvent>, diff_modes: Vec<DiffModeRef>) -> Self {
-    // Creates batch-mode application state.
-    pub fn new(rx: Receiver<AppEvent>, diff_modes: Vec<DiffModeRef>) -> Self {
         // Create Default DiffMode
         let diff_mode_counter = 0;
-        let diff_mode_ref = diff_modes[diff_mode_counter].clone();
         let diff_mode_ref = diff_modes[diff_mode_counter].clone();
 
         Self {
@@ -134,7 +111,6 @@ impl Batch {
             is_only_diffline: false,
             ignore_spaceblock: false,
             logfile: "".to_string(),
-            printer: output::Printer::new(diff_mode_ref),
             printer: output::Printer::new(diff_mode_ref),
             rx,
         }
@@ -179,7 +155,6 @@ impl Batch {
         }
     }
 
-    // Processes a new command result and prints when the selected stream changes.
     // Processes a new command result and prints when the selected stream changes.
     fn update_result(&mut self, _result: CommandResult) -> bool {
         // check results size.
@@ -358,13 +333,11 @@ impl Batch {
     }
 
     // Enables or disables whitespace-block normalization in comparisons.
-    // Enables or disables whitespace-block normalization in comparisons.
     pub fn set_ignore_spaceblock(mut self, ignore_spaceblock: bool) -> Self {
         self.ignore_spaceblock = ignore_spaceblock;
         self
     }
 
-    // Sets the logfile path used for persisted history.
     // Sets the logfile path used for persisted history.
     pub fn set_logfile(mut self, logfile: String) -> Self {
         self.logfile = logfile;
@@ -390,9 +363,6 @@ impl Batch {
             if *remaining > 0 {
                 *remaining -= 1;
             }
-            *remaining == 0
-        } else {
-            false
             *remaining == 0
         } else {
             false
@@ -437,9 +407,6 @@ mod tests {
 
     fn new_batch(output_mode: OutputMode) -> Batch {
         let (_tx, rx) = unbounded();
-        let diff_modes: Vec<DiffModeRef> = vec![std::rc::Rc::new(std::cell::RefCell::new(
-            Box::new(DiffModeAtPlane::new()),
-        ))];
         let diff_modes: Vec<DiffModeRef> = vec![std::rc::Rc::new(std::cell::RefCell::new(
             Box::new(DiffModeAtPlane::new()),
         ))];
