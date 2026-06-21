@@ -7,6 +7,7 @@ OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/out/fedora}"
 TOPDIR="${TOPDIR:-$REPO_DIR/tmp/rpmbuild}"
 SPEC_FILE="${SPEC_FILE:-$REPO_DIR/package/fedora/hwatch.spec}"
 TARGET_CPU="${TARGET_CPU:-$(rpm --eval '%{_arch}')}"
+ALLOW_KNOWN_COMPACT_STR_FAILURE="${ALLOW_KNOWN_COMPACT_STR_FAILURE:-0}"
 
 if [[ ! -f "$SPEC_FILE" ]]; then
   echo "spec file was not found: $SPEC_FILE" >&2
@@ -54,7 +55,17 @@ if [[ "$MODE" == "rpm-test" ]]; then
 
   dnf install -y "$BUILDREQ_RPM"
 
-  rpmbuild -bb "$SPECDIR/$(basename "$SPEC_FILE")" --define "_topdir $TOPDIR" --define "_target_cpu $TARGET_CPU"
+  RPMBUILD_LOG="$TOPDIR/rpmbuild-rpm-test.log"
+  if ! rpmbuild -bb "$SPECDIR/$(basename "$SPEC_FILE")" --define "_topdir $TOPDIR" --define "_target_cpu $TARGET_CPU" 2>&1 | tee "$RPMBUILD_LOG"; then
+    if [[ "$ALLOW_KNOWN_COMPACT_STR_FAILURE" == "1" ]] \
+      && grep -Fq 'compact_str-0.9.0/src/../README.md' "$RPMBUILD_LOG" \
+      && grep -Fq 'could not compile `compact_str` (lib) due to 2 previous errors' "$RPMBUILD_LOG"; then
+      echo "Ignoring known Fedora packaged compact_str failure during rpmbuild test." >&2
+      exit 0
+    fi
+
+    exit 1
+  fi
 
   RPM_PATH="$(find "$TOPDIR/RPMS" -type f -name 'hwatch-*.rpm' | sort | tail -n1)"
   if [[ -z "$RPM_PATH" ]]; then

@@ -1,4 +1,4 @@
-ARG FEDORA_VERSION=42
+ARG FEDORA_VERSION=rawhide
 FROM fedora:${FEDORA_VERSION}
 
 RUN dnf install -y \

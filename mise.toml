@@ -199,31 +199,26 @@ run = """
     exit 1
   fi
 
-  ref="HEAD"
-  if git rev-parse --verify "refs/tags/${version}" >/dev/null 2>&1; then
-    ref="refs/tags/${version}"
-  fi
-
   mkdir -p out/fedora
-  git archive \
-    --format=tar.gz \
-    --prefix="hwatch-${version}/" \
-    -o "out/fedora/hwatch-${version}.tar.gz" \
-    "$ref"
 
-  echo "Created out/fedora/hwatch-${version}.tar.gz from $ref"
+  curl --fail --location --retry 3 \
+    --output "out/fedora/hwatch-${version}.tar.gz" \
+    "https://github.com/blacknon/hwatch/releases/download/${version}/hwatch-${version}.tar.gz"
+
+  sha256sum "out/fedora/hwatch-${version}.tar.gz"
 """
-description = "Create the fixed Fedora source tarball from the matching git tag"
+description = "Download the fixed upstream release tarball for Fedora packaging"
 
 [tasks.fedora_image_build]
 run = """
+  FEDORA_PACKAGING_PLATFORM=linux/amd64
   set --
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
     set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
   fi
 
   docker build "$@" \
-    --build-arg "FEDORA_VERSION=${FEDORA_PACKAGING_RELEASE:-42}" \
+    --build-arg "FEDORA_VERSION=${FEDORA_PACKAGING_RELEASE:-rawhide}" \
     -f package/fedora/Dockerfile \
     -t "${FEDORA_PACKAGING_IMAGE:-hwatch-fedora-packaging}" \
     .
@@ -233,6 +228,7 @@ description = "Build the Fedora packaging container image"
 [tasks.fedora_srpm]
 depends = ["fedora_source_tarball", "fedora_image_build"]
 run = """
+  FEDORA_PACKAGING_PLATFORM=linux/amd64
   set -- --rm
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
     set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
@@ -251,6 +247,9 @@ run = """
   set -- --rm
   if [ -n "${FEDORA_PACKAGING_PLATFORM:-}" ]; then
     set -- "$@" --platform "$FEDORA_PACKAGING_PLATFORM"
+  fi
+  if [ -n "${ALLOW_KNOWN_COMPACT_STR_FAILURE:-}" ]; then
+    set -- "$@" -e "ALLOW_KNOWN_COMPACT_STR_FAILURE=$ALLOW_KNOWN_COMPACT_STR_FAILURE"
   fi
 
   docker run "$@" \
