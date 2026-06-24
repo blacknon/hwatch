@@ -1,8 +1,8 @@
 Name:           hwatch
 Version:        0.4.2
-Release:        10%{?dist}
+Release:        11%{?dist}
 Summary:        Modern watch replacement with history and diff views
-URL:            https://github.com/blacknon/hwatch/
+URL:            https://github.com/blacknon/hwatch
 
 # Output of %%{cargo_license_summary -a}
 # (Apache-2.0 OR MIT) AND BSD-3-Clause
@@ -32,7 +32,7 @@ License:        %{shrink:
                 (0BSD OR MIT OR Apache-2.0)
                 }
 
-Source0:        https://github.com/blacknon/hwatch/releases/download/%{version}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 %bcond check 1
 
@@ -89,6 +89,9 @@ install -Dpm 0755 target/release/%{name} \
 %{zsh_completions_dir}/_%{name}
 
 %changelog
+* Wed Jun 24 2026 blacknon <blacknon@orebibou.com> - 0.4.2-11
+- Use the standard GitHub-generated archive for the upstream tag.
+
 * Sun Jun 21 2026 blacknon <blacknon@orebibou.com> - 0.4.2-10
 - Address Fedora package review feedback.
 
