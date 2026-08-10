@@ -1,3 +1,10 @@
+hwatch (0.4.2-3) unstable; urgency=medium
+
+  * Replace the unmaintained rust-ansi-term build dependency with
+    rust-nu-ansi-term.
+
+ -- blacknon <blacknon@orebibou.com>  Sat, 08 Aug 2026 12:00:00 +0900
+
 hwatch (0.4.2-2) unstable; urgency=medium
 
   * Relax the ratatui dependency upper bound in Debian packaging so the

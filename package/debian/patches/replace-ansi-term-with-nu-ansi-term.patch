@@ -1,0 +1,91 @@
+Description: Replace unmaintained ansi-term with nu-ansi-term
+Author: blacknon <blacknon@orebibou.com>
+Forwarded: not-needed
+Last-Update: 2026-08-08
+---
+ Cargo.toml                            | 2 +-
+ crates/core/diffmode_watch.rs         | 6 +++++-
+ crates/core/plugin_diffmode_render.rs | 8 ++++++--
+ crates/diffmode/src/lib.rs            | 6 +++---
+ 4 files changed, 15 insertions(+), 7 deletions(-)
+
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -15 +15 @@
+-ansi_term = "0.12.1"
++ansi_term = { package = "nu-ansi-term", version = "0.50.1" }
+--- a/crates/core/diffmode_watch.rs
++++ b/crates/core/diffmode_watch.rs
+@@ -11,6 +11,10 @@ use tui::{
+ 
+ use hwatch_ansi as ansi;
+ use hwatch_ansi::gen_ansi_all_set_str;
++
++mod ansi_term {
++    pub use ::ansi_term::{Color as Colour, Style};
++}
+ use hwatch_diffmode::{
+     render_diff_rows_as_batch, render_diff_rows_as_watch, text_eq_ignoring_space_blocks, DiffMode,
+     DiffModeExt, DiffModeOptions, DiffRow, DifferenceType,
+@@ -488,7 +492,7 @@ fn tui_color_to_ansi(color: Color) -> Option<ansi_term::Colour> {
+         Color::LightMagenta => Some(ansi_term::Colour::Fixed(13)),
+         Color::LightCyan => Some(ansi_term::Colour::Fixed(14)),
+         Color::White => Some(ansi_term::Colour::White),
+-        Color::Rgb(r, g, b) => Some(ansi_term::Colour::RGB(r, g, b)),
++        Color::Rgb(r, g, b) => Some(ansi_term::Colour::Rgb(r, g, b)),
+         Color::Indexed(index) => Some(ansi_term::Colour::Fixed(index)),
+         Color::Reset => None,
+     }
+--- a/crates/core/plugin_diffmode_render.rs
++++ b/crates/core/plugin_diffmode_render.rs
+@@ -16,6 +16,10 @@ use tui::{
+     text::Span,
+ };
+ 
++mod ansi_term {
++    pub use ::ansi_term::{Color as Colour, Style};
++}
++
+ pub(super) fn render_watch_line(
+     line: PluginLine,
+     use_color: bool,
+@@ -285,7 +289,7 @@ fn parse_ansi_colour_lossy(value: &str) -> Option<ansi_term::Colour> {
+         Color::LightMagenta => Some(ansi_term::Colour::Fixed(13)),
+         Color::LightCyan => Some(ansi_term::Colour::Fixed(14)),
+         Color::White => Some(ansi_term::Colour::White),
+-        Color::Rgb(r, g, b) => Some(ansi_term::Colour::RGB(r, g, b)),
++        Color::Rgb(r, g, b) => Some(ansi_term::Colour::Rgb(r, g, b)),
+         Color::Indexed(index) => Some(ansi_term::Colour::Fixed(index)),
+         Color::Reset => None,
+     }
+@@ -337,7 +341,7 @@ fn color_to_ansi_colour_lossy(color: Color) -> Option<ansi_term::Colour> {
+         Color::LightMagenta => Some(ansi_term::Colour::Fixed(13)),
+         Color::LightCyan => Some(ansi_term::Colour::Fixed(14)),
+         Color::White => Some(ansi_term::Colour::White),
+-        Color::Rgb(r, g, b) => Some(ansi_term::Colour::RGB(r, g, b)),
++        Color::Rgb(r, g, b) => Some(ansi_term::Colour::Rgb(r, g, b)),
+         Color::Indexed(index) => Some(ansi_term::Colour::Fixed(index)),
+         Color::Reset => None,
+     }
+--- a/crates/diffmode/src/lib.rs
++++ b/crates/diffmode/src/lib.rs
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by an MIT license
+ // that can be found in the LICENSE file.
+ 
+-use ansi_term::Colour;
++use ansi_term::Color as Colour;
+ use std::ffi::c_char;
+ use std::fmt::Write;
+ use std::slice;
+@@ -16,8 +16,8 @@ use ratatui as tui;
+ 
+ // const
+ pub const COLOR_BATCH_LINE_NUMBER_DEFAULT: Colour = Colour::Fixed(240);
+-pub const COLOR_BATCH_LINE_NUMBER_ADD: Colour = Colour::RGB(56, 119, 120);
+-pub const COLOR_BATCH_LINE_NUMBER_REM: Colour = Colour::RGB(118, 0, 0);
++pub const COLOR_BATCH_LINE_NUMBER_ADD: Colour = Colour::Rgb(56, 119, 120);
++pub const COLOR_BATCH_LINE_NUMBER_REM: Colour = Colour::Rgb(118, 0, 0);
+ pub const COLOR_BATCH_LINE_ADD: Colour = Colour::Green;
+ pub const COLOR_BATCH_LINE_REM: Colour = Colour::Red;
+ pub const COLOR_BATCH_LINE_REVERSE_FG: Colour = Colour::White;

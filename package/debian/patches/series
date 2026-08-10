@@ -1,1 +1,2 @@
 relax-ratatui-upper-bound.patch
+replace-ansi-term-with-nu-ansi-term.patch

@@ -10,7 +10,7 @@ Build-Depends:
  rustc,
  libstd-rust-dev,
  python3,
- librust-ansi-term-dev,
+ librust-nu-ansi-term-dev,
  librust-assert-cmd-dev,
  librust-chardetng-dev,
  librust-chrono-dev,
