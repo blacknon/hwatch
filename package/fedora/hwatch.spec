@@ -1,6 +1,6 @@
 Name:           hwatch
-Version:        0.4.2
-Release:        9%{?dist}
+Version:        0.4.3
+Release:        1%{?dist}
 Summary:        Modern watch replacement with history and diff views
 URL:            https://github.com/blacknon/hwatch/
 # Output of %%{cargo_license_summary}
@@ -85,6 +85,9 @@ CARGO_HOME=.cargo RUSTC_BOOTSTRAP=1 cargo test -j%{_smp_build_ncpus} -Z avoid-de
 %{_datadir}/zsh/site-functions/_%{name}
 
 %changelog
+* Sun Aug 30 2026 blacknon <blacknon@orebibou.com> - 0.4.3-1
+- New upstream release.
+
 * Fri Jun 05 2026 blacknon <blacknon@orebibou.com> - 0.4.2-8
 - Install bash completion under the expected command name.
 
